@@ -220,10 +220,22 @@ function preflight(repoRoot: string): PreFlightResult {
     );
   }
 
-  // Check MCP build
-  const mcpBuildPath = path.join(repoRoot, 'tools', 'mcp', 'dist', 'index-mcp.js');
-  if (!fs.existsSync(mcpBuildPath)) {
-    issues.push('MCP server belum di-build. Jalankan: npm run mcp:build');
+  // Check MCP build readiness.
+  // Build artifact (tools/mcp/dist/) is gitignored and may legitimately be
+  // absent on a fresh checkout / CI before mcp:build runs — do not fail on it.
+  // Preflight instead verifies the prerequisites for `npm run mcp:build`:
+  // the MCP server source and its installed dependencies.
+  const mcpSrcPath = path.join(repoRoot, 'tools', 'mcp', 'src', 'index-mcp.ts');
+  if (!fs.existsSync(mcpSrcPath)) {
+    issues.push('MCP server source tidak ada (tools/mcp/src/index-mcp.ts).');
+  } else {
+    const mcpNodeModules = path.join(repoRoot, 'tools', 'mcp', 'node_modules');
+    const rootNodeModules = path.join(repoRoot, 'node_modules');
+    if (!fs.existsSync(mcpNodeModules) && !fs.existsSync(rootNodeModules)) {
+      issues.push(
+        'Dependencies MCP server belum ter-install. Jalankan: npm run install:mcp-server',
+      );
+    }
   }
 
   // Check BASE_URL (read env or example)
