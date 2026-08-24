@@ -1,6 +1,6 @@
 # Auth Context Convention
 
-Dokumen ini mendefinisikan konvensi penyimpanan auth state per role untuk framework Playwright QA ini.
+Dokumen ini mendefinisikan konvensi penyimpanan auth state per role untuk framework QA Playwright Kit ini.
 
 > **Kelola kredensial (password, tambah/hapus role, encrypt):** lihat **[CREDENTIALS.md](CREDENTIALS.md)** — `npm run env:edit`.
 >

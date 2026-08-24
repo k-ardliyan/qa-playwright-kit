@@ -16,19 +16,19 @@
 
 ## Metadata
 
-| Field               | Wajib?      | Contoh nilai                                 | Keterangan                                                                |
-| ------------------- | ----------- | -------------------------------------------- | ------------------------------------------------------------------------- |
-| `Tags`              | ✅ Ya        | `#smoke #regression #ui`                     | Pisahkan dengan spasi. Dipakai filter test.                               |
-| `Prioritas`         | ✅ Ya        | `high` / `medium` / `low`                    | Prioritas bisnis default untuk semua skenario.                            |
-| `Auth state`        | ✅ Ya        | `unauthenticated` / `authenticated`          | Butuh login atau tidak.                                                   |
-| `Halaman awal`      | ✅ Ya        | `/login`                                     | Path URL halaman pembuka scenario.                                        |
-| `Module`            | ✅ **Wajib** | `invoice` / `auth` / `account`               | Modul aplikasi yang ditest. Dipakai untuk grouping laporan dan coverage.  |
+| Field               | Wajib?       | Contoh nilai                                 | Keterangan                                                                                                |
+| ------------------- | ------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `Tags`              | ✅ Ya         | `#smoke #regression #ui`                     | Pisahkan dengan spasi. Dipakai filter test.                                                               |
+| `Prioritas`         | ✅ Ya         | `high` / `medium` / `low`                    | Prioritas bisnis default untuk semua skenario.                                                            |
+| `Auth state`        | ✅ Ya         | `unauthenticated` / `authenticated`          | Butuh login atau tidak.                                                                                   |
+| `Halaman awal`      | ✅ Ya         | `/login`                                     | Path URL halaman pembuka scenario.                                                                        |
+| `Module`            | ✅ **Wajib**  | `invoice` / `auth` / `account`               | Modul aplikasi yang ditest. Dipakai untuk grouping laporan dan coverage.                                  |
 | `Feature`           | ⚪ Disarankan | `login` / `buat-invoice` / `approve-invoice` | Fitur spesifik dalam modul. Validator hanya memberi warning jika kosong (`metadata_feature_recommended`). |
-| `Role scope`        | ⚪ Opsional  | `super-admin, finance`                       | Role bisnis yang terlibat. Isi jika fitur multi-role.                     |
-| `Default role`      | ⚪ Opsional  | `finance`                                    | Role default untuk single-role authenticated.                             |
-| `Risk level`        | ⚪ Opsional  | `high` / `medium` / `low`                    | Dampak jika fitur ini gagal di produksi. Dipakai Healer untuk prioritasi. |
-| `Environment scope` | ⚪ Opsional  | `staging` / `production` / `all`             | Environment mana yang relevan untuk requirement ini.                      |
-| `Data scope`        | ⚪ Opsional  | `seed:invoice.pending`                       | Data khusus yang harus ada sebelum test bisa jalan.                       |
+| `Role scope`        | ⚪ Opsional   | `super-admin, finance`                       | Role bisnis yang terlibat. Isi jika fitur multi-role.                                                     |
+| `Default role`      | ⚪ Opsional   | `finance`                                    | Role default untuk single-role authenticated.                                                             |
+| `Risk level`        | ⚪ Opsional   | `high` / `medium` / `low`                    | Dampak jika fitur ini gagal di produksi. Dipakai Healer untuk prioritasi.                                 |
+| `Environment scope` | ⚪ Opsional   | `staging` / `production` / `all`             | Environment mana yang relevan untuk requirement ini.                                                      |
+| `Data scope`        | ⚪ Opsional   | `seed:invoice.pending`                       | Data khusus yang harus ada sebelum test bisa jalan.                                                       |
 
 **Contoh Metadata:**
 

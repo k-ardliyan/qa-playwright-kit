@@ -4,7 +4,7 @@ import { loadEnvironment } from '../../utils/env-loader';
 
 async function main() {
   console.log('\x1b[36m%s\x1b[0m', '\n==================================================');
-  console.log('\x1b[36m%s\x1b[0m', '🎭 Playwright QA Kit — Interactive Test Runner 🎭');
+  console.log('\x1b[36m%s\x1b[0m', '🎭 QA Playwright Kit — Interactive Test Runner 🎭');
   console.log('\x1b[36m%s\x1b[0m', '==================================================\n');
 
   const questions: PromptObject[] = [

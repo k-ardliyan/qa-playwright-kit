@@ -4,12 +4,12 @@ Folder ini untuk **file requirement fitur** yang dibaca Planner / pipeline Herme
 
 ## Penamaan penting
 
-| File                                   | Arti                                                                                                              |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| File                                   | Arti                                                                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `login.md`                             | **REAL** — requirement setup awal website kamu. **Tidak di-generate otomatis** — salin dari `_TEMPLATE.md` lalu isi. |
-| `sample-*.md`                          | **SAMPLE format** — latihan / referensi. Bukan target app kamu.                                                   |
-| `_TEMPLATE.md`                         | Template kosong untuk fitur baru.                                                                                 |
-| `_GOOD_EXAMPLE.md` / `_BAD_EXAMPLE.md` | Referensi gaya penulisan.                                                                                         |
+| `sample-*.md`                          | **SAMPLE format** — latihan / referensi. Bukan target app kamu.                                                      |
+| `_TEMPLATE.md`                         | Template kosong untuk fitur baru.                                                                                    |
+| `_GOOD_EXAMPLE.md` / `_BAD_EXAMPLE.md` | Referensi gaya penulisan.                                                                                            |
 
 Locator **berbeda per website**. Pipeline setup awal wajib:
 

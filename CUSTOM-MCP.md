@@ -18,7 +18,7 @@ Register and use these **three** servers. **Project source of truth:** [`.mcp.js
    - Launcher: `npx tsx tools/scripts/playwright-test-mcp-launch.ts` (loads `config/environments/local.env`, honors `PLAYWRIGHT_CONFIG`)
    - Requires `@playwright/test` >= 1.56
 
-3. **Custom QA MCP (`playwright-qa`)**:
+3. **Custom QA MCP (`qa-playwright-kit`)**:
    - Build: `npm run mcp:build`
    - Run: `node tools/mcp/dist/index-mcp.js` (bootstraps env at startup via `tools/mcp/src/utils/mcp-env-bootstrap.ts`)
 
@@ -239,17 +239,17 @@ Notable warn rules: `observable_result`, `precondition_recommended`, `manual_rea
 
 ## MCP pipeline environment overrides
 
-Optional variables in `config/environments/{APP_ENV}.env` (read by the playwright-qa MCP server process):
+Optional variables in `config/environments/{APP_ENV}.env` (read by the qa-playwright-kit MCP server process):
 
-| Variable                            | Default                                     | Purpose                                                                                                   |
-| ----------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `PLAYWRIGHT_TEST_ROOT`              | `tests`                                     | Root untuk bulk `validate_generated_tests` scan (single-file validation juga menerima path di bawah root ini). `list_artifacts` memakai `mcpWorkspace.testsDir` dari `config/qa-kit.workspace.json`, bukan env ini. |
-| `PLAYWRIGHT_CONFIG`                 | `playwright.config.ts`                      | Active Playwright config; validated by `health_check`; set by launcher/env and overridable from local env |
-| `PLAYWRIGHT_RESULTS_JSON`           | _(derived from config)_                     | Override JSON reporter path for Healer / `get_test_failures` fallback                                     |
-| `PLAYWRIGHT_ADAPTER_TEST_ROOT`      | `adapter-tests`                             | Adapter spec allowlist + traceability exempt prefix for `validate_generated_tests`                        |
-| `PLAYWRIGHT_ADAPTER_CONFIG`         | `playwright.config.ts`                      | Adapter config key for JSON results mapping when `PLAYWRIGHT_CONFIG` points at adapter                    |
-| `PLAYWRIGHT_ADAPTER_FIXTURE_IMPORT` | `tests/fixtures`                            | Required import path for specs under adapter test root                                                    |
-| `PLAYWRIGHT_ADAPTER_RESULTS_JSON`   | `artifacts/test-results/results.json`       | JSON reporter output when adapter config is active (unless `PLAYWRIGHT_RESULTS_JSON` set)                 |
+| Variable                            | Default                               | Purpose                                                                                                                                                                                                             |
+| ----------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLAYWRIGHT_TEST_ROOT`              | `tests`                               | Root untuk bulk `validate_generated_tests` scan (single-file validation juga menerima path di bawah root ini). `list_artifacts` memakai `mcpWorkspace.testsDir` dari `config/qa-kit.workspace.json`, bukan env ini. |
+| `PLAYWRIGHT_CONFIG`                 | `playwright.config.ts`                | Active Playwright config; validated by `health_check`; set by launcher/env and overridable from local env                                                                                                           |
+| `PLAYWRIGHT_RESULTS_JSON`           | _(derived from config)_               | Override JSON reporter path for Healer / `get_test_failures` fallback                                                                                                                                               |
+| `PLAYWRIGHT_ADAPTER_TEST_ROOT`      | `adapter-tests`                       | Adapter spec allowlist + traceability exempt prefix for `validate_generated_tests`                                                                                                                                  |
+| `PLAYWRIGHT_ADAPTER_CONFIG`         | `playwright.config.ts`                | Adapter config key for JSON results mapping when `PLAYWRIGHT_CONFIG` points at adapter                                                                                                                              |
+| `PLAYWRIGHT_ADAPTER_FIXTURE_IMPORT` | `tests/fixtures`                      | Required import path for specs under adapter test root                                                                                                                                                              |
+| `PLAYWRIGHT_ADAPTER_RESULTS_JSON`   | `artifacts/test-results/results.json` | JSON reporter output when adapter config is active (unless `PLAYWRIGHT_RESULTS_JSON` set)                                                                                                                           |
 
 **Config → JSON mapping** (when `PLAYWRIGHT_RESULTS_JSON` is unset): uses `PLAYWRIGHT_ADAPTER_CONFIG` and `PLAYWRIGHT_ADAPTER_RESULTS_JSON` defaults (core workspace values above).
 
@@ -719,6 +719,8 @@ Structure dump for xlsx under `tests/data/` or `artifacts/test-results/`: sheet 
   "sampleRows": [["a1", "b1", "c1"]],
   "message": "Structure dump only..."
 }
+```
+
 ---
 
 ## Tool: `compile_requirement`
@@ -1029,7 +1031,7 @@ Archives pipeline run artifacts (summary, dashboard, state, traces) to `artifact
 
 ## Agent pipeline checklist
 
-1. `health_check` (playwright-qa)
+1. `health_check` (qa-playwright-kit)
 2. `compile_requirement` — compile and validate requirement contract before planning
 3. `compile_test_plan` + `validate_plan` (Planner) — validate plan against requirement source hash
 4. Generate specs under `tests/` with `setTestMetadata()` + `validate_generated_tests`
@@ -1061,5 +1063,5 @@ When any MCP tool is added or changed:
 2. Update this `CUSTOM-MCP.md`.
 3. Update `.github/agents/*.agent.md` and `.github/AGENTS.md` if agents consume the tool.
 
-`CUSTOM-MCP.md` is the authoritative reference for **playwright-qa** tool contracts.
+`CUSTOM-MCP.md` is the authoritative reference for **qa-playwright-kit** tool contracts.
 

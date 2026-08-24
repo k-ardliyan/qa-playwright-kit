@@ -7,7 +7,7 @@ Folder ini berisi tool operasional, validator arsitektur, dan MCP server:
 
 ```text
 tools/
-├── mcp/                  # Playwright QA MCP Server (@playwright-qa-mcp-server)
+├── mcp/                  # QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server)
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── src/              # Tool definitions & server logic
@@ -26,6 +26,6 @@ tools/
 
 ## 🛠️ Perintah Utama
 
-- `npm run mcp:build`: Build Playwright QA MCP Server.
+- `npm run mcp:build`: Build QA Playwright Kit MCP Server.
 - `npm run health:check`: Verifikasi integritas lingkungan dan tool.
 - `npm run validate:architecture`: Validasi kepatuhan batas arsitektur hybrid.

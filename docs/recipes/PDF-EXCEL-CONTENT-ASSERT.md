@@ -113,7 +113,7 @@ Write expected content in the requirement. Generator and humans copy those strin
 
 Path scope: repo-relative under `tests/data/` or `artifacts/test-results/`.
 
-After `npm run mcp:build` → **restart `playwright-qa`**.
+After `npm run mcp:build` → **restart `qa-playwright-kit`**.
 
 ## Demo (kit tokens only)
 

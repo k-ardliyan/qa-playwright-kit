@@ -30,8 +30,8 @@ git --version     # Harus ada (versi berapa saja)
 **Opsi A: Clone via Git (recommended untuk update di masa depan)**
 
 ```bash
-git clone https://github.com/<your-org>/playwright-qa-kit.git
-cd playwright-qa-kit
+git clone https://github.com/<your-org>/qa-playwright-kit.git
+cd qa-playwright-kit
 ```
 
 **Opsi B: Download ZIP (sekali pakai, tanpa Git history)**
@@ -60,14 +60,14 @@ npm run setup:wizard
 
 Wizard interaktif memandu Anda melalui **6 langkah**:
 
-| Langkah                       | Apa yang terjadi                                                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **1. Deteksi konfigurasi**    | Cek apakah `config/environments/{APP_ENV}.env` sudah ada (tanya update/skip)                                                               |
-| **2. APP_ENV**                | Pilih environment (`local`/`staging`/…)                                                                                                    |
-| **3. BASE_URL**               | Masukkan BASE_URL untuk env itu + verifikasi reachable                                                                                      |
-| **4. Role kredensial**        | Pilih role (mis. `user`, `finance`, `super-admin`) + isi EMAIL/USERNAME/PHONE + PASSWORD per role                                            |
-| **5. AUTH_CHALLENGE_MODE**    | Pilih mode challenge (`none`/`otp-browser`/`otp-stdin`/`captcha-browser`/`auto`)                                                            |
-| **6. Verify + Summary**       | Tulis `config/environments/{APP_ENV}.env`, validasi setup, tampilkan ringkasan                                                               |
+| Langkah                    | Apa yang terjadi                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------- |
+| **1. Deteksi konfigurasi** | Cek apakah `config/environments/{APP_ENV}.env` sudah ada (tanya update/skip)                      |
+| **2. APP_ENV**             | Pilih environment (`local`/`staging`/…)                                                           |
+| **3. BASE_URL**            | Masukkan BASE_URL untuk env itu + verifikasi reachable                                            |
+| **4. Role kredensial**     | Pilih role (mis. `user`, `finance`, `super-admin`) + isi EMAIL/USERNAME/PHONE + PASSWORD per role |
+| **5. AUTH_CHALLENGE_MODE** | Pilih mode challenge (`none`/`otp-browser`/`otp-stdin`/`captcha-browser`/`auto`)                  |
+| **6. Verify + Summary**    | Tulis `config/environments/{APP_ENV}.env`, validasi setup, tampilkan ringkasan                    |
 
 File yang dihasilkan: `config/environments/{APP_ENV}.env` (fallback legacy: `environments/{APP_ENV}.env`).
 
@@ -115,12 +115,12 @@ cp requirements/_TEMPLATE.md requirements/login.md
 
 > `requirements/login.md` **tidak** dibuat otomatis oleh wizard — buat sendiri dari template (contoh isi: [requirements/_GOOD_EXAMPLE.md](../requirements/_GOOD_EXAMPLE.md)).
 
-| Langkah    | Yang terjadi                                                                   |
-| ---------- | ------------------------------------------------------------------------------ |
-| **Lihat**  | Buka `requirements/login.md` — requirement REAL project                        |
+| Langkah    | Yang terjadi                                                                                                    |
+| ---------- | --------------------------------------------------------------------------------------------------------------- |
+| **Lihat**  | Buka `requirements/login.md` — requirement REAL project                                                         |
 | **Paste**  | Jalankan pipeline via `npm run qa:run` atau prompt Hermes (wajib `snapshot_page` dulu — locator beda tiap site) |
-| **Tunggu** | Plan → Generate → Execute → Heal → Report                                      |
-| **Baca**   | [docs/POST-PIPELINE.md](POST-PIPELINE.md) untuk failureSource + keputusan QA   |
+| **Tunggu** | Plan → Generate → Execute → Heal → Report                                                                       |
+| **Baca**   | [docs/POST-PIPELINE.md](POST-PIPELINE.md) untuk failureSource + keputusan QA                                    |
 
 **Prompt inti (sama dengan output `qa:run`):**
 
@@ -139,7 +139,7 @@ npm run qa:run -- requirements/login.md
 
 > **ℹ️** `requirements/sample-*.md` = sample format saja. Requirement produksi = file sendiri (mis. `login.md`).
 > **ℹ️** `qa:run` = preflight + prompt helper (prompt dinamis per Auth state / Halaman awal) — pipeline penuh di Hermes.
-> **ℹ️** Cek coverage plan/tests: Hermes tool `list_requirement_status` (playwright-qa).
+> **ℹ️** Cek coverage plan/tests: Hermes tool `list_requirement_status` (qa-playwright-kit).
 
 Hermes akan otomatis:
 

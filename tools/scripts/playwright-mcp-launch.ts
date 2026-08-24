@@ -99,7 +99,7 @@ async function main(): Promise<void> {
 
   if (parsed.help) {
     process.stdout.write(`
-Playwright QA Kit — MCP Launcher
+QA Playwright Kit — MCP Launcher
 Usage: npx tsx scripts/playwright-mcp-launch.ts [options]
 
 Options:

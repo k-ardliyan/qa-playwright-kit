@@ -133,7 +133,7 @@ npm run auth:setup:headed
 | ---------- | ------------------------------------------------ |
 | Env file   | `config/environments/{APP_ENV}.env` (gitignored) |
 | Ciphertext | `KEY=encrypted:…` — normal                       |
-| Kunci      | `~/.dotenvx-keys/playwright-qa-kit/.env.keys`    |
+| Kunci      | `~/.dotenvx-keys/qa-playwright-kit/.env.keys`    |
 
 Lihat [TROUBLESHOOTING.md](TROUBLESHOOTING.md) Error #5.
 

@@ -37,7 +37,7 @@ function checkNodeVersion(): HealthCheckItem {
 function checkMcpBuild(): HealthCheckItem {
   const entry = path.join(getRepoRoot(), 'tools', 'mcp', 'dist', 'index-mcp.js');
   if (fs.existsSync(entry)) {
-    return { name: 'mcp_build', status: 'ok', message: 'playwright-qa MCP build present' };
+    return { name: 'mcp_build', status: 'ok', message: 'qa-playwright-kit MCP build present' };
   }
   return {
     name: 'mcp_build',

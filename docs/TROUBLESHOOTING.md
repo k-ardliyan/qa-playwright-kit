@@ -91,7 +91,7 @@ npm run setup:wizard 2>&1 | head -20
 
 **Fix:**
 
-1. **Opsi A** — Minta kunci dari anggota tim yang punya akses (share `.env.keys` via 1Password/Vault yang aman). Simpan ke `~/.dotenvx-keys/playwright-qa-kit/.env.keys`
+1. **Opsi A** — Minta kunci dari anggota tim yang punya akses (share `.env.keys` via 1Password/Vault yang aman). Simpan ke `~/.dotenvx-keys/qa-playwright-kit/.env.keys`
 2. **Opsi B** — Buat ulang dari nol:
    ```bash
    rm config/environments/local.env

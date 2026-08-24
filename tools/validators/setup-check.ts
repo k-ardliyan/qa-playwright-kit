@@ -28,7 +28,7 @@ const CHECKS: Array<{ label: string; path: string; hint: string }> = [
     hint: 'npm install',
   },
   {
-    label: 'playwright-qa MCP build',
+    label: 'qa-playwright-kit MCP build',
     path: path.join('mcp-server', 'dist', 'index-mcp.js'),
     hint: 'npm run mcp:build',
   },
@@ -233,10 +233,10 @@ function main(): void {
   // Auto-encrypt any plaintext secrets edited by users/QA before running checks
   autoEncryptEnvFiles();
 
-  // Auto-build playwright-qa MCP server if the build is missing
+  // Auto-build qa-playwright-kit MCP server if the build is missing
   const mcpBuildPath = path.resolve(process.cwd(), 'mcp-server', 'dist', 'index-mcp.js');
   if (!fs.existsSync(mcpBuildPath)) {
-    process.stdout.write('Playwright-qa MCP build missing. Attempting to build...\n');
+    process.stdout.write('qa-playwright-kit MCP build missing. Attempting to build...\n');
     try {
       execSync('npm run mcp:build', { stdio: 'inherit' });
       printOk('Build completed successfully.\n');

@@ -228,7 +228,7 @@ function footer(state: LoginTemplateState): string {
     `## Catatan Pipeline (wajib diikuti Hermes)\n\n` +
     `**1) Capture locator catalog dulu (per website)**\n\n` +
     `Setiap app punya form/label berbeda. Jangan hardcode selector generik.\n\n` +
-    `- Panggil \`snapshot_page\` (playwright-qa):\n` +
+    `- Panggil \`snapshot_page\` (qa-playwright-kit):\n` +
     `  - url: \`${snapshotUrl}\`\n` +
     `  - featureName: \`${featureName}\`\n` +
     `  - pageName: \`${pageName}\`\n` +

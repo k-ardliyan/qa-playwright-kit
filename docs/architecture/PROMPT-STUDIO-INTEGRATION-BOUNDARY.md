@@ -2,13 +2,13 @@
 
 > **Document Status:** Authoritative Integration Contract  
 > **Target Milestone:** Prompt Studio v1 (Post Core Freeze v1)  
-> **Reference:** `docs/architecture/DECISIONS.md` D-13 (Core Freeze v1) — dokumen persiapan `PLAYWRIGHT-QA-KIT-CORE-FREEZE-RC-PROMPT-STUDIO-PREP.md` tidak ada di repo (artefak perencanaan yang tidak di-commit).
+> **Reference:** `docs/architecture/DECISIONS.md` D-13 (Core Freeze v1) — dokumen persiapan `qa-playwright-kit-CORE-FREEZE-RC-PROMPT-STUDIO-PREP.md` tidak ada di repo (artefak perencanaan yang tidak di-commit).
 
 ---
 
 ## 1. Architectural Boundary (PS-PREP-01)
 
-Prompt Studio is the authoring and visual drafting interface for requirements within Playwright QA Kit. It is strictly a **presentation and authoring client** built on top of the frozen framework core.
+Prompt Studio is the authoring and visual drafting interface for requirements within QA Playwright Kit. It is strictly a **presentation and authoring client** built on top of the frozen framework core.
 
 ### 1.1 What Prompt Studio Consumes
 

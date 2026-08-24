@@ -356,7 +356,7 @@ interface RunDiscoverInput {
 }
 
 async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput> {
-  const userAgent = 'playwright-qa-kit/2.1 (discover_pages)';
+  const userAgent = 'qa-playwright-kit/2.1 (discover_pages)';
   let robotsPrefixes: string[] = [];
   if (input.respectRobots) {
     const robots = await fetchRobots(input.baseUrl, userAgent);

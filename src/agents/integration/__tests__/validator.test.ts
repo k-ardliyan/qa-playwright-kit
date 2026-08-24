@@ -62,13 +62,13 @@ test.describe('Validator — Required Section Detection (Req 6.2)', () => {
         '## MCP Dependencies',
         '| MCP Server | Tool Name |',
         '| --- | --- |',
-        '| `playwright-qa` | `health_check` |',
+        '| `qa-playwright-kit` | `health_check` |',
         '',
         '## Output Format',
         'JSON output.',
       ].join('\n'),
       '.mcp.json': JSON.stringify({
-        servers: [{ name: 'playwright-qa', command: 'node', args: [] }],
+        servers: [{ name: 'qa-playwright-kit', command: 'node', args: [] }],
       }),
       'registry.ts': `export const TOOL_REGISTRY = [{ name: 'health_check', description: 'test' }];`,
     });
@@ -150,7 +150,7 @@ test.describe('Validator — MCP Server Reference Validation (Req 6.3, 6.5)', ()
         'JSON output.',
       ].join('\n'),
       '.mcp.json': JSON.stringify({
-        servers: [{ name: 'playwright-qa', command: 'node', args: [] }],
+        servers: [{ name: 'qa-playwright-kit', command: 'node', args: [] }],
       }),
       'registry.ts': `export const TOOL_REGISTRY = [{ name: 'health_check', description: 'test' }];`,
     });
@@ -194,13 +194,13 @@ test.describe('Validator — MCP Tool Reference Validation (Req 6.4, 6.5)', () =
         '## MCP Dependencies',
         '| MCP Server | Tool Name |',
         '| --- | --- |',
-        '| `playwright-qa` | `nonexistent_tool` |',
+        '| `qa-playwright-kit` | `nonexistent_tool` |',
         '',
         '## Output Format',
         'JSON output.',
       ].join('\n'),
       '.mcp.json': JSON.stringify({
-        servers: [{ name: 'playwright-qa', command: 'node', args: [] }],
+        servers: [{ name: 'qa-playwright-kit', command: 'node', args: [] }],
       }),
       'registry.ts': `export const TOOL_REGISTRY = [{ name: 'health_check', description: 'test' }];`,
     });
@@ -237,13 +237,13 @@ test.describe('Validator — MCP Tool Reference Validation (Req 6.4, 6.5)', () =
         '## MCP Dependencies',
         '| MCP Server | Tool Name |',
         '| --- | --- |',
-        '| `playwright-qa` | `health_chek` |',
+        '| `qa-playwright-kit` | `health_chek` |',
         '',
         '## Output Format',
         'JSON output.',
       ].join('\n'),
       '.mcp.json': JSON.stringify({
-        servers: [{ name: 'playwright-qa', command: 'node', args: [] }],
+        servers: [{ name: 'qa-playwright-kit', command: 'node', args: [] }],
       }),
       'registry.ts': `export const TOOL_REGISTRY = [{ name: 'health_check', description: 'test' }];`,
     });
@@ -353,13 +353,13 @@ test.describe('Validator — Fix Mode (Req 6.7)', () => {
         '## MCP Dependencies',
         '| MCP Server | Tool Name |',
         '| --- | --- |',
-        '| `playwright-qa` | `health_chek` |',
+        '| `qa-playwright-kit` | `health_chek` |',
         '',
         '## Output Format',
         'JSON output.',
       ].join('\n'),
       '.mcp.json': JSON.stringify({
-        servers: [{ name: 'playwright-qa', command: 'node', args: [] }],
+        servers: [{ name: 'qa-playwright-kit', command: 'node', args: [] }],
       }),
       'registry.ts': `export const TOOL_REGISTRY = [{ name: 'health_check', description: 'test' }];`,
     });
@@ -407,7 +407,7 @@ test.describe('Validator — Fix Mode (Req 6.7)', () => {
         'JSON output.',
       ].join('\n'),
       '.mcp.json': JSON.stringify({
-        servers: [{ name: 'playwright-qa', command: 'node', args: [] }],
+        servers: [{ name: 'qa-playwright-kit', command: 'node', args: [] }],
       }),
       'registry.ts': `export const TOOL_REGISTRY = [{ name: 'health_check', description: 'test' }];`,
     });

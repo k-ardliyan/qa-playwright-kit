@@ -117,7 +117,7 @@ Checklist:
 
 ## 6) Sync Agent Definitions with Playwright `init-agents`
 
-Custom agents live in `.github/agents/` and extend the official [Playwright Test Agents](https://playwright.dev/docs/test-agents) with orchestrator + `playwright-qa` requirement pipeline. Do **not** replace them wholesale with `init-agents` output.
+Custom agents live in `.github/agents/` and extend the official [Playwright Test Agents](https://playwright.dev/docs/test-agents) with orchestrator + `qa-playwright-kit` requirement pipeline. Do **not** replace them wholesale with `init-agents` output.
 
 When upgrading `@playwright/test`:
 
@@ -160,7 +160,7 @@ When upgrading `@playwright/test`:
    - spec output structure improvements.
 5. Preserve framework-specific content:
    - root [`AGENTS.md`](AGENTS.md) (Orchestrator canonical) and [`.github/AGENTS.md`](.github/AGENTS.md) governance,
-   - `playwright-qa` tools (`validate_requirement`, `parse_requirement_scenarios`, etc.),
+   - `qa-playwright-kit` tools (`validate_requirement`, `parse_requirement_scenarios`, etc.),
    - `requirements/` → `specs/` → `tests/` paths and Indonesian QA template,
    - hybrid `playwright-cli` + MCP live verification in Generator.
 6. Update golden sample if planner format changes: `specs/sample-login-empty-fields-test-plan.md`.
@@ -174,7 +174,7 @@ When upgrading `@playwright/test`:
 Checklist:
 
 - [ ] Upstream `init-agents --loop=codex` diff reviewed
-- [ ] Custom orchestrator + playwright-qa sections unchanged
+- [ ] Custom orchestrator + qa-playwright-kit sections unchanged
 - [ ] Golden test plan still valid
 - [ ] Property tests pass
 

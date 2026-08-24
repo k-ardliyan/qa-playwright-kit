@@ -8,7 +8,7 @@ import { logger } from './utils/logger';
 
 const server = new Server(
   {
-    name: 'playwright-qa-mcp-server',
+    name: 'qa-playwright-kit-mcp-server',
     version: '2.1.0',
   },
   {
@@ -66,12 +66,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function main() {
   bootstrapMcpEnvironment(__dirname);
-  process.stderr.write('[playwright-qa-mcp] Starting MCP server (stdio transport)...\n');
-  logger.info('Starting Playwright QA MCP server...');
+  process.stderr.write('[qa-playwright-kit-mcp] Starting MCP server (stdio transport)...\n');
+  logger.info('Starting QA Playwright Kit MCP Server...');
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write('[playwright-qa-mcp] Server ready. Waiting for JSON-RPC on stdin...\n');
-  logger.info('Playwright QA MCP server running with stdio transport.');
+  process.stderr.write('[qa-playwright-kit-mcp] Server ready. Waiting for JSON-RPC on stdin...\n');
+  logger.info('QA Playwright Kit MCP Server running with stdio transport.');
 }
 
 main().catch((error) => {

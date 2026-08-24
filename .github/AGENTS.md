@@ -15,11 +15,11 @@ QA documentation: [`docs/GUIDE.md`](../docs/GUIDE.md), [`docs/WRITING-REQUIREMEN
 
 ## MCP Servers (three-server hybrid)
 
-| Server            | Command                                                       | Role                                            |
-| ----------------- | ------------------------------------------------------------- | ----------------------------------------------- |
-| `playwright`      | `npx tsx tools/scripts/playwright-mcp-launch.ts`              | Browser exploration (`browser_*` tools)         |
-| `playwright-test` | `npx tsx tools/scripts/playwright-test-mcp-launch.ts`         | Execute tests (`run_tests`, etc.)               |
-| `playwright-qa`   | `node tools/mcp/dist/index-mcp.js` (env bootstrap at startup) | Requirements, validation, failure/summary reads |
+| Server              | Command                                                       | Role                                            |
+| ------------------- | ------------------------------------------------------------- | ----------------------------------------------- |
+| `playwright`        | `npx tsx tools/scripts/playwright-mcp-launch.ts`              | Browser exploration (`browser_*` tools)         |
+| `playwright-test`   | `npx tsx tools/scripts/playwright-test-mcp-launch.ts`         | Execute tests (`run_tests`, etc.)               |
+| `qa-playwright-kit` | `node tools/mcp/dist/index-mcp.js` (env bootstrap at startup) | Requirements, validation, failure/summary reads |
 
 Configure all three in [`.mcp.json`](../.mcp.json) as the project MCP config. Keep [`.vscode/mcp.json`](../.vscode/mcp.json) only if your editor still expects workspace MCP config. Build custom QA server: `npm run mcp:build`.
 
@@ -67,7 +67,7 @@ Coordinates the full pipeline:
 
 ### MCP Tools Consumed
 
-- `playwright-qa`: `health_check`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `archive_report`, `generate_page_object`
+- `qa-playwright-kit`: `health_check`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `archive_report`, `generate_page_object`
 - `playwright-test`: `run_tests`
 - `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`, `browser_file_upload`; see root [`AGENTS.md`](../AGENTS.md)
 
@@ -109,7 +109,7 @@ Golden sample: [`specs/sample-login-empty-fields-test-plan.md`](../specs/sample-
 
 ### MCP Tools Consumed
 
-- `playwright-qa`: `compile_requirement`, `compile_test_plan`, `validate_plan`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `list_artifacts`, `list_test_fixtures`, `discover_pages`, `snapshot_page`
+- `qa-playwright-kit`: `compile_requirement`, `compile_test_plan`, `validate_plan`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `list_artifacts`, `list_test_fixtures`, `discover_pages`, `snapshot_page`
 - `playwright-test`: `run_tests` (seed bootstrap: `tests/seed.spec.ts`)
 - `playwright`: `browser_navigate`, `browser_snapshot`
 
@@ -144,7 +144,7 @@ Planner table with columns:
 
 ### MCP Tools Consumed
 
-- `playwright-qa`: `compile_test_plan`, `validate_generated_tests`, `snapshot_page` (catalog reuse), `list_test_fixtures`, `inspect_file`, `generate_page_object`
+- `qa-playwright-kit`: `compile_test_plan`, `validate_generated_tests`, `snapshot_page` (catalog reuse), `list_test_fixtures`, `inspect_file`, `generate_page_object`
 - `playwright-test`: `run_tests` (live verification loop, iterate until pass)
 - `playwright`: `browser_navigate`, `browser_snapshot`, `browser_file_upload`
 
@@ -203,7 +203,7 @@ Diagnoses and repairs failing tests using structured failure payloads.
 
 ### MCP Tools Consumed
 
-- `playwright-qa`: `get_test_failures`, `validate_generated_tests`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `list_test_fixtures`, `trace_requirement`
+- `qa-playwright-kit`: `get_test_failures`, `validate_generated_tests`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `list_test_fixtures`, `trace_requirement`
 - `playwright-test`: `run_tests`
 - `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`; see root [`AGENTS.md`](../AGENTS.md)
 
@@ -230,7 +230,7 @@ Pipeline context from Orchestrator plus `get_test_summary`, `trace_requirement`,
 
 ### MCP Tools Consumed
 
-- `playwright-qa`: `trace_requirement`, `get_test_summary`, `get_test_failures`, `list_requirement_status`, `archive_report`, `list_artifacts`
+- `qa-playwright-kit`: `trace_requirement`, `get_test_summary`, `get_test_failures`, `list_requirement_status`, `archive_report`, `list_artifacts`
 
 ### Orchestration Mode Behavior
 

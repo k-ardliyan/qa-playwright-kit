@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * env-edit — Credential & runtime config manager for Playwright QA Kit
+ * env-edit — Credential & runtime config manager for QA Playwright Kit
  *
  * Usage:
  *   npm run env:edit

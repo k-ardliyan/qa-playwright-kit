@@ -35,3 +35,12 @@ jobs:
 
       - name: Run quality gate
         run: npm run test:quality
+
+      - name: Quality gate summary
+        if: always()
+        run: |
+          echo "## Quality Gate — run #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rantai penuh: install → setup:check → format/lint/typecheck/mcp:typecheck/xss → validators → contract/traceability/mcp-profiles → property (52 file) → unit (378) → file-content → network-assert → mcp:build → health:check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Job ini gagal **hanya** jika ada check nyata yang merah — tidak ada skip senyap di dalam rantai." >> "$GITHUB_STEP_SUMMARY"

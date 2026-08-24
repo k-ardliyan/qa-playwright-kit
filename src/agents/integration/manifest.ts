@@ -71,126 +71,126 @@ export interface CapabilityManifest {
  */
 const TOOL_INFO: Record<string, ToolDescriptor> = {
   health_check: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'health_check',
     description:
       'Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline.',
   },
   compile_requirement: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'compile_requirement',
     description:
       'Compile requirement markdown into typed RequirementContractV1 with access matrix, scenarios, and source hash.',
   },
   compile_test_plan: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'compile_test_plan',
     description:
       'Compile Markdown test plan into canonical TestPlanContractV1 with assertion provenance and coverage references.',
   },
   validate_plan: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'validate_plan',
     description:
       'Validate test plan contract against requirement contract and check for drift or uncovered ACs.',
   },
   trace_requirement: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'trace_requirement',
     description:
       'Build end-to-end TraceabilityContractV1 graph and 4-dimensional coverage metrics.',
   },
   validate_requirement: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'validate_requirement',
     description:
       'Validate requirement markdown structure before Planner runs. Checks title, scenarios, observable results, and @manual conventions.',
   },
   normalize_requirements: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'normalize_requirements',
     description:
       'Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios.',
   },
   parse_requirement_scenarios: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'parse_requirement_scenarios',
     description:
       'Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English).',
   },
   discover_pages: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'discover_pages',
     description:
       'BFS auto-crawl a public site from a single entry point. For each unique same-origin URL: persist ARIA + selector catalog and append to page-map.json.',
   },
   snapshot_page: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'snapshot_page',
     description:
       'Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}.',
   },
   validate_generated_tests: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'validate_generated_tests',
     description:
       'Validate generated .spec.ts files for base.fixture import, test.describe, and test.step rules.',
   },
   get_test_failures: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'get_test_failures',
     description:
       "Get Playwright test failures from the caller's resultsDir (or repo artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
   },
   get_test_summary: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'get_test_summary',
     description:
       'Read machine-readable pass/fail summary from artifacts/reports/test-summary.json.',
   },
   list_artifacts: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'list_artifacts',
     description: 'List requirement, spec, and generated test files under allowed project paths.',
   },
   list_requirement_status: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'list_requirement_status',
     description:
       'Coverage map: each pipeline requirement with hasPlan, hasTests, manual scenario count, and last run status from test-summary when available.',
   },
   generate_page_object: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'generate_page_object',
     description:
       'Scaffold typed Page Object Model class in tests/pages/<PageName>.ts from selector catalog.',
   },
   list_test_fixtures: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'list_test_fixtures',
     description:
       'List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker).',
   },
   inspect_file: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'inspect_file',
     description:
       'Read envelope metadata (kind, size, magic signature) for files under tests/data/ or artifacts/test-results/.',
   },
   extract_pdf_text: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'extract_pdf_text',
     description:
       'Extract raw text content from a PDF under tests/data/ or artifacts/test-results/.',
   },
   read_excel_summary: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'read_excel_summary',
     description:
       'Read xlsx sheet names, header row, and sample rows under tests/data/ or artifacts/test-results/.',
   },
   archive_report: {
-    server: 'playwright-qa',
+    server: 'qa-playwright-kit',
     name: 'archive_report',
     description: 'Archive pipeline run artifacts to artifacts/reports/archive/<runId>/.',
   },
@@ -213,7 +213,7 @@ const PHASE_DEFINITIONS: Record<
   plan: {
     description: 'Analyze requirements and produce a structured test plan',
     agentFile: '.github/agents/planner.agent.md',
-    mcpServers: ['playwright-qa'],
+    mcpServers: ['qa-playwright-kit'],
     toolNames: [
       'health_check',
       'compile_requirement',
@@ -230,7 +230,7 @@ const PHASE_DEFINITIONS: Record<
   generate: {
     description: 'Generate Playwright test specifications from the test plan',
     agentFile: '.github/agents/generator.agent.md',
-    mcpServers: ['playwright-qa', 'playwright'],
+    mcpServers: ['qa-playwright-kit', 'playwright'],
     toolNames: [
       'compile_requirement',
       'compile_test_plan',
@@ -250,13 +250,13 @@ const PHASE_DEFINITIONS: Record<
   heal: {
     description: 'Diagnose and fix test failures using trace and screenshot data',
     agentFile: '.github/agents/healer.agent.md',
-    mcpServers: ['playwright-qa', 'playwright-test', 'playwright'],
+    mcpServers: ['qa-playwright-kit', 'playwright-test', 'playwright'],
     toolNames: ['get_test_failures', 'validate_generated_tests', 'snapshot_page', 'inspect_file'],
   },
   report: {
     description: 'Aggregate test results into a structured pipeline report',
     agentFile: '.github/agents/reporter.agent.md',
-    mcpServers: ['playwright-qa'],
+    mcpServers: ['qa-playwright-kit'],
     toolNames: [
       'trace_requirement',
       'get_test_summary',

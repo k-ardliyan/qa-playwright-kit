@@ -42,7 +42,11 @@ function main(): void {
     });
 
     if ((result.status ?? 1) !== 0) {
+      // Real failure surfaced twice: inline marker + GitHub annotation (not a grey log).
       process.stderr.write(`✗ Failed: ${relative}\n`);
+      if (process.env.GITHUB_ACTIONS === 'true') {
+        process.stdout.write(`::error::Property test failed: ${relative}\n`);
+      }
       failed += 1;
     }
   }
@@ -50,6 +54,9 @@ function main(): void {
   process.stdout.write(`\n${files.length - failed}/${files.length} property test files passed\n`);
 
   if (failed > 0) {
+    process.stderr.write(
+      `\n❌ ${failed} property test file(s) gagal — lihat blok '✗ Failed' di atas untuk daftar filenya.\n`,
+    );
     process.exit(1);
   }
 }

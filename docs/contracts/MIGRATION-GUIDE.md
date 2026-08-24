@@ -1,6 +1,6 @@
-# Migration Guide: QA Kit Contract Layer v1
+# Migration Guide: QA Playwright Kit Contract Layer v1
 
-This document describes how to migrate workflows, tools, and agent interactions from legacy untyped parsers to the typed QA Kit Contract Layer (`qa.*/v1`).
+This document describes how to migrate workflows, tools, and agent interactions from legacy untyped parsers to the typed QA Playwright Kit Contract Layer (`qa.*/v1`).
 
 ---
 

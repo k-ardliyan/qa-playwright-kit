@@ -1,235 +1,145 @@
 <div align="center">
 
-![Banner](https://capsule-render.vercel.app/api?type=waving&color=0:2E86AB,50:A23B72,100:F18F01&height=220&section=header&text=Playwright%20QA%20Kit&fontSize=52&fontColor=ffffff&fontAlignY=38&desc=Requirement%20→%20Test%20Plan%20→%20Auto%20Test%20→%20Heal%20→%20Report&descSize=18&descColor=ffffff&descAlignY=58)
+# QA Playwright Kit
 
-<br/>
+### Tulis kebutuhan. Biarkan AI yang mengetes.
 
-[![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=for-the-badge&logo=git&logoColor=white)](https://github.com/k-ardliyan/playwright-qa-kit/releases) [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org) [![Playwright](https://img.shields.io/badge/playwright-1.62+-45ba4b?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev) [![TypeScript](https://img.shields.io/badge/typescript-5.9+-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.30+-A23B72?style=for-the-badge&logo=protocol&logoColor=white)](https://modelcontextprotocol.io)
+**QA menulis *apa* yang harus dites. Framework mengerjakan *bagaimana*nya.**
 
-<br/>
+Markdown requirement → test plan → Playwright test → self-heal → dashboard triage.
 
-> **Framework QA berbasis Playwright + AI Agent** — QA mulai dari **requirement**, bukan kode.
-> Pipeline terintegrasi: `requirement → test plan → automated test → heal → triage dashboard`.
+Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 21 MCP tools · quality-gated CI
 
-</div>
-
----
-
-## 📋 Daftar Isi
-
-- [📋 Daftar Isi](#-daftar-isi)
-- [✨ Fitur Utama](#-fitur-utama)
-- [🔄 Cara Kerja](#-cara-kerja)
-- [🚀 Setup](#-setup)
-  - [🌟 Wizard (Recommended untuk Pemula)](#-wizard-recommended-untuk-pemula)
-  - [⚙️ Manual (untuk yang Sudah Familiar)](#️-manual-untuk-yang-sudah-familiar)
-- [⚡ Quick Start](#-quick-start)
-- [📝 Requirement Format](#-requirement-format)
-- [🏷️ Scenario Tags](#️-scenario-tags)
-- [⌨️ Commands](#️-commands)
-  - [🎯 Daily Flow](#-daily-flow)
-  - [🔍 Discovery \& Setup](#-discovery--setup)
-  - [🧪 Test \& Quality](#-test--quality)
-- [🏗️ Architecture](#️-architecture)
-- [🔌 MCP Servers](#-mcp-servers)
-- [👥 Role-Based Testing](#-role-based-testing)
-- [🧩 Integration Recipes](#-integration-recipes)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [📚 Dokumentasi](#-dokumentasi)
-- [🤝 Kontribusi](#-kontribusi)
-
----
-
-## ✨ Fitur Utama
-
-<div align="center">
-
-|     | Fitur                      | Deskripsi                                                |
-| --- | -------------------------- | -------------------------------------------------------- |
-| 📝  | **Requirement-first**      | QA tulis Markdown, AI generate test                      |
-| 🤖  | **5-Phase AI Pipeline**    | Plan → Generate → Execute → Heal → Report                |
-| 🔁  | **Healer + Snapshot Loop** | Test gagal → AI fix locator → re-snapshot → rerun        |
-| 📊  | **Custom Dashboard**       | Triage Table/Accordion, SOURCE cause, filter columns     |
-| 👥  | **Multi-role Auth**        | Role-based storage + OTP/CAPTCHA assist                  |
-| 🗺️ | **Coverage Map**           | `list_requirement_status`: req → plan → tests → status   |
-| 🔌  | **21 MCP Tools**           | Validate, compile, snapshot, POM, health check, coverage |
-| 🌍  | **Multi-environment**      | Local/staging/production matrix, `APP_ENV` control       |
-| 🏷️ | **Capability Tags**        | `@upload` `@download` `@file-content` `@network-assert`  |
-| ✅   | **Quality Gates**          | Format/lint/typecheck/unit/property/file-content/network |
-| 🔐  | **Encrypted Creds**        | dotenvx auto-encrypt + `env:edit`                        |
-| 🧩  | **Integration Recipes**    | NextJS, multi-role, PDF/Excel, network, multi-session    |
+[![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Playwright](https://img.shields.io/badge/playwright-1.62+-45ba4b?style=flat-square&logo=playwright&logoColor=white)](https://playwright.dev)
+[![TypeScript](https://img.shields.io/badge/typescript-5.9+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.30+-A23B72?style=flat-square&logo=protocol&logoColor=white)](https://modelcontextprotocol.io)
 
 </div>
 
 ---
 
-## 🔄 Cara Kerja
+> **Masalahnya:** QA menulis test manual, menjalankan manual, copy-paste hasil ke spreadsheet, dan berdoa tidak ada yang terlewat.
+>
+> **Solusinya:** Tulis requirement dalam Markdown biasa. Lima agen AI menyusun rencana, membuat test Playwright, menjalankannya di browser sungguhan, memperbaiki yang gagal, dan melaporkan hasilnya sebagai dashboard triage siap-keputusan.
 
 ```
-   ┌─────────────────────┐
-   │   requirements/*.md│  ← QA tulis requirement
-   └──────────┬──────────┘
-              │
-              ▼
-   ┌─────────────────────┐
-   │   snapshot_page     │  ← Selector catalog per website
-   └──────────┬──────────┘
-              │
-              ▼
-   ┌─────────────────────┐    ┌─────────────────────┐
-   │   AI Planner        │───►│  specs/*-test-plan  │
-   └─────────────────────┘    └──────────┬──────────┘
-                                         │
-                                         ▼
-   ┌─────────────────────┐    ┌─────────────────────┐
-   │   AI Generator      │───►│  tests/*.spec.ts    │
-   └─────────────────────┘    └──────────┬──────────┘
-                                         │
-                                         ▼
-   ┌──────────┐    ┌──────────┐    ┌─────────────────────┐
-   │ Execute  │───►│  Healer  │───►│  Reporter           │
-   │ run test │    │ fix+re-  │    │  custom-dashboard   │
-   │          │    │ snapshot │    │  .html              │
-   └──────────┘    └──────────┘    └─────────────────────┘
-        │                                  │
-        ▼                                  ▼
-   pass / fail                     triage Table/Accordion
+📝 requirement  →  📋 test plan  →  ⚡ auto test  →  🔁 self-heal  →  📊 triage dashboard
+```
+
+---
+
+## Kenapa framework ini?
+
+| | Sebelum (manual) | Sesudah (QA Playwright Kit) |
+|--|--|--|
+| **Menulis test** | Playwright spec dari nol | Tulis requirement Markdown, AI generate spec |
+| **Menjalankan** | Klik Run, lihat terminal | `npm run qa:run` — satu perintah |
+| **Test gagal** | Debug manual, cek locator | Self-heal: AI fix locator → re-snapshot → rerun |
+| **Melihat hasil** | Scroll terminal, tebak yang merah | Dashboard triage: filter by role/module/priority |
+| **Multi-role** | Copy test, ganti storageState | Requirement metadata → test terpisah otomatis per role |
+
+---
+
+## Yang kamu dapatkan
+
+| | Fitur | Apa artinya |
+|--|--|--|
+| **Requirement-first** | QA tulis Markdown, AI generate test | Tidak perlu tahu Playwright API untuk menulis test |
+| **5-Phase Pipeline** | Plan → Generate → Execute → Heal → Report | Satu perintah, hasil lengkap |
+| **Self-healing** | Test gagal → AI fix → re-snapshot → rerun | Locator berubah? Framework memperbaiki sendiri |
+| **Dashboard triage** | Tabel + accordion, filter by role/module | Tidak perlu scroll 500 bar terminal |
+| **Multi-role auth** | Role-based storage + OTP/CAPTCHA assist | Admin, user, finance — semua terotomasi |
+| **21 MCP tools** | Validate, compile, snapshot, POM, health check | Terintegrasi penuh dengan AI agent |
+| **Multi-environment** | local/staging/production via `APP_ENV` | Switch environment tanpa ubah kode |
+| **Capability tags** | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate |
+| **Quality gates** | format/lint/typecheck/unit/property/file-content | Tidak ada yang lolos tanpa diuji |
+| **Encrypted creds** | dotenvx auto-encrypt + `env:edit` | Kredensial tidak pernah plaintext di repo |
+
+---
+
+## Cara kerja
+
+```
+requirements/*.md          QA tulis requirement
+       │
+       ▼
+   AI Planner  ──────►  specs/*-test-plan.md
+       │
+       ▼
+   AI Generator ──────►  tests/*.spec.ts
+       │
+       ▼
+   Execute ──►  Healer  ──►  Reporter
+   (run test)  (fix+re-     (custom-dashboard.html)
+                snapshot)
+       │                        │
+       ▼                        ▼
+  pass / fail            triage Table/Accordion
 ```
 
 > Diorkestrasi oleh **Hermes Agent** via 5 sub-agent — lihat [AGENTS.md](AGENTS.md).
 
 ---
 
-## 🚀 Setup
-
-### 🌟 Wizard (Recommended untuk Pemula)
+## Quick Start
 
 ```bash
-git clone https://github.com/k-ardliyan/playwright-qa-kit.git
-cd playwright-qa-kit
+git clone https://github.com/k-ardliyan/qa-playwright-kit.git
+cd qa-playwright-kit
 npm install
-npm run setup:wizard
+npm run setup:wizard          # wizard interaktif 6 langkah
 ```
 
-<details>
-<summary>🪄 <b>Klik untuk lihat apa yang dilakukan wizard</b></summary>
-
-<br/>
-
-Wizard memandu kamu langkah demi langkah:
-
-1. ✅ Deteksi konfigurasi env yang sudah ada
-2. ✅ Pilih APP_ENV (local/staging/…)
-3. ✅ Konfigurasi BASE_URL + verifikasi reachable
-4. ✅ Isi kredensial per role (EMAIL/USERNAME/PHONE + PASSWORD)
-5. ✅ Pilih AUTH_CHALLENGE_MODE
-6. ✅ Tulis `config/environments/{APP_ENV}.env` + validasi + ringkasan
-
-Hasil: file env aktif siap dipakai. **Wizard tidak** menginstall browser/MCP server, tidak menjalankan auth setup, dan tidak membuat `requirements/login.md` — langkah-langkah itu dijalankan terpisah (lihat Quick Start & Commands di bawah).
-
-</details>
-
-### ⚙️ Manual (untuk yang Sudah Familiar)
-
-```bash
-npm install
-npx playwright install --with-deps chromium
-npm run mcp:build
-cp config/environments/local.env.example config/environments/local.env   # isi BASE_URL + creds
-npm run setup:check && npm run health:check
-```
-
-> 🔐 **Credential security** — Nilai `config/environments/local.env` bisa dienkripsi ke `encrypted:BA+84DB/...` via `npm run env:edit` (re-encrypt) atau `npx @dotenvx/dotenvx encrypt -f config/environments/local.env`. Kunci dekripsi di `~/.dotenvx-keys/playwright-qa-kit/`.
-
-```bash
-npm run env:edit              # ganti password / role / OTP mode
-npm run auth:setup            # refresh session login
-npm run auth:setup:headed     # session + OTP/CAPTCHA di browser
-```
-
-> [!TIP]
-> **Stuck?** Cek [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) untuk 10 error paling umum + solusinya.
-
----
-
-## ⚡ Quick Start
+**Setelah wizard selesai:**
 
 ```bash
 # 1) Preflight + validasi + cetak prompt Hermes
-npm run qa:run -- requirements/login.md
+npm run qa:run -- requirements/auth/sample-login-empty-fields.md
 
 # 2) Paste prompt ke Hermes Agent
 #    Pipeline: snapshot → Plan → Generate → Execute → Heal → Report
 
 # 3) Dashboard terbuka otomatis
-npm run qa:run -- requirements/login.md --open-dashboard
-#    atau serve dashboard: npm run dashboard:serve
+npm run qa:run -- requirements/auth/sample-login-empty-fields.md --open-dashboard
 ```
-
-| File                            | Peran                                                    |
-| ------------------------------- | -------------------------------------------------------- |
-| `requirements/login.md`         | 🎯 **Setup awal** — buat dari `_TEMPLATE.md` (tidak di-generate otomatis) |
-| `requirements/auth/sample-*.md` | 📚 **Latihan format** — bukan target app                 |
-| `requirements/_TEMPLATE.md`     | 📝 Template untuk fitur baru                             |
 
 > Detail pasca-pipeline → [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)
 
 ---
 
-## 📝 Requirement Format
+## Requirement format
 
 ```bash
 cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 ```
 
-<details>
-<summary>📄 <b>Lihat contoh requirement minimal</b></summary>
-
-<br/>
-
 ```markdown
 # REQ-001: Login dengan Email Valid
 
 ## Metadata
-
-- **Tags:** #smoke #ui
-- **Prioritas:** high
-- **Auth state:** unauthenticated
-- **Halaman awal:** /login
+- Tags: #smoke #ui
+- Prioritas: high
+- Auth state: unauthenticated
+- Halaman awal: /login
 
 ## Kriteria Penerimaan
-
 - URL berubah ke /dashboard setelah login
 - Toast "Welcome" muncul
 
 ## Skenario Uji
 
 ### SC-01: Login berhasil (@success)
-
-**Langkah:**
-
 1. Isi email valid + password benar
 2. Klik tombol Login
-
-**Hasil yang Diharapkan:**
-
-- URL berubah ke /dashboard
-- Toast "Welcome" muncul
+**Hasil:** URL /dashboard, Toast "Welcome"
 
 ### SC-02: Login gagal (@failure)
-
-**Langkah:**
-
 1. Isi email valid + password salah
 2. Klik tombol Login
-
-**Hasil yang Diharapkan:**
-
-- Muncul pesan error "Email atau password salah"
-- Tetap di halaman /login
+**Hasil:** Pesan error "Email atau password salah", tetap di /login
 ```
-
-</details>
 
 Validasi: `npm run validate:requirement -- requirements/fitur-saya.md`
 
@@ -237,7 +147,10 @@ Contoh lengkap: [_GOOD_EXAMPLE.md](requirements/_GOOD_EXAMPLE.md) · [_BAD_EXAMP
 
 ---
 
-## 🏷️ Scenario Tags
+<details>
+<summary><b>🏷️ Scenario tags</b></summary>
+
+<br/>
 
 | Tag                     | Kapan Dipakai                                   |
 | ----------------------- | ----------------------------------------------- |
@@ -254,15 +167,20 @@ Contoh lengkap: [_GOOD_EXAMPLE.md](requirements/_GOOD_EXAMPLE.md) · [_BAD_EXAMP
 | `(@visual)`             | Visual regression (`toHaveScreenshot`)          |
 | `(@hybrid)`             | Gabungan capability tags                        |
 
-> Tags bisa digabung: `(@failure @network-assert)` · `(@success @download @file-content)`
+Tags bisa digabung: `(@failure @network-assert)` · `(@success @download @file-content)`
 
 Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 
+</details>
+
 ---
 
-## ⌨️ Commands
+<details>
+<summary><b>⌨️ Commands</b></summary>
 
-### 🎯 Daily Flow
+<br/>
+
+### Daily Flow
 
 | Command                                | Fungsi                                |
 | -------------------------------------- | ------------------------------------- |
@@ -272,76 +190,87 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 | `npm run auth:setup:headed`            | Session + OTP/CAPTCHA di browser      |
 | `npm run env:edit`                     | Ganti password / role / OTP mode      |
 
-### 🔍 Discovery & Setup
+### Discovery & Setup
 
-| Command                  | Fungsi                                 |
-| ------------------------ | -------------------------------------- |
-| `npm run setup:wizard`   | Wizard interaktif (recommended)        |
-| `npm run setup:check`    | Verifikasi setup lokal                 |
-| `npm run health:check`   | Pre-flight pipeline (env + MCP + auth) |
-| `npm run env:edit`       | Edit creds / OTP mode                  |
-| `npm run mcp:config`     | Generate MCP config semua platform     |
+| Command                | Fungsi                                 |
+| ---------------------- | -------------------------------------- |
+| `npm run setup:wizard` | Wizard interaktif (recommended)        |
+| `npm run setup:check`  | Verifikasi setup lokal                 |
+| `npm run health:check` | Pre-flight pipeline (env + MCP + auth) |
+| `npm run mcp:config`   | Generate MCP config semua platform     |
 
-> Snapshot selector catalog & crawl halaman adalah tool MCP: `snapshot_page` / `discover_pages` (playwright-qa).
+### Test & Quality
 
-### 🧪 Test & Quality
+| Command                 | Fungsi                    |
+| ----------------------- | ------------------------- |
+| `npm test`              | Jalankan semua test       |
+| `npm run test:smoke`    | Smoke test saja           |
+| `npm run test:quality`  | Gate lengkap sebelum push |
+| `npm run test:unit`     | Unit tests                |
+| `npm run test:property` | Property tests            |
+| `npm run test:contract` | Golden contract CI        |
+| `npm run manual:check`  | List scenario `(@manual)` |
+| `npm run mcp:check`     | Cek kompatibilitas MCP    |
 
-| Command                   | Fungsi                    |
-| ------------------------- | ------------------------- |
-| `npm test`                | Jalankan semua test       |
-| `npm run test:smoke`      | Smoke test saja           |
-| `npm run test:quality`    | Gate lengkap sebelum push |
-| `npm run test:unit`       | Unit tests                |
-| `npm run test:property`   | Property tests            |
-| `npm run test:contract`   | Golden contract CI        |
-| `npm run manual:check`    | List scenario `(@manual)` |
-| `npm run mcp:check`       | Cek kompatibilitas MCP    |
+</details>
 
 ---
 
-## 🏗️ Architecture
+<details>
+<summary><b>🏗️ Architecture</b></summary>
+
+<br/>
 
 ```text
-playwright-qa-kit/
-├─ requirements/        ← Input requirement QA (Indonesian & English)
-├─ specs/               ← Test plan output (AI Planner)
-├─ tests/               ← Playwright Test Workspace (specs, pages, data, adapter)
-├─ artifacts/           ← Consolidated runtime output (reports, test-results, selector-catalog)
-├─ src/                 ← Framework Core Engine (protected internal boundary)
-├─ tools/               ← Maintainer tooling, scripts, validators & MCP server
-├─ config/              ← Environment credentials & Playwright configs
-├─ docs/                ← Operational & architectural documentation
-└─ (tidak ada)          ← Adapter contoh dihapus 2026-08-22; fork menyediakan adapter sendiri via `PLAYWRIGHT_ADAPTER_*` env
+qa-playwright-kit/
+├─ requirements/        Input requirement QA (Indonesian & English)
+├─ specs/               Test plan output (AI Planner)
+├─ tests/               Playwright Test Workspace
+├─ artifacts/           Consolidated runtime output
+├─ src/                 Framework Core Engine
+├─ tools/               Maintainer tooling, scripts, validators & MCP server
+├─ config/              Environment credentials & Playwright configs
+├─ docs/                Operational & architectural documentation
 ```
 
-> 📚 Detail lengkap → [docs/architecture/DIRECTORY-MAP.md](docs/architecture/DIRECTORY-MAP.md) · [DECISIONS.md](docs/architecture/DECISIONS.md) · [LESSONS-LEARNED.md](docs/architecture/LESSONS-LEARNED.md)
+Detail: [docs/architecture/DIRECTORY-MAP.md](docs/architecture/DIRECTORY-MAP.md) · [DECISIONS.md](docs/architecture/DECISIONS.md)
+
+</details>
 
 ---
 
-## 🔌 MCP Servers
+<details>
+<summary><b>🔌 MCP Servers</b></summary>
 
-| Server                   | Fungsi Utama                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| 🎭 **`playwright-qa`**   | Requirement parsing, validation, coverage, POM, health check, failure analysis |
-| 🎬 **`playwright-test`** | Run dan debug test                                                             |
-| 🌐 **`playwright`**      | Browser interaction, eksplorasi UI                                             |
+<br/>
+
+| Server                     | Fungsi Utama                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| **`qa-playwright-kit`**    | Requirement parsing, validation, coverage, POM, health check, failure analysis |
+| **`playwright-test`**      | Run dan debug test                                                             |
+| **`playwright`**           | Browser interaction, eksplorasi UI                                             |
 
 ```bash
 npm run mcp:build          # build custom QA server
 npm run mcp:config         # generate config semua platform (claude/cursor/kiro)
 ```
 
-> 21 tool lengkap → [CUSTOM-MCP.md](CUSTOM-MCP.md)
+21 tool lengkap → [CUSTOM-MCP.md](CUSTOM-MCP.md)
+
+</details>
 
 ---
 
-## 👥 Role-Based Testing
+<details>
+<summary><b>👥 Role-Based Testing</b></summary>
+
+<br/>
 
 Tambahkan metadata role di requirement:
 
 ```markdown
-- **Role scope:** super-admin, finance
-- **Access expectation:**
+- Role scope: super-admin, finance
+- Access expectation:
   - super-admin: bisa approve
   - finance: bisa approve
   - hrd: tidak bisa membuka halaman finance
@@ -349,14 +278,14 @@ Tambahkan metadata role di requirement:
 
 Generator otomatis membuat file test terpisah per role (`<feature>-<role>.spec.ts`) dengan storage state sesuai dari `.auth/{APP_ENV}/`.
 
-> 🔐 Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) · [CREDENTIALS.md](docs/CREDENTIALS.md)
+Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md)
+
+</details>
 
 ---
 
-## 🧩 Integration Recipes
-
 <details>
-<summary><b>📦 Available Recipes (klik untuk expand)</b></summary>
+<summary><b>🧩 Integration Recipes</b></summary>
 
 <br/>
 
@@ -369,61 +298,67 @@ Generator otomatis membuat file test terpisah per role (`<feature>-<role>.spec.t
 | `NETWORK-ASSERT.md`                      | `@network-assert` live payload/response — partial contract |
 | `MULTI-SESSION-SYNC.md`                  | Dual `browser.newContext` admin↔user data sync             |
 
-Lihat semua → [docs/recipes/README.md](docs/recipes/README.md)
+Semua → [docs/recipes/README.md](docs/recipes/README.md)
 
 </details>
 
 ---
 
-## 🛠️ Tech Stack
+<details>
+<summary><b>🛠️ Tech Stack</b></summary>
 
-<div align="center">
+<br/>
 
-| Layer         | Tools                                                                                                                                                                                                                             |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Runtime**   | ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)          |
-| **Testing**   | ![Playwright](https://img.shields.io/badge/Playwright-45ba4b?style=flat-square&logo=playwright&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-000000?style=flat-square&logo=modelcontextprotocol&logoColor=white)       |
-| **AI Agent**  | ![Hermes](https://img.shields.io/badge/Hermes_Agent-F18F01?style=flat-square&logo=robot&logoColor=white) ![Claude](https://img.shields.io/badge/Claude-D97757?style=flat-square&logo=claude&logoColor=white)                      |
-| **Security**  | ![dotenvx](https://img.shields.io/badge/dotenvx-2E86AB?style=flat-square&logo=dotenv&logoColor=white) ![MCP SDK](https://img.shields.io/badge/MCP_SDK-A23B72?style=flat-square&logo=protocol&logoColor=white)                     |
-| **CI/CD**     | ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white) ![Husky](https://img.shields.io/badge/Husky-000000?style=flat-square&logo=husky&logoColor=white)       |
-| **Reporting** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white) ![Custom Dashboard](https://img.shields.io/badge/Custom_Dashboard-F18F01?style=flat-square&logo=googleanalytics&logoColor=white) |
+| Layer       | Tools                                                                          |
+| ----------- | ------------------------------------------------------------------------------ |
+| **Runtime** | Node.js >= 20.19 · TypeScript 5.9+                                           |
+| **Testing** | Playwright 1.62+ · MCP SDK 1.30+                                             |
+| **AI Agent**| Hermes Agent · Claude                                                          |
+| **Security**| dotenvx (auto-encrypt)                                                        |
+| **CI/CD**   | GitHub Actions · Husky (pre-commit)                                           |
+| **Reporting**| Custom HTML Dashboard (triage table + accordion)                              |
 
-</div>
+</details>
 
 ---
 
-## 📚 Dokumentasi
+<details>
+<summary><b>📚 Dokumentasi</b></summary>
+
+<br/>
 
 | Saya ingin...                       | Buka                                                               |
 | ----------------------------------- | ------------------------------------------------------------------ |
-| 🆕 Setup QA pertama kali            | [docs/GUIDE.md](docs/GUIDE.md)                                     |
-| 📖 Panduan pemula step-by-step      | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)                 |
-| ✏️ Menulis requirement valid        | [docs/WRITING-REQUIREMENTS.md](docs/WRITING-REQUIREMENTS.md)       |
-| 🔐 Auth per role + OTP/CAPTCHA      | [docs/AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) |
-| 🗝️ Kredensial & multi-role         | [docs/CREDENTIALS.md](docs/CREDENTIALS.md)                         |
-| 🔄 Pasca-pipeline                   | [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)                     |
-| 📊 Dashboard triage guide           | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
-| ✋ Skenario `(@manual)`              | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
-| 🌍 Environment (local/staging/prod) | [docs/ENVIRONMENT-GUIDE.md](docs/ENVIRONMENT-GUIDE.md)             |
-| ⌨️ Command cheat sheet              | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
-| 🧩 Integration recipes              | [docs/recipes/README.md](docs/recipes/README.md)                   |
-| 🎬 Full E2E walkthrough             | [docs/SAMPLE-E2E-PIPELINE.md](docs/SAMPLE-E2E-PIPELINE.md)         |
-| 🍴 Fork ke project lain             | [docs/FORK-ONBOARDING.md](docs/FORK-ONBOARDING.md)                 |
-| 🩺 Troubleshooting                  | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
-| 🔌 MCP tool reference               | [CUSTOM-MCP.md](CUSTOM-MCP.md)                                     |
-| 🤖 Pipeline agent contract          | [AGENTS.md](AGENTS.md)                                             |
-| 🏗️ Architecture decisions          | [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md)   |
+| Setup QA pertama kali               | [docs/GUIDE.md](docs/GUIDE.md)                                     |
+| Panduan pemula step-by-step         | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)                 |
+| Menulis requirement valid           | [docs/WRITING-REQUIREMENTS.md](docs/WRITING-REQUIREMENTS.md)       |
+| Auth per role + OTP/CAPTCHA         | [docs/AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) |
+| Kredensial & multi-role             | [docs/CREDENTIALS.md](docs/CREDENTIALS.md)                         |
+| Pasca-pipeline                      | [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)                     |
+| Dashboard triage guide              | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
+| Skenario `(@manual)`                | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
+| Environment (local/staging/prod)    | [docs/ENVIRONMENT-GUIDE.md](docs/ENVIRONMENT-GUIDE.md)             |
+| Command cheat sheet                 | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
+| Integration recipes                 | [docs/recipes/README.md](docs/recipes/README.md)                   |
+| Full E2E walkthrough                | [docs/SAMPLE-E2E-PIPELINE.md](docs/SAMPLE-E2E-PIPELINE.md)         |
+| Fork ke project lain                | [docs/FORK-ONBOARDING.md](docs/FORK-ONBOARDING.md)                 |
+| Troubleshooting                     | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
+| MCP tool reference                  | [CUSTOM-MCP.md](CUSTOM-MCP.md)                                     |
+| Pipeline agent contract             | [AGENTS.md](AGENTS.md)                                             |
+| Architecture decisions              | [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md)   |
+
+</details>
 
 ---
 
-## 🤝 Kontribusi
+## Kontribusi
 
 Kontribusi welcome! Untuk perubahan besar:
 
-1. 📋 Buka issue dulu — diskusikan perubahan
-2. 🌿 Buat branch dari `main` (`feat/...`, `fix/...`, `docs/...`)
-3. ✅ Jalankan `npm run test:quality` sebelum push
-4. 📝 Update changelog & dokumentasi relevan
+1. Buka issue dulu — diskusikan perubahan
+2. Buat branch dari `main` (`feat/...`, `fix/...`, `docs/...`)
+3. Jalankan `npm run test:quality` sebelum push
+4. Update changelog & dokumentasi relevan
 
 > Lihat [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md) untuk WHY di balik constraint framework.
 
@@ -431,10 +366,6 @@ Kontribusi welcome! Untuk perubahan besar:
 
 <div align="center">
 
-![Footer](https://capsule-render.vercel.app/api?type=waving&color=0:F18F01,50:A23B72,100:2E86AB&height=100&section=footer)
-
-**Built with 💖 · 🎭 Playwright + 🤖 Hermes Agent · 2026**
-
-⭐ [Star repo ini](https://github.com/k-ardliyan/playwright-qa-kit) jika membantu workflow QA kamu!
+QA Playwright Kit · [github.com/k-ardliyan/qa-playwright-kit](https://github.com/k-ardliyan/qa-playwright-kit)
 
 </div>

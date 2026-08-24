@@ -7,14 +7,14 @@ Hermes Agent setelah `setup:wizard` selesai.
 
 Setelah pipeline Plan → Generate → Execute → Heal → Report selesai:
 
-| Artefak                                        | Wajib | Keterangan                                                                                                                                                    |
-| ---------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `specs/login-test-plan.md`                     | ✅     | Test plan dari Planner                                                                                                                                        |
-| `tests/login*.spec.ts`                         | ✅     | Spec Playwright dari Generator (Path A inline locators)                                                                                                       |
-| `reports/pipeline-report-<runId>.md`          | ✅     | Ringkasan eksekusi + unresolved failures (ditulis ke `reports/` — tidak di-mirror ke `artifacts/`)                                                             |
-| `artifacts/reports/custom-dashboard.html`      | ✅     | Dashboard triage (Table/Accordion, SOURCE, Evidence card) — ditulis Reporter; dibuka otomatis oleh `qa-run --open-dashboard` (skip via `--no-open-dashboard`) |
-| `artifacts/reports/test-summary.json`          | ✅     | Data mentah untuk tooling / agent (mirror dari `reports/test-summary.json`)                                                                                    |
-| `artifacts/reports/archive/<runId>/`           | ✅     | Snapshot report — buka untuk approval                                                                                                                         |
+| Artefak                                   | Wajib | Keterangan                                                                                                                                                    |
+| ----------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `specs/login-test-plan.md`                | ✅     | Test plan dari Planner                                                                                                                                        |
+| `tests/login*.spec.ts`                    | ✅     | Spec Playwright dari Generator (Path A inline locators)                                                                                                       |
+| `reports/pipeline-report-<runId>.md`      | ✅     | Ringkasan eksekusi + unresolved failures (ditulis ke `reports/` — tidak di-mirror ke `artifacts/`)                                                            |
+| `artifacts/reports/custom-dashboard.html` | ✅     | Dashboard triage (Table/Accordion, SOURCE, Evidence card) — ditulis Reporter; dibuka otomatis oleh `qa-run --open-dashboard` (skip via `--no-open-dashboard`) |
+| `artifacts/reports/test-summary.json`     | ✅     | Data mentah untuk tooling / agent (mirror dari `reports/test-summary.json`)                                                                                   |
+| `artifacts/reports/archive/<runId>/`      | ✅     | Snapshot report — buka untuk approval                                                                                                                         |
 
 **Dashboard terbuka otomatis** lewat `npm run qa:run` (default ON).
 Skip dengan `--no-open-dashboard` atau buka manual via OS file manager.

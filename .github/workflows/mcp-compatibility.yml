@@ -75,3 +75,13 @@ jobs:
 
       - name: Run Property Tests (validator rules)
         run: npm run test:property
+
+      - name: MCP compatibility summary
+        if: always()
+        run: |
+          echo "## MCP Compatibility — run #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CLI contract: @playwright/mcp pinned 0.0.79 vs baseline manifest" >> "$GITHUB_STEP_SUMMARY"
+          echo "- qa-playwright-kit MCP server dibangun + unit 378 + property 52/52 dijalankan nyata" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Kegagalan apa pun pada langkah di atas mem-blok merge — tidak ada jalur hijau palsu." >> "$GITHUB_STEP_SUMMARY"

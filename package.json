@@ -1,8 +1,8 @@
 {
-  "name": "playwright-qa-kit",
+  "name": "qa-playwright-kit",
   "version": "0.2.0-alpha.1",
   "private": true,
-  "description": "Reusable Playwright E2E acceleration framework with interactive runner, page objects, custom reporting, and AI-assisted workflow support",
+  "description": "Reusable QA Playwright Kit E2E acceleration framework with interactive runner, page objects, custom reporting, and AI-assisted workflow support",
   "keywords": [
     "playwright",
     "e2e",

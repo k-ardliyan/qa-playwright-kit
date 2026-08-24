@@ -1,7 +1,7 @@
 /**
  * Agent AI Integration Layer — Barrel Export
  *
- * Universal interface between the Playwright QA Kit pipeline
+ * Universal interface between the QA Playwright Kit pipeline
  * and multiple AI coding assistants.
  *
  * @module agents/integration

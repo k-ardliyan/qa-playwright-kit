@@ -1,4 +1,4 @@
-# Panduan Report QA — Playwright QA Kit
+# Panduan Report QA — QA Playwright Kit
 
 Dokumen ini menjelaskan **3 jenis report** yang dihasilkan framework setiap kali test dijalankan, format data yang tersedia, dan cara membacanya untuk keperluan QA.
 

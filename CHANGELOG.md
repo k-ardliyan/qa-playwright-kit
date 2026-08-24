@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Playwright QA Kit are documented here.
+All notable changes to QA Playwright Kit are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
@@ -9,7 +9,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Documentation Parity Follow-up — 2026-08-22 (audit round 2)
 
 - **CUSTOM-MCP.md contract truth:** corrected output schemas for `compile_requirement` (`requirementId`/`roles`/`title`/`expectations`/`automation`), `compile_test_plan` (`actions`/`assertions[{description,provenance}]`/`executionMode`, no `id`), `validate_plan` (nested `data` with `plannedScenarios`/`coverageGapsCount`), and `trace_requirement` (no `testPlanPath` arg; metrics `totalAcs`/`coveredAcs`/`healedScenarios`/…). Added missing `generate_page_object` section (was registered but undocumented). Marked `normalize_requirements`/`parse_requirement_scenarios`/`validate_requirement` as `compat` (replacement `compile_requirement`). Corrected `discover_pages` claims (no login-redirect auto-detection; checkpoint is status log, no resume logic) and `get_test_failures` default dir (`test-results/`).
-- **Phantom paths removed:** `scripts/setup-wizard.ts` (TROUBLESHOOTING), `scripts/check-env-health.ts` (ENVIRONMENT-GUIDE → now points to `health:check`/`env:status`), `scripts/sync-init-agents.sh/.ps1` (MAINTENANCE → manual `npx playwright init-agents`), `PLAYWRIGHT-QA-KIT-CORE-FREEZE-RC-PROMPT-STUDIO-PREP.md` (PROMPT-STUDIO boundary → DECISIONS D-13).
+- **Phantom paths removed:** `scripts/setup-wizard.ts` (TROUBLESHOOTING), `scripts/check-env-health.ts` (ENVIRONMENT-GUIDE → now points to `health:check`/`env:status`), `scripts/sync-init-agents.sh/.ps1` (MAINTENANCE → manual `npx playwright init-agents`), `qa-playwright-kit-CORE-FREEZE-RC-PROMPT-STUDIO-PREP.md` (PROMPT-STUDIO boundary → DECISIONS D-13).
 - **Invalid commands fixed:** `npx playwright auth.setup` → `npm run auth:setup` (ENVIRONMENT-GUIDE); removed `npm run dev:backend`, `DEBUG_MODE`/`_option_browserClose` config snippet, `.env.local` naming, `RATE_LIMIT_ENABLED`; TROUBLESHOOTING "TypeScript 6.x" → `^5.9.3`.
 - **Symbol drift fixed:** DECISIONS `networkMock` → `mockJson`/`unmockAll` and `validate_test_plan` → `validate_plan`; MIGRATION-GUIDE `EPHEMERAL_LOCATOR_LEAK`/`ROLE_MISMATCH` → `PLAN_EPHEMERAL_REF_DETECTED`/`PLAN_ROLE_DRIFT`; MAINTENANCE TAGS example now matches `src/utils/configuration.ts` (no `SECURITY`) and `TRACEABILITY_EXEMPT` → `TRACEABILITY_EXEMPT_PREFIXES_STATIC`/`_FILES`.
 - **Wizard truth:** GETTING-STARTED/README/FORK-ONBOARDING/requirements-README now describe the actual `src/setup/index.ts` wizard (6 steps, env file only — no browser install, no auth setup, no auto-encrypt, no `requirements/login.md` generation).
@@ -70,7 +70,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   - Explicit Public Testing API boundary at `src/public/` (`fixtures`, `auth`, `metadata`, `workspace`).
   - Architecture and boundary validator (`tools/validators/architecture.ts`) with zero-tolerance enforcement for cross-boundary imports.
 - **3-Server MCP Architecture & 19 Custom Tools**
-  - Dedicated custom MCP server `playwright-qa` under `tools/mcp/` exposing 19 tools across Preflight, Requirements, Selectors, Test Generation, Fixtures, Execution, and Reporting.
+  - Dedicated custom MCP server `qa-playwright-kit` under `tools/mcp/` exposing 19 tools across Preflight, Requirements, Selectors, Test Generation, Fixtures, Execution, and Reporting.
   - Profile-based launcher for Playwright MCP (`tools/scripts/playwright-mcp-launch.ts`) and Playwright Test MCP (`tools/scripts/playwright-test-mcp-launch.ts`).
   - 19 custom tools: `health_check`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `validate_generated_tests`, `generate_page_object`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `get_test_failures`, `list_artifacts`, `get_test_summary`, and `archive_report`.
 - **Capability Helpers & Assertions**
@@ -151,7 +151,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 See [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
 
-[Unreleased]: https://github.com/k-ardliyan/playwright-qa-kit/compare/v0.2.0-alpha.1...HEAD
-[0.2.0-alpha.1]: https://github.com/k-ardliyan/playwright-qa-kit/releases/tag/v0.2.0-alpha.1
-[0.1.0-alpha.2]: https://github.com/k-ardliyan/playwright-qa-kit/releases/tag/v0.1.0-alpha.2
-[0.1.0-alpha.1]: https://github.com/k-ardliyan/playwright-qa-kit/releases/tag/v0.1.0-alpha.1
+[Unreleased]: https://github.com/k-ardliyan/qa-playwright-kit/compare/v0.2.0-alpha.1...HEAD
+[0.2.0-alpha.1]: https://github.com/k-ardliyan/qa-playwright-kit/releases/tag/v0.2.0-alpha.1
+[0.1.0-alpha.2]: https://github.com/k-ardliyan/qa-playwright-kit/releases/tag/v0.1.0-alpha.2
+[0.1.0-alpha.1]: https://github.com/k-ardliyan/qa-playwright-kit/releases/tag/v0.1.0-alpha.1

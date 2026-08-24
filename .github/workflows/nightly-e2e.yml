@@ -126,7 +126,7 @@ jobs:
       - name: Install MCP server dependencies
         run: npm run install:mcp-server
 
-      - name: Build playwright-qa MCP server
+      - name: Build qa-playwright-kit MCP server
         run: npm run mcp:build
 
       - name: Install Playwright Chromium browser
@@ -311,6 +311,7 @@ jobs:
         env:
           CI: 'true'
         run: |
+          echo "APP_ENV=${APP_ENV:-unset} · BASE_URL host: $(node -e "try{console.log(new URL(process.env.BASE_URL).host)}catch{console.log('INVALID')}")"
           npx playwright test -c config/playwright/cross-browser.ts \
             --grep-invert @demo
 

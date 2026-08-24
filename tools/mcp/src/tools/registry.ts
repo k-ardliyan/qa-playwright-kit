@@ -1,5 +1,5 @@
 /**
- * Single source of truth for all MCP tools exposed by `playwright-qa`.
+ * Single source of truth for all MCP tools exposed by `qa-playwright-kit`.
  *
  * `dispatchTool` (MCP boundary), the HTTP router in `index.ts`, and the
  * `MCP_TOOL_DEFINITIONS` list all derive from this registry. Adding a tool

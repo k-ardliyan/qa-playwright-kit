@@ -1,4 +1,4 @@
-# Environment-Specific Guidelines for Playwright QA Kit
+# Environment-Specific Guidelines for QA Playwright Kit
 
 > **Purpose:** Document differences between local, staging, and production environments  
 > **When to use:** When tests fail in non-local environments or during CI/CD setup  
@@ -91,11 +91,11 @@ AUTH_CHALLENGE_MODE=otp-stdin HEADLESS=true APP_ENV=staging npm run auth:setup
 
 ### Local Environment
 
-| Error Pattern                         | Root Cause              | Solution                                    |
-| ------------------------------------- | ----------------------- | ------------------------------------------- |
-| `FileNotFound: .auth/local/user.json` | No auth setup run       | Run `npm run auth:setup`                       |
+| Error Pattern                         | Root Cause              | Solution                                             |
+| ------------------------------------- | ----------------------- | ---------------------------------------------------- |
+| `FileNotFound: .auth/local/user.json` | No auth setup run       | Run `npm run auth:setup`                             |
 | `ECONNREFUSED localhost:3000`         | Backend not running     | Start backend app (lihat docs project masing-masing) |
-| `NET::ERR_CERT_COMMON_NAME_INVALID`   | Self-signed cert (rare) | Add `--ignore-https-errors` in config       |
+| `NET::ERR_CERT_COMMON_NAME_INVALID`   | Self-signed cert (rare) | Add `--ignore-https-errors` in config                |
 
 ### Staging Environment
 
@@ -332,7 +332,7 @@ npx playwright test tests/login.spec.ts --project=local --headed --trace on --vi
 Usage:
 
 ```bash
-DEBUG_MODE=true DEBUG_VIDEO=1 APP_ENV=staging npx playwright test
+APP_ENV=staging npx playwright test --headed --trace on
 ```
 
 ---

@@ -10,4 +10,4 @@ package-lock.json
 tools/mcp/package-lock.json
 *.md
 # Optional local share deck — not part of quality gate unless explicitly committed
-docs/playwright-qa-kit-sharing.html
+docs/QA-PLAYWRIGHT-KIT-SHARING.html

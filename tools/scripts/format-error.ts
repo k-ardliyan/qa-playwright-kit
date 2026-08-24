@@ -43,41 +43,67 @@ export class FriendlyErrorInstance extends Error {
 // ─── Printers ─────────────────────────────────────────────────────────────────
 
 /**
+ * GitHub Actions workflow command escaping (per actions/toolkit docs).
+ * Strips %, \r, \n so data cannot inject fake annotations.
+ */
+function ghEscape(msg: string): string {
+  return msg.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+}
+
+/** True when running inside GitHub Actions (workflow logs get real annotations). */
+function inGithubActions(): boolean {
+  return process.env.GITHUB_ACTIONS === 'true';
+}
+
+/**
+ * Emit a native GitHub Actions annotation (::error / ::warning / ::notice)
+ * so quality-gate failures appear inline on the PR instead of grey logs.
+ */
+function ghAnnotation(level: 'error' | 'warning' | 'notice', msg: string): void {
+  if (!inGithubActions()) return;
+  process.stdout.write(`::${level}::${ghEscape(msg)}\n`);
+}
+
+/**
  * Print success message dengan emoji ✓ dan warna hijau (jika terminal support).
  */
 export function printOk(msg: string): void {
-  process.stdout.write(`[32m✓[0m ${msg}\n`);
+  process.stdout.write(`\u001b[32m✓\u001b[0m ${msg}\n`);
 }
 
 /**
  * Print warning message dengan emoji ⚠ dan warna kuning.
+ * Di GitHub Actions juga memancarkan ::warning annotation.
  */
 export function printWarn(msg: string): void {
-  process.stdout.write(`[33m⚠[0m ${msg}\n`);
+  process.stdout.write(`\u001b[33m⚠\u001b[0m ${msg}\n`);
+  ghAnnotation('warning', msg);
 }
 
 /**
  * Print info message dengan emoji ℹ dan warna biru.
  */
 export function printInfo(msg: string): void {
-  process.stdout.write(`[34mℹ[0m ${msg}\n`);
+  process.stdout.write(`\u001b[34mℹ\u001b[0m ${msg}\n`);
 }
 
 /**
  * Print step header (untuk multi-step CLI seperti qa:run).
  */
 export function printStep(step: number, total: number, label: string): void {
-  process.stdout.write(`\n[1m[${step}/${total}] ${label}[0m\n`);
+  process.stdout.write(`\n\u001b[1m[${step}/${total}] ${label}\u001b[0m\n`);
 }
 
 /**
  * Print FriendlyError dalam format yang ramah non-coder.
+ * Di GitHub Actions juga memancarkan ::error annotation.
  */
 export function printError(err: FriendlyError): void {
   const code = err.exitCode ?? EXIT.FIXABLE;
-  const emoji = code === EXIT.ESCALATE ? '[31m🆘[0m' : '[31m✗[0m';
+  const emoji = code === EXIT.ESCALATE ? '\u001b[31m🆘\u001b[0m' : '\u001b[31m✗\u001b[0m';
 
   process.stderr.write(`${emoji} ${err.title}\n`);
+  ghAnnotation('error', [err.title, err.detail].filter(Boolean).join(' — '));
   if (err.detail) {
     const detailLines = err.detail.split('\n');
     for (const line of detailLines) {
@@ -85,10 +111,10 @@ export function printError(err: FriendlyError): void {
     }
   }
   if (err.hint) {
-    process.stderr.write(`\n[33m💡 ${err.hint}[0m\n`);
+    process.stderr.write(`\n\u001b[33m💡 ${err.hint}\u001b[0m\n`);
   }
   if (err.docsLink) {
-    process.stderr.write(`[36m📖 ${err.docsLink}[0m\n`);
+    process.stderr.write(`\u001b[36m📖 ${err.docsLink}\u001b[0m\n`);
   }
 }
 

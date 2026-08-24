@@ -1,4 +1,4 @@
-# Playwright QA Kit — Cheat Sheet
+# QA Playwright Kit — Cheat Sheet
 
 > Print halaman ini (A4 portrait) dan tempel di meja Anda.
 
@@ -63,10 +63,10 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 ```
 # 1. Snapshot halaman → catalog tersimpan permanen
-snapshot_page (playwright-qa) — url, featureName, pageName
+snapshot_page (qa-playwright-kit) — url, featureName, pageName
 
 # 2. Generate scaffold dari catalog
-generate_page_object (playwright-qa) — featureName, pageName
+generate_page_object (qa-playwright-kit) — featureName, pageName
 → tests/pages/<ClassName>.ts (skip jika sudah ada)
 
 # 3. Edit scaffold + register di tests/fixtures.ts
@@ -109,7 +109,7 @@ generate_page_object (playwright-qa) — featureName, pageName
 
 Upload **bukan** `@manual`. PDF **teks** = `@file-content`; PDF **layout** visual = `@manual`. Live payload/response = `@network-assert` (bukan overload `@network` mock).
 
-Setelah tool MCP baru / `npm run mcp:build` → **restart server `playwright-qa`** di IDE (Hermes reload MCP).
+Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-kit`** di IDE (Hermes reload MCP).
 
 ---
 
@@ -117,8 +117,8 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `playwright-qa`
 
 | Gejala                       | Pertama Cek                                                                       |
 | ---------------------------- | --------------------------------------------------------------------------------- |
-| `health_check` fail          | `npm run mcp:build` lalu **restart `playwright-qa`** / IDE                        |
-| Tool MCP baru tidak muncul   | `npm run mcp:build` → restart `playwright-qa`                                     |
+| `health_check` fail          | `npm run mcp:build` lalu **restart `qa-playwright-kit`** / IDE                    |
+| Tool MCP baru tidak muncul   | `npm run mcp:build` → restart `qa-playwright-kit`                                 |
 | `validate_requirement` error | Baca hint di output → perbaiki → coba lagi                                        |
 | Test gagal semua satu role   | Cek `.auth/<role>.json` ada atau belum                                            |
 | Auth file missing            | `npm run auth:setup` / `auth:setup:headed`                                        |

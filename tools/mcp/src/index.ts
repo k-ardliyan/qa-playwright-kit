@@ -51,7 +51,7 @@ const server = http.createServer(async (req: http.IncomingMessage, res: http.Ser
     const url = req.url ?? '/';
 
     if (method === 'GET' && url === '/health') {
-      sendJson(res, 200, { status: 'ok', server: 'playwright-qa' });
+      sendJson(res, 200, { status: 'ok', server: 'qa-playwright-kit' });
       return;
     }
 

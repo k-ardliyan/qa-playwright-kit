@@ -132,7 +132,7 @@ jobs:
         if: steps.shard.outputs.skip != 'true'
         run: npm run install:mcp-server
 
-      - name: Build playwright-qa MCP server
+      - name: Build qa-playwright-kit MCP server
         if: steps.shard.outputs.skip != 'true'
         run: npm run mcp:build
 
@@ -148,6 +148,7 @@ jobs:
           PW_BLOB: ${{ (github.event.inputs.shardCount || '1') != '1' && '1' || '0' }}
         run: |
           TOTAL="${{ steps.shard.outputs.total }}"
+          echo "APP_ENV=${APP_ENV:-unset} · BASE_URL host: $(node -e "try{console.log(new URL(process.env.BASE_URL).host)}catch{console.log('INVALID')}")"
           if [ "$TOTAL" = "1" ]; then
             npm run test:ci
           else
@@ -160,15 +161,20 @@ jobs:
           SUMMARY_FILE="artifacts/reports/test-summary.json"
           [ -f "reports/test-summary.json" ] && SUMMARY_FILE="reports/test-summary.json"
           if [ -f "$SUMMARY_FILE" ]; then
+            # Real numbers from the real reporter — echoed for the log, no silent guessing.
+            node -e "const s=require('./$SUMMARY_FILE'); console.log('Summary: total='+s.total, 'passed='+s.passed, 'failed='+s.failed, 'skipped='+s.skipped, 'passRate='+s.passRate+'%')"
             PASS_RATE=$(node -e "const s=require('./$SUMMARY_FILE'); console.log(s.passRate||0)")
-            if [ "$PASS_RATE" = "100" ]; then
+            TOTAL=$(node -e "const s=require('./$SUMMARY_FILE'); console.log(s.total||0)")
+            if [ "$TOTAL" = "0" ]; then
+              echo "::warning::test-summary.json contains total=0 — reporter produced an empty run. NOT auto-archiving."
+            elif [ "$PASS_RATE" = "100" ]; then
               echo "All tests passed (100%). Auto-archiving..."
               npm run archive:save -- --decision=APPROVE --notes="CI auto-pass (100%)" --yes || true
             else
               echo "Pass rate: ${PASS_RATE}%. Skipping auto-archive (not 100%)."
             fi
           else
-            echo "No test-summary.json found. Skipping auto-archive."
+            echo "::warning::No test-summary.json found at $SUMMARY_FILE — custom reporter did not run or wrote elsewhere. Auto-archive skipped."
           fi
 
       - name: Upload blob report

@@ -1,4 +1,4 @@
-# Playwright QA Kit — Architecture Index
+# QA Playwright Kit — Architecture Index
 
 > Entry point untuk navigasi codebase. Baca ini sebelum buka file lain.
 

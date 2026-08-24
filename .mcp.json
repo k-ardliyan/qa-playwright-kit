@@ -11,7 +11,7 @@
       "args": ["tsx", "tools/scripts/playwright-test-mcp-launch.ts"]
     },
     {
-      "name": "playwright-qa",
+      "name": "qa-playwright-kit",
       "command": "node",
       "args": ["tools/mcp/dist/index-mcp.js"]
     }

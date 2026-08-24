@@ -1,10 +1,10 @@
 # Traceability & Coverage Model
 
-> Konsep closed-loop traceability + model coverage 4-dimensi Playwright QA Kit.
+> Konsep closed-loop traceability + model coverage 4-dimensi QA Playwright Kit.
 > Spec schema mesin: [`TRACEABILITY-CONTRACT.md`](TRACEABILITY-CONTRACT.md).
 > *(Merge dari `docs/TRACEABILITY.md` + `docs/contracts/COVERAGE-MODEL.md` — 2026-08-22.)*
 
-This document defines the closed-loop traceability graph and the 4-dimensional coverage lifecycle in the Playwright QA Kit framework.
+This document defines the closed-loop traceability graph and the 4-dimensional coverage lifecycle in the QA Playwright Kit framework.
 
 ---
 
@@ -130,18 +130,18 @@ test.describe('Login Validation', () => {
 
 `TraceabilityContractV1.metrics` memakai field-field berikut (source of truth: `tools/mcp/src/contracts/traceability-contract.ts`):
 
-| Metric                       | Definition                                                           |
-| ---------------------------- | -------------------------------------------------------------------- |
-| `totalAcs`                   | Total acceptance criteria dalam requirement                          |
-| `coveredAcs`                 | AC yang tercakup oleh skenario yang dieksekusi dan lulus             |
-| `uncoveredAcs`               | AC yang tidak tercakup                                               |
-| `totalScenarios`             | Total skenario requirement                                           |
-| `passingScenarios`           | Skenario yang lulus di run terakhir                                  |
-| `failingScenarios`           | Skenario yang gagal di run terakhir                                  |
-| `healedScenarios`            | Skenario yang awalnya gagal lalu berhasil di-heal dalam run yang sama |
-| `skippedScenarios`           | Skenario yang di-skip (`test.skip()`)                                |
-| `manualScenarios`            | Skenario berjenis `manual`                                           |
-| `blockedScenarios`           | Skenario yang diblokir (tidak bisa dijalankan sekarang)              |
+| Metric             | Definition                                                            |
+| ------------------ | --------------------------------------------------------------------- |
+| `totalAcs`         | Total acceptance criteria dalam requirement                           |
+| `coveredAcs`       | AC yang tercakup oleh skenario yang dieksekusi dan lulus              |
+| `uncoveredAcs`     | AC yang tidak tercakup                                                |
+| `totalScenarios`   | Total skenario requirement                                            |
+| `passingScenarios` | Skenario yang lulus di run terakhir                                   |
+| `failingScenarios` | Skenario yang gagal di run terakhir                                   |
+| `healedScenarios`  | Skenario yang awalnya gagal lalu berhasil di-heal dalam run yang sama |
+| `skippedScenarios` | Skenario yang di-skip (`test.skip()`)                                 |
+| `manualScenarios`  | Skenario berjenis `manual`                                            |
+| `blockedScenarios` | Skenario yang diblokir (tidak bisa dijalankan sekarang)               |
 
 > Aturan ketat: AC yang skenarionya tidak dieksekusi / hanya direncanakan **tidak pernah** dihitung sebagai `covered` — `coveredAcs` hanya naik bila ada skenario lulus yang menautkan AC tersebut (`TRACE_HEURISTIC_LINK_USED` dicatat saat fallback heuristic dipakai).
 

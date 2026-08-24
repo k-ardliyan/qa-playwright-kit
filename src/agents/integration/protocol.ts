@@ -2,7 +2,7 @@
  * Universal Agent Protocol — Request/Response types and validation
  *
  * Defines the JSON-based interface contract for all AI client interactions
- * with the Playwright QA Kit pipeline.
+ * with the QA Playwright Kit pipeline.
  *
  * @module agents/integration/protocol
  */

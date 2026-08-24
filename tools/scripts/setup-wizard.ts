@@ -217,7 +217,7 @@ function hr(char = '─', width = 62): string {
 function banner(): void {
   process.stdout.write('\n');
   process.stdout.write('╔══════════════════════════════════════════════════════════════╗\n');
-  process.stdout.write('║  Playwright QA Kit — Setup Wizard                            ║\n');
+  process.stdout.write('║  QA Playwright Kit — Setup Wizard                            ║\n');
   process.stdout.write('║  Setup awal testing otomatis (Hermes Agent)                  ║\n');
   process.stdout.write('╚══════════════════════════════════════════════════════════════╝\n\n');
   process.stdout.write('  Wizard ini menyiapkan project agar QA bisa menjalankan test\n');
@@ -514,7 +514,7 @@ async function phase1(state: WizardState): Promise<void> {
       HEADLESS: 'true',
       SLOW_MO: '0',
     },
-    `Playwright QA Kit — environments/${state.envName}.env`,
+    `QA Playwright Kit — environments/${state.envName}.env`,
   );
 
   // Pin active env for local sessions
@@ -1382,7 +1382,7 @@ async function phase6(state: WizardState): Promise<void> {
     const enc = runCmd(`npx @dotenvx/dotenvx encrypt -f "${relEnv}"`);
     if (enc.ok) {
       printOk(`File akun diamankan: ${relEnv}`);
-      printInfo('Kunci disimpan di: ~/.dotenvx-keys/playwright-qa-kit/');
+      printInfo('Kunci disimpan di: ~/.dotenvx-keys/qa-playwright-kit/');
       printInfo('Ubah akun nanti: npm run env:edit');
     } else {
       printWarn('Enkripsi gagal: ' + enc.output.split('\n')[0]);
@@ -1533,7 +1533,7 @@ function phase7(state: WizardState): void {
   const prompt = [
     `Run full pipeline in automatic mode for ${LOGIN_REQ_REL} (orchestrator: AGENTS.md).`,
     `This is the REAL project login requirement (APP_ENV=${state.envName || 'local'}, BASE_URL=${baseUrl}), not a sample file.`,
-    `BEFORE Plan/Generate: call snapshot_page (playwright-qa) with url=${snapshotUrl}, featureName=${featureName}, pageName=${pageName}.`,
+    `BEFORE Plan/Generate: call snapshot_page (qa-playwright-kit) with url=${snapshotUrl}, featureName=${featureName}, pageName=${pageName}.`,
     `Use the resulting selector-catalog/${featureName}/${pageName}.json locators (Path A, no POM).`,
     `Live-verify labels/selectors on the real page — every website differs.`,
     `Resume from last checkpoint if reports/pipeline-state.json exists.`,

@@ -1,5 +1,5 @@
 /**
- * Shared ephemeral reference guard for the playwright-qa MCP server.
+ * Shared ephemeral reference guard for the qa-playwright-kit MCP server.
  *
  * Ephemeral references (ref:, handle:, tw-*, playwright-element-*) are browser
  * session IDs that must never persist into generated test code or test plan

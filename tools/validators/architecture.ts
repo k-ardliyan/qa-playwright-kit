@@ -2,7 +2,7 @@
 /**
  * Architecture & Boundary Validator
  *
- * Enforces Playwright QA Kit Hybrid Architecture rules:
+ * Enforces QA Playwright Kit Hybrid Architecture rules:
  * 1. Boundary enforcement: src/ (core) MUST NOT import from tests/
  * 2. Public API contract: src/public/ must export fixtures, auth, metadata, workspace
  * 3. File placement: No rogue legacy directories (src/tests, test-fixtures, src/pages)
@@ -68,7 +68,7 @@ function scanDir(dir: string, ext: string[], onFile: (filePath: string) => void)
   }
 }
 
-console.log('\n  🔍 Validating Playwright QA Kit Architecture...\n');
+console.log('\n  🔍 Validating QA Playwright Kit Architecture...\n');
 
 // ─── Rule 1: src/ (core engine) must never import from tests/ ───────────────
 const srcDir = path.join(ROOT, 'src');

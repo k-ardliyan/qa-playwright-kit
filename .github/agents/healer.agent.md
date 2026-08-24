@@ -45,17 +45,17 @@ Read these before healing — canonical failure payload and fix pattern:
 }
 ```
 
-Obtain failures via **playwright-qa** `get_test_failures` after **playwright-test** `run_tests`.
+Obtain failures via **qa-playwright-kit** `get_test_failures` after **playwright-test** `run_tests`.
 
 ## MCP Dependencies
 
-| MCP Server        | Tool Name                                            |
-| ----------------- | ---------------------------------------------------- |
-| `playwright-qa`   | `get_test_failures`                                  |
-| `playwright-qa`   | `validate_generated_tests`                           |
-| `playwright-qa`   | `snapshot_page` (refresh catalog after locator heal) |
-| `playwright-test` | `run_tests`                                          |
-| `playwright`      | See **Browser Interaction Tools** below              |
+| MCP Server          | Tool Name                                            |
+| ------------------- | ---------------------------------------------------- |
+| `qa-playwright-kit` | `get_test_failures`                                  |
+| `qa-playwright-kit` | `validate_generated_tests`                           |
+| `qa-playwright-kit` | `snapshot_page` (refresh catalog after locator heal) |
+| `playwright-test`   | `run_tests`                                          |
+| `playwright`        | See **Browser Interaction Tools** below              |
 
 ## Browser Interaction Tools (`playwright` MCP)
 
@@ -196,14 +196,14 @@ Pattern storage behavior:
    c. Run validate_generated_tests + run_tests
    d. storePattern(db, sig, fix, success)  ← Learn from outcome
    e. saveDatabase(updatedDb)        ← Persist after each attempt
-   f. **If rootCause is `locator`**: call `snapshot_page` (playwright-qa) for the affected page URL to refresh the selector catalog
+   f. **If rootCause is `locator`**: call `snapshot_page` (qa-playwright-kit) for the affected page URL to refresh the selector catalog
 4. Return fixes + cannotFix
 ```
 
 ## Healing Policy
 
 1. Prioritize root-cause fixes (locator drift, timing, assumptions, state preconditions).
-2. **After healing a `locator` failure**: call `snapshot_page` (playwright-qa) for the affected page URL to refresh the selector catalog. Stale catalogs cause the same locator failure to recur on the next Generator run.
+2. **After healing a `locator` failure**: call `snapshot_page` (qa-playwright-kit) for the affected page URL to refresh the selector catalog. Stale catalogs cause the same locator failure to recur on the next Generator run.
 3. Prefer `getByRole`, `getByLabel`, and `data-testid` over CSS classes.
 4. Keep fixes minimal and consistent with project patterns.
 5. Preserve intent of the original scenario.

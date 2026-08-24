@@ -1,4 +1,4 @@
-# Playwright QA Kit — Domain Glossary
+# QA Playwright Kit — Domain Glossary
 
 > This file is a glossary of domain terms used in the project. It is NOT a spec or implementation guide.
 
@@ -10,7 +10,7 @@
 ## Toolchain
 
 - **Primary Stack** — VS Code + Codex extension, Cursor, or Kiro. All documentation, configuration, and setup guides support multi-platform AI clients. MCP configuration can be auto-generated for each platform via `npm run mcp:config`.
-- **MCP Servers** — Three servers (`playwright`, `playwright-test`, `playwright-qa`) configured via root `.mcp.json` as project source-of-truth. Platform-specific configs (Claude, Cursor, Kiro) are auto-generated. `.vscode/mcp.json` is optional editor-compatibility config.
+- **MCP Servers** — Three servers (`playwright`, `playwright-test`, `qa-playwright-kit`) configured via root `.mcp.json` as project source-of-truth. Platform-specific configs (Claude, Cursor, Kiro) are auto-generated. `.vscode/mcp.json` is optional editor-compatibility config.
 
 ## Pipeline
 
@@ -29,7 +29,7 @@
 
 - **Scope (Path A — Template core)** — Write requirement → AI pipeline → generated specs in `tests/`. Recommended starting point.
 - **Generator verification** — How the Generator confirms selectors before writing code: CLI attach (preferred) or MCP browser tools (fallback).
-- **Framework Scope** — Generic, multi-project. The Playwright QA Kit is a reusable toolkit that works across different web applications. Application-specific code (auth flows, POMs, env configs) lives in each project's instance (fork).
+- **Framework Scope** — Generic, multi-project. The QA Playwright Kit is a reusable toolkit that works across different web applications. Application-specific code (auth flows, POMs, env configs) lives in each project's instance (fork).
 - **Reference Adapter** — Not bundled. Forks can define their own adapter via `PLAYWRIGHT_ADAPTER_*` envs (see `CUSTOM-MCP.md`).
 - **Deployment Model** — Template Fork. This repository acts as a core template. Each QA project forks or duplicates this repository into its own separate Git repository to maintain absolute isolation of tests, credentials, and custom page objects. Upstream updates (core logic, prompts, MCP config) are pulled and merged manually from the core template repository registered as a Git `upstream` remote.
 

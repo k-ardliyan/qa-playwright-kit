@@ -377,9 +377,9 @@ function extractMcpServerReferences(lines: string[]): McpReference[] {
 /**
  * Extract MCP tool references from file content.
  * Only table rows in ## MCP Dependencies where the **server** column is
- * `playwright-qa` are validated against mcp-server registry. Tools from
+ * `qa-playwright-kit` are validated against mcp-server registry. Tools from
  * `playwright` / `playwright-test` (or other servers) are intentionally ignored
- * here — they are not registered in playwright-qa's TOOL_REGISTRY.
+ * here — they are not registered in qa-playwright-kit's TOOL_REGISTRY.
  */
 function extractMcpToolReferences(lines: string[]): McpReference[] {
   const refs: McpReference[] = [];
@@ -414,8 +414,8 @@ function extractMcpToolReferences(lines: string[]): McpReference[] {
     const toolMatch = columns[1].match(/`([a-z][a-z0-9_]+)`/);
     if (!serverMatch || !toolMatch) continue;
 
-    // Registry under mcp-server only lists playwright-qa tools
-    if (serverMatch[1] !== 'playwright-qa') continue;
+    // Registry under mcp-server only lists qa-playwright-kit tools
+    if (serverMatch[1] !== 'qa-playwright-kit') continue;
 
     const toolName = toolMatch[1];
     if (!toolName.includes('_') || seen.has(toolName)) continue;

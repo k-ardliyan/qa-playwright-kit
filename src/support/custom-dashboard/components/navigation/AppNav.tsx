@@ -48,7 +48,7 @@ export function AppNav({ activeTab = 'dashboard', hasLatestRun, latestRunArchive
               <circle cx="9" cy="9" r="3" fill="currentColor" />
             </svg>
           </span>
-          <span class="app-header__title">Playwright QA</span>
+          <span class="app-header__title">QA Playwright Kit</span>
         </a>
       </div>
 

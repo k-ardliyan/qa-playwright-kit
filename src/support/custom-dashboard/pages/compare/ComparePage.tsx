@@ -40,7 +40,7 @@ export function ComparePage({
   }
 
   return (
-    <DashboardDocument pageTitle="Compare Runs · Playwright QA" includeChart={false}>
+    <DashboardDocument pageTitle="Compare Runs · QA Playwright Kit" includeChart={false}>
       {serveMode && (
         <AppNav
           activeTab="compare"

@@ -87,7 +87,7 @@ test('resolveProjectName from package.json', () => {
   fs.mkdirSync(pkgDir, { recursive: true });
   fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({ name: 'my-fork' }), 'utf-8');
   assert.equal(resolveProjectName(pkgDir), 'my-fork');
-  assert.equal(resolveProjectName(path.join(tmp, 'empty')), 'playwright-qa-kit');
+  assert.equal(resolveProjectName(path.join(tmp, 'empty')), 'qa-playwright-kit');
 });
 
 // cleanup

@@ -2,6 +2,7 @@
 import type { Children } from '@kitajs/html';
 import { getDashboardStyles } from '../styles';
 import { renderChartScript, renderInteractiveScript, renderThemeScript } from '../shared';
+import { RepoFooter } from './RepoFooter';
 import type { TestSummary } from '../types';
 
 export interface DashboardDocumentProps {
@@ -46,6 +47,7 @@ export function DashboardDocument({
             <div class="page-backdrop" aria-hidden="true" />
             <main class="page">{children}</main>
           </div>
+          <RepoFooter />
           {safeThemeScript}
           {safeChartScript}
           {safeInteractiveScript}

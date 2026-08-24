@@ -47,14 +47,14 @@ Also read metadata from the source requirement via `compile_requirement` (or `no
 
 ## MCP Dependencies
 
-| Server          | Tool                       | Purpose                                                            |
-| --------------- | -------------------------- | ------------------------------------------------------------------ |
-| `playwright-qa` | `compile_requirement`      | Read typed RequirementContractV1 metadata including roles and auth |
-| `playwright-qa` | `compile_test_plan`        | Read canonical TestPlanContractV1 metadata                         |
-| `playwright-qa` | `validate_generated_tests` | Validate generated spec files after generation                     |
-| `playwright-qa` | `snapshot_page`            | Capture ARIA + selector catalog for a specific page                |
-| `playwright-qa` | `list_test_fixtures`       | List test fixture bank files under tests/data/                     |
-| `playwright-qa` | `inspect_file`             | Inspect test fixture envelope details                              |
+| Server              | Tool                       | Purpose                                                            |
+| ------------------- | -------------------------- | ------------------------------------------------------------------ |
+| `qa-playwright-kit` | `compile_requirement`      | Read typed RequirementContractV1 metadata including roles and auth |
+| `qa-playwright-kit` | `compile_test_plan`        | Read canonical TestPlanContractV1 metadata                         |
+| `qa-playwright-kit` | `validate_generated_tests` | Validate generated spec files after generation                     |
+| `qa-playwright-kit` | `snapshot_page`            | Capture ARIA + selector catalog for a specific page                |
+| `qa-playwright-kit` | `list_test_fixtures`       | List test fixture bank files under tests/data/                     |
+| `qa-playwright-kit` | `inspect_file`             | Inspect test fixture envelope details                              |
 
 ### POM Decision (Before Generating Spec)
 

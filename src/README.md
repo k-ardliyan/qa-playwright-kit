@@ -3,7 +3,7 @@
 > **Boundary:** Protected Internal Framework Core  
 > **Audience:** Framework Maintainers
 
-Folder ini berisi implementasi inti (core engine) dari **Playwright QA Kit**:
+Folder ini berisi implementasi inti (core engine) dari **QA Playwright Kit**:
 
 - `agents/`: Pipeline coordinator, protocol handlers, dan sub-agent orchestration.
 - `cli/`: CLI dashboard server, runner utilities.

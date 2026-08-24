@@ -27,7 +27,7 @@ export function DashboardPage({
   const safeHistoryJs = buildHistoryJs({ serveMode });
 
   return (
-    <DashboardDocument pageTitle="QA Dashboard · Playwright QA" includeChart={false}>
+    <DashboardDocument pageTitle="QA Dashboard · QA Playwright Kit" includeChart={false}>
       {serveMode && (
         <AppNav
           activeTab="dashboard"

@@ -15,7 +15,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
-export function resolveProjectName(repoRoot: string, fallback = 'playwright-qa-kit'): string {
+export function resolveProjectName(repoRoot: string, fallback = 'qa-playwright-kit'): string {
   const pkgPath = path.resolve(repoRoot, 'package.json');
   if (!fs.existsSync(pkgPath)) return fallback;
   try {

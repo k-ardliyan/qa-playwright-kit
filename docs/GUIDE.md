@@ -31,7 +31,7 @@ Quick reference:
 
 ```bash
 npm install                 # install dependencies
-npm run setup:wizard        # interactive setup (7 phases)
+npm run setup:wizard        # interactive setup (6 steps)
 npm run setup:check         # verify setup setelah selesai
 ```
 
@@ -41,11 +41,11 @@ npm run setup:check         # verify setup setelah selesai
 
 ## Konfigurasi MCP di IDE
 
-| Server            | Fungsi                                                                                                                                                    |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `playwright`      | Eksplorasi UI (`browser_navigate`, `browser_snapshot`)                                                                                                    |
-| `playwright-test` | Menjalankan tes (`run_tests`)                                                                                                                             |
-| `playwright-qa`   | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, `snapshot_page`, `discover_pages`, `generate_page_object` |
+| Server              | Fungsi                                                                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `playwright`        | Eksplorasi UI (`browser_navigate`, `browser_snapshot`)                                                                                                    |
+| `playwright-test`   | Menjalankan tes (`run_tests`)                                                                                                                             |
+| `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, `snapshot_page`, `discover_pages`, `generate_page_object` |
 
 **Hermes:** `.mcp.json` di root project dibaca langsung oleh Hermes. Tidak perlu generate config tambahan. `npm run mcp:config` sudah support multi-platform (claude/cursor/kiro) tapi tidak di-surface ke QA di alur default.
 
@@ -129,7 +129,7 @@ CI shard merge: set `PW_BLOB=1` (nightly; PR e2e saat `shardCount` > 1) → `art
 
 Pipeline mengikuti kontrak di [AGENTS.md](../AGENTS.md):
 
-1. `health_check` (playwright-qa)
+1. `health_check` (qa-playwright-kit)
 2. `validate_requirement` — atau CLI: `npm run validate:requirement`
 3. Planner → `specs/*-test-plan.md` (dengan kolom Role, Auth Context, Type)
 4. Generator → `tests/*.spec.ts` (satu file per role jika role-aware)
@@ -204,7 +204,7 @@ Ganti `requirements/nama-fitur.md` dengan file Anda.
 ### Validasi format saja
 
 ```
-Validasi requirements/nama-fitur.md menggunakan tool validate_requirement di server playwright-qa.
+Validasi requirements/nama-fitur.md menggunakan tool validate_requirement di server qa-playwright-kit.
 Jika ada error severity, perbaiki file requirement lalu validasi ulang.
 Jangan jalankan pipeline — hanya validasi dan perbaikan format.
 ```
@@ -247,8 +247,8 @@ Roles in scope: [tulis role, misal: super-admin, finance, hrd].
 ```
 Plan test scenarios dari requirements/nama-fitur.md:
 
-1. validate_requirement (playwright-qa)
-2. parse_requirement_scenarios + normalize_requirements (playwright-qa)
+1. validate_requirement (qa-playwright-kit)
+2. parse_requirement_scenarios + normalize_requirements (qa-playwright-kit)
 3. Tulis specs/nama-fitur-test-plan.md dengan kolom: Scenario Name | Steps | Expected Result | Role | Auth Context | Type
 4. Tambah section Coverage Gap untuk scenario yang tidak bisa diplankan.
 
@@ -265,13 +265,13 @@ Generate Playwright tests dari specs/nama-fitur-test-plan.md:
 3. Untuk halaman baru: live verification via playwright-cli (preferred) atau browser_* MCP tools.
    Untuk halaman di selector-catalog: cek apakah `tests/pages/<PomName>.ts` sudah ada.
    - Ada → import via fixture, gunakan langsung.
-   - Belum ada → jalankan `generate_page_object` (playwright-qa) untuk scaffold otomatis, lalu QA register di project.fixture.ts.
+   - Belum ada → jalankan `generate_page_object` (qa-playwright-kit) untuk scaffold otomatis, lalu QA register di project.fixture.ts.
    - Tidak ada catalog → `snapshot_page` dulu, baru `generate_page_object`.
 4. Tulis file di tests/ (kebab-case .spec.ts, import ./fixtures).
 5. Scenario (@access-restriction): assert penolakan akses — redirect, error message, atau elemen tidak ada.
 6. Scenario (@failure): assert pesan error atau state validasi gagal.
 7. Scenario (@manual): test.skip(true, 'Manual: <alasan>').
-8. validate_generated_tests (playwright-qa).
+8. validate_generated_tests (qa-playwright-kit).
 ```
 
 ### Heal saja
@@ -279,10 +279,10 @@ Generate Playwright tests dari specs/nama-fitur-test-plan.md:
 ```
 Heal kegagalan tes:
 
-1. get_test_failures (playwright-qa) dari JSON hasil run aktif.
+1. get_test_failures (qa-playwright-kit) dari JSON hasil run aktif.
 2. Klasifikasikan failure source: app | test | requirement | env | ai_generation.
 3. Perbaiki file spec yang gagal di tests/ (gunakan tracePath/screenshotPath jika ada).
-4. validate_generated_tests (playwright-qa).
+4. validate_generated_tests (qa-playwright-kit).
 5. run_tests (playwright-test) hanya untuk file yang diperbaiki.
 ```
 
@@ -291,7 +291,7 @@ Heal kegagalan tes:
 ```
 Snapshot halaman https://staging.app/login lalu simpan ke artifacts/selector-catalog/login/login-form:
 
-1. snapshot_page (playwright-qa) — url, featureName=login, pageName=login-form
+1. snapshot_page (qa-playwright-kit) — url, featureName=login, pageName=login-form
 2. Baca file artifacts/selector-catalog/login/login-form.json untuk lihat daftar selector
 3. Jika perlu crawl banyak halaman, pakai discover_pages sebagai gantinya
 ```
@@ -301,8 +301,8 @@ Snapshot halaman https://staging.app/login lalu simpan ke artifacts/selector-cat
 ```
 Buat POM scaffold dari halaman https://staging.app/login:
 
-1. snapshot_page (playwright-qa) — url, featureName=login, pageName=login-form
-2. generate_page_object (playwright-qa) — featureName=login, pageName=login-form
+1. snapshot_page (qa-playwright-kit) — url, featureName=login, pageName=login-form
+2. generate_page_object (qa-playwright-kit) — featureName=login, pageName=login-form
    → Hasilkan tests/pages/LoginForm.ts (scaffold, tidak overwrite file yang sudah ada)
 3. QA review scaffold: rename locator, tambah goto(), tambah business methods (doLogin dll)
 4. Register POM di tests/fixtures.ts atau src/fixtures/project.fixture.ts
@@ -324,7 +324,7 @@ Buat POM scaffold dari halaman https://staging.app/login:
 | Katalog selector            | `artifacts/selector-catalog/<fitur>/<halaman>.json`     |
 | Scaffold POM                | `tests/pages/<NamaHalaman>.ts`                          |
 | Daftarkan POM               | `tests/fixtures.ts` / `src/fixtures/project.fixture.ts` |
-| Server QA custom            | `playwright-qa`                                         |
+| Server QA custom            | `qa-playwright-kit`                                     |
 | Cek kesehatan               | tool `health_check`                                     |
 | Validasi format             | `validate_requirement` / `npm run validate:requirement` |
 | Validasi kode tes           | `npm run validate`                                      |
@@ -359,16 +359,16 @@ Detail tool: [CUSTOM-MCP.md](../CUSTOM-MCP.md).
 
 ## Troubleshooting `health_check`
 
-| Check             | Status    | Perbaikan                                        |
-| ----------------- | --------- | ------------------------------------------------ |
-| `node`            | fail      | Install Node.js >= 20.19.0                       |
-| `mcp_build`       | fail      | `npm run mcp:build`                              |
-| `playwright_mcp`  | fail      | `npm install`                                    |
-| `playwright_test` | warn/fail | Upgrade `@playwright/test` >= 1.56               |
-| `environment`     | fail/warn | Buat `config/environments/{APP_ENV}.env` dari template  |
-| `base_url`        | warn      | Set `BASE_URL` di file env                       |
-| `auth_storage`    | warn      | `.auth/{APP_ENV}/` kosong — `npm run auth:setup` |
-| `json_results`    | warn      | Normal sebelum tes pertama — jalankan `npm test` |
+| Check             | Status    | Perbaikan                                              |
+| ----------------- | --------- | ------------------------------------------------------ |
+| `node`            | fail      | Install Node.js >= 20.19.0                             |
+| `mcp_build`       | fail      | `npm run mcp:build`                                    |
+| `playwright_mcp`  | fail      | `npm install`                                          |
+| `playwright_test` | warn/fail | Upgrade `@playwright/test` >= 1.56                     |
+| `environment`     | fail/warn | Buat `config/environments/{APP_ENV}.env` dari template |
+| `base_url`        | warn      | Set `BASE_URL` di file env                             |
+| `auth_storage`    | warn      | `.auth/{APP_ENV}/` kosong — `npm run auth:setup`       |
+| `json_results`    | warn      | Normal sebelum tes pertama — jalankan `npm test`       |
 
 ---
 

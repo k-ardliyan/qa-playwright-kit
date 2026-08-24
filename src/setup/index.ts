@@ -62,7 +62,7 @@ async function main(): Promise<void> {
 
 function printHelp(): void {
   console.log(`
-qa-kit setup — Interactive setup wizard
+qa-playwright-kit setup — Interactive setup wizard
 
 Usage:
   npm run setup:wizard [options]

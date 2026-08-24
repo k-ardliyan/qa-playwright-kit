@@ -15,7 +15,7 @@ test.describe('WorkspacePathRegistry', () => {
   });
 
   test('loads default manifest when no manifest file exists in a directory', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-kit-ws-test-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-playwright-kit-ws-test-'));
     try {
       const reg = new WorkspacePathRegistry(tempDir);
       expect(reg.manifest.schemaVersion).toBe(DEFAULT_WORKSPACE_MANIFEST.schemaVersion);

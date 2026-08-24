@@ -1,4 +1,4 @@
-# QA Kit Diagnostic Codes Catalog
+# QA Playwright Kit Diagnostic Codes Catalog
 
 Diagnostic codes are stable APIs returned in `McpResult.diagnostics` and compiler gates.
 
@@ -35,22 +35,22 @@ Diagnostic codes are stable APIs returned in `McpResult.diagnostics` and compile
 
 ## Test Plan Diagnostics (`PLAN_*`)
 
-| Code                          | Severity          | Description                                                          |
-| ----------------------------- | ----------------- | -------------------------------------------------------------------- |
-| `PLAN_SCENARIO_MISSING`       | `error`           | A required scenario from requirement is missing in the test plan     |
-| `PLAN_AC_UNCOVERED`           | `error`           | An acceptance criterion has no automated or manual test coverage     |
-| `PLAN_UNKNOWN_AC`             | `error`           | Plan scenario references an AC ID not declared in the requirement    |
-| `PLAN_ROLE_DRIFT`             | `error`           | Planned role/actor does not match requirement definition             |
-| `PLAN_AUTH_DRIFT`             | `error`           | Planned auth state does not match requirement definition             |
-| `PLAN_EXPECTATION_DRIFT`      | `warning`/`error` | Planned assertion contradicts or drops requirement expectation       |
-| `PLAN_UNREVIEWED_ASSUMPTION`  | `warning`         | Plan contains assertion with `planner-assumption` provenance         |
-| `PLAN_UNKNOWN_PROVENANCE`     | `warning`         | Plan assertion provenance is not one of the canonical values         |
-| `PLAN_STALE_REQUIREMENT`      | `error`           | Plan `sourceRequirementHash` does not match current requirement hash |
-| `PLAN_STALE`                  | `error`           | Plan is stale relative to its requirement                            |
-| `PLAN_EPHEMERAL_REF`          | `error`           | Plan contains ephemeral browser/MCP runtime element references       |
-| `PLAN_EPHEMERAL_REF_DETECTED` | `error`           | Plan persisted ephemeral browser/MCP runtime element references      |
-| `PLAN_INVALID_EXECUTION_MODE` | `error`           | Invalid execution mode or unsupported conversion                     |
-| `PLAN_MANUAL_CONVERTED_WITHOUT_REASON` | `warning` | Manual scenario converted without a stated reason                 |
+| Code                                   | Severity          | Description                                                          |
+| -------------------------------------- | ----------------- | -------------------------------------------------------------------- |
+| `PLAN_SCENARIO_MISSING`                | `error`           | A required scenario from requirement is missing in the test plan     |
+| `PLAN_AC_UNCOVERED`                    | `error`           | An acceptance criterion has no automated or manual test coverage     |
+| `PLAN_UNKNOWN_AC`                      | `error`           | Plan scenario references an AC ID not declared in the requirement    |
+| `PLAN_ROLE_DRIFT`                      | `error`           | Planned role/actor does not match requirement definition             |
+| `PLAN_AUTH_DRIFT`                      | `error`           | Planned auth state does not match requirement definition             |
+| `PLAN_EXPECTATION_DRIFT`               | `warning`/`error` | Planned assertion contradicts or drops requirement expectation       |
+| `PLAN_UNREVIEWED_ASSUMPTION`           | `warning`         | Plan contains assertion with `planner-assumption` provenance         |
+| `PLAN_UNKNOWN_PROVENANCE`              | `warning`         | Plan assertion provenance is not one of the canonical values         |
+| `PLAN_STALE_REQUIREMENT`               | `error`           | Plan `sourceRequirementHash` does not match current requirement hash |
+| `PLAN_STALE`                           | `error`           | Plan is stale relative to its requirement                            |
+| `PLAN_EPHEMERAL_REF`                   | `error`           | Plan contains ephemeral browser/MCP runtime element references       |
+| `PLAN_EPHEMERAL_REF_DETECTED`          | `error`           | Plan persisted ephemeral browser/MCP runtime element references      |
+| `PLAN_INVALID_EXECUTION_MODE`          | `error`           | Invalid execution mode or unsupported conversion                     |
+| `PLAN_MANUAL_CONVERTED_WITHOUT_REASON` | `warning`         | Manual scenario converted without a stated reason                    |
 
 ---
 

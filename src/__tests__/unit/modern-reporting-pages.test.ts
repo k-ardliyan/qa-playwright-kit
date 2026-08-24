@@ -151,7 +151,7 @@ test.describe('Modern Reporting Subsystem', () => {
     );
 
     expect(html).toContain('QA Overview & Quality Health');
-    expect(html).toContain('Playwright QA');
+    expect(html).toContain('QA Playwright Kit');
     expect(html).toContain('Overall Pass Rate');
     expect(html).toContain('LATEST EXECUTION');
     expect(html).toContain('Open Detailed Report');

@@ -144,7 +144,9 @@ function main(): void {
     authNote += ' (empty — run auth setup)';
   }
   process.stdout.write(`  auth dir  = ${authNote}\n`);
-  process.stdout.write('  MCP note  = restart playwright-qa / playwright-test after env:use\n\n');
+  process.stdout.write(
+    '  MCP note  = restart qa-playwright-kit / playwright-test after env:use\n\n',
+  );
 
   if (!exists && !exampleExists) {
     printError({

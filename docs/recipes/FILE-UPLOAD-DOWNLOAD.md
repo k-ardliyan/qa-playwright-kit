@@ -123,7 +123,7 @@ Combine with content tags when Hasil names specific tokens: `(@success @download
 | Inspect-time (agent)     | `list_test_fixtures`, `inspect_file`                                               | Pick fixture paths, check envelope before writing asserts |
 | Runtime (committed spec) | `uploadFixture`, `uploadViaChooser`, `downloadAndSave`, `assertDownloadedEnvelope` | Always — never call MCP from a test                       |
 
-After adding MCP tools: `npm run mcp:build` then **restart `playwright-qa`**.
+After adding MCP tools: `npm run mcp:build` then **restart `qa-playwright-kit`**.
 
 ## Anti-patterns
 

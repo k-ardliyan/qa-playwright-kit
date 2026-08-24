@@ -123,7 +123,7 @@ import type { PipelineReport } from '@/shared/types';
 
 **Kenapa:**
 
-1. Memisahkan test workspace aplikasi dari implementasi framework Playwright QA Kit.
+1. Memisahkan test workspace aplikasi dari implementasi framework QA Playwright Kit.
 2. Mencegah AI Healer/Generator mengubah implementasi framework core engine saat melakukan healing skenario.
 3. Selaras dengan standar dokumentasi dan konvensi resmi Playwright (`playwright.config.ts`, `tests/seed.spec.ts`, `tests/auth.setup.ts`).
 
@@ -173,7 +173,7 @@ Seluruh runtime, MCP registry, agent instructions, template requirements, harnes
 **Keputusan:**
 > `Core Freeze v1` established. Requirement, Plan, MCP, harness launcher, traceability, and workspace contracts are considered stable. Future core changes require a concrete product need or proven QA workflow issue.
 
-1. **Core Freeze v1 Active**: Fondasi core framework Playwright QA Kit (arsitektur hybrid, schema versioning `qa.*/v1`, compiler requirement, compiler test plan, traceability matrix with exact ID primary lookup and heuristic diagnostics, MCP tool registry with runtime profile filtering, failure classification, and pipeline state manager) dibekukan dan stabil.
+1. **Core Freeze v1 Active**: Fondasi core framework QA Playwright Kit (arsitektur hybrid, schema versioning `qa.*/v1`, compiler requirement, compiler test plan, traceability matrix with exact ID primary lookup and heuristic diagnostics, MCP tool registry with runtime profile filtering, failure classification, and pipeline state manager) dibekukan dan stabil.
 2. **Backward Compatibility Guarantee**: Schema kontrak `qa.requirement/v1`, `qa.test-plan/v1`, `qa.traceability/v1`, dan `qa.mcp-result/v1` dijamin kompatibel ke belakang. Setiap perubahan non-breaking harus melalui field opsional; perubahan breaking memerlukan bump version ke `v2`.
 3. **Freeze Rules (Allowed vs Not Allowed)**:
    - **Allowed**: bug fixes, security fixes, compatibility fixes, changes required by Prompt Studio, changes justified by real QA usage.

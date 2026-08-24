@@ -18,7 +18,7 @@ type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
 
 /**
  * MCP stdio transport reserves stdout for JSON-RPC only.
- * When MCP_STDIO=1 (set by playwright-qa / playwright-test launchers),
+ * When MCP_STDIO=1 (set by qa-playwright-kit / playwright-test launchers),
  * all console log lines go to stderr so the protocol is never corrupted.
  */
 function isMcpStdioMode(): boolean {

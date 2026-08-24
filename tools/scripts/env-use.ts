@@ -50,7 +50,7 @@ function printHelp(): void {
     npm run env:status
     npm run auth:setup
     # OTP/CAPTCHA: npm run auth:setup:headed
-    # restart MCP servers (playwright-qa / playwright-test)
+    # restart MCP servers (qa-playwright-kit / playwright-test)
 
 `);
 }
@@ -114,7 +114,7 @@ function main(): void {
   process.stdout.write('    2. npm run auth:setup\n');
   process.stdout.write('       (OTP/CAPTCHA: npm run auth:setup:headed)\n');
   process.stdout.write(
-    '    3. Restart MCP servers (playwright-qa / playwright-test) in Hermes\n\n',
+    '    3. Restart MCP servers (qa-playwright-kit / playwright-test) in Hermes\n\n',
   );
   process.stdout.write(
     '  Note: APP_ENV=… npm test still overrides this pin. CI ignores the pin.\n\n',

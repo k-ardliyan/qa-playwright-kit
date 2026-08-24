@@ -1,6 +1,6 @@
-# QA Kit Versioned Machine Contracts
+# QA Playwright Kit Versioned Machine Contracts
 
-This directory documents the versioned, canonical contracts used by the Playwright QA Kit harness and AI agent orchestration.
+This directory documents the versioned, canonical contracts used by the QA Playwright Kit harness and AI agent orchestration.
 
 ## Active Contract Versions
 

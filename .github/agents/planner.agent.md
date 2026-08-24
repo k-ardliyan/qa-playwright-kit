@@ -41,19 +41,19 @@ Golden test plan: [`specs/sample-login-empty-fields-test-plan.md`](../../specs/s
 
 ## MCP Dependencies
 
-| Server          | Tool                          | Purpose                                                          |
-| --------------- | ----------------------------- | ---------------------------------------------------------------- |
-| `playwright-qa` | `compile_requirement`         | Compile requirement into typed RequirementContractV1 (preferred) |
-| `playwright-qa` | `compile_test_plan`           | Compile Markdown test plan into canonical TestPlanContractV1     |
-| `playwright-qa` | `validate_plan`               | Validate test plan contract against requirement contract         |
-| `playwright-qa` | `validate_requirement`        | Validate requirement format before planning                      |
-| `playwright-qa` | `parse_requirement_scenarios` | Parse scenarios including role scope and scenario type           |
-| `playwright-qa` | `normalize_requirements`      | Normalize requirement text before planning                       |
-| `playwright-qa` | `list_requirement_status`     | Optional coverage map (existing plans/tests for related reqs)    |
-| `playwright-qa` | `snapshot_page`               | Capture ARIA + selector catalog for authenticated pages          |
-| `playwright-qa` | `discover_pages`              | BFS auto-crawl public pages, write per-page catalog              |
-| `playwright`    | `browser_navigate`            | Navigate to pages for snapshot fallback                          |
-| `playwright`    | `browser_snapshot`            | Fallback snapshot when catalog is stale or page is auth-only     |
+| Server              | Tool                          | Purpose                                                          |
+| ------------------- | ----------------------------- | ---------------------------------------------------------------- |
+| `qa-playwright-kit` | `compile_requirement`         | Compile requirement into typed RequirementContractV1 (preferred) |
+| `qa-playwright-kit` | `compile_test_plan`           | Compile Markdown test plan into canonical TestPlanContractV1     |
+| `qa-playwright-kit` | `validate_plan`               | Validate test plan contract against requirement contract         |
+| `qa-playwright-kit` | `validate_requirement`        | Validate requirement format before planning                      |
+| `qa-playwright-kit` | `parse_requirement_scenarios` | Parse scenarios including role scope and scenario type           |
+| `qa-playwright-kit` | `normalize_requirements`      | Normalize requirement text before planning                       |
+| `qa-playwright-kit` | `list_requirement_status`     | Optional coverage map (existing plans/tests for related reqs)    |
+| `qa-playwright-kit` | `snapshot_page`               | Capture ARIA + selector catalog for authenticated pages          |
+| `qa-playwright-kit` | `discover_pages`              | BFS auto-crawl public pages, write per-page catalog              |
+| `playwright`        | `browser_navigate`            | Navigate to pages for snapshot fallback                          |
+| `playwright`        | `browser_snapshot`            | Fallback snapshot when catalog is stale or page is auth-only     |
 
 ### Optional Pre-Crawl (Token-Efficient Discovery)
 

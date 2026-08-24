@@ -1,4 +1,4 @@
-# Orchestrator Agent (Playwright QA Kit)
+# Orchestrator Agent (QA Playwright Kit)
 
 ## Architecture Quick Reference
 
@@ -76,7 +76,7 @@ In **automatic** mode, the pipeline persists state after each phase. If interrup
 
 List every tool explicitly by server:
 
-- **playwright-qa**
+- **qa-playwright-kit**
   - `health_check` (run first)
   - `compile_requirement` (preferred: compile requirement into typed `RequirementContractV1`)
   - `compile_test_plan` (compile Markdown test plan into canonical `TestPlanContractV1`)
@@ -104,7 +104,7 @@ List every tool explicitly by server:
     - Code search/refactor → CLI / repository tools
     - Test execution → `playwright-test` MCP (`run_tests`)
     - Live browser semantics & assertions → `playwright` MCP (Intent profiles: `minimal`, `author`, `debug`, `auth`, `visual`, `artifact`)
-    - Framework state & artifacts → `playwright-qa` MCP
+    - Framework state & artifacts → `qa-playwright-kit` MCP
     - Vision mode → fallback only when semantic accessibility tree is unavailable
   - **Capabilities:**
     - Navigation: `browser_navigate`, `browser_navigate_back`, `browser_tabs`
@@ -136,7 +136,7 @@ List every tool explicitly by server:
 
 ### Phase 0: Pre-flight
 
-- Call `health_check` on `playwright-qa`.
+- Call `health_check` on `qa-playwright-kit`.
 - Abort with clear message if any check has `status: fail`.
 
 ### Phase 0.5: Requirement Validation & Compilation
@@ -170,13 +170,13 @@ List every tool explicitly by server:
 
 ### Phase 3: Execute
 
-- Run tests using `run_tests` from **playwright-test** (not playwright-qa).
+- Run tests using `run_tests` from **playwright-test** (not qa-playwright-kit).
 - If `roleFilter` is set, scope the run to matching files: `tests/<feature>-<role>.spec.ts`.
 - Prefer scoped runs (single file or `--grep` tag) when healing.
 
 ### Phase 4: Heal
 
-- Call `get_test_failures` on **playwright-qa** to retrieve structured failure data.
+- Call `get_test_failures` on **qa-playwright-kit** to retrieve structured failure data.
 - Use `prioritizeFailures()` to rank failures by fix likelihood (known patterns first, shared fixtures prioritized, healability order respected).
 - Use `tracePath` and `screenshotPath` from failure payload when present.
 - For each prioritized failure: lookup known pattern → apply or diagnose → fix → store outcome.
