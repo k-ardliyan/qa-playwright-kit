@@ -13,14 +13,10 @@
  * @module src/setup/wizard
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-
 import { type AppEnv, resolveAppEnv } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
 import { type WizardRoleInput } from '../shared/utils/role-credentials';
 import { logger } from '../utils/logger';
-
 import {
   promptAppEnv,
   promptBaseUrl,
@@ -30,8 +26,14 @@ import {
   confirmOverwrite,
   type RoleFields,
 } from './wizard-prompts';
-
-import { writeEnvFile, readExistingEnv, type EnvWriteResult } from './wizard-writer';
+import prompts from 'prompts';
+import {
+  writeEnvFile,
+  readExistingEnv,
+  isEncryptedValue,
+  resolveEnvPath,
+  type EnvWriteResult,
+} from './wizard-writer';
 
 import { validateSetup, type ValidationResult } from './wizard-validate';
 
@@ -107,11 +109,12 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     }
   }
 
-  // ─── Step 3: Prompt APP_ENV ─────────────────────────────────────────────
-  appEnv = await promptAppEnv(appEnv);
+  // ─── Step 3: Prompt APP_ENV (skip when pinned via --env) ─────────────────
+  appEnv = opts.appEnv ?? (await promptAppEnv(appEnv));
 
   // ─── Step 4: Prompt BASE_URL ────────────────────────────────────────────
-  const existingUrl = existing?.['BASE_URL'];
+  const existingUrl =
+    existing && !isEncryptedValue(existing['BASE_URL']) ? existing['BASE_URL'] : undefined;
   const baseUrl = await promptBaseUrl(existingUrl);
 
   // ─── Step 5: Prompt roles ───────────────────────────────────────────────
@@ -128,6 +131,23 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   // ─── Step 6: Prompt challenge mode ──────────────────────────────────────
   const existingChallenge = existing?.['AUTH_CHALLENGE_MODE'];
   const challengeMode = await promptChallengeMode(existingChallenge);
+
+  // ─── Step 6b: Preview (masked) + confirm before write ─────────────────────
+  printPreview({ appEnv, baseUrl, roles: roleInputs, challengeMode });
+  const { ok } = await prompts(
+    {
+      type: 'confirm',
+      name: 'ok',
+      message: 'Write these values to the env file?',
+      initial: true,
+    },
+    {
+      onCancel(): never {
+        throw new Error('SETUP_WIZARD_CANCELLED');
+      },
+    },
+  );
+  if (!ok) throw new Error('SETUP_WIZARD_CANCELLED');
 
   // ─── Step 7: Write env file ─────────────────────────────────────────────
   const writeResult = writeEnvFile({
@@ -166,21 +186,35 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function resolveEnvPath(appEnv: AppEnv): string {
-  let dir = process.cwd();
-  for (let i = 0; i < 12; i += 1) {
-    if (fs.existsSync(path.join(dir, 'package.json'))) {
-      const configPath = path.join(dir, 'config', 'environments', `${appEnv}.env`);
-      if (fs.existsSync(configPath)) return configPath;
-      return path.join(dir, 'environments', `${appEnv}.env`);
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
+function maskPassword(v: string): string {
+  if (v.length <= 4) return '****';
+  if (v.length <= 8) return `${v[0]!}****${v.slice(-1)}`;
+  return `${v.slice(0, 2)}****${v.slice(-2)}`;
+}
+
+function printPreview(opts: {
+  appEnv: AppEnv;
+  baseUrl: string;
+  roles: WizardRoleInput[];
+  challengeMode: ChallengeMode;
+}): void {
+  console.log('');
+  console.log('─── Preview (masked) ─────────────────────────────');
+  console.log(`  APP_ENV=${opts.appEnv}`);
+  console.log(`  BASE_URL=${opts.baseUrl}`);
+  console.log(
+    `  HEADLESS=${opts.challengeMode === 'otp-browser' || opts.challengeMode === 'captcha-browser' || opts.challengeMode === 'auto' ? 'false' : 'true'}`,
+  );
+  console.log(`  AUTH_CHALLENGE_MODE=${opts.challengeMode}`);
+  for (const r of opts.roles) {
+    const prefix = r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_');
+    if (r.fields.email) console.log(`  ${prefix}_EMAIL=${r.fields.email}`);
+    if (r.fields.username) console.log(`  ${prefix}_USERNAME=${r.fields.username}`);
+    if (r.fields.phone) console.log(`  ${prefix}_PHONE=${r.fields.phone}`);
+    console.log(`  ${prefix}_PASSWORD=${maskPassword(r.fields.password)}`);
+    if (r.fields.loginIdPref) console.log(`  ${prefix}_LOGIN_ID_PREF=${r.fields.loginIdPref}`);
   }
-  const configPath = path.join(process.cwd(), 'config', 'environments', `${appEnv}.env`);
-  if (fs.existsSync(configPath)) return configPath;
-  return path.join(process.cwd(), 'environments', `${appEnv}.env`);
+  console.log('────────────────────────────────────────────────');
 }
 
 function detectExistingRoles(envMap: Record<string, string>): string[] {
@@ -206,10 +240,14 @@ function getExistingRoleFields(
   const prefix = role === 'user' ? 'TEST_USER' : role.toUpperCase().replace(/-/g, '_');
   const fields: Partial<RoleFields> = {};
 
-  if (envMap[`${prefix}_EMAIL`]) fields.email = envMap[`${prefix}_EMAIL`];
-  if (envMap[`${prefix}_USERNAME`]) fields.username = envMap[`${prefix}_USERNAME`];
-  if (envMap[`${prefix}_PHONE`]) fields.phone = envMap[`${prefix}_PHONE`];
-  if (envMap[`${prefix}_PASSWORD`]) fields.password = envMap[`${prefix}_PASSWORD`];
+  if (envMap[`${prefix}_EMAIL`] && !isEncryptedValue(envMap[`${prefix}_EMAIL`]))
+    fields.email = envMap[`${prefix}_EMAIL`];
+  if (envMap[`${prefix}_USERNAME`] && !isEncryptedValue(envMap[`${prefix}_USERNAME`]))
+    fields.username = envMap[`${prefix}_USERNAME`];
+  if (envMap[`${prefix}_PHONE`] && !isEncryptedValue(envMap[`${prefix}_PHONE`]))
+    fields.phone = envMap[`${prefix}_PHONE`];
+  if (envMap[`${prefix}_PASSWORD`] && !isEncryptedValue(envMap[`${prefix}_PASSWORD`]))
+    fields.password = envMap[`${prefix}_PASSWORD`];
 
   const pref = envMap[`${prefix}_LOGIN_ID_PREF`];
   if (pref === 'email' || pref === 'username' || pref === 'phone') {
@@ -241,6 +279,11 @@ async function runCheckOnly(appEnv: AppEnv): Promise<WizardResult> {
 
   console.log(`   Reachable: ${validation.reachable ? '✅' : '❌'}`);
   console.log(`   Roles ready: ${validation.rolesReady.join(', ') || 'none'}`);
+  if (validation.rolesEncrypted.length > 0) {
+    console.log(
+      `   Encrypted roles: ${validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+    );
+  }
   console.log(`   Roles incomplete: ${validation.rolesIncomplete.join(', ') || 'none'}`);
 
   return {
@@ -270,6 +313,11 @@ function printSummary(data: {
   console.log(`  Env file:    ${data.writeResult.envFilePath}`);
   console.log(`  Reachable:   ${data.validation.reachable ? '✅' : '❌'}`);
   console.log(`  Ready roles: ${data.validation.rolesReady.join(', ') || 'none'}`);
+  if (data.validation.rolesEncrypted.length > 0) {
+    console.log(
+      `  Encrypted:   ${data.validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+    );
+  }
   console.log('');
 
   if (data.validation.warnings.length > 0) {

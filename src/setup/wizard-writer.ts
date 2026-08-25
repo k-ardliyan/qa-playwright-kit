@@ -32,6 +32,11 @@ export interface EnvWriteResult {
   keysPreserved: number;
 }
 
+/** True when a value is dotenvx ciphertext (managed by env:edit, not the wizard). */
+export function isEncryptedValue(v: string | undefined | null): boolean {
+  return Boolean(v && v.trim().startsWith('encrypted:'));
+}
+
 /**
  * Read existing env file into a flat key-value map.
  * Returns null if the file does not exist.
@@ -95,13 +100,16 @@ export function writeEnvFile(options: EnvWriteOptions): EnvWriteResult {
   newValues['AUTH_CHALLENGE_MODE'] = challengeMode;
   wizardKeys.add('AUTH_CHALLENGE_MODE');
 
-  // HEADLESS (disable for challenge modes that need headed browser)
+  // HEADLESS (needed for challenge modes that need headed browser)
   if (
     challengeMode === 'otp-browser' ||
     challengeMode === 'captcha-browser' ||
     challengeMode === 'auto'
   ) {
     newValues['HEADLESS'] = 'false';
+    wizardKeys.add('HEADLESS');
+  } else {
+    newValues['HEADLESS'] = 'true';
     wizardKeys.add('HEADLESS');
   }
 
@@ -209,7 +217,7 @@ export function writeEnvFile(options: EnvWriteOptions): EnvWriteResult {
 /**
  * Resolve the env file path for a given APP_ENV.
  */
-function resolveEnvPath(appEnv: AppEnv): string {
+export function resolveEnvPath(appEnv: AppEnv): string {
   // Find repo root by climbing up from cwd
   const repoRoot = findRepoRoot();
   const configPath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env`);

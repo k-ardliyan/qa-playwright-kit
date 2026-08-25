@@ -65,7 +65,7 @@ Wizard interaktif memandu Anda melalui **6 langkah**:
 | **1. Deteksi konfigurasi** | Cek apakah `config/environments/{APP_ENV}.env` sudah ada (tanya update/skip)                      |
 | **2. APP_ENV**             | Pilih environment (`local`/`staging`/…)                                                           |
 | **3. BASE_URL**            | Masukkan BASE_URL untuk env itu + verifikasi reachable                                            |
-| **4. Role kredensial**     | Pilih role (mis. `user`, `finance`, `super-admin`) + isi EMAIL/USERNAME/PHONE + PASSWORD per role |
+| **4. Role kredensial**     | Pilih role (mis. `user`, `finance`, `super-admin`); per role pilih metode login (Email/Username/Phone) → isi nilainya → password + konfirmasi |
 | **5. AUTH_CHALLENGE_MODE** | Pilih mode challenge (`none`/`otp-browser`/`otp-stdin`/`captcha-browser`/`auto`)                  |
 | **6. Verify + Summary**    | Tulis `config/environments/{APP_ENV}.env`, validasi setup, tampilkan ringkasan                    |
 

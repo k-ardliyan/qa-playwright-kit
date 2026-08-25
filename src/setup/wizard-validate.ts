@@ -13,6 +13,10 @@ import {
   roleCredentialKeys,
   isPlaceholderCredential,
 } from '../shared/utils/role-credentials';
+import { isEncryptedValue } from './wizard-writer';
+import { checkReachable } from './reachability';
+
+export { isReachableStatus, checkReachable } from './reachability';
 
 export interface ValidationResult {
   valid: boolean;
@@ -24,6 +28,8 @@ export interface ValidationResult {
   rolesReady: string[];
   /** Roles with missing or template-placeholder credentials */
   rolesIncomplete: string[];
+  /** Roles with encrypted (dotenvx) credentials — cannot verify */
+  rolesEncrypted: string[];
   /** Absolute path to the validated env file */
   envFilePath: string | null;
 }
@@ -55,6 +61,7 @@ export async function validateSetup(
       reachable: false,
       rolesReady: [],
       rolesIncomplete: [],
+      rolesEncrypted: [],
       envFilePath: null,
     };
   }
@@ -66,15 +73,13 @@ export async function validateSetup(
   }
 
   let reachable = false;
-  if (baseUrl) {
-    try {
-      const res = await fetch(baseUrl, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(5000),
-      });
-      reachable = res.ok || res.status === 401 || res.status === 302 || res.status === 304;
-    } catch {
-      reachable = false;
+  if (isEncryptedValue(baseUrl)) {
+    warnings.push(
+      'BASE_URL is encrypted — reachability not checked (update via: npm run env:edit)',
+    );
+  } else if (baseUrl) {
+    reachable = await checkReachable(baseUrl);
+    if (!reachable) {
       warnings.push(`BASE_URL (${baseUrl}) is not reachable — tests may fail`);
     }
   }
@@ -82,10 +87,18 @@ export async function validateSetup(
   // 3. Role credentials
   const rolesReady: string[] = [];
   const rolesIncomplete: string[] = [];
+  const rolesEncrypted: string[] = [];
 
   // Check 'user' role (TEST_USER_*)
   const userKeys = roleCredentialKeys('user');
-  if (isRoleLoginReady(envMap, userKeys)) {
+  const userHasEncrypted =
+    isEncryptedValue(envMap[userKeys.passwordKey]) ||
+    isEncryptedValue(envMap[userKeys.emailKey]) ||
+    isEncryptedValue(envMap[userKeys.usernameKey]) ||
+    isEncryptedValue(envMap[userKeys.phoneKey]);
+  if (userHasEncrypted) {
+    rolesEncrypted.push('user');
+  } else if (isRoleLoginReady(envMap, userKeys)) {
     rolesReady.push('user');
   } else {
     // Check if it's template or just missing
@@ -111,7 +124,14 @@ export async function validateSetup(
     // Convert prefix to role name
     const roleName = prefix.toLowerCase().replace(/_/g, '-');
     const roleKeys = roleCredentialKeys(roleName);
-    if (isRoleLoginReady(envMap, roleKeys)) {
+    const roleHasEncrypted =
+      isEncryptedValue(envMap[roleKeys.passwordKey]) ||
+      isEncryptedValue(envMap[roleKeys.emailKey]) ||
+      isEncryptedValue(envMap[roleKeys.usernameKey]) ||
+      isEncryptedValue(envMap[roleKeys.phoneKey]);
+    if (roleHasEncrypted) {
+      rolesEncrypted.push(roleName);
+    } else if (isRoleLoginReady(envMap, roleKeys)) {
       rolesReady.push(roleName);
     } else {
       const hasAny =
@@ -142,6 +162,7 @@ export async function validateSetup(
     reachable,
     rolesReady,
     rolesIncomplete,
+    rolesEncrypted,
     envFilePath,
   };
 }
@@ -149,12 +170,20 @@ export async function validateSetup(
 /**
  * Quick check: is the setup complete enough to run tests?
  * Returns a boolean without making network requests.
+ * Encrypted values (dotenvx ciphertext) are treated as not-ready — use `validateSetup` + `rolesEncrypted` instead.
  */
 export function isSetupReady(envMap: Record<string, string> | null): boolean {
   if (!envMap) return false;
-  if (!envMap['BASE_URL']) return false;
+  const raw = envMap['BASE_URL'] ?? '';
+  if (!raw || isEncryptedValue(raw)) return false;
 
   // At least one role must be login-ready
   const userKeys = roleCredentialKeys('user');
+  const userHasEncrypted =
+    isEncryptedValue(envMap[userKeys.passwordKey]) ||
+    isEncryptedValue(envMap[userKeys.emailKey]) ||
+    isEncryptedValue(envMap[userKeys.usernameKey]) ||
+    isEncryptedValue(envMap[userKeys.phoneKey]);
+  if (userHasEncrypted) return false;
   return isRoleLoginReady(envMap, userKeys);
 }

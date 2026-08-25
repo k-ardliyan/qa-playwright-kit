@@ -8,8 +8,10 @@
  */
 
 import prompts from 'prompts';
-import { KNOWN_APP_ENVS, type AppEnv, isKnownAppEnv } from '../utils/app-env';
+import { KNOWN_APP_ENVS, type AppEnv } from '../utils/app-env';
 import { type ChallengeMode, CHALLENGE_MODES } from '../support/human-challenge';
+import { isPlaceholderCredential } from '../shared/utils/role-credentials';
+import { checkReachable } from './reachability';
 
 export interface RoleFields {
   email?: string;
@@ -42,9 +44,59 @@ function stripTrailingSlash(v: string): string {
   return v.endsWith('/') ? v.slice(0, -1) : v;
 }
 
+/**
+ * Pure numbered-choice parser — unit-testable without TTY.
+ * Returns 1-based index on success, or an error message string on failure.
+ * ponytail: keep inline when still 1 consumer; extract to shared when reused cross-module.
+ */
+export function parseNumberedChoice(raw: string, len: number): number | string {
+  const s = raw.trim();
+  if (!s) return `Masukkan angka 1-${len}`;
+  const n = Number(s);
+  if (!Number.isInteger(n) || n < 1 || n > len) return `Masukkan angka 1-${len}`;
+  return n;
+}
+
 /** Abort handler — re-throws a special cancel so the orchestrator can exit cleanly. */
 function onCancel(): never {
   throw new Error('SETUP_WIZARD_CANCELLED');
+}
+
+/**
+ * Numbered choice — type-then-Enter (robust for non-technical users).
+ * Prints `1. title — description` lines, then prompts for a number.
+ * Never auto-submits on keypress; requires Enter to confirm.
+ * ponytail: add arrow-key live preview when prompts lib is replaced.
+ */
+async function promptNumberedChoice<T extends string>(opts: {
+  message: string;
+  choices: Array<{ title: string; value: T; description?: string }>;
+  existing?: string;
+}): Promise<T> {
+  const { choices, message, existing } = opts;
+  console.log('');
+  choices.forEach((c, i) => {
+    const marker = c.value === existing ? ' (saat ini)' : '';
+    const desc = c.description ? ` — ${c.description}` : '';
+    console.log(`  ${i + 1}. ${c.title}${desc}${marker}`);
+  });
+  const initialIdx = existing ? choices.findIndex((c) => c.value === existing) : -1;
+  const initial = initialIdx >= 0 ? String(initialIdx + 1) : '1';
+  const { value } = await prompts(
+    {
+      type: 'text',
+      name: 'value',
+      message: `${message} — ketik angka 1-${choices.length} lalu Enter`,
+      initial,
+      validate: (v: string) => {
+        const r = parseNumberedChoice(v, choices.length);
+        return typeof r === 'number' ? true : r;
+      },
+    },
+    { onCancel },
+  );
+  const n = Number(String(value).trim());
+  return choices[n - 1]!.value;
 }
 
 // ─── Public prompts ──────────────────────────────────────────────────────────
@@ -54,21 +106,11 @@ function onCancel(): never {
  * Pre-fills existing value if provided.
  */
 export async function promptAppEnv(existing?: string): Promise<AppEnv> {
-  const { value } = await prompts(
-    {
-      type: 'select',
-      name: 'value',
-      message: 'Select target environment (APP_ENV)',
-      choices: KNOWN_APP_ENVS.map((env) => ({
-        title: env,
-        value: env,
-        selected: env === existing,
-      })),
-      initial: existing && isKnownAppEnv(existing) ? KNOWN_APP_ENVS.indexOf(existing as AppEnv) : 0,
-    },
-    { onCancel },
-  );
-  return value as AppEnv;
+  return promptNumberedChoice<AppEnv>({
+    message: 'Pilih environment (APP_ENV)',
+    choices: KNOWN_APP_ENVS.map((env) => ({ title: env, value: env as AppEnv })),
+    existing,
+  });
 }
 
 /**
@@ -110,13 +152,7 @@ export async function promptBaseUrl(existing?: string): Promise<string> {
     );
 
     if (confirm) {
-      let reachable: boolean;
-      try {
-        const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
-        reachable = res.ok || res.status === 401 || res.status === 302;
-      } catch {
-        reachable = false;
-      }
+      const reachable = await checkReachable(url);
 
       if (!reachable) {
         const { proceed } = await prompts(
@@ -141,125 +177,84 @@ export async function promptBaseUrl(existing?: string): Promise<string> {
 
 /**
  * Prompt for credentials of a single role.
- * Pre-fills existing values if provided.
+ * Simplest path for non-technical users: pick one login identifier (email/username/phone),
+ * fill it, then password (+ confirm). Pre-fills existing value when provided.
  */
 export async function promptRoleCredentials(
   role: string,
   existing?: Partial<RoleFields>,
 ): Promise<RoleFields> {
+  // Choose the login identifier to configure.
+  // Existing value (if any) is pre-selected: loginIdPref → email → username → phone.
+  const pickId =
+    (existing?.loginIdPref &&
+      ((['email', 'username', 'phone'] as const).includes(existing.loginIdPref)
+        ? existing.loginIdPref
+        : undefined)) ||
+    (existing?.email
+      ? 'email'
+      : existing?.username
+        ? 'username'
+        : existing?.phone
+          ? 'phone'
+          : 'email');
+  const id = await promptNumberedChoice<'email' | 'username' | 'phone'>({
+    message: `Metode login untuk role "${role}"`,
+    choices: [
+      { title: 'Email', value: 'email' },
+      { title: 'Username', value: 'username' },
+      { title: 'Phone', value: 'phone' },
+    ],
+    existing: pickId,
+  });
+
+  const value = await prompts(
+    {
+      type: 'text',
+      name: 'value',
+      message: `  ${id} untuk ${role}`,
+      initial: existing?.[id] ?? '',
+      validate: (v: string) => {
+        if (!v.trim()) return `${id} tidak boleh kosong`;
+        if (id === 'email' && !isValidEmail(v)) return 'Format email tidak valid';
+        if (isPlaceholderCredential(v)) return 'Terlihat placeholder — masukkan nilai asli';
+        return true;
+      },
+    },
+    { onCancel },
+  );
+
   const fields: RoleFields = { password: '' };
+  fields[id] = String(value).trim();
+  fields.loginIdPref = id;
 
-  // Email
-  const { hasEmail } = await prompts(
-    {
-      type: 'confirm',
-      name: 'hasEmail',
-      message: `Does role "${role}" use email for login?`,
-      initial: existing?.email ? true : false,
-    },
-    { onCancel },
-  );
-
-  if (hasEmail) {
-    const { email } = await prompts(
-      {
-        type: 'text',
-        name: 'email',
-        message: `  Email for ${role}`,
-        initial: existing?.email ?? '',
-        validate: (v: string) => (v && !isValidEmail(v) ? 'Invalid email format' : true),
-      },
-      { onCancel },
-    );
-    fields.email = email as string;
-  }
-
-  // Username
-  const { hasUsername } = await prompts(
-    {
-      type: 'confirm',
-      name: 'hasUsername',
-      message: `Does role "${role}" use username for login?`,
-      initial: existing?.username ? true : false,
-    },
-    { onCancel },
-  );
-
-  if (hasUsername) {
-    const { username } = await prompts(
-      {
-        type: 'text',
-        name: 'username',
-        message: `  Username for ${role}`,
-        initial: existing?.username ?? '',
-        validate: (v: string) => v.trim().length > 0 || 'Username cannot be empty',
-      },
-      { onCancel },
-    );
-    fields.username = username as string;
-  }
-
-  // Phone
-  const { hasPhone } = await prompts(
-    {
-      type: 'confirm',
-      name: 'hasPhone',
-      message: `Does role "${role}" use phone for login?`,
-      initial: existing?.phone ? true : false,
-    },
-    { onCancel },
-  );
-
-  if (hasPhone) {
-    const { phone } = await prompts(
-      {
-        type: 'text',
-        name: 'phone',
-        message: `  Phone for ${role}`,
-        initial: existing?.phone ?? '',
-        validate: (v: string) => v.trim().length > 0 || 'Phone cannot be empty',
-      },
-      { onCancel },
-    );
-    fields.phone = phone as string;
-  }
-
-  // Password (always required)
+  // Password (always required) — placeholder rejected at prompt
   const { password } = await prompts(
     {
       type: 'password',
       name: 'password',
-      message: `Password for ${role}`,
-      validate: (v: string) => v.trim().length > 0 || 'Password cannot be empty',
+      message: `Password untuk ${role}`,
+      validate: (v: string) => {
+        if (v.trim().length === 0) return 'Password tidak boleh kosong';
+        if (isPlaceholderCredential(v)) return 'Terlihat placeholder — masukkan password asli';
+        return true;
+      },
     },
     { onCancel },
   );
-  fields.password = password as string;
-
-  // Login ID preference (only if multiple identifiers provided)
-  const identifiers: Array<'email' | 'username' | 'phone'> = [];
-  if (fields.email) identifiers.push('email');
-  if (fields.username) identifiers.push('username');
-  if (fields.phone) identifiers.push('phone');
-
-  if (identifiers.length > 1) {
-    const { pref } = await prompts(
-      {
-        type: 'select',
-        name: 'pref',
-        message: `Preferred login identifier for ${role}`,
-        choices: identifiers.map((id) => ({
-          title: id,
-          value: id,
-          selected: id === existing?.loginIdPref,
-        })),
-      },
-      { onCancel },
-    );
-    fields.loginIdPref = pref as 'email' | 'username' | 'phone';
-  } else if (identifiers.length === 1) {
-    fields.loginIdPref = identifiers[0];
+  // Confirm password (prevents typo in hidden input)
+  const { confirm } = await prompts(
+    {
+      type: 'password',
+      name: 'confirm',
+      message: `Konfirmasi password untuk ${role}`,
+    },
+    { onCancel },
+  );
+  if ((confirm as string) !== (password as string)) {
+    throw new Error(`Password tidak cocok untuk role "${role}" — wizard dibatalkan`);
   }
+  fields.password = password as string;
 
   return fields;
 }
@@ -296,33 +291,26 @@ export async function promptRoles(existingRoles?: string[]): Promise<string[]> {
  * Prompt for AUTH_CHALLENGE_MODE.
  */
 export async function promptChallengeMode(existing?: string): Promise<ChallengeMode> {
-  const { mode } = await prompts(
-    {
-      type: 'select',
-      name: 'mode',
-      message: 'Authentication challenge mode',
-      choices: CHALLENGE_MODES.map((m) => ({
-        title: m,
-        value: m,
-        description:
-          m === 'none'
-            ? 'No challenge (default)'
-            : m === 'otp-browser'
-              ? 'OTP via headed browser (recommended)'
-              : m === 'otp-stdin'
-                ? 'OTP via terminal prompt'
-                : m === 'captcha-browser'
-                  ? 'CAPTCHA via headed browser'
-                  : m === 'auto'
-                    ? 'Auto-detect challenge type'
-                    : undefined,
-        selected: m === (existing ?? 'none'),
-      })),
-      initial: CHALLENGE_MODES.indexOf((existing ?? 'none') as ChallengeMode),
-    },
-    { onCancel },
-  );
-  return mode as ChallengeMode;
+  return promptNumberedChoice<ChallengeMode>({
+    message: 'Mode challenge autentikasi',
+    existing: existing ?? 'none',
+    choices: CHALLENGE_MODES.map((m) => ({
+      title: m,
+      value: m as ChallengeMode,
+      description:
+        m === 'none'
+          ? 'Tanpa challenge (default)'
+          : m === 'otp-browser'
+            ? 'OTP via browser (disarankan)'
+            : m === 'otp-stdin'
+              ? 'OTP via terminal'
+              : m === 'captcha-browser'
+                ? 'CAPTCHA via browser'
+                : m === 'auto'
+                  ? 'Otomatis deteksi'
+                  : undefined,
+    })),
+  });
 }
 
 /**
