@@ -53,6 +53,10 @@ test.describe('Architecture Validator (tools/validators/architecture.ts)', () =>
     }
   });
 
+  test('ARCH-002: dead setup-wizard.ts does not exist', () => {
+    expect(fs.existsSync(path.join(root, 'tools/scripts/setup-wizard.ts'))).toBeFalsy();
+  });
+
   test('ARCH-003: public API modules exist and export expected symbols', () => {
     const publicFiles = [
       'src/public/index.ts',
@@ -87,5 +91,23 @@ test.describe('Architecture Validator (tools/validators/architecture.ts)', () =>
     for (const dir of dirs) {
       expect(fs.existsSync(path.join(root, dir))).toBeTruthy();
     }
+  });
+
+  test('ARCH-SYNC-001: MCP generated copies carry AUTO-SYNCED banner from SoT', () => {
+    const dest = path.join(root, 'tools/mcp/src/contracts/traceability-contract.ts');
+    expect(fs.existsSync(dest)).toBeTruthy();
+    const body = fs.readFileSync(dest, 'utf-8');
+    expect(body).toContain('AUTO-SYNCED from src/contracts/traceability-contract.ts');
+  });
+
+  test('package.json setup script is npm run setup, not setup:wizard', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8')) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts.setup).toBe('tsx src/setup/index.ts');
+    expect(pkg.scripts['setup:check']).toBe('tsx src/setup/index.ts --check');
+    expect(pkg.scripts['setup:wizard']).toBeUndefined();
+    expect(pkg.scripts['test:quality']).toContain('setup:check');
+    expect(pkg.scripts['test:quality']).not.toContain('setup:wizard');
   });
 });

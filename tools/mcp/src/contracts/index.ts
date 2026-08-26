@@ -1,3 +1,8 @@
+/**
+ * AUTO-SYNCED from src/contracts/index.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
 export * from './versions';
 export * from './diagnostics';
 export * from './hashing';

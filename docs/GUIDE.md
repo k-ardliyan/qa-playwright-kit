@@ -31,7 +31,7 @@ Quick reference:
 
 ```bash
 npm install                 # install dependencies
-npm run setup:wizard        # interactive setup (6 steps)
+npm run setup               # interactive setup (6 steps)
 npm run setup:check         # verify setup setelah selesai
 ```
 

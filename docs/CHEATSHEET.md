@@ -8,7 +8,7 @@
 
 ```bash
 npm install
-npm run setup:wizard
+npm run setup
 npm run setup:check && npm run health:check
 # ganti kredensial nanti: npm run env:edit
 # refresh session: npm run auth:setup
@@ -29,7 +29,7 @@ npm run setup:check && npm run health:check
 ## Daily Flow
 
 ```bash
-# Setelah setup:wizard → requirements/login.md = REAL website kamu
+# Setelah setup → requirements/login.md = REAL website kamu
 # (sample format: requirements/sample-*.md — jangan dipakai setup awal)
 npm run qa:run -- requirements/login.md
 # Hermes: snapshot_page dulu (locator per site) → plan → generate → report

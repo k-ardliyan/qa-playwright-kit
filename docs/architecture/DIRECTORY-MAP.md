@@ -2,7 +2,7 @@
 
 > Satu tempat lookup untuk semua path di repository QA Playwright Kit.
 > **Aturan:** Setiap kali ada file/modul baru, update file ini di commit yang sama.
-> Last updated: 2026-08-21 (Hybrid Architecture)
+> Last updated: 2026-08-26 (Hybrid Architecture + contract SoT sync)
 
 ---
 
@@ -28,7 +28,7 @@
 | Path                            | Peran                                            | Entry Point                                                                                                                                                         |
 | ------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/public/`                   | Stable public API surface untuk `tests/`         | `index.ts`, `fixtures.ts`, `auth.ts`, `metadata.ts`, `workspace.ts`, `assertions.ts`, `contracts.ts`                                                                |
-| `src/contracts/`                | Typed QA Playwright Kit JSON contracts & hashing | `index.ts`, `versions.ts`, `diagnostics.ts`, `hashing.ts`, `requirement-contract.ts`, `test-plan-contract.ts`, `traceability-contract.ts`, `mcp-result-contract.ts` |
+| `src/contracts/`                | Typed QA Playwright Kit JSON contracts & hashing (SoT) | `index.ts`, `versions.ts`, `diagnostics.ts`, `hashing.ts`, `requirement-contract.ts`, `test-plan-contract.ts`, `traceability-contract.ts`, `mcp-result-contract.ts` |
 | `src/agents/generator/`         | Test code generator logic                        | `index.ts`                                                                                                                                                          |
 | `src/agents/healer/`            | Auto-heal failing tests                          | `index.ts`, `pattern-database.ts`                                                                                                                                   |
 | `src/agents/integration/`       | Universal agent integration layer                | `orchestrator.ts`, `state.ts`, `protocol.ts`                                                                                                                        |
@@ -53,8 +53,8 @@
 
 | Path                       | Peran                                                        | Entry Point                                                                |
 | -------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| `tools/mcp/`               | QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server) | `package.json`, `dist/index-mcp.js`                                        |
-| `tools/scripts/`           | Operational CLI utilities                                    | `qa-run.ts`, `health-check-cli.ts`, `env-*.ts`                             |
+| `tools/mcp/`               | QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server) | `package.json`, `dist/index-mcp.js`; `src/contracts/` AUTO-SYNCED from `src/contracts/` via `sync:mcp-generated` |
+| `tools/scripts/`           | Operational CLI utilities                                    | `qa-run.ts`, `health-check-cli.ts`, `env-*.ts`, `sync-mcp-generated.ts`     |
 | `tools/scripts/__tests__/` | Scripts unit tests                                           | `qa-run.test.ts`, etc.                                                     |
 | `tools/validators/`        | Architecture, ephemeral refs, and test validators            | `architecture.ts`, `ephemeral-ref-guard.ts`, `validate-generated-tests.ts` |
 

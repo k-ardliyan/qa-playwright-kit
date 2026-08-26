@@ -387,7 +387,7 @@ export async function handlePostLoginChallenge(
     if (detected === 'otp' || detected === 'captcha') {
       console.warn(
         `[human-challenge] Detected ${detected} UI but AUTH_CHALLENGE_MODE=none. ` +
-          `Set otp-browser (recommended), otp-stdin, or captcha-browser via 'npm run setup:wizard' or env:edit.`,
+          `Set otp-browser (recommended), otp-stdin, or captcha-browser via 'npm run setup' or env:edit.`,
       );
     }
     return detected;

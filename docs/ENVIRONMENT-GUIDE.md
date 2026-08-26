@@ -57,7 +57,7 @@
 #### Option A: Wizard (Recommended)
 
 ```bash
-npm run setup:wizard
+npm run setup
 # Interactive prompts:
 # 1. Project path
 # 2. APP_ENV: local | staging | production

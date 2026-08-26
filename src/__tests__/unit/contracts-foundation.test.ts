@@ -12,6 +12,7 @@ import {
   warningResult,
   failureResult,
 } from '@/contracts';
+import type { CoverageStateBreakdown, TraceabilityContractV1 } from '@/contracts';
 
 test.describe('Contract Schema Foundation & Hashing (Phase 2)', () => {
   test('schema version identifiers are stable strings', () => {
@@ -69,5 +70,49 @@ test.describe('Contract Schema Foundation & Hashing (Phase 2)', () => {
     expect(failure.status).toBe('error');
     expect(failure.data).toBeUndefined();
     expect(failure.diagnostics.length).toBe(1);
+  });
+
+  test('traceability v1 exposes optional 4D coverageState (contract parity)', () => {
+    const coverage: CoverageStateBreakdown = {
+      design: 'planned',
+      automation: 'automated',
+      execution: 'executed',
+      verification: 'verified-pass',
+    };
+    const contract: TraceabilityContractV1 = {
+      schemaVersion: TRACEABILITY_SCHEMA_V1,
+      requirementId: 'REQ-1',
+      requirementTitle: 't',
+      requirementPath: 'requirements/t.md',
+      requirementHash: 'a'.repeat(64),
+      acceptanceCriteria: [],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          title: 'x',
+          coversAcIds: [],
+          executionStatus: 'passed',
+          coverageState: coverage,
+          linkageType: 'exact-test-id',
+        },
+      ],
+      metrics: {
+        totalAcs: 0,
+        coveredAcs: 0,
+        uncoveredAcs: 0,
+        totalScenarios: 1,
+        passingScenarios: 1,
+        failingScenarios: 0,
+        healedScenarios: 0,
+        skippedScenarios: 0,
+        manualScenarios: 0,
+        blockedScenarios: 0,
+      },
+      coverageState: coverage,
+      diagnostics: [],
+      generatedAt: '2026-08-26T00:00:00.000Z',
+    };
+    expect(contract.scenarios[0].coverageState?.design).toBe('planned');
+    expect(contract.diagnostics).toEqual([]);
   });
 });

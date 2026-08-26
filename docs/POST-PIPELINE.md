@@ -1,7 +1,7 @@
 # Setelah Pipeline Pertama
 
 Panduan ini untuk QA yang baru saja menjalankan pipeline pertama lewat
-Hermes Agent setelah `setup:wizard` selesai.
+Hermes Agent setelah `setup` selesai.
 
 ## Artefak yang harus muncul
 

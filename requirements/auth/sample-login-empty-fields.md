@@ -2,7 +2,7 @@
 
 > **SAMPLE format (Path B / POM)** — bukan setup awal project kamu.
 >
-> - **Setup awal real (per website):** `requirements/login.md` di-generate `setup:wizard` Phase 7 (Path A).
+> - **Setup awal real (per website):** `requirements/login.md` di-generate `setup` Phase 7 (Path A).
 > - Locator berbeda tiap app → pipeline wajib `snapshot_page` dulu, baru Plan/Generate.
 > - File ini hanya latihan format requirement + empty-field scenarios.
 

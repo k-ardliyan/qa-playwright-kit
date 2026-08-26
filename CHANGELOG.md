@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Harden 8.5 — 2026-08-26
+- **Dead wizard removed:** unused `tools/scripts/setup-wizard.ts` deleted. Canonical entry remains `src/setup/index.ts` (`npm run setup`). `wizard-auth-template.ts` kept (used by `env:edit`).
+- **CLI rename:** `npm run setup:wizard` → `npm run setup`. `setup:check` unchanged. No alias.
+- **Contract SoT:** `src/contracts/` is canonical; `tools/mcp/src/contracts/` is AUTO-SYNCED via `npm run sync:mcp-generated` (`--check` in quality gate). `CoverageStateBreakdown` ported onto `qa.traceability/v1` as optional fields.
+- **CI summary truth:** quality/mcp-compat workflow summaries no longer hardcode stale unit/property counts.
+
 ### Setup Wizard — 2026-08-24
 - **Setup wizard fixes:** `--env` honored in interactive mode; single `checkReachable`/`isReachableStatus` predicate (304 included on both sides); encrypted (dotenvx `encrypted:`) values no longer leak into prompts/validation — `setup:check` reports `Encrypted roles` instead of false "ready"/fake "unreachable"; password confirm + `isPlaceholderCredential` rejection at prompt; preview (masked `p***t`) + confirm before write; `HEADLESS` managed for all challenge modes (symmetric `true`/`false`); `resolveEnvPath` deduped into `wizard-writer.ts`. New: `src/__tests__/unit/wizard.test.ts` (reachability + `isEncryptedValue`).
 - **Setup wizard UX (type-then-Enter):** numeric selectors (`APP_ENV`, challenge mode, login-id) switched from auto-submit-on-keypress `select` to type-then-Enter `text` via `parseNumberedChoice` (trim, leading zeros, bounds 1..N; empty/out-of-range/decimals rejected). Prompt text is now Bahasa Indonesia for a lay-user audience.

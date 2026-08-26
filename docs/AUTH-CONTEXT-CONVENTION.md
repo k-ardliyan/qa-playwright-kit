@@ -74,7 +74,7 @@ npx playwright test tests/auth.setup.ts --project=setup --workers=1
 ```
 
 Regenerate template multi-role (opsional): `npm run env:edit` → _Regenerasi auth.setup.ts_  
-(atau `setup:wizard` Phase 5). Core discovery tetap jalan tanpa regenerate.
+(atau `setup` Phase 5). Core discovery tetap jalan tanpa regenerate.
 
 ---
 
@@ -102,7 +102,7 @@ SLOW_MO=100
 
 **Atur lewat UI (bukan hanya raw env):**
 
-- `npm run setup:wizard` → Phase 5 (setelah form login)
+- `npm run setup` → Phase 5 (setelah form login)
 - `npm run env:edit` → _Edit BASE_URL / browser / OTP-CAPTCHA_
 
 **CI:** `AUTH_CHALLENGE_MODE` interaktif **dilarang** (fail fast).  

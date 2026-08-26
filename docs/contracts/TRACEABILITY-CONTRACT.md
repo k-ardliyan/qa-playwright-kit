@@ -1,7 +1,8 @@
 # Traceability Contract (`qa.traceability/v1`)
 
 > Canonical specification for `TraceabilityContractV1` produced by `trace_requirement`.
-> Source of truth: `tools/mcp/src/contracts/traceability-contract.ts`.
+> Source of truth: `src/contracts/traceability-contract.ts`.
+> MCP copy (`tools/mcp/src/contracts/`) is AUTO-SYNCED via `npm run sync:mcp-generated`.
 
 ## Schema Version
 
@@ -96,4 +97,4 @@ export interface TraceabilityContractV1 {
 }
 ```
 
-> Catatan: `ExecutionStatus`, `FailureRootCause`, `CoverageStateBreakdown`, `TraceabilityEvidence`, `linkageType`, `heuristicDiagnostic`, `evidence`, `lastRunAt`, `coverageState` level kontrak, dan `healedScenarios`/`diagnostics` adalah bagian dari kontrak aktual — pastikan konsumen membaca versi terkini dari `tools/mcp/src/contracts/traceability-contract.ts`.
+> Catatan: `ExecutionStatus`, `FailureRootCause`, `CoverageStateBreakdown`, `TraceabilityEvidence`, `linkageType`, `heuristicDiagnostic`, `evidence`, `lastRunAt`, `coverageState` level kontrak, dan `healedScenarios`/`diagnostics` adalah bagian dari kontrak aktual — baca versi terkini dari `src/contracts/traceability-contract.ts`.

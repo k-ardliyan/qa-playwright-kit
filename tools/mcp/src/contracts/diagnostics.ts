@@ -1,6 +1,19 @@
+/**
+ * AUTO-SYNCED from src/contracts/diagnostics.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
+/**
+ * Canonical Diagnostic Codes and Structures
+ *
+ * Diagnostic codes are API contracts. Once published, their meaning
+ * must remain stable.
+ */
+
 export type DiagnosticSeverity = 'info' | 'warning' | 'error';
 
 export type DiagnosticCode =
+  // Requirement diagnostics (REQ_*)
   | 'REQ_MISSING_MODULE'
   | 'REQ_MISSING_FEATURE'
   | 'REQ_INVALID_ID'
@@ -17,6 +30,8 @@ export type DiagnosticCode =
   | 'REQ_LEGACY_AC_BULLET'
   | 'REQ_LEGACY_ROLE_PROSE'
   | 'REQ_LEGACY_POM_METADATA'
+
+  // Test plan diagnostics (PLAN_*)
   | 'PLAN_SCENARIO_MISSING'
   | 'PLAN_AC_UNCOVERED'
   | 'PLAN_UNKNOWN_AC'
@@ -30,6 +45,8 @@ export type DiagnosticCode =
   | 'PLAN_EPHEMERAL_REF'
   | 'PLAN_EPHEMERAL_REF_DETECTED'
   | 'PLAN_INVALID_EXECUTION_MODE'
+
+  // Staleness, State & Traceability diagnostics
   | 'SPEC_STALE'
   | 'TEST_STALE'
   | 'PIPELINE_STATE_STALE'
@@ -37,6 +54,8 @@ export type DiagnosticCode =
   | 'CATALOG_DRIFT'
   | 'TRACEABILITY_STALE'
   | 'TRACE_HEURISTIC_LINK_USED'
+
+  // Workspace & Environment diagnostics
   | 'WORKSPACE_PATH_DRIFT'
   | 'CONTRACT_VERSION_UNSUPPORTED'
   | 'TOOL_DEPRECATED'

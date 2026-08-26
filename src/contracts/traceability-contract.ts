@@ -1,4 +1,5 @@
 import { type TraceabilitySchemaVersion } from './versions';
+import { type Diagnostic } from './diagnostics';
 
 export type ExecutionStatus =
   | 'passed'
@@ -12,6 +13,21 @@ export type ExecutionStatus =
   | 'blocked';
 
 export type FailureRootCause = 'app' | 'test' | 'requirement' | 'env' | 'ai_generation' | 'unknown';
+
+export interface CoverageStateBreakdown {
+  design: 'planned' | 'unplanned';
+  automation:
+    'automated' | 'manual' | 'mixed' | 'unautomated' | 'generated' | 'not-generated' | 'blocked';
+  execution: 'executed' | 'not-executed' | 'passed' | 'failed' | 'skipped' | 'timed-out';
+  verification:
+    | 'unverified'
+    | 'verified-pass'
+    | 'verified-fail'
+    | 'manual-verification-required'
+    | 'passed'
+    | 'failed'
+    | 'healed';
+}
 
 export interface TraceabilityEvidence {
   tracePath?: string;
@@ -30,6 +46,9 @@ export interface TraceabilityScenarioNode {
   authContext?: string;
   specFile?: string;
   executionStatus: ExecutionStatus;
+  coverageState?: CoverageStateBreakdown;
+  linkageType?: 'exact-test-id' | 'exact-scenario-id' | 'requirement-id' | 'heuristic-fallback';
+  heuristicDiagnostic?: { reason: string; confidence: number };
   failureSource?: FailureRootCause;
   errorMessage?: string;
   evidence?: TraceabilityEvidence;
@@ -69,5 +88,7 @@ export interface TraceabilityContractV1 {
     blockedScenarios: number;
   };
 
+  coverageState?: CoverageStateBreakdown;
+  diagnostics?: Diagnostic[];
   generatedAt: string;
 }

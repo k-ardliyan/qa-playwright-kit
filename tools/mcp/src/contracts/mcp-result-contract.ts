@@ -1,3 +1,8 @@
+/**
+ * AUTO-SYNCED from src/contracts/mcp-result-contract.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
 import { MCP_RESULT_SCHEMA_V1, type McpResultSchemaVersion } from './versions';
 import { type Diagnostic } from './diagnostics';
 

@@ -1,7 +1,7 @@
 # Kredensial & Multi-Role
 
 > **Satu halaman** untuk ganti password, tambah/hapus role, dan refresh session login.  
-> Setup awal? Mulai dari [GETTING-STARTED.md](GETTING-STARTED.md) (`npm run setup:wizard`).
+> Setup awal? Mulai dari [GETTING-STARTED.md](GETTING-STARTED.md) (`npm run setup`).
 
 ---
 
@@ -84,7 +84,7 @@ Validasi nama role: huruf kecil, angka, tanda hubung (`finance`, `super-admin`, 
 
 ```bash
 npm install
-npm run setup:wizard
+npm run setup
 ```
 
 Phase 1: pilih **APP_ENV**, lalu **BASE_URL untuk env itu**.  

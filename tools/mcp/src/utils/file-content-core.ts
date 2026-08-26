@@ -1,6 +1,6 @@
 /**
  * AUTO-SYNCED from src/support/pw/file-content-core.ts — do not edit by hand.
- * Run: npm run sync:file-core  (also runs inside npm run mcp:build)
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
  */
 
 /**

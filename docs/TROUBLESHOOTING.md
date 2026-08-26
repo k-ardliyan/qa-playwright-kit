@@ -18,7 +18,7 @@
 2. Download versi LTS (20.x atau lebih baru)
 3. Install, restart terminal
 4. Verifikasi: `node --version`
-5. Jalankan ulang: `npm run setup:wizard`
+5. Jalankan ulang: `npm run setup`
 
 ---
 
@@ -55,7 +55,7 @@ sudo npx playwright install --with-deps chromium
 **Fix (Windows):**
 
 - Buka terminal sebagai Administrator (klik kanan PowerShell → "Run as administrator")
-- Jalankan ulang `npm run setup:wizard`
+- Jalankan ulang `npm run setup`
 
 > **Alternatif tanpa sudo:** Jalankan `npx playwright install chromium` (tanpa `--with-deps`). Browser akan jalan tapi beberapa fitur mungkin terbatas.
 
@@ -65,15 +65,15 @@ sudo npx playwright install --with-deps chromium
 
 ### Error #4: Wizard Crash dengan `Unterminated string literal`
 
-**Gejala:** Error dari esbuild/tsx saat menjalankan `npm run setup:wizard`.
+**Gejala:** Error dari esbuild/tsx saat menjalankan `npm run setup`.
 
-**Root cause:** Error esbuild/tsx saat kompilasi `tools/scripts/setup-wizard.ts` atau `src/setup/index.ts` (karakter/line ending corrupt), atau konflik versi Node/tsx lokal.
+**Root cause:** Error esbuild/tsx saat kompilasi `src/setup/index.ts` (karakter/line ending corrupt), atau konflik versi Node/tsx lokal.
 
 **Fix:**
 
 ```bash
 # Lihat detail error
-npm run setup:wizard 2>&1 | head -20
+npm run setup 2>&1 | head -20
 
 # Lapor ke maintainer jika persistent — sertakan:
 # - Node.js version (node --version)

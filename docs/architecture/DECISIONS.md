@@ -134,7 +134,7 @@ import type { PipelineReport } from '@/shared/types';
 **Keputusan:**
 1. Pertahankan arsitektur hybrid (`src/`, `tests/`, `tools/`, `config/`, `artifacts/`).
 2. `config/qa-kit.workspace.json` adalah canonical single source of truth untuk semua path workspace.
-3. Requirement Markdown adalah human authoring format; machine contract versioned (`qa.requirement/v1`, `qa.test-plan/v1`, `qa.traceability/v1`, `qa.selector-catalog/v1`, `qa.mcp-result/v1`) adalah machine state truth.
+3. Requirement Markdown adalah human authoring format; machine contract versioned (`qa.requirement/v1`, `qa.test-plan/v1`, `qa.traceability/v1`, `qa.selector-catalog/v1`, `qa.mcp-result/v1`) adalah machine state truth. Canonical TypeScript SoT: `src/contracts/`. MCP copies under `tools/mcp/src/contracts/` are AUTO-SYNCED via `sync:mcp-generated` and must match (`--check` in the quality gate).
 4. Validasi requirement (`compile_requirement`) dan test plan (`validate_plan`) wajib berjalan sebagai quality gate sebelum Generator/Execution.
 5. Prompt Studio dibangun di atas compiler dan schema yang sama setelah seluruh readiness gate lulus.
 

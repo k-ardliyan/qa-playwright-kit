@@ -89,7 +89,7 @@ requirements/*.md          QA tulis requirement
 git clone https://github.com/k-ardliyan/qa-playwright-kit.git
 cd qa-playwright-kit
 npm install
-npm run setup:wizard          # wizard interaktif 6 langkah
+npm run setup                 # setup interaktif 6 langkah
 ```
 
 **Setelah wizard selesai:**
@@ -194,7 +194,7 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 
 | Command                | Fungsi                                 |
 | ---------------------- | -------------------------------------- |
-| `npm run setup:wizard` | Wizard interaktif (recommended)        |
+| `npm run setup`        | Setup interaktif (recommended)         |
 | `npm run setup:check`  | Verifikasi setup lokal                 |
 | `npm run health:check` | Pre-flight pipeline (env + MCP + auth) |
 | `npm run mcp:config`   | Generate MCP config semua platform     |

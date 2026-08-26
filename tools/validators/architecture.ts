@@ -18,6 +18,11 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import {
+  MCP_GENERATED_PAIRS,
+  expectedDestContents,
+  normalizeNewlines,
+} from '../scripts/sync-mcp-generated';
 
 const ROOT = process.cwd();
 
@@ -97,6 +102,24 @@ for (const { dir, name } of legacyDirs) {
     violations.push({
       rule: 'ARCH-002: Legacy Directory Cleanup',
       message: `Legacy directory '${name}' should not exist in hybrid architecture.`,
+    });
+  }
+}
+
+const legacyFiles = [
+  {
+    file: path.join(ROOT, 'tools', 'scripts', 'setup-wizard.ts'),
+    name: 'tools/scripts/setup-wizard.ts',
+    replacement: 'src/setup/index.ts',
+  },
+];
+
+for (const { file, name, replacement } of legacyFiles) {
+  if (fs.existsSync(file)) {
+    violations.push({
+      rule: 'ARCH-002: Legacy Directory Cleanup',
+      file: name,
+      message: `Legacy file '${name}' should not exist. Canonical wizard is ${replacement}.`,
     });
   }
 }
@@ -468,6 +491,42 @@ function scanForEphemeralRefLeaks(dir: string, ext: string[]): void {
 
 scanForEphemeralRefLeaks(path.join(ROOT, 'tests'), ['.ts', '.tsx']);
 scanForEphemeralRefLeaks(path.join(ROOT, 'specs'), ['.md', '.json']);
+
+// ─── Rule 14: MCP generated copies must match SoT (ARCH-SYNC-001) ────────────
+for (const pair of MCP_GENERATED_PAIRS) {
+  const srcAbs = path.join(ROOT, pair.source);
+  const destAbs = path.join(ROOT, pair.dest);
+  const sourcePosix = pair.source.replace(/\\/g, '/');
+  const destPosix = pair.dest.replace(/\\/g, '/');
+
+  if (!fs.existsSync(srcAbs)) {
+    violations.push({
+      rule: 'ARCH-SYNC-001: MCP_GENERATED_DRIFT',
+      file: destPosix,
+      message: `Source of truth missing: ${sourcePosix}`,
+    });
+    continue;
+  }
+  if (!fs.existsSync(destAbs)) {
+    violations.push({
+      rule: 'ARCH-SYNC-001: MCP_GENERATED_DRIFT',
+      file: destPosix,
+      message: `Generated copy missing. Run: npm run sync:mcp-generated`,
+    });
+    continue;
+  }
+
+  const sourceBody = fs.readFileSync(srcAbs, 'utf-8');
+  const expected = expectedDestContents(sourceBody, sourcePosix);
+  const actual = fs.readFileSync(destAbs, 'utf-8');
+  if (normalizeNewlines(actual) !== normalizeNewlines(expected)) {
+    violations.push({
+      rule: 'ARCH-SYNC-001: MCP_GENERATED_DRIFT',
+      file: destPosix,
+      message: `Copy diverges from ${sourcePosix}. Run: npm run sync:mcp-generated`,
+    });
+  }
+}
 
 // ─── Reporting ──────────────────────────────────────────────────────────────
 if (violations.length > 0) {

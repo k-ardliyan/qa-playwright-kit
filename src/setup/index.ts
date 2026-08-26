@@ -2,9 +2,9 @@
  * Setup Wizard — CLI entry point.
  *
  * Usage:
- *   npm run setup:wizard            # Interactive setup wizard
+ *   npm run setup                   # Interactive setup
  *   npm run setup:check             # Validate existing setup
- *   npm run setup:wizard -- --env staging  # Target specific environment
+ *   npm run setup -- --env staging  # Target specific environment
  *
  * @module src/setup
  */
@@ -65,7 +65,7 @@ function printHelp(): void {
 qa-playwright-kit setup — Interactive setup wizard
 
 Usage:
-  npm run setup:wizard [options]
+  npm run setup [options]
 
 Options:
   --check, -c          Validate existing setup without prompting
@@ -73,9 +73,9 @@ Options:
   --help, -h           Show this help message
 
 Examples:
-  npm run setup:wizard                  # Interactive setup
-  npm run setup:check                   # Validate current setup
-  npm run setup:wizard -- --env staging # Setup for staging environment
+  npm run setup                      # Interactive setup
+  npm run setup:check                # Validate current setup
+  npm run setup -- --env staging     # Setup for staging environment
 `);
 }
 

@@ -3,7 +3,7 @@
  * wizard-login-template — Render requirements/login.md from WizardState.
  *
  * Pure function: no I/O, no network. Unit-testable.
- * Dipanggil oleh scripts/setup-wizard.ts Phase 7.
+ * Renderer untuk requirements/login.md. Tidak di-wire ke src/setup saat ini.
  *
  * File ini = requirement REAL per project (BASE_URL + path + roles dari wizard),
  * BUKAN sample format di requirements/sample-*.md.
@@ -70,7 +70,7 @@ function frontmatter(title: string): string {
   return (
     `${title}\n\n` +
     `<!--\n` +
-    `  AUTO-GENERATED oleh setup:wizard Phase 7 dari nilai REAL project (BASE_URL, login path, roles).\n` +
+    `  AUTO-GENERATED oleh setup Phase 7 dari nilai REAL project (BASE_URL, login path, roles).\n` +
     `  Ini BUKAN sample format — sample ada di requirements/sample-*.md.\n` +
     `  Locator berbeda per website: Generator WAJIB snapshot_page dulu, lalu live-verify selector.\n` +
     `  Jangan tulis password/secret di file ini.\n` +

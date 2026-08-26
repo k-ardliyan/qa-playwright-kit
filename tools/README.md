@@ -12,16 +12,15 @@ tools/
 │   ├── tsconfig.json
 │   ├── src/              # Tool definitions & server logic
 │   └── dist/             # Compiled bundle (index-mcp.js)
-├── scripts/              # CLI tools & operasional (qa-run, setup-wizard, env utilities)
+├── scripts/              # CLI tools & operasional (qa-run, env utilities)
 │   ├── __tests__/        # Tool unit & integration tests
 │   ├── qa-run.ts
-│   ├── setup-wizard.ts
-│   └── health-check-cli.ts
+│   ├── health-check-cli.ts
+│   └── sync-mcp-generated.ts  # SoT → MCP copy (contracts + file-content-core)
 └── validators/           # Framework validation scripts
     ├── architecture.ts   # Boundary & directory layout validator
     ├── validate-requirement.ts
-    ├── validate-generated-tests.ts
-    └── setup-check.ts
+    └── validate-generated-tests.ts
 ```
 
 ## 🛠️ Perintah Utama

@@ -55,7 +55,7 @@ Tunggu sampai selesai (1-3 menit tergantung koneksi internet).
 ### Langkah 3 — Jalankan Setup Wizard
 
 ```bash
-npm run setup:wizard
+npm run setup
 ```
 
 Wizard interaktif memandu Anda melalui **6 langkah**:

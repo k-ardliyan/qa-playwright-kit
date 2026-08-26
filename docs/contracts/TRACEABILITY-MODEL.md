@@ -64,7 +64,7 @@ Requirement / Plan       Generator            Test Runner           Reporter / Q
 - `manual`: Only `@manual` scenarios exist in requirement.
 - `mixed`: Both automated tests and `@manual` scenarios exist.
 - `unautomated`: No test spec generated yet.
-- `generated` / `not-generated` / `blocked`: nilai tambahan yang juga valid di `CoverageStateBreakdown` (`tools/mcp/src/contracts/traceability-contract.ts`).
+- `generated` / `not-generated` / `blocked`: nilai tambahan yang juga valid di `CoverageStateBreakdown` (`src/contracts/traceability-contract.ts`).
 
 ### 2.3. Execution State (`execution`)
 

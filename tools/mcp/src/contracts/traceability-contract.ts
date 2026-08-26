@@ -1,3 +1,8 @@
+/**
+ * AUTO-SYNCED from src/contracts/traceability-contract.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
 import { type TraceabilitySchemaVersion } from './versions';
 import { type Diagnostic } from './diagnostics';
 

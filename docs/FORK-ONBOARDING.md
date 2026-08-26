@@ -2,7 +2,7 @@
 
 Each QA project gets its own Git repository forked or copied from the `qa-playwright-kit` template core.
 
-> **🚀 QA baru?** Setelah clone, jalankan `npm run setup:wizard` (konfigurasi env + kredensial), lalu `npm install && npx playwright install chromium && npm run mcp:build` untuk dependency/browser/MCP, `npm run auth:setup` untuk session login, dan `npm run env:edit` untuk enkripsi kredensial. Panduan detail: [GETTING-STARTED.md](GETTING-STARTED.md).
+> **🚀 QA baru?** Setelah clone, jalankan `npm run setup` (konfigurasi env + kredensial), lalu `npm install && npx playwright install chromium && npm run mcp:build` untuk dependency/browser/MCP, `npm run auth:setup` untuk session login, dan `npm run env:edit` untuk enkripsi kredensial. Panduan detail: [GETTING-STARTED.md](GETTING-STARTED.md).
 
 ---
 
