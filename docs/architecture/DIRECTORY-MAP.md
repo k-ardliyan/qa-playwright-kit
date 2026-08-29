@@ -53,7 +53,7 @@
 
 | Path                       | Peran                                                        | Entry Point                                                                |
 | -------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| `tools/mcp/`               | QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server) | `package.json`, `dist/index-mcp.js`; `src/contracts/` AUTO-SYNCED from `src/contracts/` via `sync:mcp-generated` |
+| `tools/mcp/`               | QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server) | `package.json`, `dist/index-mcp.js`, `snapshot-page.ts`, `discover-pages.ts`, `synthesize-requirement.ts`; `src/contracts/` AUTO-SYNCED from `src/contracts/` via `sync:mcp-generated` |
 | `tools/scripts/`           | Operational CLI utilities                                    | `qa-run.ts`, `pick-requirement.ts`, `env-*.ts`, `health-check-cli.ts`       |
 | `tools/scripts/__tests__/` | Scripts unit tests                                           | `qa-run.test.ts`, `env-use.test.ts`, `pick-requirement.test.ts`, etc.      |
 | `tools/validators/`        | Architecture, ephemeral refs, and test validators            | `architecture.ts`, `ephemeral-ref-guard.ts`, `validate-generated-tests.ts` |

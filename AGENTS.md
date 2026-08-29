@@ -95,8 +95,9 @@ List every tool explicitly by server:
   - `list_artifacts`
   - `list_requirement_status` (coverage map: plan/tests/manual/lastStatus per requirement)
   - `archive_report` (call after Reporter produces the final report)
-  - `snapshot_page` (capture ARIA + selector catalog to `artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}`)
-  - `discover_pages` (BFS auto-crawl a public site, writes per-page catalog + `page-map.json`)
+  - `snapshot_page` (capture ARIA + selector catalog with session auth to `artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}`)
+  - `discover_pages` (BFS auto-crawl with role session auth, writes per-page catalog + `page-map.json`)
+  - `synthesize_requirement` (synthesize compliant requirement markdown from semantic selector-catalog)
   - `list_test_fixtures` (fixture-first upload paths under `tests/data/`)
   - `inspect_file` (envelope: kind/size/magic under `tests/data/` or `artifacts/test-results/`)
   - `extract_pdf_text` (raw PDF text only — match scenario tokens; no domain field schema)
@@ -122,6 +123,19 @@ List every tool explicitly by server:
   - `npx playwright test --debug=cli` + `playwright-cli attach tw-XXXX`
 
 ## Execution Pipeline
+
+### Phase -0.5: UI Discovery & Requirement Synthesis (Optional)
+
+**Trigger:** QA provides a live web URL and wants to auto-generate `requirements/<feature-name>.md` from interactive UI snapshots.
+
+**Steps:**
+1. Call `snapshot_page` (or `discover_pages`) with `url`, `featureName`, and `role` (using `.auth/{APP_ENV}/{role}.json` session).
+2. Deep discovery extracts semantic structures (Tables, KPI Cards, Tabs, Form Inputs, Modals, Uploads, Sub-routes with `:id` deduplication).
+3. Call `synthesize_requirement` to compile extracted UI catalogs into `requirements/<feature-name>.md`.
+4. Validate generated requirement with `validate_requirement`.
+5. Present active scenarios and backlog recommendations to QA for confirmation before Plan stage.
+
+---
 
 ### Phase -1: PRD Decompose (Optional)
 

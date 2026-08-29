@@ -10,3 +10,4 @@ export * from './browser-intent.types';
 export * from './locator-candidate.types';
 export * from './live-verification.types';
 export * from './network-evidence.types';
+export * from './semantic-catalog.types';

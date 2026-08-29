@@ -18,6 +18,8 @@ export interface SnapshotPageArgs {
   url?: unknown;
   featureName?: unknown;
   pageName?: unknown;
+  role?: unknown;
+  exploreModals?: unknown;
   waitForSelector?: unknown;
   include?: unknown;
   maxElements?: unknown;
@@ -31,11 +33,21 @@ export interface SnapshotPageOutput {
   featureName?: string;
   pageName?: string;
   url?: string;
+  role?: string;
   hash?: string;
   elementCount?: number;
   truncated?: boolean;
   ariaYmlPath?: string;
   selectorsJsonPath?: string;
+  semanticSummary?: {
+    tablesCount: number;
+    statCardsCount: number;
+    tabsCount: number;
+    steppersCount: number;
+    formsCount: number;
+    modalsCount: number;
+    subRoutesCount: number;
+  };
   skipped?: boolean;
   skipReason?: string;
   message: string;
@@ -106,6 +118,8 @@ export async function snapshotPage(
   const include = Array.isArray(args.include)
     ? args.include.filter((v): v is string => typeof v === 'string')
     : undefined;
+  const role = readString(args.role, 'role') ?? undefined;
+  const exploreModals = readBoolean(args.exploreModals);
   const maxElements = readNumber(args.maxElements, 'maxElements') ?? DEFAULT_MAX_ELEMENTS;
   const force = readBoolean(args.force);
   const waitUntil = readWaitUntil(args.waitUntil);
@@ -117,6 +131,8 @@ export async function snapshotPage(
       url,
       featureName,
       pageName,
+      role,
+      exploreModals,
       waitForSelector: readString(args.waitForSelector, 'waitForSelector') ?? undefined,
       include,
       maxElements,
@@ -125,16 +141,44 @@ export async function snapshotPage(
       navigationTimeoutMs: navigationTimeoutMs ?? undefined,
     });
 
+    const semanticSummary = result.semantic
+      ? {
+          tablesCount: result.semantic.tables.length,
+          treegridsCount: result.semantic.treegrids.length,
+          treeViewsCount: result.semantic.treeViews.length,
+          kanbanBoardsCount: result.semantic.kanbanBoards.length,
+          radioGroupsCount: result.semantic.radioGroups.length,
+          toggleSwitchesCount: result.semantic.toggleSwitches.length,
+          slidersCount: result.semantic.sliders.length,
+          spinbuttonsCount: result.semantic.spinbuttons.length,
+          breadcrumbsCount: result.semantic.breadcrumbs.length,
+          paginationsCount: result.semantic.paginations.length,
+          accordionsCount: result.semantic.accordions.length,
+          actionMenusCount: result.semantic.actionMenus.length,
+          commandPalettesCount: result.semantic.commandPalettes.length,
+          chartsCount: result.semantic.charts.length,
+          progressBarsCount: result.semantic.progressBars.length,
+          statCardsCount: result.semantic.statCards.length,
+          tabsCount: result.semantic.tabs.length,
+          steppersCount: result.semantic.steppers.length,
+          formsCount: result.semantic.forms.length,
+          modalsCount: result.semantic.modalsAndDrawers.length,
+          subRoutesCount: result.semantic.subRoutes.length,
+        }
+      : undefined;
+
     return {
       status: 'success',
       featureName: result.featureName,
       pageName: result.pageName,
       url: result.url,
+      role: result.role,
       hash: result.hash,
       elementCount: result.elementCount,
       truncated: result.truncated,
       ariaYmlPath: result.ariaYmlRelativePath,
       selectorsJsonPath: result.selectorsJsonRelativePath,
+      semanticSummary,
       skipped: result.skipped,
       skipReason: result.skipReason,
       message: result.skipped

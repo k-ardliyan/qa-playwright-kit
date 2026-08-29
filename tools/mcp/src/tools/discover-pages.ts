@@ -19,6 +19,8 @@ import { chromium, type Browser } from 'playwright';
 import { createToolError, getRepoRoot, type ToolError } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
 import { logger } from '../utils/logger';
+import { isDestructiveOrLogoutUrl } from '../utils/auth-discovery-core';
+import { normalizeSubRoutePattern } from './_internal/semantic-extractor';
 import {
   snapshotPageCore,
   type SnapshotResult,
@@ -58,6 +60,7 @@ const CHECKPOINT_INTERVAL = 5;
 export interface DiscoverPagesArgs {
   rootUrl?: unknown;
   featureName?: unknown;
+  role?: unknown;
   maxDepth?: unknown;
   maxPages?: unknown;
   excludePatterns?: unknown;
@@ -230,6 +233,7 @@ interface CrawlContext {
   browser: Browser;
   baseUrl: URL;
   featureName: string;
+  role?: string;
   maxDepth: number;
   maxPages: number;
   excludeRegex: RegExp[];
@@ -238,6 +242,7 @@ interface CrawlContext {
   waitUntil: 'networkidle' | 'domcontentloaded' | 'load';
   force: boolean;
   visited: Set<string>;
+  visitedPatterns: Set<string>;
   pages: PageMapEntry[];
   skipped: SkippedEntry[];
   errors: ErrorEntry[];
@@ -253,6 +258,7 @@ async function snapshotUrl(
       url: url.href,
       featureName: ctx.featureName,
       pageName,
+      role: ctx.role,
       maxElements: DEFAULT_MAX_ELEMENTS,
       force: ctx.force,
       waitUntil: ctx.waitUntil,
@@ -299,6 +305,7 @@ export async function discoverPages(
       return { status: 'error', message: err.error.message, error: err.error };
     }
 
+    const role = readString(args.role, 'role') ?? undefined;
     const maxDepth = readNumber(args.maxDepth, 2);
     const maxPages = readNumber(args.maxPages, 25);
     const requestDelayMs = readNumber(args.requestDelayMs, 200);
@@ -326,6 +333,7 @@ export async function discoverPages(
     return await runDiscover({
       baseUrl,
       featureName,
+      role,
       maxDepth,
       maxPages,
       excludeRegex,
@@ -345,6 +353,7 @@ export async function discoverPages(
 interface RunDiscoverInput {
   baseUrl: URL;
   featureName: string;
+  role?: string;
   maxDepth: number;
   maxPages: number;
   excludeRegex: RegExp[];
@@ -388,6 +397,7 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
     browser: await chromium.launch({ headless: true }),
     baseUrl: input.baseUrl,
     featureName: input.featureName,
+    role: input.role,
     maxDepth: input.maxDepth,
     maxPages: input.maxPages,
     excludeRegex: input.excludeRegex,
@@ -395,14 +405,30 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
     requestDelayMs: input.requestDelayMs,
     waitUntil: input.waitUntil,
     force: input.force,
-    visited: new Set<string>(),
+    visited: new Set(),
+    visitedPatterns: new Set(),
     pages: [],
     skipped: [],
     errors: [],
   };
 
   try {
-    const context = await ctx.browser.newContext({ userAgent });
+    const contextOptions: Parameters<Browser['newContext']>[0] = { userAgent };
+    if (ctx.role) {
+      const appEnv = (process.env.APP_ENV ?? 'local').trim() || 'local';
+      const roleName =
+        ctx.role.trim().toLowerCase() === 'general' ? 'user' : ctx.role.trim().toLowerCase();
+      const scopedAuth = path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`);
+      const legacyAuth = path.join(getRepoRoot(), '.auth', `${roleName}.json`);
+
+      if (fs.existsSync(scopedAuth)) {
+        contextOptions.storageState = scopedAuth;
+      } else if (appEnv === 'local' && fs.existsSync(legacyAuth)) {
+        contextOptions.storageState = legacyAuth;
+      }
+    }
+
+    const context = await ctx.browser.newContext(contextOptions);
     const page = await context.newPage();
 
     type QueueItem = { url: URL; depth: number };
@@ -416,6 +442,23 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
       const normalized = url.href.replace(/\/$/, '') || '/';
       if (ctx.visited.has(normalized)) continue;
       ctx.visited.add(normalized);
+
+      // Check safety: skip destructive or logout URLs
+      if (isDestructiveOrLogoutUrl(url.pathname)) {
+        ctx.skipped.push({ url: url.href, reason: 'safety_destructive_or_logout' });
+        continue;
+      }
+
+      // Check dynamic route deduplication (e.g. /invoices/:id)
+      const pattern = normalizeSubRoutePattern(url.pathname);
+      if (pattern !== url.pathname && ctx.visitedPatterns.has(pattern)) {
+        ctx.skipped.push({
+          url: url.href,
+          reason: `dynamic_route_sample_already_captured (${pattern})`,
+        });
+        continue;
+      }
+      ctx.visitedPatterns.add(pattern);
 
       if (ctx.robotsPrefixes.length > 0 && matchesAnyPattern(url, ctx.robotsPrefixes)) {
         ctx.skipped.push({ url: url.href, reason: 'robots_disallow' });

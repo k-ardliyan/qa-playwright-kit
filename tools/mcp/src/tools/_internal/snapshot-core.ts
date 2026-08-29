@@ -22,6 +22,8 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 import { resolveAllowedPath, getRepoRoot } from '../../utils/safety';
 import { mcpWorkspace } from '../../utils/workspace-paths';
 import { logger } from '../../utils/logger';
+import { extractSemanticCatalog } from './semantic-extractor';
+import type { SemanticCatalog } from '../../contracts/semantic-catalog';
 
 export const SELECTOR_CATALOG_MAX_FILES = Number.parseInt(
   process.env.SELECTOR_CATALOG_MAX_FILES ?? '100',
@@ -36,6 +38,8 @@ export interface SnapshotOptions {
   url: string;
   featureName: string;
   pageName: string;
+  role?: string;
+  exploreModals?: boolean;
   waitForSelector?: string;
   include?: string[];
   maxElements?: number;
@@ -64,23 +68,27 @@ export interface CatalogIndex {
   featureName: string;
   pageName: string;
   url: string;
+  role?: string;
   hash: string;
   catalogHash?: string;
   capturedAt: string;
   truncated: boolean;
   elementCount: number;
   elements: CatalogElement[];
+  semantic?: SemanticCatalog;
 }
 
 export interface SnapshotResult {
   featureName: string;
   pageName: string;
   url: string;
+  role?: string;
   hash: string;
   elementCount: number;
   truncated: boolean;
   ariaYmlRelativePath: string;
   selectorsJsonRelativePath: string;
+  semantic?: SemanticCatalog;
   skipped?: boolean;
   skipReason?: string;
 }
@@ -426,9 +434,42 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
   const browser: Browser = await chromium.launch({ headless: true });
   let context: BrowserContext | null = null;
   try {
-    context = await browser.newContext();
+    const contextOptions: Parameters<Browser['newContext']>[0] = {};
+
+    // Auth injection if role provided
+    if (options.role) {
+      const appEnv = (process.env.APP_ENV ?? 'local').trim() || 'local';
+      const roleName =
+        options.role.trim().toLowerCase() === 'general'
+          ? 'user'
+          : options.role.trim().toLowerCase();
+      const scopedAuth = path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`);
+      const legacyAuth = path.join(getRepoRoot(), '.auth', `${roleName}.json`);
+
+      if (fs.existsSync(scopedAuth)) {
+        contextOptions.storageState = scopedAuth;
+      } else if (appEnv === 'local' && fs.existsSync(legacyAuth)) {
+        contextOptions.storageState = legacyAuth;
+      } else {
+        logger.warn(
+          `[snapshot_page] Auth storage state for role "${options.role}" in env "${appEnv}" not found. Running unauthenticated.`,
+        );
+      }
+    }
+
+    context = await browser.newContext(contextOptions);
     const page = await context.newPage();
     const { ariaYaml, truncated, elements } = await navigateAndCapture(page, options);
+
+    // Extract rich semantic UI structures
+    let semantic: SemanticCatalog | undefined;
+    try {
+      semantic = await extractSemanticCatalog(page, options.role);
+    } catch (e) {
+      logger.warn('[snapshot_page] Failed to extract semantic catalog', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
 
     const hash = crypto.createHash('sha256').update(ariaYaml).digest('hex');
 
@@ -438,12 +479,14 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
       featureName,
       pageName,
       url: options.url,
+      role: options.role,
       hash,
       catalogHash: hash,
       capturedAt: new Date().toISOString(),
       truncated,
       elementCount: elements.length,
       elements,
+      semantic,
     };
     fs.writeFileSync(jsonAbsPath, JSON.stringify(index, null, 2), 'utf8');
 
@@ -453,17 +496,20 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
       elementCount: elements.length,
       truncated,
       hash,
+      role: options.role,
     });
 
     return {
       featureName,
       pageName,
       url: options.url,
+      role: options.role,
       hash,
       elementCount: elements.length,
       truncated,
       ariaYmlRelativePath: ariaRelPath,
       selectorsJsonRelativePath: jsonRelPath,
+      semantic,
     };
   } finally {
     if (context) await context.close();

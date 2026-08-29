@@ -27,6 +27,7 @@ import { compileRequirement } from './compile-requirement';
 import { compileTestPlan } from './compile-test-plan';
 import { validatePlan } from './validate-plan';
 import { traceRequirement } from './trace-requirement';
+import { synthesizeRequirement } from './synthesize-requirement';
 import { resolveAllowedPath } from '../utils/safety';
 
 export interface JsonSchemaObject {
@@ -385,7 +386,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'snapshot_page',
     description:
-      'Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash) for AI agents — read the JSON file for selector details.',
+      'Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash, semanticSummary) for AI agents — read the JSON file for selector details.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -397,6 +398,15 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         pageName: {
           type: 'string',
           description: 'Lowercase page slug, e.g. "login-form". Becomes the catalog filename.',
+        },
+        role: {
+          type: 'string',
+          description:
+            'Optional role auth context (e.g. "finance", "user"). Injects .auth/{APP_ENV}/{role}.json storageState.',
+        },
+        exploreModals: {
+          type: 'boolean',
+          description: 'Explore and capture dialog/modal/drawer triggers safely (default false).',
         },
         waitForSelector: {
           type: 'string',
@@ -431,6 +441,45 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     readOnly: false,
     profiles: ['discovery', 'planner', 'generator', 'healer', 'author', 'visual', 'all'],
     handler: (args) => snapshotPage(args),
+  },
+  {
+    name: 'synthesize_requirement',
+    description:
+      'Synthesize a compliant requirement markdown file from selector-catalog semantic extractions (tables, forms, stat cards, modals) with active test scenarios and backlog suggestions.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        featureName: {
+          type: 'string',
+          description: 'Lowercase feature slug matching the selector-catalog folder.',
+        },
+        moduleName: {
+          type: 'string',
+          description: 'Target application module name (e.g. "invoice", "auth").',
+        },
+        title: {
+          type: 'string',
+          description: 'Human-friendly requirement title.',
+        },
+        entryUrl: {
+          type: 'string',
+          description: 'Starting page URL path for metadata.',
+        },
+        role: {
+          type: 'string',
+          description: 'Primary role associated with this requirement.',
+        },
+        outputPath: {
+          type: 'string',
+          description: 'Optional output path (defaults to requirements/<featureName>.md).',
+        },
+      },
+      required: ['featureName'],
+    },
+    stability: 'stable',
+    readOnly: false,
+    profiles: ['discovery', 'planner', 'author', 'all'],
+    handler: (args) => synthesizeRequirement(args),
   },
   {
     name: 'discover_pages',

@@ -59,6 +59,23 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 ---
 
+## Discovery & Requirement Synthesis Workflow (Phase -0.5)
+
+```
+# 1. Snapshot halaman (dengan session role) → semantic catalog tersimpan
+snapshot_page (qa-playwright-kit) — url, featureName, pageName, role (opsional: exploreModals)
+
+# 2. Synthesize requirement otomatis dari komponen UI (tabel, form, KPI, modal)
+synthesize_requirement (qa-playwright-kit) — featureName, moduleName, title, entryUrl, role
+→ requirements/<featureName>.md
+
+# 3. Validasi & Jalankan Pipeline
+npm run validate:requirement
+npm run qa:run
+```
+
+---
+
 ## POM Workflow (Path B — opsional)
 
 ```

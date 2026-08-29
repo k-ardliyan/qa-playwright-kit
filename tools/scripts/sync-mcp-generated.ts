@@ -43,6 +43,10 @@ export const MCP_GENERATED_PAIRS: SyncPair[] = [
     dest: 'tools/mcp/src/contracts/requirement-contract.ts',
   },
   {
+    source: 'src/contracts/semantic-catalog.ts',
+    dest: 'tools/mcp/src/contracts/semantic-catalog.ts',
+  },
+  {
     source: 'src/contracts/test-plan-contract.ts',
     dest: 'tools/mcp/src/contracts/test-plan-contract.ts',
   },

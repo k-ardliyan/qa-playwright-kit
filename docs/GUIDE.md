@@ -45,7 +45,7 @@ npm run setup:check         # verify setup setelah selesai
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `playwright`        | Eksplorasi UI (`browser_navigate`, `browser_snapshot`)                                                                                                    |
 | `playwright-test`   | Menjalankan tes (`run_tests`)                                                                                                                             |
-| `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, `snapshot_page`, `discover_pages`, `generate_page_object` |
+| `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, `snapshot_page`, `discover_pages`, `synthesize_requirement`, `generate_page_object` |
 
 **Hermes:** `.mcp.json` di root project dibaca langsung oleh Hermes. Tidak perlu generate config tambahan. `npm run mcp:config` sudah support multi-platform (claude/cursor/kiro) tapi tidak di-surface ke QA di alur default.
 

@@ -19,6 +19,7 @@ Hard stop: any edit under `src/`, `tools/`, `config/` (except `*.env` via setup/
 
 ## When to Use
 
+- QA provides a live web URL and wants to auto-generate `requirements/*.md` from UI snapshots
 - First-time setup, or error during `npm run setup` / `npm run auth:setup`
 - Writing, reviewing, or validating `requirements/*.md`
 - Unsure which scenario tag to use (`@manual`? `@upload`? `@access-restriction`?)
@@ -54,6 +55,7 @@ Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<fe
 
 | Need | Reference |
 | --- | --- |
+| Generate requirement from live URL / UI snapshot | [ui-discovery-requirement.md](references/ui-discovery-requirement.md) |
 | First-time setup or setup error | [first-run-checklist.md](references/first-run-checklist.md) |
 | Requirement format | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md) |
 | Validate format | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")` |
