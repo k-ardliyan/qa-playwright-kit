@@ -37,7 +37,7 @@ export function resolveMcpAuthState(
       storagePath,
       exists: false,
       diagnosticMessage: `Storage state for role '${role}' in environment '${environment}' not found at '${storagePath}'.`,
-      recommendedCommand: `npm run auth:setup -- --role=${role}`,
+      recommendedCommand: 'npm run auth:setup',
     };
   }
 

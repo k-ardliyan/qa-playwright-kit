@@ -35,10 +35,7 @@ export function RecentRuns({ recentRuns }: RecentRunsProps) {
             : 'muted';
 
           return (
-            <div
-              class="recent-run-item"
-              onclick={`window.location.href='/history/${encodeURIComponent(run.runId)}'`}
-            >
+            <a class="recent-run-item" href={`/history/${encodeURIComponent(run.runId)}`}>
               <div class="recent-run-item__left">
                 <div class="recent-run-item__title">
                   <strong safe>{run.displayName || run.runId}</strong>
@@ -56,9 +53,9 @@ export function RecentRuns({ recentRuns }: RecentRunsProps) {
 
               <div class="recent-run-item__right">
                 <span class={`recent-run-rate font-mono ${passRateClass}`}>{run.passRate}%</span>
-                {run.qaDecision && <span class={decisionClass}>{run.qaDecision}</span>}
+                {run.qaDecision ? <span class={decisionClass}>{run.qaDecision}</span> : null}
               </div>
-            </div>
+            </a>
           );
         })}
       </div>

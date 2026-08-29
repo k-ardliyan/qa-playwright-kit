@@ -4,9 +4,8 @@
  *
  * Usage:
  *   npm run env:edit
- *   npm run env:edit -- --list
- *   npm run env:edit -- --env local
- *   npm run env:edit -- --help
+ *   npm run env:edit:list
+ *   npm run env:use:local   # then env:edit uses the pinned env
  *
  * Decrypts environments/{APP_ENV}.env via dotenvx private keys,
  * lets QA list/edit/add/remove role credentials, then re-encrypts.
@@ -36,10 +35,10 @@ import {
   hasDefaultUserCredentials,
 } from './env-edit-lib';
 import { getGlobalKeysPath, migrateWorkspaceEnvKeys } from '../../src/utils/dotenv-keys';
-import { resolveAppEnv } from '../../src/utils/app-env';
+import { resolveAppEnv, getEnvironmentsDir } from '../../src/utils/app-env';
 
 const ROOT = process.cwd();
-const ENV_DIR = path.join(ROOT, 'environments');
+const ENV_DIR = getEnvironmentsDir(ROOT);
 const AUTH_SETUP_OUT = path.join(ROOT, 'src', 'support', 'auth.setup.ts');
 
 // ─── CLI flags ─────────────────────────────────────────────────────────────
@@ -90,10 +89,10 @@ function printHelp(): void {
   env:edit — Kelola konfigurasi & kredensial test
 
   Usage:
-    npm run env:edit                       # menu interaktif
-    npm run env:edit -- --list             # tampilkan semua config (masked)
-    npm run env:edit -- --env local        # pilih environments/{name}.env
-    npm run env:edit -- --help             # bantuan ini
+    npm run env:edit                       # menu interaktif (file = APP_ENV aktif)
+    npm run env:edit:list                  # tampilkan semua config (masked)
+    npm run env:use:local                  # pin env, lalu env:edit
+    npx tsx tools/scripts/env-edit.ts -h   # bantuan ini
 
   Yang bisa diedit:
     - BASE_URL / HEADLESS / SLOW_MO / AUTH_CHALLENGE_MODE (OTP/CAPTCHA)

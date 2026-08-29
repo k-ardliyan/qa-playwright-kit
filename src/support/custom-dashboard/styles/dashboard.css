@@ -3117,6 +3117,8 @@ html[data-theme='dark'] .hash-nav__link--active {
   border: 1px solid var(--border);
   cursor: pointer;
   transition: border-color var(--transition-fast);
+  text-decoration: none;
+  color: inherit;
 }
 
 .recent-run-item:hover {
@@ -3183,6 +3185,12 @@ html[data-theme='dark'] .hash-nav__link--active {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.attention-item:hover {
+  border-color: var(--failed);
 }
 
 .attention-item__header {

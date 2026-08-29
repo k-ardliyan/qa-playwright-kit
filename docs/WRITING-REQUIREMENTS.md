@@ -21,7 +21,7 @@ Untuk QA pemula: **mulai dari Path A**. POM adalah optimasi, bukan keharusan.
 1. Duplikat [`_TEMPLATE.md`](../requirements/_TEMPLATE.md) → `requirements/nama-fitur.md`.
 2. Isi Metadata, Access Matrix (jika multi-role), Kriteria Penerimaan (dengan `AC-XX`), dan Skenario Uji (dengan `Covers` dan `Test ID`).
 3. (Opsional) Rapikan catatan kasar via ChatGPT/Gemini — lihat section **Prompt untuk AI eksternal** di bawah.
-4. Validasi: `npm run validate:requirement -- requirements/nama-fitur.md`
+4. Validasi: `npm run validate:requirement`
 5. Koreksi ringan di editor jika perlu.
 6. Pipeline AI di IDE: pakai section **Prompt Siap Pakai** di [GUIDE.md](GUIDE.md).
 
@@ -179,7 +179,7 @@ CATATAN SAYA:
 
 1. Salin Markdown hasil AI ke `requirements/nama-fitur.md`.
 2. Cek format dengan section **Format label (parser)** di atas.
-3. Jalankan `npm run validate:requirement -- requirements/nama-fitur.md`.
+3. Jalankan `npm run validate:requirement`.
 4. Di IDE (Cursor/Kiro/Claude), pakai prompt pipeline dari section **Prompt Siap Pakai** di [GUIDE.md](GUIDE.md).
 
 ---

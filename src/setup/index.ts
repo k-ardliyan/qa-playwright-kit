@@ -4,7 +4,7 @@
  * Usage:
  *   npm run setup                   # Interactive setup
  *   npm run setup:check             # Validate existing setup
- *   npm run setup -- --env staging  # Target specific environment
+ *   npm run setup:staging           # Target specific environment
  *
  * @module src/setup
  */
@@ -75,7 +75,7 @@ Options:
 Examples:
   npm run setup                      # Interactive setup
   npm run setup:check                # Validate current setup
-  npm run setup -- --env staging     # Setup for staging environment
+  npm run setup:staging              # Setup for staging environment
 `);
 }
 

@@ -15,7 +15,7 @@
 | 2. Isi `BASE_URL` + kredensial di file itu | `config/environments/staging.env` |
 
 Wizard Phase 1: **project name → APP_ENV → BASE_URL untuk env itu**.  
-Env lain: `npm run env:use -- <env>` lalu `npm run env:edit` (jangan mengasumsikan URL sama).
+Env lain: `npm run env:use:staging` (atau `env:use:dev` / `env:use:local`) lalu `npm run env:edit` (jangan mengasumsikan URL sama).
 
 ---
 
@@ -96,10 +96,9 @@ Phase 2: kredensial ke file env yang sama. Nilai di `config/environments/{APP_EN
 
 ```bash
 npm run env:status                # APP_ENV + roles readiness
-npm run env:use -- dev            # pin environment
+npm run env:use:dev               # pin environment
 npm run env:edit                  # menu (file = active APP_ENV)
-npm run env:edit -- --list
-npm run env:edit -- --env staging
+npm run env:edit:list
 ```
 
 | Kebutuhan                         | Aksi                                      |

@@ -145,7 +145,7 @@ Pipeline mengikuti kontrak di [AGENTS.md](../AGENTS.md):
 Sebelum jalankan pipeline AI, cek format requirement:
 
 ```bash
-npm run validate:requirement -- requirements/nama-fitur.md
+npm run validate:requirement
 ```
 
 - `status: success` → lanjut pipeline
@@ -168,7 +168,7 @@ Warning baru yang mungkin muncul setelah upgrade:
 **Setup awal (setelah wizard) — website kamu:**
 
 ```bash
-npm run qa:run -- requirements/login.md
+npm run qa:run
 # Hermes: snapshot_page → plan → generate → execute → report
 ```
 
@@ -176,7 +176,7 @@ npm run qa:run -- requirements/login.md
 
 ```bash
 # 1. Validasi format sample
-npm run validate:requirement -- requirements/auth/sample-login-empty-fields.md
+npm run validate:requirement
 
 # 2. Di Hermes, kirim prompt pipeline (lihat section Prompt Siap Pakai)
 #    Sample ini butuh POM loginPage — bukan default setup awal
@@ -408,7 +408,7 @@ Tes legacy (login, smoke, seed, demo) exempt — lihat [MAINTENANCE.md](../MAINT
 ### Switch environment (lokal)
 
 ```bash
-npm run env:use -- dev          # pin environments/.active-env
+npm run env:use:dev             # pin environments/.active-env
 npm run env:status              # lihat APP_ENV + source=pin|os|default
 APP_ENV=staging npm test        # one-shot override (mengalahkan pin)
 ```

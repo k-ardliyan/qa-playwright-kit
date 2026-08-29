@@ -5,7 +5,7 @@
   1. Salin file ini → requirements/nama-fitur.md (ganti "nama-fitur" dengan nama file Anda)
   2. Ganti semua teks [dalam kurung siku] dengan isi Anda
   3. Hapus blok komentar ini sebelum commit
-  4. Validasi: npm run validate:requirement -- requirements/nama-fitur.md
+  4. Validasi: npm run validate:requirement
 
   CONTOH REQUIREMENT YANG BAIK:
   Lihat requirements/_GOOD_EXAMPLE.md
@@ -171,4 +171,4 @@
 - [ ] Skenario multi-role memiliki `- **Role:** \`role-name\`` (parser requirement membaca `Role:`, bukan `Actor:`)
 - [ ] Input data menggunakan prefix provenance (`seed:`, `credential:`, `fixture:`, `literal:`)
 - [ ] Skenario non-otomatis ditandai `(@manual)` dengan alasan di Hasil yang Diharapkan
-- [ ] File tervalidasi: `npm run validate:requirement -- requirements/nama-fitur.md`
+- [ ] File tervalidasi: `npm run validate:requirement`

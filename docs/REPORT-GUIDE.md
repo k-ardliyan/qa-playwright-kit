@@ -349,7 +349,7 @@ Saat test dijalankan via **Orchestrator pipeline** (Plan → Generate → Execut
 **A:** Saat run test, pass `roleFilter`:
 
 ```bash
-npm run test -- --grep @finance
+npx playwright test --grep @finance
 ```
 
 Atau via Orchestrator:

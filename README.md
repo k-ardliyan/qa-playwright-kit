@@ -95,14 +95,11 @@ npm run setup                 # setup interaktif 6 langkah
 **Setelah wizard selesai:**
 
 ```bash
-# 1) Preflight + validasi + cetak prompt Hermes
-npm run qa:run -- requirements/auth/sample-login-empty-fields.md
+# 1) Preflight + validasi + cetak prompt Hermes (TTY pilih file)
+npm run qa:run
 
 # 2) Paste prompt ke Hermes Agent
 #    Pipeline: snapshot → Plan → Generate → Execute → Heal → Report
-
-# 3) Dashboard terbuka otomatis
-npm run qa:run -- requirements/auth/sample-login-empty-fields.md --open-dashboard
 ```
 
 > Detail pasca-pipeline → [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)
@@ -141,7 +138,7 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 **Hasil:** Pesan error "Email atau password salah", tetap di /login
 ```
 
-Validasi: `npm run validate:requirement -- requirements/fitur-saya.md`
+Validasi: `npm run validate:requirement`
 
 Contoh lengkap: [_GOOD_EXAMPLE.md](requirements/_GOOD_EXAMPLE.md) · [_BAD_EXAMPLE.md](requirements/_BAD_EXAMPLE.md)
 
@@ -184,8 +181,8 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 
 | Command                                | Fungsi                                |
 | -------------------------------------- | ------------------------------------- |
-| `npm run qa:run -- requirements/X.md`  | Preflight + prompt Hermes + dashboard |
-| `npm run validate:requirement -- X.md` | Validasi format requirement           |
+| `npm run qa:run`                | Preflight + pilih requirement + prompt Hermes + dashboard |
+| `npm run validate:requirement`  | Validasi format (TTY pilih file)                          |
 | `npm run auth:setup`                   | Refresh session login                 |
 | `npm run auth:setup:headed`            | Session + OTP/CAPTCHA di browser      |
 | `npm run env:edit`                     | Ganti password / role / OTP mode      |

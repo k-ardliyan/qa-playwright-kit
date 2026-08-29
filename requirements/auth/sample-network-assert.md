@@ -4,7 +4,7 @@
   SAMPLE capability: @network-assert (live observe).
   Bukan requirement real product — referensi format framework.
   Demo tokens: QA-KIT-NETWORK-OK
-  Validasi: npm run validate:requirement -- requirements/auth/sample-network-assert.md
+  Validasi: npm run validate:requirement
 -->
 
 ## Metadata

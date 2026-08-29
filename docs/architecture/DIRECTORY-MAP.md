@@ -2,7 +2,7 @@
 
 > Satu tempat lookup untuk semua path di repository QA Playwright Kit.
 > **Aturan:** Setiap kali ada file/modul baru, update file ini di commit yang sama.
-> Last updated: 2026-08-26 (Hybrid Architecture + contract SoT sync)
+> Last updated: 2026-08-29 (skills/ + npm run without `--`)
 
 ---
 
@@ -37,7 +37,7 @@
 | `src/executor/`                 | Test runner wrapper (multi-browser, sharding)    | `index.ts`                                                                                                                                                          |
 | `src/fixtures/`                 | Playwright fixture chain internals               | `base.fixture.ts`, `framework.fixture.ts`, `project.fixture.ts`                                                                                                     |
 | `src/observability/`            | Tracing, logging, and evidence collectors        | `error-classifier.ts`, `metrics-collector.ts`                                                                                                                       |
-| `src/setup/`                    | Setup wizard & bootstrap engine                  | `index.ts`, `wizard.ts`, `wizard-writer.ts`, `wizard-validate.ts`, `wizard-prompts.ts`, `reachability.ts`                                                          |
+| `src/setup/`                    | Setup wizard & bootstrap engine                  | `index.ts`, `wizard.ts`, `wizard-writer.ts`, `wizard-validate.ts`, `wizard-prompts.ts`, `reachability.ts`, `agent-sync.ts`                                          |
 | `src/shared/types/`             | Shared TypeScript schemas                        | `index.ts` ← always import from here                                                                                                                                |
 | `src/shared/workspace-paths.ts` | Canonical workspace path resolver                | `workspace` instance                                                                                                                                                |
 | `src/support/pw/`               | Playwright power helpers + network/file utils    | `index.ts` ← power helpers barrel                                                                                                                                   |
@@ -54,8 +54,8 @@
 | Path                       | Peran                                                        | Entry Point                                                                |
 | -------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
 | `tools/mcp/`               | QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server) | `package.json`, `dist/index-mcp.js`; `src/contracts/` AUTO-SYNCED from `src/contracts/` via `sync:mcp-generated` |
-| `tools/scripts/`           | Operational CLI utilities                                    | `qa-run.ts`, `health-check-cli.ts`, `env-*.ts`, `sync-mcp-generated.ts`     |
-| `tools/scripts/__tests__/` | Scripts unit tests                                           | `qa-run.test.ts`, etc.                                                     |
+| `tools/scripts/`           | Operational CLI utilities                                    | `qa-run.ts`, `pick-requirement.ts`, `env-*.ts`, `health-check-cli.ts`       |
+| `tools/scripts/__tests__/` | Scripts unit tests                                           | `qa-run.test.ts`, `env-use.test.ts`, `pick-requirement.test.ts`, etc.      |
 | `tools/validators/`        | Architecture, ephemeral refs, and test validators            | `architecture.ts`, `ephemeral-ref-guard.ts`, `validate-generated-tests.ts` |
 
 ---
@@ -86,3 +86,12 @@
 | Path                                              | Peran                                                                                       |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | _(tidak ada — adapter contoh dihapus 2026-08-22)_ | Framework bersifat generic; fork menyediakan adapter sendiri via `PLAYWRIGHT_ADAPTER_*` env |
+
+---
+
+## 7. Agent Skills (`skills/` — committed, portable)
+
+| Path | Peran | Keterangan |
+| --- | --- | --- |
+| `skills/qa-playwright-kit/SKILL.md` | Pipeline skill for Hermes / Claude Code / Cursor / OpenCode | YAML frontmatter + procedure. Load when writing requirements or running Plan→Report |
+| `skills/qa-playwright-kit/references/` | Progressive-disclosure refs (one level deep from SKILL.md) | `requirement-language.md`, `report-column-contract.md`, `generator-step-titles.md`, `qa-vs-maintainer.md` |

@@ -156,6 +156,9 @@ test.describe('Modern Reporting Subsystem', () => {
     expect(html).toContain('LATEST EXECUTION');
     expect(html).toContain('Open Detailed Report');
     expect(html).toContain('Needs Attention');
+    expect(html).toContain('href="/latest"');
+    expect(html).toContain('href="/history/run-20260820-100000-001"');
+    expect(html).not.toContain("window.location.href='/history/");
   });
 
   test('HistoryPage renders runs table with human labels and QA decisions', () => {

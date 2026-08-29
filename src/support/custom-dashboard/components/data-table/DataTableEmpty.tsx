@@ -4,21 +4,23 @@ import type { Children } from '@kitajs/html';
 export interface DataTableEmptyProps {
   message?: string;
   submessage?: string;
-  icon?: string;
+  icon?: Children;
   children?: Children;
 }
 
 export function DataTableEmpty({
   message = 'No data available.',
   submessage,
-  icon = '📭',
+  icon,
   children,
 }: DataTableEmptyProps) {
   return (
     <div class="empty-state">
-      <div class="empty-state__icon" safe>
-        {icon}
-      </div>
+      {icon ? (
+        <div class="empty-state__icon" safe>
+          {icon}
+        </div>
+      ) : null}
       <p class="empty-state__msg" safe>
         {message}
       </p>

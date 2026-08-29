@@ -276,9 +276,7 @@ function main(): void {
     });
     process.exit(EXIT.FIXABLE);
   } else {
-    printOk(
-      '🎉 Semua essential check passed. Lanjut ke: npm run validate:requirement -- requirements/nama-fitur.md',
-    );
+    printOk('Semua essential check passed. Lanjut ke: npm run validate:requirement');
   }
 }
 

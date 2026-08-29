@@ -24,7 +24,7 @@ Locator **berbeda per website**. Pipeline setup awal wajib:
 cp _TEMPLATE.md login.md
 # isi: judul, Metadata (module/feature/tags), Kriteria Penerimaan, Skenario Uji
 
-npm run qa:run -- requirements/login.md
+npm run qa:run
 # paste prompt Hermes (termasuk snapshot_page per site)
 ```
 
@@ -32,7 +32,7 @@ npm run qa:run -- requirements/login.md
 
 1. Salin [`_TEMPLATE.md`](_TEMPLATE.md) → `nama-fitur.md`
 2. Isi metadata wajib + skenario
-3. Validasi: `npm run validate:requirement -- requirements/nama-fitur.md`
+3. Validasi: `npm run validate:requirement`
 4. Pipeline Hermes
 
 ## Sample (latihan format saja)

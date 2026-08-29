@@ -70,7 +70,6 @@ export function CompareDiffTable({ comparison }: CompareDiffTableProps) {
   if (allScenarios.length === 0) {
     return (
       <DataTableEmpty
-        icon="✨"
         message="No changes detected between runs."
         submessage="All scenarios maintained the exact same status and error state."
       />

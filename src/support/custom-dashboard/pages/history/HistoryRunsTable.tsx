@@ -15,6 +15,7 @@ import {
   IconTrash,
   IconEdit,
   IconSave,
+  IconHistory,
 } from '../../components/shared/icons';
 
 export interface HistoryRunsTableProps {
@@ -42,12 +43,13 @@ export function HistoryRunsTable({
     return (
       <div class="history-placeholder panel">
         <div class="history-placeholder__inner">
-          <div class="history-placeholder__icon">📜</div>
-          <h3 class="history-placeholder__title">No Archived Test Runs Found</h3>
+          <div class="history-placeholder__icon">
+            <IconHistory size={32} />
+          </div>
+          <h3 class="history-placeholder__title">No archived test runs</h3>
           <p class="history-placeholder__desc muted">
-            Jalankan pengujian dan simpan hasil test run Anda (via CLI{' '}
-            <code>npm run archive:save</code> atau tombol <strong>Save Current Run</strong>) untuk
-            mulai membangun riwayat pengujian persisten.
+            Run tests and save results via CLI <code>npm run archive:save</code> or the{' '}
+            <strong>Save current run</strong> button.
           </p>
           {serveMode && (
             <div class="history-placeholder__actions">
@@ -58,7 +60,7 @@ export function HistoryRunsTable({
                 title="Save current test run to persistent history"
               >
                 <IconSave size={14} />
-                <span>Save Current Run</span>
+                <span>Save current run</span>
               </button>
             </div>
           )}
@@ -119,13 +121,18 @@ export function HistoryRunsTable({
 
             const isLatest = Boolean(latestRunId && entry.runId === latestRunId);
 
+            // Read runId from the row at click time. Interpolating it into a JS
+            // string literal is XSS even after escapeHtml — the browser HTML-decodes
+            // the attribute before the JS parser runs (see dashboard-security-pitfalls #3).
+            const runIdFromRow = "this.closest('[data-run-id]').getAttribute('data-run-id')";
             const viewAction = serveMode
-              ? `window.location.href='/history/${encodeURIComponent(entry.runId)}'`
-              : `showArchiveDetail('${entry.runId}')`;
-
+              ? `window.location.href='/history/'+encodeURIComponent(${runIdFromRow})`
+              : `showArchiveDetail(${runIdFromRow})`;
             const compareAction = serveMode
-              ? `window.location.href='/compare?baseline=${encodeURIComponent(entry.runId)}'`
+              ? `window.location.href='/compare?baseline='+encodeURIComponent(${runIdFromRow})`
               : `alert('Compare requires the dashboard server. Run: npm run dashboard:serve')`;
+            const editAction = `event.stopPropagation();openEditModal(${runIdFromRow})`;
+            const deleteAction = `event.stopPropagation();deleteArchive(${runIdFromRow})`;
 
             return (
               <DataTableRow
@@ -216,7 +223,7 @@ export function HistoryRunsTable({
                   <button
                     class="btn-sm btn-edit"
                     type="button"
-                    onclick={`event.stopPropagation();openEditModal('${entry.runId}')`}
+                    onclick={editAction}
                     title="Edit run details"
                   >
                     <IconEdit size={13} />
@@ -224,7 +231,7 @@ export function HistoryRunsTable({
                   <button
                     class="btn-sm btn-delete"
                     type="button"
-                    onclick={`event.stopPropagation();deleteArchive('${entry.runId}')`}
+                    onclick={deleteAction}
                     title="Delete archived run"
                   >
                     <IconTrash size={13} />

@@ -15,6 +15,7 @@ import { Hero } from './Hero';
 import { InspectionDrawer, InspectionDrawerScript } from './InspectionDrawer';
 import { RoleHealthStrip } from './RoleHealthStrip';
 import { ViewToggle } from './ViewToggle';
+import { IconSave } from '../shared/icons';
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
 
@@ -85,12 +86,17 @@ export function Dashboard({
       {hasLatestRun && !latestRunArchived && (
         <div class="save-banner-top" id="save-banner">
           <div class="save-banner-top__content">
-            <span class="save-banner-top__icon">💾</span>
-            <span class="save-banner-top__text">Run selesai — belum disimpan ke history</span>
+            <span class="save-banner-top__icon">
+              <IconSave size={16} />
+            </span>
+            <span class="save-banner-top__text">
+              Execution completed — not yet saved to history
+            </span>
           </div>
           <div class="save-banner-top__actions">
             <button class="btn-save-primary" onclick="openSaveModal()" type="button">
-              💾 Save to History
+              <IconSave size={14} />
+              <span>Save to History</span>
             </button>
             <button
               class="btn-dismiss-sm"

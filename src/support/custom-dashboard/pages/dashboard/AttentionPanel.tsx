@@ -45,7 +45,7 @@ export function AttentionPanel({ recurringFailures }: AttentionPanelProps) {
             : '';
 
           return (
-            <div class="attention-item">
+            <a class="attention-item" href="/latest">
               <div class="attention-item__header">
                 <span class="attention-badge">
                   <IconCross size={11} />
@@ -65,7 +65,7 @@ export function AttentionPanel({ recurringFailures }: AttentionPanelProps) {
                   {errorSnippet}
                 </div>
               ) : null}
-            </div>
+            </a>
           );
         })}
       </div>

@@ -5,10 +5,12 @@
 Before writing or editing any file:
 
 1. Read [`ARCHITECTURE.md`](ARCHITECTURE.md) for the project map.
-2. Then use this table to find the specific reference you need.
+2. Load the QA Playwright Kit skill pack: [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) (or via `.agents/skills/qa-playwright-kit/SKILL.md`).
+3. Then use this table to find the specific reference you need.
 
 | Need                            | File                                                                       |
 | ------------------------------- | -------------------------------------------------------------------------- |
+| QA Skill & Runbook (English)    | [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md)   |
 | Exact path of any `src/` module | [`docs/architecture/DIRECTORY-MAP.md`](docs/architecture/DIRECTORY-MAP.md) |
 | Auth pattern, fixture chain     | [`docs/AUTH-CONTEXT-CONVENTION.md`](docs/AUTH-CONTEXT-CONVENTION.md)       |
 | WHY behind each constraint      | [`docs/architecture/DECISIONS.md`](docs/architecture/DECISIONS.md)         |
@@ -17,6 +19,7 @@ Before writing or editing any file:
 | Requirement format              | [`requirements/_TEMPLATE.md`](requirements/_TEMPLATE.md)                   |
 | Writing a requirement           | [`docs/WRITING-REQUIREMENTS.md`](docs/WRITING-REQUIREMENTS.md)             |
 
+> **Skills & Rules:** Always consult [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) and its `references/` for standard requirement language, step titles, report contracts, and QA boundaries.
 > After creating any file under `src/`, update `docs/architecture/DIRECTORY-MAP.md` in the same commit.
 
 > **Token budget:** Load sub-agent files on-demand — only when executing that specific phase. Do NOT read all agent files at session start. For quick lookups use Architecture Quick Reference above.
@@ -34,10 +37,11 @@ You run the end-to-end sequence:
 
 Your goal is to transform a requirement file into executable tests, run those tests, heal failures when possible, return a final run summary, and surface a clear QA decision.
 
-## Sub-Agents
+## Sub-Agents & Skills
+ 
+ When executing the pipeline, you must consult the in-repo skill pack and read the specialized instructions for each phase from the following files:
 
-When executing the pipeline, you must read and adopt the specialized instructions for each phase from the following files:
-
+- **Skill Pack:** [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) (or `.agents/skills/qa-playwright-kit/SKILL.md`)
 - **Planner:** `.github/agents/planner.agent.md`
 - **Generator:** `.github/agents/generator.agent.md`
 - **Healer:** `.github/agents/healer.agent.md`

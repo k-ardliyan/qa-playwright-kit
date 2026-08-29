@@ -25,7 +25,7 @@ test.describe('MCP Auth Resolver & Storage State Probe', () => {
     expect(res.environment).toBe('nonexistent_env');
     expect(res.exists).toBe(false);
     expect(res.diagnosticMessage).toContain("Storage state for role 'finance'");
-    expect(res.recommendedCommand).toContain('npm run auth:setup -- --role=finance');
+    expect(res.recommendedCommand).toBe('npm run auth:setup');
   });
 
   test('probes missing auth state file', () => {

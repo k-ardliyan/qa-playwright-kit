@@ -162,7 +162,7 @@ Upon clicking **"Start Pipeline"**:
 1. Saves requirement to `requirements/<path>.md`.
 2. Generates canonical command:
    ```bash
-   npm run qa:run -- requirements/<path>.md
+   npm run qa:run
    ```
 3. Provides one-click launch or copy-to-clipboard for the orchestrator agent.
 

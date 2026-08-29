@@ -92,7 +92,7 @@ npm run health:check
 
 ```bash
 npm run env:status                 # APP_ENV aktif + source (os|pin|default)
-npm run env:use -- staging         # pin environment (local work)
+npm run env:use:staging            # pin environment (local work)
 npm run env:edit                   # ganti BASE_URL / password / role / OTP-CAPTCHA di file aktif
 npm run auth:setup                 # refresh session
 npm run auth:setup:headed          # OTP/CAPTCHA (browser terlihat)
@@ -134,7 +134,7 @@ use selector-catalog locators (Path A, no POM).
 Atau via CLI:
 
 ```bash
-npm run qa:run -- requirements/login.md
+npm run qa:run
 ```
 
 > **ℹ️** `requirements/sample-*.md` = sample format saja. Requirement produksi = file sendiri (mis. `login.md`).

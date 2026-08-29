@@ -31,7 +31,7 @@ npm run setup:check && npm run health:check
 ```bash
 # Setelah setup → requirements/login.md = REAL website kamu
 # (sample format: requirements/sample-*.md — jangan dipakai setup awal)
-npm run qa:run -- requirements/login.md
+npm run qa:run
 # Hermes: snapshot_page dulu (locator per site) → plan → generate → report
 
 # Fitur lain:
@@ -45,8 +45,8 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 | Command                             | Kapan                                                         |
 | ----------------------------------- | ------------------------------------------------------------- |
-| `npm run qa:run -- X`               | Preflight + cetak prompt Hermes (dinamis per req) + dashboard |
-| `npm run validate:requirement -- X` | Cek requirement saja                                          |
+| `npm run qa:run`                    | Preflight + pilih requirement + prompt Hermes + dashboard |
+| `npm run validate:requirement`      | Cek requirement saja (TTY pilih file)                     |
 | `npm run env:edit`                  | Ganti password / role / browser / OTP-CAPTCHA                 |
 | `npm run auth:setup`                | Refresh session (workers=1)                                   |
 | `npm run auth:setup:headed`         | Session + OTP/CAPTCHA di browser                              |

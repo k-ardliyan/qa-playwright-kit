@@ -33,8 +33,27 @@ test.describe('history section static vs serve mode', () => {
     expect(html).not.toContain('Compare requires the dashboard server');
   });
 
-  test('escapeHtml on runId stays safe in onclick attrs', () => {
-    const html = buildHistorySection([{ ...sampleEntry, runId: 'run-1' }], { serveMode: true });
-    expect(html).toContain("showArchiveDetail('run-1')");
+  test('onclick reads runId from data-run-id instead of interpolating it', () => {
+    const html = buildHistorySection([{ ...sampleEntry, runId: "run-1');alert(1);//" }], {
+      serveMode: true,
+    });
+    expect(html).toContain("this.closest('[data-run-id]').getAttribute('data-run-id')");
+    expect(html).not.toContain("showArchiveDetail('run-1");
+    expect(html).not.toContain("deleteArchive('run-1");
+    const onclicks = [...html.matchAll(/onclick="([^"]*)"/g)].map((m) => m[1]);
+    expect(onclicks.length).toBeGreaterThan(0);
+    for (const handler of onclicks) {
+      expect(handler).not.toContain('alert(1)');
+      expect(handler).not.toContain("run-1')");
+    }
+  });
+
+  test('empty history copy is English and has no decorative emoji', () => {
+    const html = buildHistorySection([], { serveMode: true });
+    expect(html).toContain('No archived test runs');
+    expect(html).toContain('Save current run');
+    expect(html).not.toContain('Jalankan');
+    expect(html).not.toContain('📜');
+    expect(html).not.toContain('💾');
   });
 });

@@ -12,23 +12,30 @@ import {
   printWarn,
   withFriendlyErrors,
 } from '../scripts/format-error';
+import { isInteractiveStdin, pickRequirementFile } from '../scripts/pick-requirement';
 
 async function main(): Promise<void> {
   await withFriendlyErrors(async () => {
-    const argPath = process.argv[2];
+    // Anchor cwd at the repo root first so the picker sees requirements/
+    const repoRoot = findRepoRoot(__dirname);
+    process.chdir(repoRoot);
+
+    let argPath = process.argv[2];
+    if (!argPath && isInteractiveStdin()) {
+      const picked = await pickRequirementFile(repoRoot);
+      if (picked) argPath = picked;
+    }
 
     if (!argPath) {
       throw friendly({
         title: 'Argumen requirement file tidak ada',
-        detail: 'Usage: npm run validate:requirement -- requirements/nama-fitur.md',
-        hint: 'Tambahkan path file setelah -- . Contoh: npm run validate:requirement -- requirements/login.md',
+        detail:
+          'Usage: npm run validate:requirement   (TTY memilih file)  |  npx tsx tools/validators/validate-requirement.ts requirements/nama-fitur.md',
+        hint: 'Di terminal interaktif ketik npm run validate:requirement. CI wajib kirim path.',
         docsLink: 'docs/GUIDE.md#validasi-format-tanpa-buka-agent',
         exitCode: EXIT.USAGE,
       });
     }
-
-    // Anchor cwd at the repo root
-    process.chdir(findRepoRoot(__dirname));
 
     const resolved = path.resolve(process.cwd(), argPath);
     if (!fs.existsSync(resolved)) {

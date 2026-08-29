@@ -4,10 +4,8 @@
  * QA Runner — single-command happy path untuk QA non-coder pemula.
  *
  * Usage:
- *   npm run qa:run -- requirements/login.md
- *   npm run qa:run -- requirements/login.md --dry-run
- *   npm run qa:run -- requirements/login.md --skip-tests
- *   npm run qa:run -- requirements/login.md --no-confirm
+ *   npm run qa:run
+ *   npx tsx tools/scripts/qa-run.ts requirements/login.md
  *
  * Steps:
  *   1. Parse args + show usage
@@ -36,6 +34,7 @@ import {
   withFriendlyErrors,
 } from './format-error';
 import { buildAgentPrompt } from './qa-run-prompt';
+import { isInteractiveStdin, pickRequirementFile } from './pick-requirement';
 
 const REPO_MARKERS = ['config/qa-kit.workspace.json', 'tools/mcp', 'package.json'];
 const MAX_HOPS = 12;
@@ -139,13 +138,16 @@ function openCustomDashboard(repoRoot: string): void {
 
 const USAGE = `
 Usage:
-  npm run qa:run -- <requirements/feature.md> [options]
+  npm run qa:run
+  npx tsx tools/scripts/qa-run.ts <requirements/feature.md>
 
 Fungsi: Preflight + validasi requirement + cetak prompt Hermes.
 Pipeline penuh (Plan → Generate → Execute → Heal → Report) dijalankan
 di Hermes Agent setelah user paste prompt, BUKAN di qa:run.
 
-Options:
+Tanpa path: pilih file dari daftar (TTY). CI / pipe wajib kirim path.
+
+Options (tsx / agent only):
   --skip-prompt    Skip cetak prompt (cuma validate + preflight)
   --smoke          (Opsional) Jalankan smoke test setelah cetak prompt
   --dry-run        Validate only, exit 0 tanpa side-effect lain
@@ -156,10 +158,9 @@ Options:
   -h, --help       Tampilkan pesan ini
 
 Examples:
-  npm run qa:run -- requirements/login.md
-  npm run qa:run -- requirements/login.md --dry-run
-  npm run qa:run -- requirements/login.md --smoke
-  npm run qa:run -- requirements/login.md --no-open-dashboard
+  npm run qa:run
+  npx tsx tools/scripts/qa-run.ts requirements/login.md
+  npx tsx tools/scripts/qa-run.ts requirements/login.md --dry-run
 `;
 
 function parseArgs(argv: string[]): QAArgs {
@@ -216,7 +217,7 @@ function preflight(repoRoot: string): PreFlightResult {
 
   if (!fs.existsSync(envPath) && !fs.existsSync(envExamplePath) && !fs.existsSync(legacyEnvPath)) {
     issues.push(
-      `Environment file tidak ada. Buat: cp config/environments/local.env.example config/environments/${appEnv}.env  (atau: npm run env:use -- ${appEnv} --init)`,
+      `Environment file tidak ada. Buat: cp config/environments/local.env.example config/environments/${appEnv}.env  lalu: npm run env:use:${appEnv}`,
     );
   }
 
@@ -356,11 +357,25 @@ async function main(): Promise<void> {
       process.exit(EXIT.OK);
     }
 
+    if (!args.requirementPath && isInteractiveStdin()) {
+      const picked = await pickRequirementFile(findRepoRoot(__dirname));
+      if (!picked) {
+        throw friendly({
+          title: 'Tidak ada requirement yang dipilih',
+          detail: 'Buat file dulu: cp requirements/_TEMPLATE.md requirements/nama-fitur.md',
+          hint: 'Lalu jalankan ulang: npm run qa:run',
+          exitCode: EXIT.USAGE,
+        });
+      }
+      args.requirementPath = picked;
+    }
+
     if (!args.requirementPath) {
       throw friendly({
         title: 'Argument requirement file tidak ada',
-        detail: 'Usage: npm run qa:run -- requirements/feature.md',
-        hint: 'Tambahkan path file requirement setelah --. Lihat contoh: npm run qa:run -- --help',
+        detail:
+          'Usage: npm run qa:run   (TTY memilih file)  |  npx tsx tools/scripts/qa-run.ts requirements/feature.md',
+        hint: 'Di terminal interaktif ketik npm run qa:run. CI wajib kirim path.',
         exitCode: EXIT.USAGE,
       });
     }

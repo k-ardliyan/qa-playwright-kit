@@ -36,6 +36,7 @@ import {
 } from './wizard-writer';
 
 import { validateSetup, type ValidationResult } from './wizard-validate';
+import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -162,6 +163,15 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     logger.info(`   Preserved ${writeResult.keysPreserved} existing keys`);
   }
 
+  // ─── Step 8: Sync Agent Skills & MCP Configs ────────────────────────────
+  const agentSync = syncAgentSkillsAndMcp(process.cwd());
+  if (agentSync.skillsSynced.length > 0) {
+    logger.info(`✅ Agent skills synced: ${agentSync.skillsSynced.join(', ')}`);
+  }
+  if (agentSync.mcpConfigsGenerated) {
+    logger.info('✅ Cross-platform MCP configs generated (.cursor, .kiro, claude)');
+  }
+
   // ─── Step 9: Validate ───────────────────────────────────────────────────
   const freshEnv = readExistingEnv(appEnv);
   const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath);
@@ -174,6 +184,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     challengeMode,
     writeResult,
     validation,
+    agentSync,
   });
 
   return {
@@ -262,6 +273,9 @@ async function runCheckOnly(appEnv: AppEnv): Promise<WizardResult> {
   const envPath = resolveEnvPath(appEnv);
   const validation = await validateSetup(appEnv, existing, envPath);
 
+  // Sync / check skills and MCP
+  const agentSync = syncAgentSkillsAndMcp(process.cwd());
+
   if (validation.valid) {
     console.log('✅ Setup is valid and ready for testing.');
   } else {
@@ -279,6 +293,13 @@ async function runCheckOnly(appEnv: AppEnv): Promise<WizardResult> {
 
   console.log(`   Reachable: ${validation.reachable ? '✅' : '❌'}`);
   console.log(`   Roles ready: ${validation.rolesReady.join(', ') || 'none'}`);
+  if (agentSync.skillsSynced.length > 0) {
+    const dest = agentSync.hermesProfileSkillsDir ? ` (${agentSync.hermesProfileSkillsDir})` : '';
+    console.log(`   Skills synced: ${agentSync.skillsSynced.join(', ')}${dest}`);
+  }
+  if (agentSync.mcpConfigsGenerated) {
+    console.log('   MCP configs: ready (.cursor, .kiro, claude)');
+  }
   if (validation.rolesEncrypted.length > 0) {
     console.log(
       `   Encrypted roles: ${validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
@@ -301,6 +322,7 @@ function printSummary(data: {
   challengeMode: ChallengeMode;
   writeResult: EnvWriteResult;
   validation: ValidationResult;
+  agentSync?: AgentSyncResult;
 }): void {
   console.log('');
   console.log('═══════════════════════════════════════════════════');
@@ -313,6 +335,14 @@ function printSummary(data: {
   console.log(`  Env file:    ${data.writeResult.envFilePath}`);
   console.log(`  Reachable:   ${data.validation.reachable ? '✅' : '❌'}`);
   console.log(`  Ready roles: ${data.validation.rolesReady.join(', ') || 'none'}`);
+  if (data.agentSync && data.agentSync.skillsSynced.length > 0) {
+    const dests = ['.agents/skills'];
+    if (data.agentSync.hermesProfileSkillsDir) dests.push('hermes profile');
+    console.log(`  Skills:      ${data.agentSync.skillsSynced.join(', ')} (${dests.join(', ')})`);
+  }
+  if (data.agentSync?.mcpConfigsGenerated) {
+    console.log('  MCP Configs: .cursor, .kiro, claude (generated)');
+  }
   if (data.validation.rolesEncrypted.length > 0) {
     console.log(
       `  Encrypted:   ${data.validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,

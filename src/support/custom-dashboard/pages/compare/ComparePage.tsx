@@ -9,6 +9,7 @@ import { CompatibilityNotice } from './CompatibilityNotice';
 import { ComparisonHeader } from './ComparisonHeader';
 import { ComparisonStats } from './ComparisonStats';
 import { CompareDiffTable } from './CompareDiffTable';
+import { IconCompare } from '../../components/shared/icons';
 
 export interface ComparePageProps {
   history: ReportHistoryEntry[];
@@ -100,11 +101,12 @@ export function ComparePage({
         ) : (
           <div class="compare-placeholder panel">
             <div class="compare-placeholder__inner">
-              <div class="compare-placeholder__icon">⚖️</div>
-              <h3 class="compare-placeholder__title">Select Test Runs to Compare</h3>
+              <div class="compare-placeholder__icon">
+                <IconCompare size={32} />
+              </div>
+              <h3 class="compare-placeholder__title">Select test runs to compare</h3>
               <p class="compare-placeholder__desc muted">
-                Pilih baseline run (referensi awal) dan candidate run (target baru) pada pilihan di
-                atas, lalu klik <strong>Compare Runs</strong> untuk melihat perbandingan.
+                Pick a baseline run and a candidate run, then click <strong>Compare Runs</strong>.
               </p>
             </div>
           </div>

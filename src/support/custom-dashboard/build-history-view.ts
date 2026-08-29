@@ -37,16 +37,16 @@ export function buildHistorySection(
       <div class="history-section" id="history-section">
         <div class="history-placeholder panel">
           <div class="history-placeholder__inner">
-            <div class="history-placeholder__icon">📜</div>
-            <h3 class="history-placeholder__title">No Archived Test Runs Found</h3>
+            <h3 class="history-placeholder__title">No archived test runs</h3>
             <p class="history-placeholder__desc muted">
-              Run tests and save results to build your persistent test history.
+              Run tests and save results via CLI <code>npm run archive:save</code> or the
+              <strong>Save current run</strong> button.
             </p>
             ${
               options?.serveMode
                 ? `<div class="history-placeholder__actions">
                     <button type="button" class="btn btn-primary btn-sm" onclick="openSaveModal && openSaveModal()">
-                      💾 Save Current Run
+                      Save current run
                     </button>
                   </div>`
                 : ''
@@ -59,8 +59,14 @@ export function buildHistorySection(
 
   const rows = entries
     .map((entry) => {
-      const statusIcon =
-        entry.status === 'success' ? '✅' : entry.status === 'partial' ? '🟡' : '❌';
+      const statusClass =
+        entry.status === 'success'
+          ? 'status-indicator--passed'
+          : entry.status === 'partial'
+            ? 'status-indicator--warning'
+            : 'status-indicator--failed';
+      const statusLabel =
+        entry.status === 'success' ? 'Passed' : entry.status === 'partial' ? 'Partial' : 'Failed';
       const passRateClass =
         entry.passRate >= 80 ? 'rate-good' : entry.passRate >= 50 ? 'rate-warn' : 'rate-bad';
       const decisionBadge = entry.qaDecision
@@ -74,9 +80,14 @@ export function buildHistorySection(
         : '—';
 
       const isStatic = !options?.serveMode;
+      const runIdFromRow = "this.closest('[data-run-id]').getAttribute('data-run-id')";
+      const viewAction = `showArchiveDetail(${runIdFromRow})`;
+      const compareAction = isStatic
+        ? `alert('Compare requires the dashboard server. Run npm run dashboard:serve.')`
+        : `window.location.hash='#/compare?current='+encodeURIComponent(${runIdFromRow})`;
       return `
-        <tr class="history-row" data-run-id="${escapeHtml(entry.runId)}" onclick="showArchiveDetail('${escapeHtml(entry.runId)}')">
-          <td class="history-status">${statusIcon}</td>
+        <tr class="history-row" data-run-id="${escapeHtml(entry.runId)}" onclick="${viewAction}">
+          <td class="history-status"><span class="status-indicator ${statusClass}" title="${statusLabel}"></span></td>
           <td class="history-run-id" title="${escapeHtml(entry.runId)}">${escapeHtml(entry.runId)}${options?.latestRunId && entry.runId === options.latestRunId ? ' <span class="latest-badge">LATEST</span>' : ''}</td>
           <td class="history-date" title="${escapeHtml(entry.savedAt)}">${savedAtShort}</td>
           <td class="history-env">${escapeHtml(entry.appEnv)}</td>
@@ -85,13 +96,9 @@ export function buildHistorySection(
           <td class="history-decision">${decisionBadge}</td>
           <td class="history-notes" title="${escapeHtml(entry.qaNotes || '')}">${notesShort}</td>
           <td class="history-actions" onclick="event.stopPropagation()">
-            <button class="btn-sm btn-view" onclick="event.stopPropagation();showArchiveDetail('${escapeHtml(entry.runId)}')" title="View details">View</button>
-            ${
-              isStatic
-                ? `<button class="btn-sm btn-compare" onclick="event.stopPropagation();alert('Compare requires the dashboard server. Run npm run dashboard:serve.')" title="Compare requires server mode">Compare</button>`
-                : `<button class="btn-sm btn-compare" data-run-id="${escapeHtml(entry.runId)}" onclick="event.stopPropagation();window.location.hash='#/compare?current=${encodeURIComponent(entry.runId)}'" title="Compare with another run">Compare</button>`
-            }
-            <button class="btn-sm btn-delete" onclick="deleteArchive('${escapeHtml(entry.runId)}')" title="Delete archive">🗑️</button>
+            <button class="btn-sm btn-view" onclick="event.stopPropagation();${viewAction}" title="View details">View</button>
+            <button class="btn-sm btn-compare" onclick="event.stopPropagation();${compareAction}" title="${isStatic ? 'Compare requires server mode' : 'Compare with another run'}">Compare</button>
+            <button class="btn-sm btn-delete" onclick="event.stopPropagation();deleteArchive(${runIdFromRow})" title="Delete archive">Delete</button>
           </td>
         </tr>`;
     })
@@ -134,7 +141,7 @@ function buildSaveModal(): string {
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-save-title">
         <div class="modal-head">
           <div class="modal-title-wrap">
-            <span class="modal-icon-badge">💾</span>
+            <span class="modal-icon-badge" aria-hidden="true"></span>
             <h3 id="modal-save-title">Save Run to History</h3>
           </div>
           <button type="button" class="btn-close" onclick="closeSaveModal && closeSaveModal()" aria-label="Close">✕</button>
@@ -144,12 +151,12 @@ function buildSaveModal(): string {
             <label for="save-decision" class="form-label">QA Exit Decision <span class="required">*</span></label>
             <select id="save-decision" class="cmd-select form-select" required>
               <option value="">— Select —</option>
-              <option value="APPROVE">✅ APPROVE (All scenarios passed / ready)</option>
-              <option value="FILE_BUG">🐛 FILE_BUG (Defect logged in app)</option>
-              <option value="REVISE_REQUIREMENT">📝 REVISE_REQUIREMENT (Spec gap)</option>
-              <option value="FIX_TEST">🔧 FIX_TEST (Flaky test / generator bug)</option>
-              <option value="FIX_ENV">🏗️ FIX_ENV (Auth / Seed data issue)</option>
-              <option value="MARK_BLOCKED">🚫 MARK_BLOCKED (Execution blocked)</option>
+              <option value="APPROVE">APPROVE (All scenarios passed / ready)</option>
+              <option value="FILE_BUG">FILE_BUG (Defect logged in app)</option>
+              <option value="REVISE_REQUIREMENT">REVISE_REQUIREMENT (Spec gap)</option>
+              <option value="FIX_TEST">FIX_TEST (Flaky test / generator bug)</option>
+              <option value="FIX_ENV">FIX_ENV (Auth / Seed data issue)</option>
+              <option value="MARK_BLOCKED">MARK_BLOCKED (Execution blocked)</option>
             </select>
           </div>
           <div class="form-group">
@@ -161,7 +168,7 @@ function buildSaveModal(): string {
         </div>
         <div class="modal-foot">
           <button type="button" class="btn-secondary" onclick="closeSaveModal && closeSaveModal()">Cancel</button>
-          <button type="button" id="btn-save-confirm" class="btn-save-primary" onclick="confirmSave && confirmSave()">💾 Save to History</button>
+          <button type="button" id="btn-save-confirm" class="btn-save-primary" onclick="confirmSave && confirmSave()">Save to History</button>
         </div>
       </div>
     </div>`;
@@ -175,7 +182,7 @@ function buildConfirmDeleteModal(): string {
       <div class="modal-card modal-card--danger" role="dialog" aria-modal="true" aria-labelledby="modal-delete-title">
         <div class="modal-head">
           <div class="modal-title-wrap">
-            <span class="modal-icon-badge modal-icon-badge--danger">🗑️</span>
+            <span class="modal-icon-badge modal-icon-badge--danger" aria-hidden="true"></span>
             <h3 id="modal-delete-title">Confirm Archive Deletion</h3>
           </div>
           <button type="button" class="btn-close" onclick="closeConfirmDelete && closeConfirmDelete()" aria-label="Close">✕</button>
@@ -189,7 +196,7 @@ function buildConfirmDeleteModal(): string {
         </div>
         <div class="modal-foot">
           <button type="button" class="btn-secondary" onclick="closeConfirmDelete && closeConfirmDelete()">Cancel</button>
-          <button type="button" class="btn-danger" id="btn-confirm-delete-execute" onclick="confirmDeleteExecute && confirmDeleteExecute()">🗑️ Delete Permanently</button>
+          <button type="button" class="btn-danger" id="btn-confirm-delete-execute" onclick="confirmDeleteExecute && confirmDeleteExecute()">Delete permanently</button>
         </div>
       </div>
     </div>`;
@@ -251,31 +258,27 @@ export function buildComparisonSection(comparison: ReportComparison): string {
 
   const rows = allScenarios
     .map((s) => {
-      const icon =
+      const changeLabel =
         s.change === 'regressed'
-          ? '🔴'
+          ? 'Regression'
           : s.change === 'fixed'
-            ? '🟢'
+            ? 'Fix'
             : s.change === 'new'
-              ? '✨'
+              ? 'New'
               : s.change === 'removed'
-                ? '🗑️'
+                ? 'Removed'
                 : s.change === 'stable'
-                  ? '🟡'
-                  : '🔄';
-      const beforeIcon =
-        s.previousStatus === 'passed' ? '✅' : s.previousStatus === 'failed' ? '❌' : '⏭️';
-      const afterIcon =
-        s.currentStatus === 'passed' ? '✅' : s.currentStatus === 'failed' ? '❌' : '⏭️';
+                  ? 'Stable'
+                  : 'Flaky';
       return `
         <tr class="diff-row diff-${s.change}">
-          <td>${icon}</td>
+          <td>${changeLabel}</td>
           <td>${escapeHtml(s.scenarioId)}</td>
           <td>${escapeHtml(s.name)}</td>
           <td>${escapeHtml(s.role ?? '')}</td>
           <td>${escapeHtml(s.module ?? '')}</td>
-          <td>${beforeIcon} ${s.previousStatus}</td>
-          <td>${afterIcon} ${s.currentStatus}</td>
+          <td>${s.previousStatus}</td>
+          <td>${s.currentStatus}</td>
           <td>${s.currentError ? escapeHtml(s.currentError.slice(0, 80)) : '—'}</td>
         </tr>`;
     })
@@ -286,12 +289,12 @@ export function buildComparisonSection(comparison: ReportComparison): string {
       <div class="comparison-header">
         <h3>Comparison</h3>
         <div class="comparison-stats">
-          <span>🔴 ${comparison.summary.regressed} regressions</span>
-          <span>🟢 ${comparison.summary.fixed} fixes</span>
-          <span>🟡 ${comparison.summary.stableFailures} stable failures</span>
-          <span>🔄 ${comparison.summary.flaky} flaky</span>
-          <span>✨ ${comparison.summary.new} new</span>
-          <span>🗑️ ${comparison.summary.removed} removed</span>
+          <span>${comparison.summary.regressed} regressions</span>
+          <span>${comparison.summary.fixed} fixes</span>
+          <span>${comparison.summary.stableFailures} stable failures</span>
+          <span>${comparison.summary.flaky} flaky</span>
+          <span>${comparison.summary.new} new</span>
+          <span>${comparison.summary.removed} removed</span>
         </div>
       </div>
       <table class="comparison-table data-table">
