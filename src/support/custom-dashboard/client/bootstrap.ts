@@ -1,7 +1,6 @@
 import { buildClipboardJs } from './clipboard';
 import { buildActionsJs } from './actions';
 import { buildTestFilterJs } from './test-filter';
-import { buildInspectionDrawerJs } from './inspection-drawer';
 import { buildSaveHistoryModalJs } from './save-history-modal';
 
 /**
@@ -13,7 +12,6 @@ export function buildClientBootstrapJs(): string {
   (function () {
     ${buildClipboardJs()}
     ${buildActionsJs()}
-    ${buildInspectionDrawerJs()}
     ${buildSaveHistoryModalJs()}
     ${buildTestFilterJs()}
   })();

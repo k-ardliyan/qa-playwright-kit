@@ -80,7 +80,7 @@ function buildFailurePacket(testData: CollectedTestData): string {
     `- File: ${testData.filePath}`,
     `- Trace: ${
       testData.attachments.find((a) => a.kind === 'trace')?.relativePath ||
-      (testData.hasTrace ? '(available — open dashboard drawer)' : 'none')
+      (testData.hasTrace ? '(available in test results)' : 'none')
     }`,
   ].join('\n');
 }

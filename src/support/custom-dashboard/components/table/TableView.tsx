@@ -53,6 +53,18 @@ function HeaderRow() {
   );
 }
 
+function TableEmptyFilterRow() {
+  return (
+    <tr class="tbl-empty-row" id="tbl-filter-empty" hidden>
+      <td colspan="12" class="tbl-empty-cell">
+        <div class="empty-state">
+          <p class="empty-state__msg">No tests match these filters</p>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function GeneralTable({ tests }: { tests: CollectedTestData[] }) {
   if (tests.length === 0) {
     return <EmptyState message="No test cases captured." />;
@@ -68,6 +80,7 @@ function GeneralTable({ tests }: { tests: CollectedTestData[] }) {
           {tests.map((t, i) => (
             <TestRow test={t} rowKey={`${t.testId || 'row'}-${i}`} />
           ))}
+          <TableEmptyFilterRow />
         </tbody>
       </table>
     </div>
@@ -95,6 +108,7 @@ function RoleSection({ group }: { group: RoleGroup }) {
             {group.tests.map((t, i) => (
               <TestRow test={t} rowKey={`${roleSlug}__${t.testId || 'row'}-${i}`} />
             ))}
+            <TableEmptyFilterRow />
           </tbody>
         </table>
       </div>

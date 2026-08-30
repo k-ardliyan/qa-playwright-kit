@@ -29,15 +29,16 @@
 
 .test-group__title {
   margin: 0;
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   color: var(--text);
 }
 
 .test-group__copy {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  font-weight: 400;
 }
 
 .test-accordion {
@@ -193,7 +194,7 @@ html[data-theme='dark'] details.test-card[data-status='interrupted'] {
 .test-file-title {
   min-width: 0;
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   word-break: break-word;
   color: var(--text);
   line-height: 1.35;
@@ -248,8 +249,8 @@ html[data-theme='dark'] details.test-card[data-status='interrupted'] {
   background: var(--surface-muted);
   border-bottom: 1px solid transparent;
   font-weight: 600;
-  font-size: 0.84rem;
-  line-height: 36px;
+  font-size: 0.8rem;
+  line-height: 34px;
   color: var(--text);
   user-select: none;
   white-space: nowrap;
@@ -329,8 +330,10 @@ html[data-theme='dark'] details.test-card[data-status='interrupted'] {
   padding: 14px 16px;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  tab-size: 2;
   color: #9f1239;
   background: var(--failed-bg);
   border: 0;
@@ -600,7 +603,7 @@ details.tree-item--branch[open] > summary.tree-item__title::before {
   display: block;
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   word-break: break-all;
   line-height: 1.4;
 }
@@ -618,7 +621,7 @@ details.tree-item--branch[open] > summary.tree-item__title::before {
 
 .subheading {
   margin: 0 0 8px;
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
@@ -629,8 +632,8 @@ details.tree-item--branch[open] > summary.tree-item__title::before {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 0.8rem;
-  line-height: 1.5;
+  font-size: 0.78rem;
+  line-height: 1.45;
   padding: 0;
 }
 
@@ -673,17 +676,17 @@ details.tree-item--branch[open] > summary.tree-item__title::before {
 
 .result-label {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .result-content {
-  font-size: 0.8rem;
-  line-height: 1.4;
+  font-size: 0.78rem;
+  line-height: 1.45;
   color: var(--text);
   word-break: break-word;
 }

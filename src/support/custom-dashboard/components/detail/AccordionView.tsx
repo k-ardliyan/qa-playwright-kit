@@ -63,6 +63,11 @@ export function AccordionView({ collectedTests }: AccordionViewProps) {
   return (
     <>
       <div class="accordion-view" id="view-accordion-content">
+        <div class="accordion-empty-notice" id="accordion-filter-empty" hidden>
+          <div class="empty-state">
+            <p class="empty-state__msg">No tests match these filters</p>
+          </div>
+        </div>
         <div class="test-groups" data-accordion-groups>
           {groups.map((group) => {
             const groupCards = group.tests.map((testData) => {

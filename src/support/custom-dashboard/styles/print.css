@@ -20,9 +20,6 @@
   .export-buttons,
   .column-picker,
   .btn-save-primary,
-  .quick-filters-bar,
-  .drawer-backdrop,
-  .test-drawer,
   .repo-footer {
     display: none !important;
   }

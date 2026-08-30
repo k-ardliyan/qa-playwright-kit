@@ -356,3 +356,86 @@ export function IconFlame({ size = 16, class: className = '' }: IconProps) {
     </svg>
   );
 }
+
+export function IconCamera({ size = 14, class: className = '' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={`icon-svg icon-camera ${className}`}
+      aria-hidden="true"
+    >
+      <rect x="2" y="4" width="12" height="9" rx="2" />
+      <circle cx="8" cy="8.5" r="2.2" />
+      <path d="M5.5 4l.8-1.5h3.4l.8 1.5" />
+    </svg>
+  );
+}
+
+export function IconClock({ size = 14, class: className = '' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={`icon-svg icon-clock ${className}`}
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.5v3.8l2.5 1.5" />
+    </svg>
+  );
+}
+
+export function IconTrace({ size = 14, class: className = '' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={`icon-svg icon-trace ${className}`}
+      aria-hidden="true"
+    >
+      <circle cx="4" cy="4" r="2" />
+      <circle cx="12" cy="6" r="2" />
+      <circle cx="7" cy="12" r="2" />
+      <path d="M5.5 5.5l5 1.5M6 10.5l-1-4.5M8.5 11l2.5-3.5" />
+    </svg>
+  );
+}
+
+export function IconReset({ size = 14, class: className = '' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={`icon-svg icon-reset ${className}`}
+      aria-hidden="true"
+    >
+      <path d="M2.5 2.5v4h4" />
+      <path d="M3.2 10a5.5 5.5 0 101.4-5.4L2.5 6.5" />
+    </svg>
+  );
+}

@@ -59,7 +59,7 @@ export interface CollectedTestData {
   affectedLayer: AffectedLayer[];
   /** Present on unhealthy tests; optional on passed/skipped. */
   failureSource?: FailureSource;
-  /** Mirror of flat summary metadata — useful for drawer evidence fallback. */
+  /** Mirror of flat summary metadata — useful for evidence fallback. */
   attachmentCount?: number;
   hasTrace?: boolean;
 }
@@ -87,7 +87,7 @@ export interface CollectedTestCase {
   attachmentCount: number;
   hasTrace: boolean;
   failureSource?: FailureSource;
-  /** Richer runtime data for detail inspection (drawer). Optional — populated
+  /** Richer runtime data for detail inspection (accordion/exports). Optional — populated
    *  by the custom reporter so the dashboard can render error/step/evidence. */
   errorMessage?: string;
   errors?: CollectedError[];

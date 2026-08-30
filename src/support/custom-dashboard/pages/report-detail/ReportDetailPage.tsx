@@ -9,10 +9,6 @@ import { TableView } from '../../components/table/TableView';
 import { ArtifactsStrip } from '../../components/dashboard/ArtifactsStrip';
 import { FailureAlert } from '../../components/dashboard/FailureAlert';
 import { Hero } from '../../components/dashboard/Hero';
-import {
-  InspectionDrawer,
-  InspectionDrawerScript,
-} from '../../components/dashboard/InspectionDrawer';
 import { RoleHealthStrip } from '../../components/dashboard/RoleHealthStrip';
 import { ViewToggle } from '../../components/dashboard/ViewToggle';
 import { AppNav } from '../../components/navigation/AppNav';
@@ -20,7 +16,6 @@ import { Breadcrumb } from '../../components/navigation/Breadcrumb';
 import { SaveRunModal } from '../history/SaveRunModal';
 import { ConfirmDeleteModal } from '../history/ConfirmDeleteModal';
 import { IconSave } from '../../components/shared/icons';
-import { FilterEmpty } from '../../components/shared/FilterEmpty';
 import { buildHistoryJs } from '../../build-history-view';
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
@@ -131,7 +126,6 @@ export function ReportDetailPage({
         defaultSeries={summary.testCases?.[0]?.module || summary.testCases?.[0]?.feature || ''}
       />
       <ConfirmDeleteModal />
-      <InspectionDrawer />
 
       <script>
         {`
@@ -157,13 +151,12 @@ export function ReportDetailPage({
           </div>
         </section>
 
-        <TableToolbar />
+        <TableToolbar collectedTests={tests} />
         {safeAccordionToolbar}
 
         <div class="report-layout">
           <section class="main-column">
             <section class="panel panel--bleed">
-              <FilterEmpty />
               <div
                 id="view-accordion"
                 class="view-panel view-panel--hidden"
@@ -193,7 +186,6 @@ export function ReportDetailPage({
       </div>
 
       {safeHistoryJs}
-      <InspectionDrawerScript />
     </DashboardDocument>
   );
 }

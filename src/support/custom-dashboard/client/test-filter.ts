@@ -1,5 +1,5 @@
 /**
- * Filter, search, debounce, quick-filter preset, and hash syncing module.
+ * Filter, search, debounce, and hash syncing module.
  */
 export function buildTestFilterJs(): string {
   return `
@@ -14,9 +14,8 @@ export function buildTestFilterJs(): string {
     var countEl = document.getElementById('filter-count');
     var moduleEl = document.getElementById('module-filter-select');
     var featureEl = document.getElementById('feature-filter-select');
-    var emptyEl = document.getElementById('filter-empty');
-
-    var currentQuickFilter = null;
+    var resetBtn = document.getElementById('btn-reset-filters');
+    var accEmptyEl = document.getElementById('accordion-filter-empty');
 
     function readState() {
       var qRaw = searchEl && searchEl.value || '';
@@ -28,8 +27,7 @@ export function buildTestFilterJs(): string {
         role: roleEl && roleEl.value || '',
         module: moduleEl && moduleEl.value || '',
         feature: featureEl && featureEl.value || '',
-        evidence: !!(evidenceEl && evidenceEl.checked),
-        quickFilter: currentQuickFilter
+        evidence: !!(evidenceEl && evidenceEl.checked)
       };
     }
 
@@ -40,26 +38,10 @@ export function buildTestFilterJs(): string {
       var role = el.getAttribute('data-role') || '';
       var moduleName = el.getAttribute('data-module') || '';
       var featureName = el.getAttribute('data-feature') || '';
-      var duration = parseFloat(el.getAttribute('data-duration') || '0');
 
       if (state.q && search.indexOf(state.q) === -1) return false;
       if (state.module && moduleName !== state.module) return false;
       if (state.feature && featureName !== state.feature) return false;
-
-      // Quick filter preset handlers
-      if (state.quickFilter === 'failed') {
-        if (['failed','timedOut','interrupted'].indexOf(status) === -1) return false;
-      } else if (state.quickFilter === 'trace') {
-        if (el.getAttribute('data-has-trace') !== '1') return false;
-      } else if (state.quickFilter === 'screenshot') {
-        if (el.getAttribute('data-has-screenshot') !== '1') return false;
-      } else if (state.quickFilter === 'video') {
-        if (el.getAttribute('data-has-video') !== '1') return false;
-      } else if (state.quickFilter === 'slow') {
-        if (duration < 5000) return false; // Slow test threshold >= 5s
-      } else if (state.quickFilter === 'skipped') {
-        if (status !== 'skipped') return false;
-      }
 
       // Explicit select dropdown filters
       if (state.status === 'failed') {
@@ -85,7 +67,6 @@ export function buildTestFilterJs(): string {
         if (state.module) p.set('module', state.module);
         if (state.feature) p.set('feature', state.feature);
         if (state.evidence) p.set('evidence', '1');
-        if (state.quickFilter) p.set('filter', state.quickFilter);
         var qs = p.toString();
         var targetHash = qs ? '#/?' + qs : '#/';
         if (window.location.hash !== targetHash && (!window.location.hash || window.location.hash.indexOf('#/') === 0)) {
@@ -129,26 +110,31 @@ export function buildTestFilterJs(): string {
       });
 
       if (countEl) countEl.textContent = 'Showing ' + shown + ' of ' + total;
-      if (emptyEl) emptyEl.hidden = shown > 0 || total === 0;
+
+      var isNoneShown = (shown === 0 && total > 0);
+      document.querySelectorAll('#tbl-filter-empty').forEach(function (r) {
+        r.hidden = !isNoneShown;
+      });
+      if (accEmptyEl) accEmptyEl.hidden = !isNoneShown;
+
+      var hasActiveFilter = !!(
+        state.q ||
+        state.status ||
+        state.priority ||
+        state.role ||
+        state.module ||
+        state.feature ||
+        state.evidence
+      );
+      if (resetBtn) {
+        resetBtn.hidden = !hasActiveFilter;
+      }
 
       try { localStorage.setItem(FILTER_KEY, JSON.stringify(state)); } catch (e) {}
       window.__DASHBOARD_FILTER_STATE__ = state;
     }
 
     window.applyFilters = applyFilters;
-
-    window.applyQuickFilter = function (preset, btnEl) {
-      if (currentQuickFilter === preset) {
-        currentQuickFilter = null;
-        if (btnEl) btnEl.classList.remove('quick-filter-btn--active');
-      } else {
-        currentQuickFilter = preset;
-        document.querySelectorAll('[data-quick-filter]').forEach(function(b) {
-          b.classList.toggle('quick-filter-btn--active', b === btnEl);
-        });
-      }
-      applyFilters();
-    };
 
     window.resetDashboardFilters = function () {
       if (searchEl) searchEl.value = '';
@@ -158,10 +144,6 @@ export function buildTestFilterJs(): string {
       if (moduleEl) moduleEl.value = '';
       if (featureEl) featureEl.value = '';
       if (evidenceEl) evidenceEl.checked = false;
-      currentQuickFilter = null;
-      document.querySelectorAll('[data-quick-filter]').forEach(function(b) {
-        b.classList.remove('quick-filter-btn--active');
-      });
       applyFilters();
     };
 
@@ -183,11 +165,6 @@ export function buildTestFilterJs(): string {
         if (moduleEl && savedF.module) moduleEl.value = savedF.module;
         if (featureEl && savedF.feature) featureEl.value = savedF.feature;
         if (evidenceEl) evidenceEl.checked = !!savedF.evidence;
-        if (savedF.quickFilter) {
-          currentQuickFilter = savedF.quickFilter;
-          var activeBtn = document.querySelector('[data-quick-filter="' + savedF.quickFilter + '"]');
-          if (activeBtn) activeBtn.classList.add('quick-filter-btn--active');
-        }
       }
     } catch (e) {}
 

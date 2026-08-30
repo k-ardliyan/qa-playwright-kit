@@ -64,8 +64,6 @@ export function TestRow({ test, rowKey }: TestRowProps) {
       data-unhealthy={unhealthy}
       data-failure-source={test.failureSource || ''}
       data-search={search}
-      style="cursor: pointer;"
-      title="Click to inspect test details"
     >
       <td class="tbl-test-id col-sticky-0" data-col="testId">
         <code safe>{test.testId || '-'}</code>

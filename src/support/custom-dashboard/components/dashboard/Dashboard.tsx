@@ -12,11 +12,9 @@ import { TableView } from '../table/TableView';
 import { ArtifactsStrip } from './ArtifactsStrip';
 import { FailureAlert } from './FailureAlert';
 import { Hero } from './Hero';
-import { InspectionDrawer, InspectionDrawerScript } from './InspectionDrawer';
 import { RoleHealthStrip } from './RoleHealthStrip';
 import { ViewToggle } from './ViewToggle';
 import { IconSave } from '../shared/icons';
-import { FilterEmpty } from '../shared/FilterEmpty';
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
 
@@ -112,7 +110,6 @@ export function Dashboard({
       )}
 
       {safeSaveModal}
-      <InspectionDrawer />
 
       <script>
         {`
@@ -138,13 +135,12 @@ export function Dashboard({
           </div>
         </section>
 
-        <TableToolbar />
+        <TableToolbar collectedTests={tests} />
         {safeAccordionToolbar}
 
         <div class="report-layout">
           <section class="main-column">
             <section class="panel panel--bleed">
-              <FilterEmpty />
               <div
                 id="view-accordion"
                 class="view-panel view-panel--hidden"
@@ -187,7 +183,6 @@ export function Dashboard({
 
       {safeHistoryJs}
       {safeHashRouterJs}
-      <InspectionDrawerScript />
     </DashboardDocument>
   );
 }

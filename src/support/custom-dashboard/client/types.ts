@@ -7,7 +7,6 @@ export interface DashboardClientState {
   module: string;
   feature: string;
   evidence: boolean;
-  quickFilter?: string;
 }
 
 export type DashboardActionName =
@@ -17,12 +16,7 @@ export type DashboardActionName =
   | 'close-edit-modal'
   | 'open-delete-modal'
   | 'close-delete-modal'
-  | 'open-inspection-drawer'
-  | 'close-inspection-drawer'
-  | 'switch-drawer-tab'
   | 'copy-failure-packet'
-  | 'copy-failure-context'
   | 'toggle-view'
   | 'reset-filters'
-  | 'apply-quick-filter'
   | 'theme-toggle';

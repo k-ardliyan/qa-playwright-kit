@@ -502,7 +502,7 @@ export default class CustomReporter implements Reporter {
         attachmentCount: t.attachments.length,
         hasTrace: t.attachments.some((a) => a.kind === 'trace'),
         failureSource: t.failureSource,
-        // Richer runtime data so the inspection drawer can render details
+        // Richer runtime data for detail views, exports, and MCP summaries
         errorMessage: t.errorMessage,
         errors: t.errors,
         steps: t.steps,

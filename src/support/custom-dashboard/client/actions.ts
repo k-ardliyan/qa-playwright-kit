@@ -43,48 +43,15 @@ export function buildActionsJs(): string {
         if (typeof window.closeDeleteModal === 'function') window.closeDeleteModal();
         break;
 
-      case 'open-inspection-drawer':
-        e.preventDefault();
-        var testKey = el.getAttribute('data-test-key') || el.getAttribute('data-test-id');
-        if (typeof window.openTestDrawer === 'function') window.openTestDrawer(testKey);
-        break;
-
-      case 'close-inspection-drawer':
-        e.preventDefault();
-        if (typeof window.closeTestDrawer === 'function') window.closeTestDrawer();
-        break;
-
-      case 'switch-drawer-tab':
-        e.preventDefault();
-        var tabKey = el.getAttribute('data-drawer-tab');
-        if (typeof window.switchDrawerTab === 'function') window.switchDrawerTab(tabKey);
-        break;
-
       case 'copy-failure-packet':
         e.preventDefault();
         var packet = el.getAttribute('data-copy-packet') || '';
         copyTextToClipboard(packet, el, 'Copied');
         break;
 
-      case 'copy-failure-context':
-        e.preventDefault();
-        var activeTestKey = document.getElementById('test-drawer') && document.getElementById('test-drawer').dataset.activeTestId;
-        var map = window.__TEST_DATA_MAP__ || {};
-        var testObj = activeTestKey ? map[activeTestKey] : null;
-        if (testObj) {
-          copyTextToClipboard(formatFailureContext(testObj), el, 'Context Copied!');
-        }
-        break;
-
       case 'reset-filters':
         e.preventDefault();
         if (typeof window.resetDashboardFilters === 'function') window.resetDashboardFilters();
-        break;
-
-      case 'apply-quick-filter':
-        e.preventDefault();
-        var qf = el.getAttribute('data-quick-filter');
-        if (typeof window.applyQuickFilter === 'function') window.applyQuickFilter(qf, el);
         break;
 
       case 'theme-toggle':
@@ -96,10 +63,9 @@ export function buildActionsJs(): string {
     }
   });
 
-  // Global Escape Key Listener for modal/drawer dismissal
+  // Global Escape Key Listener for modal dismissal
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      if (typeof window.closeTestDrawer === 'function') window.closeTestDrawer();
       if (typeof window.closeSaveModal === 'function') window.closeSaveModal();
       if (typeof window.closeEditModal === 'function') window.closeEditModal();
       if (typeof window.closeDeleteModal === 'function') window.closeDeleteModal();
