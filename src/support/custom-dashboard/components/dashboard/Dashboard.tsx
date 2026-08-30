@@ -3,7 +3,7 @@ import type { ReportHistoryEntry } from '../../../../agents/reporter/report-hist
 import type { CollectedTestData, TestSummary } from '../../types';
 import { buildHistoryJs, buildHistorySection, buildSaveModal } from '../../build-history-view';
 import { buildHashRouterJs, renderHashNav } from '../../build-hash-router';
-import { renderAccordionToolbar } from '../../render-test-detail';
+import { AccordionToolbar } from '../detail/AccordionToolbar';
 import { jsonForScript } from '../../shared';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AccordionView } from '../detail/AccordionView';
@@ -16,6 +16,7 @@ import { InspectionDrawer, InspectionDrawerScript } from './InspectionDrawer';
 import { RoleHealthStrip } from './RoleHealthStrip';
 import { ViewToggle } from './ViewToggle';
 import { IconSave } from '../shared/icons';
+import { FilterEmpty } from '../shared/FilterEmpty';
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
 
@@ -72,7 +73,7 @@ export function Dashboard({
 
   const safeHashNav = serveMode ? renderHashNav() : null;
   const safeSaveModal = buildSaveModal();
-  const safeAccordionToolbar = renderAccordionToolbar();
+  const safeAccordionToolbar = <AccordionToolbar />;
   const safeHistorySection = !serveMode
     ? buildHistorySection(history ?? [], { hasLatestRun, latestRunArchived, serveMode })
     : null;
@@ -143,6 +144,7 @@ export function Dashboard({
         <div class="report-layout">
           <section class="main-column">
             <section class="panel panel--bleed">
+              <FilterEmpty />
               <div
                 id="view-accordion"
                 class="view-panel view-panel--hidden"

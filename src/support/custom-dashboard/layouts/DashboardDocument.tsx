@@ -2,6 +2,7 @@
 import type { Children } from '@kitajs/html';
 import { getDashboardStyles } from '../styles';
 import { renderChartScript, renderInteractiveScript, renderThemeScript } from '../shared';
+import { buildClientBootstrapJs } from '../client';
 import { RepoFooter } from './RepoFooter';
 import type { TestSummary } from '../types';
 
@@ -22,6 +23,8 @@ export function DashboardDocument({
   const safeThemeScript = renderThemeScript();
   const safeInteractiveScript = renderInteractiveScript();
   const safeStyles = getDashboardStyles();
+
+  const safeClientBootstrap = buildClientBootstrapJs();
 
   return (
     '<!doctype html>' +
@@ -51,6 +54,7 @@ export function DashboardDocument({
           {safeThemeScript}
           {safeChartScript}
           {safeInteractiveScript}
+          {safeClientBootstrap}
         </body>
       </html>
     )

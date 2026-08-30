@@ -139,10 +139,45 @@ export function TableToolbar() {
               id="dash-search"
               class="cmd-search"
               type="search"
-              placeholder="Search test id, title, error..."
+              placeholder="Search test id, title, error, file..."
               autocomplete="off"
             />
           </label>
+
+          <div class="quick-filters-bar" role="group" aria-label="Quick Filters">
+            <button
+              type="button"
+              class="quick-filter-btn"
+              data-action="apply-quick-filter"
+              data-quick-filter="failed"
+            >
+              ❌ Failed
+            </button>
+            <button
+              type="button"
+              class="quick-filter-btn"
+              data-action="apply-quick-filter"
+              data-quick-filter="trace"
+            >
+              🔍 Trace
+            </button>
+            <button
+              type="button"
+              class="quick-filter-btn"
+              data-action="apply-quick-filter"
+              data-quick-filter="screenshot"
+            >
+              📸 Screenshot
+            </button>
+            <button
+              type="button"
+              class="quick-filter-btn"
+              data-action="apply-quick-filter"
+              data-quick-filter="slow"
+            >
+              ⏱ Slow (&gt;5s)
+            </button>
+          </div>
 
           <select id="filter-status" class="cmd-select" aria-label="Filter by status">
             <option value="">All statuses</option>
@@ -177,72 +212,12 @@ export function TableToolbar() {
           <SortDropdown id="table-sort-select" />
 
           <TableColumnPicker />
+
+          <span class="filter-count" id="filter-count" aria-live="polite">
+            Showing 0 of 0
+          </span>
         </div>
       </div>
-      <script>
-        {`
-    (function () {
-      function populateModuleFilter() {
-        var sel = document.getElementById('module-filter-select');
-        if (!sel) return;
-        var rows = document.querySelectorAll('tr[data-module]');
-        var modules = new Set();
-        rows.forEach(function (r) {
-          var m = r.getAttribute('data-module');
-          if (m && m !== '') modules.add(m);
-        });
-        Array.from(modules).sort().forEach(function (m) {
-          var opt = document.createElement('option');
-          opt.value = m;
-          opt.textContent = m;
-          sel.appendChild(opt);
-        });
-      }
-      function populateFeatureFilter(activeModule) {
-        var sel = document.getElementById('feature-filter-select');
-        if (!sel) return;
-        while (sel.options.length > 1) sel.remove(1);
-        var rows = document.querySelectorAll('tr[data-feature]');
-        var features = new Set();
-        rows.forEach(function (r) {
-          if (activeModule && r.getAttribute('data-module') !== activeModule) return;
-          var f = r.getAttribute('data-feature');
-          if (f && f !== '') features.add(f);
-        });
-        Array.from(features).sort().forEach(function (f) {
-          var opt = document.createElement('option');
-          opt.value = f;
-          opt.textContent = f;
-          sel.appendChild(opt);
-        });
-      }
-      function applyFilters() {
-        var modSel = document.getElementById('module-filter-select');
-        var featSel = document.getElementById('feature-filter-select');
-        var modVal = modSel ? modSel.value : '';
-        var featVal = featSel ? featSel.value : '';
-        var rows = document.querySelectorAll('tr.tbl-row');
-        rows.forEach(function (r) {
-          var modMatch = !modVal || r.getAttribute('data-module') === modVal;
-          var featMatch = !featVal || r.getAttribute('data-feature') === featVal;
-          r.style.display = modMatch && featMatch ? '' : 'none';
-        });
-      }
-      document.addEventListener('DOMContentLoaded', function () {
-        populateModuleFilter();
-        populateFeatureFilter('');
-        var modSel = document.getElementById('module-filter-select');
-        var featSel = document.getElementById('feature-filter-select');
-        if (modSel) modSel.addEventListener('change', function () {
-          populateFeatureFilter(modSel.value);
-          if (featSel) featSel.value = '';
-          applyFilters();
-        });
-        if (featSel) featSel.addEventListener('change', applyFilters);
-      });
-    })();
-        `}
-      </script>
     </>
   );
 }

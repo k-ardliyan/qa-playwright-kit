@@ -34,4 +34,9 @@ test.describe('hash-router detail fragment toggle', () => {
     expect(html).toMatch(/<button class="detail-expand-btn"[^>]*>/);
     expect(html).not.toMatch(/<button class="detail-expand-btn"[^>]*onclick/);
   });
+
+  test('hash query on #/ stays on the primary dashboard', () => {
+    const js = buildHashRouterJs();
+    expect(js).toContain('h === "/" || h.indexOf("/?") === 0');
+  });
 });

@@ -91,7 +91,7 @@ export function buildHashRouterJs(): string {
     '  function renderHash(){',
     '    var h = activeHash();',
     '    markNav(h);',
-    '    if(h === "/"){ showPrimary(); return; }',
+    '    if(h === "/" || h.indexOf("/?") === 0){ showPrimary(); return; }',
     '',
     '    if(h.indexOf("/history") === 0){',
     '      showSpinner();',

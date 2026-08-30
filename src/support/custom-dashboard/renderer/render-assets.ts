@@ -11,6 +11,7 @@ export const STYLE_FILES = [
   'detail.css',
   'states.css',
   'responsive.css',
+  'print.css',
 ] as const;
 
 let cachedStyles: string | null = null;

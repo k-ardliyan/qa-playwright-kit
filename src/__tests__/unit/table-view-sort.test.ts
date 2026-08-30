@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { buildTableView } from '../../support/custom-dashboard/build-table-view';
+import { TableView } from '../../support/custom-dashboard/components/table/TableView';
 import type { CollectedTestData, TestSummary } from '../../support/custom-dashboard/types';
 
 function summary(over: Partial<TestSummary> = {}): TestSummary {
@@ -53,7 +53,7 @@ function testCase(over: Partial<CollectedTestData> = {}): CollectedTestData {
 
 test.describe('table view sort uses data-* attributes', () => {
   test('status sort reads data-status (not badge textContent)', () => {
-    const html = buildTableView(summary(), [testCase()]);
+    const html = String(TableView({ summary: summary(), collectedTests: [testCase()] }));
     // Fix: sort must read the raw data-status attribute so "timedOut" (camelCase)
     // and badge icons don't break the statusOrder lookup.
     expect(html).toContain("getAttribute('data-status')");
@@ -61,12 +61,12 @@ test.describe('table view sort uses data-* attributes', () => {
   });
 
   test('priority sort reads data-priority attribute', () => {
-    const html = buildTableView(summary(), [testCase()]);
+    const html = String(TableView({ summary: summary(), collectedTests: [testCase()] }));
     expect(html).toContain("getAttribute('data-priority')");
   });
 
   test('duration sort still uses the notes cell text', () => {
-    const html = buildTableView(summary(), [testCase()]);
+    const html = String(TableView({ summary: summary(), collectedTests: [testCase()] }));
     expect(html).toContain('duration');
   });
 });

@@ -379,7 +379,7 @@ Atau via Orchestrator:
 - Runtime (tanpa code): **Filter columns** di table-toolbar — show/hide + pin sticky header / pin Test ID (persist localStorage)
 - Source code:
   - Header/export: `src/support/custom-dashboard/export-helpers.ts`
-  - HTML row: `src/support/custom-dashboard/build-table-view.ts`
+  - HTML row: `src/support/custom-dashboard/components/table/TableView.tsx`
   - Filter attrs: `src/support/custom-dashboard/filter-attrs.ts`
   - SOURCE decision: `src/support/custom-dashboard/failure-source.ts`
 

@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedTestData, TestSummary } from '../../types';
-import { renderAccordionToolbar } from '../../render-test-detail';
+import { AccordionToolbar } from '../../components/detail/AccordionToolbar';
 import { jsonForScript } from '../../shared';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AccordionView } from '../../components/detail/AccordionView';
@@ -20,6 +20,7 @@ import { Breadcrumb } from '../../components/navigation/Breadcrumb';
 import { SaveRunModal } from '../history/SaveRunModal';
 import { ConfirmDeleteModal } from '../history/ConfirmDeleteModal';
 import { IconSave } from '../../components/shared/icons';
+import { FilterEmpty } from '../../components/shared/FilterEmpty';
 import { buildHistoryJs } from '../../build-history-view';
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
@@ -78,7 +79,7 @@ export function ReportDetailPage({
     { label: displayName || runId || 'Report Detail' },
   ];
 
-  const safeAccordionToolbar = renderAccordionToolbar();
+  const safeAccordionToolbar = <AccordionToolbar />;
   const safeHistoryJs = buildHistoryJs({ serveMode });
 
   return (
@@ -162,6 +163,7 @@ export function ReportDetailPage({
         <div class="report-layout">
           <section class="main-column">
             <section class="panel panel--bleed">
+              <FilterEmpty />
               <div
                 id="view-accordion"
                 class="view-panel view-panel--hidden"

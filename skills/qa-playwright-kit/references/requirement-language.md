@@ -6,14 +6,14 @@ The requirement is the only document QA authors. The Planner copies steps and ex
 
 The committed template (`requirements/_TEMPLATE.md`) uses Indonesian headings. Treat those headings as fixed identifiers; write the *body* in whatever language the QA team uses (Indonesian or English). Never mix Playwright into either.
 
-| Template heading | Meaning |
-| --- | --- |
-| `**Langkah:**` | Steps |
-| `**Hasil yang Diharapkan:**` | Expected result |
-| `**Input Data:**` | Input data |
-| `**Prekondisi:**` | Preconditions |
-| `- **Module:**` | Module (required) |
-| `- **Feature:**` | Feature (recommended) |
+| Template heading             | Meaning               |
+| ---------------------------- | --------------------- |
+| `**Langkah:**`               | Steps                 |
+| `**Hasil yang Diharapkan:**` | Expected result       |
+| `**Input Data:**`            | Input data            |
+| `**Prekondisi:**`            | Preconditions         |
+| `- **Module:**`              | Module (required)     |
+| `- **Feature:**`             | Feature (recommended) |
 
 ## Allowed
 
@@ -24,13 +24,13 @@ The committed template (`requirements/_TEMPLATE.md`) uses Indonesian headings. T
 
 ## Forbidden in Steps and Expected Result
 
-| Do not write | Write instead |
-| --- | --- |
-| `toBeVisible()` / `toHaveURL()` / `expect(...)` | "Logout button is visible" / "URL changes to /dashboard" |
-| `page.fill('#email', ...)` / `getByRole('textbox')` | "Type the email in the Email field" |
-| CSS / XPath / `data-testid` locators | The UI label QA can see on screen |
-| Password / OTP / cookie values in a step | Put them in Input Data with `credential:` / `literal:` prefix |
-| "works fine" / "as expected" | Observable outcome: text, URL, badge |
+| Do not write                                        | Write instead                                                 |
+| --------------------------------------------------- | ------------------------------------------------------------- |
+| `toBeVisible()` / `toHaveURL()` / `expect(...)`     | "Logout button is visible" / "URL changes to /dashboard"      |
+| `page.fill('#email', ...)` / `getByRole('textbox')` | "Type the email in the Email field"                           |
+| CSS / XPath / `data-testid` locators                | The UI label QA can see on screen                             |
+| Password / OTP / cookie values in a step            | Put them in Input Data with `credential:` / `literal:` prefix |
+| "works fine" / "as expected"                        | Observable outcome: text, URL, badge                          |
 
 ## Input Data vs Steps
 

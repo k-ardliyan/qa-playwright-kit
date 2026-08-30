@@ -8,17 +8,17 @@ Source: `src/support/custom-reporter.ts` (`onTestEnd`) and `src/support/custom-d
 
 ## Columns
 
-| Column | Source | QA should see |
-| --- | --- | --- |
-| Test ID | `setTestMetadata.testId` | `TC-AUTH-001` |
-| Description | `test('…')` title | Scenario name, not code |
-| **Test Step** | Top-level `test.step` titles via `formatSteps` | Numbered requirement steps in business language |
-| **Input Data** | `setTestMetadata.inputData` | `key: value` per line, provenance prefix OK |
-| **Expected** | `setTestMetadata.expectedResult` | Verbatim expected-result text from the requirement |
-| **Actual** | `captureActualResult` or reporter fallback | Pass = same as Expected. Fail = error message text |
-| Status | Playwright result | PASSED / FAILED / SKIPPED |
-| SOURCE | `failureSource` on fail only | Cause + decision hint. `-` on pass |
-| Notes | Duration, layer, trace/screenshot counts | Evidence links |
+| Column         | Source                                         | QA should see                                      |
+| -------------- | ---------------------------------------------- | -------------------------------------------------- |
+| Test ID        | `setTestMetadata.testId`                       | `TC-AUTH-001`                                      |
+| Description    | `test('…')` title                              | Scenario name, not code                            |
+| **Test Step**  | Top-level `test.step` titles via `formatSteps` | Numbered requirement steps in business language    |
+| **Input Data** | `setTestMetadata.inputData`                    | `key: value` per line, provenance prefix OK        |
+| **Expected**   | `setTestMetadata.expectedResult`               | Verbatim expected-result text from the requirement |
+| **Actual**     | `captureActualResult` or reporter fallback     | Pass = same as Expected. Fail = error message text |
+| Status         | Playwright result                              | PASSED / FAILED / SKIPPED                          |
+| SOURCE         | `failureSource` on fail only                   | Cause + decision hint. `-` on pass                 |
+| Notes          | Duration, layer, trace/screenshot counts       | Evidence links                                     |
 
 `formatSteps` drops titles starting with `Before`, `After`, `Worker Cleanup`, `worker`, `Fixture`. Nested Playwright auto-steps (`Expect "…" to be visible`) stay in Accordion, not Table View — **only when** they are nested inside a `test.step`. Unwrapped Playwright calls become top-level Test Step entries. That is the bug QA reports.
 

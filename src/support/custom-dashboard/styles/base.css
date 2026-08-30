@@ -63,7 +63,7 @@ pre,
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: var(--z-base);
   background:
     radial-gradient(ellipse 42% 34% at 0% 0%, rgba(197, 213, 192, 0.28), transparent 62%),
     radial-gradient(ellipse 36% 30% at 100% 100%, rgba(232, 196, 196, 0.22), transparent 60%),
@@ -82,7 +82,7 @@ html[data-theme='dark'] .page-backdrop {
   margin: 0;
   padding: 20px 24px 48px;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-content);
 }
 
 .empty-state {
@@ -111,6 +111,39 @@ html[data-theme='dark'] .page-backdrop {
   color: var(--muted);
 }
 
+.filter-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  padding: var(--space-5);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+.filter-empty[hidden] {
+  display: none !important;
+}
+
+.filter-empty__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.filter-empty__copy {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.filter-empty .btn {
+  margin-top: var(--space-1);
+}
+
 .muted {
   color: var(--muted);
 }
@@ -129,7 +162,7 @@ a:hover {
 }
 
 html[data-theme='dark'] a:hover {
-  color: #ffb3c9;
+  color: var(--accent-strong);
 }
 
 a:focus-visible,
@@ -181,7 +214,7 @@ html[data-theme='dark'] .theme-toggle:focus-visible {
 .badge--local,
 .badge--ci {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 
@@ -209,7 +242,7 @@ html[data-theme='dark'] .theme-toggle:focus-visible {
 
 .btn--primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--accent);
   box-shadow: 0 8px 18px rgba(180, 120, 70, 0.22);
 }
@@ -217,16 +250,18 @@ html[data-theme='dark'] .theme-toggle:focus-visible {
 .btn--primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 html[data-theme='dark'] .btn--primary {
   background: var(--accent);
+  color: var(--on-accent);
   box-shadow: 0 10px 18px rgba(212, 165, 116, 0.18);
 }
 
 html[data-theme='dark'] .btn--primary:hover {
   background: var(--accent-strong);
+  color: var(--on-accent);
 }
 
 .btn--ghost {
@@ -241,13 +276,90 @@ html[data-theme='dark'] .btn--primary:hover {
 }
 
 html[data-theme='dark'] .btn--ghost {
-  background: rgba(125, 211, 252, 0.08);
-  color: var(--accent);
-  border-color: rgba(125, 211, 252, 0.2);
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 html[data-theme='dark'] .btn--ghost:hover {
-  background: rgba(125, 211, 252, 0.16);
+  background: var(--surface-muted);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Dark `a { color: var(--accent) }` is 0-1-2 and beats .btn / .btn-primary.
+   Re-assert ink on filled chrome and body text on ghost so <a class="btn">
+   is not gold-on-gold (Open Detailed Report, View trace). */
+html[data-theme='dark'] a.btn,
+html[data-theme='dark'] a.btn--ghost,
+html[data-theme='dark'] a.btn-sm {
+  color: var(--text);
+}
+
+html[data-theme='dark'] a.btn--primary,
+html[data-theme='dark'] a.btn-primary,
+html[data-theme='dark'] a.btn-save,
+html[data-theme='dark'] a.btn-save-primary,
+html[data-theme='dark'] a.btn-primary-action {
+  color: var(--on-accent);
+}
+
+html[data-theme='dark'] a.btn:hover,
+html[data-theme='dark'] a.btn--ghost:hover,
+html[data-theme='dark'] a.btn-sm:hover {
+  color: var(--text);
+}
+
+html[data-theme='dark'] a.btn--primary:hover,
+html[data-theme='dark'] a.btn-primary:hover,
+html[data-theme='dark'] a.btn-save:hover,
+html[data-theme='dark'] a.btn-save-primary:hover,
+html[data-theme='dark'] a.btn-primary-action:hover {
+  color: var(--on-accent);
+}
+
+/* Chrome that is an <a> but not .btn — inherit body/muted, not gold link. */
+html[data-theme='dark'] a.attachment-chip,
+html[data-theme='dark'] a.evidence-link,
+html[data-theme='dark'] a.artifacts-link,
+html[data-theme='dark'] a.artifacts-card__file,
+html[data-theme='dark'] a.recent-run-item,
+html[data-theme='dark'] a.attention-item,
+html[data-theme='dark'] a.btn-swap-action {
+  color: var(--text);
+}
+
+html[data-theme='dark'] a.attachment-chip--trace {
+  color: var(--accent-strong);
+}
+
+html[data-theme='dark'] a.breadcrumb__link {
+  color: var(--muted);
+}
+
+html[data-theme='dark'] a.breadcrumb__link:hover {
+  color: var(--accent);
+}
+
+html[data-theme='dark'] a.panel-link {
+  color: var(--accent);
+}
+
+html[data-theme='dark'] a.app-nav__link,
+html[data-theme='dark'] a.hash-nav__link {
+  color: var(--muted);
+}
+
+html[data-theme='dark'] a.app-nav__link:hover,
+html[data-theme='dark'] a.hash-nav__link:hover {
+  color: var(--text);
+}
+
+html[data-theme='dark'] a.app-nav__link.is-active,
+html[data-theme='dark'] a.app-nav__link.is-active:hover,
+html[data-theme='dark'] a.hash-nav__link--active,
+html[data-theme='dark'] a.hash-nav__link--active:hover {
+  color: var(--on-accent);
 }
 
 .btn--sm {
@@ -326,7 +438,7 @@ html[data-theme='dark'] .btn--ghost:hover {
 
 .btn-view:hover {
   background: var(--accent, #c4956a);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn-delete {
@@ -349,7 +461,7 @@ html[data-theme='dark'] .btn--ghost:hover {
 
 .btn-save {
   background: var(--accent, #c4956a);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
 }
 
@@ -382,7 +494,7 @@ html[data-theme='dark'] .btn--ghost:hover {
 
 .btn-primary-action {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
   padding: 8px 16px;
   border-radius: var(--radius);
@@ -431,7 +543,7 @@ html[data-theme='dark'] .btn--ghost:hover {
   height: 38px;
   padding: 0 20px;
   background: var(--accent, #c4956a);
-  color: #fff;
+  color: var(--on-accent);
   border: 1px solid var(--accent, #c4956a);
   border-radius: var(--radius-pill);
   cursor: pointer;
@@ -446,7 +558,7 @@ html[data-theme='dark'] .btn--ghost:hover {
 .btn-save-primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: #fff;
+  color: var(--on-accent);
   opacity: 1;
 }
 
@@ -467,7 +579,7 @@ html[data-theme='dark'] .btn--ghost:hover {
 
 .btn-save-confirm {
   background: var(--passed);
-  color: #fff;
+  color: var(--on-passed);
   border: none;
   padding: 8px 16px;
   border-radius: var(--radius-sm);

@@ -6,10 +6,10 @@ Load when the requirement has `Auth state: authenticated`, `Role scope` is set, 
 
 ## Auth state field meaning
 
-| `Auth state` | Meaning | Spec implication |
-| --- | --- | --- |
-| `unauthenticated` | Page opens without login | No `test.use({ storageState })` needed |
-| `authenticated` | Must be logged in as a specific role | Generator sets `test.use({ storageState: authStatePath('<role>') })` |
+| `Auth state`      | Meaning                              | Spec implication                                                     |
+| ----------------- | ------------------------------------ | -------------------------------------------------------------------- |
+| `unauthenticated` | Page opens without login             | No `test.use({ storageState })` needed                               |
+| `authenticated`   | Must be logged in as a specific role | Generator sets `test.use({ storageState: authStatePath('<role>') })` |
 
 ---
 

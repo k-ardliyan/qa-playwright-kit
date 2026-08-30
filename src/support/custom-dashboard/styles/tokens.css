@@ -19,6 +19,10 @@
   --accent: #c4956a;
   --accent-strong: #a87648;
   --accent-soft: #f3e4d4;
+  --on-accent: #17110d;
+  --on-failed: #ffffff;
+  --on-passed: #ffffff;
+  --on-skipped: #17110d;
   --info: #4f7cac;
   --info-bg: #e6f0f8;
   --success: #3d8b55;
@@ -47,6 +51,21 @@
   /* Transitions */
   --transition-fast: 120ms ease;
   --transition-normal: 180ms ease;
+
+  /* Elevation — keep overlays above sticky chrome */
+  --z-base: 0;
+  --z-content: 1;
+  --z-sticky: 3;
+  --z-sticky-cell: 4;
+  --z-sticky-head: 5;
+  --z-bar: 30;
+  --z-menu: 40;
+  --z-banner: 100;
+  --z-dropdown: 150;
+  --z-drawer-backdrop: 1000;
+  --z-drawer: 1001;
+  --z-modal-backdrop: 1050;
+  --z-modal: 1051;
 }
 
 html[data-theme='dark'] {
@@ -70,6 +89,10 @@ html[data-theme='dark'] {
   --accent: #d4a574;
   --accent-strong: #e0b98a;
   --accent-soft: rgba(212, 165, 116, 0.16);
+  --on-accent: #17110d;
+  --on-failed: #17110d;
+  --on-passed: #17110d;
+  --on-skipped: #17110d;
   --info: #8fb8e0;
   --info-bg: rgba(79, 124, 172, 0.18);
   --success: #7dcea0;

@@ -32,30 +32,30 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 21 MC
 
 ## Kenapa framework ini?
 
-| | Sebelum (manual) | Sesudah (QA Playwright Kit) |
-|--|--|--|
-| **Menulis test** | Playwright spec dari nol | Tulis requirement Markdown, AI generate spec |
-| **Menjalankan** | Klik Run, lihat terminal | `npm run qa:run` — satu perintah |
-| **Test gagal** | Debug manual, cek locator | Self-heal: AI fix locator → re-snapshot → rerun |
-| **Melihat hasil** | Scroll terminal, tebak yang merah | Dashboard triage: filter by role/module/priority |
-| **Multi-role** | Copy test, ganti storageState | Requirement metadata → test terpisah otomatis per role |
+|                   | Sebelum (manual)                  | Sesudah (QA Playwright Kit)                            |
+| ----------------- | --------------------------------- | ------------------------------------------------------ |
+| **Menulis test**  | Playwright spec dari nol          | Tulis requirement Markdown, AI generate spec           |
+| **Menjalankan**   | Klik Run, lihat terminal          | `npm run qa:run` — satu perintah                       |
+| **Test gagal**    | Debug manual, cek locator         | Self-heal: AI fix locator → re-snapshot → rerun        |
+| **Melihat hasil** | Scroll terminal, tebak yang merah | Dashboard triage: filter by role/module/priority       |
+| **Multi-role**    | Copy test, ganti storageState     | Requirement metadata → test terpisah otomatis per role |
 
 ---
 
 ## Yang kamu dapatkan
 
-| | Fitur | Apa artinya |
-|--|--|--|
-| **Requirement-first** | QA tulis Markdown, AI generate test | Tidak perlu tahu Playwright API untuk menulis test |
-| **5-Phase Pipeline** | Plan → Generate → Execute → Heal → Report | Satu perintah, hasil lengkap |
-| **Self-healing** | Test gagal → AI fix → re-snapshot → rerun | Locator berubah? Framework memperbaiki sendiri |
-| **Dashboard triage** | Tabel + accordion, filter by role/module | Tidak perlu scroll 500 bar terminal |
-| **Multi-role auth** | Role-based storage + OTP/CAPTCHA assist | Admin, user, finance — semua terotomasi |
-| **21 MCP tools** | Validate, compile, snapshot, POM, health check | Terintegrasi penuh dengan AI agent |
-| **Multi-environment** | local/staging/production via `APP_ENV` | Switch environment tanpa ubah kode |
-| **Capability tags** | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate |
-| **Quality gates** | format/lint/typecheck/unit/property/file-content | Tidak ada yang lolos tanpa diuji |
-| **Encrypted creds** | dotenvx auto-encrypt + `env:edit` | Kredensial tidak pernah plaintext di repo |
+|                       | Fitur                                                   | Apa artinya                                        |
+| --------------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| **Requirement-first** | QA tulis Markdown, AI generate test                     | Tidak perlu tahu Playwright API untuk menulis test |
+| **5-Phase Pipeline**  | Plan → Generate → Execute → Heal → Report               | Satu perintah, hasil lengkap                       |
+| **Self-healing**      | Test gagal → AI fix → re-snapshot → rerun               | Locator berubah? Framework memperbaiki sendiri     |
+| **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                |
+| **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi            |
+| **21 MCP tools**      | Validate, compile, snapshot, POM, health check          | Terintegrasi penuh dengan AI agent                 |
+| **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                 |
+| **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                     |
+| **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                   |
+| **Encrypted creds**   | dotenvx auto-encrypt + `env:edit`                       | Kredensial tidak pernah plaintext di repo          |
 
 ---
 
@@ -179,13 +179,13 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 
 ### Daily Flow
 
-| Command                                | Fungsi                                |
-| -------------------------------------- | ------------------------------------- |
-| `npm run qa:run`                | Preflight + pilih requirement + prompt Hermes + dashboard |
-| `npm run validate:requirement`  | Validasi format (TTY pilih file)                          |
-| `npm run auth:setup`                   | Refresh session login                 |
-| `npm run auth:setup:headed`            | Session + OTP/CAPTCHA di browser      |
-| `npm run env:edit`                     | Ganti password / role / OTP mode      |
+| Command                        | Fungsi                                                    |
+| ------------------------------ | --------------------------------------------------------- |
+| `npm run qa:run`               | Preflight + pilih requirement + prompt Hermes + dashboard |
+| `npm run validate:requirement` | Validasi format (TTY pilih file)                          |
+| `npm run auth:setup`           | Refresh session login                                     |
+| `npm run auth:setup:headed`    | Session + OTP/CAPTCHA di browser                          |
+| `npm run env:edit`             | Ganti password / role / OTP mode                          |
 
 ### Discovery & Setup
 
@@ -241,11 +241,11 @@ Detail: [docs/architecture/DIRECTORY-MAP.md](docs/architecture/DIRECTORY-MAP.md)
 
 <br/>
 
-| Server                     | Fungsi Utama                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------ |
-| **`qa-playwright-kit`**    | Requirement parsing, validation, coverage, POM, health check, failure analysis |
-| **`playwright-test`**      | Run dan debug test                                                             |
-| **`playwright`**           | Browser interaction, eksplorasi UI                                             |
+| Server                  | Fungsi Utama                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| **`qa-playwright-kit`** | Requirement parsing, validation, coverage, POM, health check, failure analysis |
+| **`playwright-test`**   | Run dan debug test                                                             |
+| **`playwright`**        | Browser interaction, eksplorasi UI                                             |
 
 ```bash
 npm run mcp:build          # build custom QA server
@@ -306,14 +306,14 @@ Semua → [docs/recipes/README.md](docs/recipes/README.md)
 
 <br/>
 
-| Layer       | Tools                                                                          |
-| ----------- | ------------------------------------------------------------------------------ |
-| **Runtime** | Node.js >= 20.19 · TypeScript 5.9+                                           |
-| **Testing** | Playwright 1.62+ · MCP SDK 1.30+                                             |
-| **AI Agent**| Hermes Agent · Claude                                                          |
-| **Security**| dotenvx (auto-encrypt)                                                        |
-| **CI/CD**   | GitHub Actions · Husky (pre-commit)                                           |
-| **Reporting**| Custom HTML Dashboard (triage table + accordion)                              |
+| Layer         | Tools                                            |
+| ------------- | ------------------------------------------------ |
+| **Runtime**   | Node.js >= 20.19 · TypeScript 5.9+               |
+| **Testing**   | Playwright 1.62+ · MCP SDK 1.30+                 |
+| **AI Agent**  | Hermes Agent · Claude                            |
+| **Security**  | dotenvx (auto-encrypt)                           |
+| **CI/CD**     | GitHub Actions · Husky (pre-commit)              |
+| **Reporting** | Custom HTML Dashboard (triage table + accordion) |
 
 </details>
 
@@ -324,25 +324,25 @@ Semua → [docs/recipes/README.md](docs/recipes/README.md)
 
 <br/>
 
-| Saya ingin...                       | Buka                                                               |
-| ----------------------------------- | ------------------------------------------------------------------ |
-| Setup QA pertama kali               | [docs/GUIDE.md](docs/GUIDE.md)                                     |
-| Panduan pemula step-by-step         | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)                 |
-| Menulis requirement valid           | [docs/WRITING-REQUIREMENTS.md](docs/WRITING-REQUIREMENTS.md)       |
-| Auth per role + OTP/CAPTCHA         | [docs/AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) |
-| Kredensial & multi-role             | [docs/CREDENTIALS.md](docs/CREDENTIALS.md)                         |
-| Pasca-pipeline                      | [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)                     |
-| Dashboard triage guide              | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
-| Skenario `(@manual)`                | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
-| Environment (local/staging/prod)    | [docs/ENVIRONMENT-GUIDE.md](docs/ENVIRONMENT-GUIDE.md)             |
-| Command cheat sheet                 | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
-| Integration recipes                 | [docs/recipes/README.md](docs/recipes/README.md)                   |
-| Full E2E walkthrough                | [docs/SAMPLE-E2E-PIPELINE.md](docs/SAMPLE-E2E-PIPELINE.md)         |
-| Fork ke project lain                | [docs/FORK-ONBOARDING.md](docs/FORK-ONBOARDING.md)                 |
-| Troubleshooting                     | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
-| MCP tool reference                  | [CUSTOM-MCP.md](CUSTOM-MCP.md)                                     |
-| Pipeline agent contract             | [AGENTS.md](AGENTS.md)                                             |
-| Architecture decisions              | [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md)   |
+| Saya ingin...                    | Buka                                                               |
+| -------------------------------- | ------------------------------------------------------------------ |
+| Setup QA pertama kali            | [docs/GUIDE.md](docs/GUIDE.md)                                     |
+| Panduan pemula step-by-step      | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)                 |
+| Menulis requirement valid        | [docs/WRITING-REQUIREMENTS.md](docs/WRITING-REQUIREMENTS.md)       |
+| Auth per role + OTP/CAPTCHA      | [docs/AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) |
+| Kredensial & multi-role          | [docs/CREDENTIALS.md](docs/CREDENTIALS.md)                         |
+| Pasca-pipeline                   | [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)                     |
+| Dashboard triage guide           | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
+| Skenario `(@manual)`             | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
+| Environment (local/staging/prod) | [docs/ENVIRONMENT-GUIDE.md](docs/ENVIRONMENT-GUIDE.md)             |
+| Command cheat sheet              | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
+| Integration recipes              | [docs/recipes/README.md](docs/recipes/README.md)                   |
+| Full E2E walkthrough             | [docs/SAMPLE-E2E-PIPELINE.md](docs/SAMPLE-E2E-PIPELINE.md)         |
+| Fork ke project lain             | [docs/FORK-ONBOARDING.md](docs/FORK-ONBOARDING.md)                 |
+| Troubleshooting                  | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
+| MCP tool reference               | [CUSTOM-MCP.md](CUSTOM-MCP.md)                                     |
+| Pipeline agent contract          | [AGENTS.md](AGENTS.md)                                             |
+| Architecture decisions           | [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md)   |
 
 </details>
 

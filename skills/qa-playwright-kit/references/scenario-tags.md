@@ -6,12 +6,12 @@ Load when writing a new scenario and unsure which tag to use, or when deciding w
 
 ## Four scenario type tags
 
-| Tag | Meaning | Generator output |
-| --- | --- | --- |
-| `(@success)` | Happy path — normal flow succeeds | Full test with success assertions |
-| `(@failure)` | Negative path — wrong input, validation error | Test asserting error / validation message |
-| `(@access-restriction)` | Role not authorised, access denied | Test asserting denial or redirect |
-| `(@manual)` | Cannot be automated | `test.skip(true, 'Manual: <reason>')` |
+| Tag                     | Meaning                                       | Generator output                          |
+| ----------------------- | --------------------------------------------- | ----------------------------------------- |
+| `(@success)`            | Happy path — normal flow succeeds             | Full test with success assertions         |
+| `(@failure)`            | Negative path — wrong input, validation error | Test asserting error / validation message |
+| `(@access-restriction)` | Role not authorised, access denied            | Test asserting denial or redirect         |
+| `(@manual)`             | Cannot be automated                           | `test.skip(true, 'Manual: <reason>')`     |
 
 Without a type tag the parser defaults to `(@success)`.
 
@@ -19,29 +19,29 @@ Without a type tag the parser defaults to `(@success)`.
 
 ## `(@manual)` — only for these situations
 
-| Situation | Example |
-| --- | --- |
-| CAPTCHA / reCAPTCHA | Login form with reCAPTCHA |
-| OTP / SMS to a real phone | Login via SMS OTP |
-| Email verification link | Click link in a real inbox |
-| Live payment gateway | Charge a real card (3DS callback) |
-| Biometric / hardware | Face ID, barcode scan, receipt printing |
-| PDF **visual layout** | Check spacing, alignment, typography in a PDF |
-| Real-world timing | Wait 24 hours for an expiry check |
+| Situation                 | Example                                       |
+| ------------------------- | --------------------------------------------- |
+| CAPTCHA / reCAPTCHA       | Login form with reCAPTCHA                     |
+| OTP / SMS to a real phone | Login via SMS OTP                             |
+| Email verification link   | Click link in a real inbox                    |
+| Live payment gateway      | Charge a real card (3DS callback)             |
+| Biometric / hardware      | Face ID, barcode scan, receipt printing       |
+| PDF **visual layout**     | Check spacing, alignment, typography in a PDF |
+| Real-world timing         | Wait 24 hours for an expiry check             |
 
 ---
 
 ## What must NOT be `(@manual)` — use these instead
 
-| Need | Correct tag | Helper |
-| --- | --- | --- |
-| Upload a file | `(@upload)` | `uploadFixture`, `uploadViaChooser` |
-| Download an export | `(@download)` | `downloadAndSave`, `assertDownloadedEnvelope` |
-| Assert PDF text / Excel structure | `(@file-content)` | `assertPdfContains`, `assertExcelHeaders` |
-| Assert live API payload after a UI action | `(@network-assert)` | `waitAndAssertApi` |
-| Mock HTTP 500 / offline for error UX | `(@network)` | `mockServerError`, `mockAbort` |
-| Seed data via API then assert UI | `(@hybrid)` | `apiSeed`, `apiCleanup` |
-| Assert ARIA snapshot stability | `(@aria)` | `browser_snapshot` at inspect time, then standard locators |
+| Need                                      | Correct tag         | Helper                                                     |
+| ----------------------------------------- | ------------------- | ---------------------------------------------------------- |
+| Upload a file                             | `(@upload)`         | `uploadFixture`, `uploadViaChooser`                        |
+| Download an export                        | `(@download)`       | `downloadAndSave`, `assertDownloadedEnvelope`              |
+| Assert PDF text / Excel structure         | `(@file-content)`   | `assertPdfContains`, `assertExcelHeaders`                  |
+| Assert live API payload after a UI action | `(@network-assert)` | `waitAndAssertApi`                                         |
+| Mock HTTP 500 / offline for error UX      | `(@network)`        | `mockServerError`, `mockAbort`                             |
+| Seed data via API then assert UI          | `(@hybrid)`         | `apiSeed`, `apiCleanup`                                    |
+| Assert ARIA snapshot stability            | `(@aria)`           | `browser_snapshot` at inspect time, then standard locators |
 
 ---
 

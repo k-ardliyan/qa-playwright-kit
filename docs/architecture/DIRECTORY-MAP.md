@@ -2,7 +2,7 @@
 
 > Satu tempat lookup untuk semua path di repository QA Playwright Kit.
 > **Aturan:** Setiap kali ada file/modul baru, update file ini di commit yang sama.
-> Last updated: 2026-08-29 (skills/ + npm run without `--`)
+> Last updated: 2026-08-30 (custom-dashboard filter URL state + FilterEmpty)
 
 ---
 
@@ -25,38 +25,38 @@
 
 ## 2. Framework Core Engine (`src/` — Protected Internal)
 
-| Path                            | Peran                                            | Entry Point                                                                                                                                                         |
-| ------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/public/`                   | Stable public API surface untuk `tests/`         | `index.ts`, `fixtures.ts`, `auth.ts`, `metadata.ts`, `workspace.ts`, `assertions.ts`, `contracts.ts`                                                                |
+| Path                            | Peran                                                  | Entry Point                                                                                                                                                         |
+| ------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/public/`                   | Stable public API surface untuk `tests/`               | `index.ts`, `fixtures.ts`, `auth.ts`, `metadata.ts`, `workspace.ts`, `assertions.ts`, `contracts.ts`                                                                |
 | `src/contracts/`                | Typed QA Playwright Kit JSON contracts & hashing (SoT) | `index.ts`, `versions.ts`, `diagnostics.ts`, `hashing.ts`, `requirement-contract.ts`, `test-plan-contract.ts`, `traceability-contract.ts`, `mcp-result-contract.ts` |
-| `src/agents/generator/`         | Test code generator logic                        | `index.ts`                                                                                                                                                          |
-| `src/agents/healer/`            | Auto-heal failing tests                          | `index.ts`, `pattern-database.ts`                                                                                                                                   |
-| `src/agents/integration/`       | Universal agent integration layer                | `orchestrator.ts`, `state.ts`, `protocol.ts`                                                                                                                        |
-| `src/agents/planner/`           | Scenario clarification + feedback                | `index.ts`                                                                                                                                                          |
-| `src/agents/reporter/`          | Pipeline report builder + history + comparison   | `index.ts`, `report-builder.ts`, `report-archive.ts`                                                                                                                |
-| `src/executor/`                 | Test runner wrapper (multi-browser, sharding)    | `index.ts`                                                                                                                                                          |
-| `src/fixtures/`                 | Playwright fixture chain internals               | `base.fixture.ts`, `framework.fixture.ts`, `project.fixture.ts`                                                                                                     |
-| `src/observability/`            | Tracing, logging, and evidence collectors        | `error-classifier.ts`, `metrics-collector.ts`                                                                                                                       |
-| `src/setup/`                    | Setup wizard & bootstrap engine                  | `index.ts`, `wizard.ts`, `wizard-writer.ts`, `wizard-validate.ts`, `wizard-prompts.ts`, `reachability.ts`, `agent-sync.ts`                                          |
-| `src/shared/types/`             | Shared TypeScript schemas                        | `index.ts` ← always import from here                                                                                                                                |
-| `src/shared/workspace-paths.ts` | Canonical workspace path resolver                | `workspace` instance                                                                                                                                                |
-| `src/support/pw/`               | Playwright power helpers + network/file utils    | `index.ts` ← power helpers barrel                                                                                                                                   |
-| `src/support/traceability/`     | Traceability index & metadata extraction         | `test-index.ts`                                                                                                                                                     |
-| `src/support/custom-dashboard/` | KitaJS TSX report builder + components           | `build-dashboard-html.ts`, `pages/`, `components/`                                                                                                                  |
-| `src/utils/`                    | App environment & loader utilities               | `app-env.ts`, `env-loader.ts`, `logger.ts`                                                                                                                          |
-| `src/__tests__/unit/`           | Framework unit tests                             | `*.test.ts` (executed via `npm run test:unit`)                                                                                                                      |
-| `src/__tests__/property/`       | Fast-check property test suites                  | `*.property.ts` (executed via `npm run test:property`)                                                                                                              |
+| `src/agents/generator/`         | Test code generator logic                              | `index.ts`                                                                                                                                                          |
+| `src/agents/healer/`            | Auto-heal failing tests                                | `index.ts`, `pattern-database.ts`                                                                                                                                   |
+| `src/agents/integration/`       | Universal agent integration layer                      | `orchestrator.ts`, `state.ts`, `protocol.ts`                                                                                                                        |
+| `src/agents/planner/`           | Scenario clarification + feedback                      | `index.ts`                                                                                                                                                          |
+| `src/agents/reporter/`          | Pipeline report builder + history + comparison         | `index.ts`, `report-builder.ts`, `report-archive.ts`                                                                                                                |
+| `src/executor/`                 | Test runner wrapper (multi-browser, sharding)          | `index.ts`                                                                                                                                                          |
+| `src/fixtures/`                 | Playwright fixture chain internals                     | `base.fixture.ts`, `framework.fixture.ts`, `project.fixture.ts`                                                                                                     |
+| `src/observability/`            | Tracing, logging, and evidence collectors              | `error-classifier.ts`, `metrics-collector.ts`                                                                                                                       |
+| `src/setup/`                    | Setup wizard & bootstrap engine                        | `index.ts`, `wizard.ts`, `wizard-writer.ts`, `wizard-validate.ts`, `wizard-prompts.ts`, `reachability.ts`, `agent-sync.ts`                                          |
+| `src/shared/types/`             | Shared TypeScript schemas                              | `index.ts` ← always import from here                                                                                                                                |
+| `src/shared/workspace-paths.ts` | Canonical workspace path resolver                      | `workspace` instance                                                                                                                                                |
+| `src/support/pw/`               | Playwright power helpers + network/file utils          | `index.ts` ← power helpers barrel                                                                                                                                   |
+| `src/support/traceability/`     | Traceability index & metadata extraction               | `test-index.ts`                                                                                                                                                     |
+| `src/support/custom-dashboard/` | KitaJS TSX report builder, client bundle, components   | `build-dashboard-html.ts`, `client/`, `pages/`, `components/` (incl. `FilterEmpty.tsx`)                                                                             |
+| `src/utils/`                    | App environment & loader utilities                     | `app-env.ts`, `env-loader.ts`, `logger.ts`                                                                                                                          |
+| `src/__tests__/unit/`           | Framework unit tests                                   | `*.test.ts` (executed via `npm run test:unit`)                                                                                                                      |
+| `src/__tests__/property/`       | Fast-check property test suites                        | `*.property.ts` (executed via `npm run test:property`)                                                                                                              |
 
 ---
 
 ## 3. Tooling & Maintenance (`tools/`)
 
-| Path                       | Peran                                                        | Entry Point                                                                |
-| -------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Path                       | Peran                                                        | Entry Point                                                                                                                                                                            |
+| -------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tools/mcp/`               | QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server) | `package.json`, `dist/index-mcp.js`, `snapshot-page.ts`, `discover-pages.ts`, `synthesize-requirement.ts`; `src/contracts/` AUTO-SYNCED from `src/contracts/` via `sync:mcp-generated` |
-| `tools/scripts/`           | Operational CLI utilities                                    | `qa-run.ts`, `pick-requirement.ts`, `env-*.ts`, `health-check-cli.ts`       |
-| `tools/scripts/__tests__/` | Scripts unit tests                                           | `qa-run.test.ts`, `env-use.test.ts`, `pick-requirement.test.ts`, etc.      |
-| `tools/validators/`        | Architecture, ephemeral refs, and test validators            | `architecture.ts`, `ephemeral-ref-guard.ts`, `validate-generated-tests.ts` |
+| `tools/scripts/`           | Operational CLI utilities                                    | `qa-run.ts`, `pick-requirement.ts`, `env-*.ts`, `health-check-cli.ts`                                                                                                                  |
+| `tools/scripts/__tests__/` | Scripts unit tests                                           | `qa-run.test.ts`, `env-use.test.ts`, `pick-requirement.test.ts`, etc.                                                                                                                  |
+| `tools/validators/`        | Architecture, ephemeral refs, and test validators            | `architecture.ts`, `ephemeral-ref-guard.ts`, `validate-generated-tests.ts`                                                                                                             |
 
 ---
 
@@ -91,7 +91,7 @@
 
 ## 7. Agent Skills (`skills/` — committed, portable)
 
-| Path | Peran | Keterangan |
-| --- | --- | --- |
-| `skills/qa-playwright-kit/SKILL.md` | Pipeline skill for Hermes / Claude Code / Cursor / OpenCode | YAML frontmatter + procedure. Load when writing requirements or running Plan→Report |
-| `skills/qa-playwright-kit/references/` | Progressive-disclosure refs (one level deep from SKILL.md) | `requirement-language.md`, `report-column-contract.md`, `generator-step-titles.md`, `qa-vs-maintainer.md` |
+| Path                                   | Peran                                                       | Keterangan                                                                                                |
+| -------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `skills/qa-playwright-kit/SKILL.md`    | Pipeline skill for Hermes / Claude Code / Cursor / OpenCode | YAML frontmatter + procedure. Load when writing requirements or running Plan→Report                       |
+| `skills/qa-playwright-kit/references/` | Progressive-disclosure refs (one level deep from SKILL.md)  | `requirement-language.md`, `report-column-contract.md`, `generator-step-titles.md`, `qa-vs-maintainer.md` |

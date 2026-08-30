@@ -172,7 +172,7 @@ html[data-theme='dark'] .layer-badge--api {
   font-weight: 600;
   letter-spacing: 0.3px;
   background: var(--accent, #c4956a);
-  color: #fff;
+  color: var(--on-accent);
   white-space: normal;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -201,7 +201,7 @@ html[data-theme='dark'] .layer-badge--api {
 
 html[data-theme='dark'] .module-chip {
   background: var(--accent, #c4956a);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 html[data-theme='dark'] .feature-chip {

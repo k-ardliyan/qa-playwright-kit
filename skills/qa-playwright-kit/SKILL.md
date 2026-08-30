@@ -53,18 +53,18 @@ Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<fe
 
 ## Quick Reference
 
-| Need | Reference |
-| --- | --- |
-| Generate requirement from live URL / UI snapshot | [ui-discovery-requirement.md](references/ui-discovery-requirement.md) |
-| First-time setup or setup error | [first-run-checklist.md](references/first-run-checklist.md) |
-| Requirement format | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md) |
-| Validate format | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")` |
-| Scenario types and capability tags | [scenario-tags.md](references/scenario-tags.md) |
-| Auth / multi-role testing | [auth-and-roles.md](references/auth-and-roles.md) |
-| Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md) |
-| Generated spec language and `test.step` rules | [generator-step-titles.md](references/generator-step-titles.md) |
-| Post-pipeline: reading dashboard and QA decisions | [post-pipeline-decisions.md](references/post-pipeline-decisions.md) |
-| QA vs maintainer boundary | [qa-vs-maintainer.md](references/qa-vs-maintainer.md) |
+| Need                                                        | Reference                                                                                        |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                            |
+| First-time setup or setup error                             | [first-run-checklist.md](references/first-run-checklist.md)                                      |
+| Requirement format                                          | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md)      |
+| Validate format                                             | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")` |
+| Scenario types and capability tags                          | [scenario-tags.md](references/scenario-tags.md)                                                  |
+| Auth / multi-role testing                                   | [auth-and-roles.md](references/auth-and-roles.md)                                                |
+| Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md)                                |
+| Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                  |
+| Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                              |
+| QA vs maintainer boundary                                   | [qa-vs-maintainer.md](references/qa-vs-maintainer.md)                                            |
 
 ## Procedure
 

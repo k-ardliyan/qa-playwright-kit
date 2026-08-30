@@ -74,11 +74,11 @@ Dashboard opens automatically in the browser. If not: open `artifacts/reports/cu
 
 ## Failure quick-reference
 
-| Symptom | Check | Fix |
-| --- | --- | --- |
-| Wizard errors at Phase 0 | `node --version` | Upgrade Node.js to >= 20.19.0 |
-| `health:check` red on `mcp_build` | `tools/mcp/dist/` missing | `npm run mcp:build` (maintainer task) |
-| Auth file is 36 bytes | `.auth/{APP_ENV}/user.json` size | Re-run `npm run auth:setup` |
-| `npm run qa:run` hangs without a picker | stdin is not a TTY | Run from an interactive terminal, not a pipe |
-| Dashboard redirects to `/login` after login | localStorage missing in auth file | `npm run env:edit` → `npm run auth:setup` |
-| `ENOENT environments/local.env` | Env dir changed or wizard never ran | Run `npm run setup` first |
+| Symptom                                     | Check                               | Fix                                          |
+| ------------------------------------------- | ----------------------------------- | -------------------------------------------- |
+| Wizard errors at Phase 0                    | `node --version`                    | Upgrade Node.js to >= 20.19.0                |
+| `health:check` red on `mcp_build`           | `tools/mcp/dist/` missing           | `npm run mcp:build` (maintainer task)        |
+| Auth file is 36 bytes                       | `.auth/{APP_ENV}/user.json` size    | Re-run `npm run auth:setup`                  |
+| `npm run qa:run` hangs without a picker     | stdin is not a TTY                  | Run from an interactive terminal, not a pipe |
+| Dashboard redirects to `/login` after login | localStorage missing in auth file   | `npm run env:edit` → `npm run auth:setup`    |
+| `ENOENT environments/local.env`             | Env dir changed or wizard never ran | Run `npm run setup` first                    |

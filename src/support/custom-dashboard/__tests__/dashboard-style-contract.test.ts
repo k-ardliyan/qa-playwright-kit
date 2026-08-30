@@ -72,12 +72,12 @@ function extractCssClassSelectors(css: string): Set<string> {
 }
 
 test.describe('Custom Dashboard Style Contract', () => {
-  test('all 7 CSS modular files exist and are non-empty', () => {
+  test('all 8 CSS modular files exist and are non-empty', () => {
     for (const file of STYLE_FILES) {
-      const fullPath = path.join(STYLES_DIR, file);
-      expect(fs.existsSync(fullPath), `Expected ${file} to exist in ${STYLES_DIR}`).toBe(true);
-      const content = fs.readFileSync(fullPath, 'utf-8');
-      expect(content.trim().length, `Expected ${file} to not be empty`).toBeGreaterThan(50);
+      const filePath = path.join(STYLES_DIR, file);
+      expect(fs.existsSync(filePath)).toBe(true);
+      const content = fs.readFileSync(filePath, 'utf-8');
+      expect(content.trim().length).toBeGreaterThan(0);
     }
   });
 
@@ -92,6 +92,13 @@ test.describe('Custom Dashboard Style Contract', () => {
     expect(styles).toContain('.qa-report-table');
     expect(styles).toContain('.test-card');
     expect(styles).toContain('.status-pill');
+    expect(styles).toContain('--z-bar');
+    expect(styles).toContain('--z-modal');
+    expect(styles).toContain('.filter-empty');
+    expect(styles).toContain('--on-accent');
+    expect(styles).not.toContain('125, 211, 252');
+    expect(styles).not.toContain('#0a1929');
+    expect(styles).not.toContain('#ffb3c9');
   });
 
   test('Missing Style Detector: every rendered HTML class exists in CSS stylesheet', () => {

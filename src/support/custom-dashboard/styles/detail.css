@@ -807,14 +807,14 @@ details.step-details[open] > summary.steps-timeline__header::before {
   justify-content: center;
   font-size: 0.72rem;
   font-weight: 800;
-  background: var(--accent-soft, rgba(37, 99, 235, 0.12));
+  background: var(--accent-soft);
   color: var(--accent-strong);
   flex-shrink: 0;
 }
 
 html[data-theme='dark'] .steps-timeline__icon {
-  background: rgba(125, 211, 252, 0.12);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .steps-timeline__item--failed .steps-timeline__icon,
@@ -920,15 +920,15 @@ html[data-theme='dark'] .attachment-card video {
 }
 
 .attachment-chip--trace {
-  background: rgba(37, 99, 235, 0.1);
-  border-color: rgba(37, 99, 235, 0.2);
+  background: var(--accent-soft);
+  border-color: var(--border);
   color: var(--accent-strong);
 }
 
 html[data-theme='dark'] .attachment-chip--trace {
-  background: rgba(125, 211, 252, 0.12);
-  border-color: rgba(125, 211, 252, 0.2);
-  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--border);
+  color: var(--accent-strong);
 }
 
 .attachment-chip--missing {

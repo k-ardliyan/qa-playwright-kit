@@ -1,16 +1,8 @@
 import path from 'node:path';
 import { getDashboardStyles } from './styles';
-import type {
-  CollectedAttachment,
-  CollectedError,
-  CollectedStep,
-  CollectedTestData,
-  TestSummary,
-} from './types';
+import type { CollectedAttachment, CollectedStep, CollectedTestData, TestSummary } from './types';
 
 export const REPORT_DIR = path.resolve(process.cwd(), 'reports');
-const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
-
 export function toReportRelativePath(absolutePath: string): string {
   return path.relative(REPORT_DIR, absolutePath).replace(/\\/g, '/');
 }
@@ -47,269 +39,6 @@ export function renderTraceLinkFromAttachments(attachments: CollectedAttachment[
   return `<a class="btn btn--ghost" href="${escapeHtml(trace.relativePath)}" target="_blank" rel="noopener">View trace</a>`;
 }
 
-export function renderErrorsSection(errors: CollectedError[]): string {
-  if (errors.length === 0) {
-    return '<p class="empty-state">No errors recorded.</p>';
-  }
-
-  return errors
-    .map((error, index) => {
-      const full = [error.message, error.stack]
-        .filter((part) => part && part.trim().length > 0)
-        .filter((part, i, parts) => i === 0 || !parts[0]?.includes(part ?? ''))
-        .join('\n\n');
-      return `
-        <div class="test-error-container test-error-text" data-error-index="${index}">
-          <pre class="test-error-view error-block">${escapeHtml(full)}</pre>
-        </div>
-      `;
-    })
-    .join('');
-}
-
-function stepHasFailedDescendant(step: CollectedStep): boolean {
-  if (step.status === 'failed') {
-    return true;
-  }
-
-  return step.steps.some(stepHasFailedDescendant);
-}
-
-function stepStatusIcon(status: string): string {
-  if (status === 'failed')
-    return '<span class="tree-item__status tree-item__status--failed" aria-hidden="true">✕</span>';
-  if (status === 'skipped')
-    return '<span class="tree-item__status tree-item__status--skipped" aria-hidden="true">⊘</span>';
-  return '<span class="tree-item__status tree-item__status--passed" aria-hidden="true">✓</span>';
-}
-
-function renderStepTree(steps: CollectedStep[], level = 0): string {
-  if (steps.length === 0) {
-    return '';
-  }
-
-  return steps
-    .map((step) => {
-      const failed = step.status === 'failed';
-      const hasChildren = step.steps.length > 0;
-      const errorBlock = step.errorMessage
-        ? `<div class="test-error-container"><pre class="test-error-view step-error">${escapeHtml(step.errorMessage)}</pre></div>`
-        : '';
-      const indentPx = 4 + level * 22;
-      const titleText = escapeHtml(step.title);
-      const titleAttr = escapeHtml(step.title.toLowerCase());
-      const titleRow = `
-        <div class="tree-item__title" style="padding-left:${indentPx}px">
-          ${hasChildren ? '' : '<span class="tree-item__spacer" aria-hidden="true"></span>'}
-          ${stepStatusIcon(step.status)}
-          <span class="tree-item__label">${titleText}</span>
-          <span class="tree-item__duration">${step.duration}ms</span>
-        </div>
-      `;
-
-      if (!hasChildren) {
-        return `
-          <div class="tree-item${failed ? ' tree-item--failed' : ''}" role="treeitem" data-step-title="${titleAttr}">
-            ${titleRow}
-            ${errorBlock}
-          </div>
-        `;
-      }
-
-      const shouldOpen = failed || stepHasFailedDescendant(step);
-      const openAttr = shouldOpen ? ' open' : '';
-
-      return `
-        <details class="tree-item tree-item--branch${failed ? ' tree-item--failed' : ''}" role="treeitem" data-step-title="${titleAttr}"${openAttr}>
-          <summary class="tree-item__title" style="padding-left:${indentPx}px">
-            ${stepStatusIcon(step.status)}
-            <span class="tree-item__label">${titleText}</span>
-            <span class="tree-item__duration">${step.duration}ms</span>
-          </summary>
-          <div class="tree-item__body">
-            ${errorBlock}
-            <div class="tree-item__children" role="group">${renderStepTree(step.steps, level + 1)}</div>
-          </div>
-        </details>
-      `;
-    })
-    .join('');
-}
-
-export function renderStepsTimeline(steps: CollectedStep[]): string {
-  if (steps.length === 0) {
-    return '<p class="empty-state">No recorded test steps.</p>';
-  }
-
-  return `
-    <div class="steps-panel" data-steps-panel>
-      <form class="step-filter" role="search" onsubmit="return false;">
-        <span class="step-filter__icon" aria-hidden="true">⌕</span>
-        <input
-          type="search"
-          class="step-filter__input"
-          data-step-filter
-          spellcheck="false"
-          autocomplete="off"
-          placeholder="Filter steps"
-          aria-label="Filter steps"
-        />
-      </form>
-      <div class="tree-item-list steps-tree" role="tree">${renderStepTree(steps)}</div>
-      <p class="step-filter-empty" data-step-filter-empty hidden>No steps match this filter.</p>
-    </div>
-  `;
-}
-
-function renderScreenshotAttachment(attachment: CollectedAttachment): string {
-  if (!attachment.relativePath) {
-    return `<div class="attachment-chip attachment-chip--missing">Missing screenshot · ${escapeHtml(attachment.name)}</div>`;
-  }
-  return `
-    <figure class="attachment-card attachment-card--screenshot">
-      <img src="${escapeHtml(attachment.relativePath)}" alt="${escapeHtml(attachment.name)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachment-chip attachment-chip--missing',textContent:'Missing file'}))" />
-      <figcaption>${escapeHtml(attachment.name)}</figcaption>
-    </figure>
-  `;
-}
-
-function renderVideoAttachment(attachment: CollectedAttachment): string {
-  if (!attachment.relativePath) {
-    return `<div class="attachment-chip attachment-chip--missing">Missing video · ${escapeHtml(attachment.name)}</div>`;
-  }
-  const typeAttr = attachment.contentType ? ` type="${escapeHtml(attachment.contentType)}"` : '';
-  return `
-    <figure class="attachment-card attachment-card--video">
-      <video controls preload="metadata">
-        <source src="${escapeHtml(attachment.relativePath)}"${typeAttr} />
-      </video>
-      <figcaption>${escapeHtml(attachment.name)}</figcaption>
-    </figure>
-  `;
-}
-
-function renderTraceAttachment(attachment: CollectedAttachment): string {
-  if (!attachment.relativePath) {
-    return `<span class="attachment-chip attachment-chip--missing">Missing trace · ${escapeHtml(attachment.name)}</span>`;
-  }
-  return `
-    <a class="attachment-chip attachment-chip--trace" href="${escapeHtml(attachment.relativePath)}" target="_blank" rel="noopener">
-      Trace · ${escapeHtml(attachment.name)}
-    </a>
-  `;
-}
-
-function renderOtherAttachment(attachment: CollectedAttachment): string {
-  if (!attachment.relativePath) {
-    return `<span class="attachment-chip attachment-chip--missing">${escapeHtml(attachment.name)}</span>`;
-  }
-  return `
-    <a class="attachment-chip" href="${escapeHtml(attachment.relativePath)}" target="_blank" rel="noopener" download>
-      ${escapeHtml(attachment.name)}
-    </a>
-  `;
-}
-
-export function renderAttachmentsSection(attachments: CollectedAttachment[]): string {
-  if (attachments.length === 0) {
-    return '<p class="empty-state">No attachments recorded.</p>';
-  }
-
-  const screenshots = attachments.filter((attachment) => attachment.kind === 'screenshot');
-  const videos = attachments.filter((attachment) => attachment.kind === 'video');
-  const traces = attachments.filter((attachment) => attachment.kind === 'trace');
-  const others = attachments.filter((attachment) => attachment.kind === 'other');
-
-  const mediaGrid = [...screenshots, ...videos]
-    .map((attachment) =>
-      attachment.kind === 'screenshot'
-        ? renderScreenshotAttachment(attachment)
-        : renderVideoAttachment(attachment),
-    )
-    .join('');
-
-  const chipRow = [...traces, ...others]
-    .map((attachment) =>
-      attachment.kind === 'trace'
-        ? renderTraceAttachment(attachment)
-        : renderOtherAttachment(attachment),
-    )
-    .join('');
-
-  return `
-    ${mediaGrid ? `<div class="attachment-grid">${mediaGrid}</div>` : ''}
-    ${chipRow ? `<div class="attachment-chips">${chipRow}</div>` : ''}
-  `;
-}
-
-export function flattenSteps(
-  steps: CollectedStep[],
-  level = 0,
-): Array<CollectedStep & { level: number }> {
-  const rows: Array<CollectedStep & { level: number }> = [];
-
-  for (const step of steps) {
-    rows.push({ ...step, level });
-    if (step.steps.length > 0) {
-      rows.push(...flattenSteps(step.steps, level + 1));
-    }
-  }
-
-  return rows;
-}
-
-export function renderStatusPill(status: string): string {
-  const safe = escapeHtml(status);
-  const cls = UNHEALTHY_STATUSES.has(status)
-    ? 'status-pill--failed'
-    : status === 'skipped'
-      ? 'status-pill--skipped'
-      : 'status-pill--passed';
-  return `<span class="status-pill ${cls}">${safe}</span>`;
-}
-
-export function renderPriorityBadge(priority: string): string {
-  const p = (priority || 'medium').toLowerCase();
-  const cls = `priority-badge priority-badge--${p}`;
-  return `<span class="${cls}">${(priority || 'MEDIUM').toUpperCase()}</span>`;
-}
-
-export function renderLayerBadges(layers: string[]): string {
-  if (layers.length === 0) return '-';
-  return layers
-    .map((l) => `<span class="layer-badge layer-badge--${l.toLowerCase()}">${escapeHtml(l)}</span>`)
-    .join(' ');
-}
-
-function getVerdict(summary: TestSummary): {
-  label: string;
-  tone: 'healthy' | 'warning' | 'critical';
-  summaryLine: string;
-} {
-  if (summary.failed > 0) {
-    return {
-      label: 'Run failed',
-      tone: 'critical',
-      summaryLine: `${summary.failed} unhealthy test${summary.failed === 1 ? '' : 's'} need${summary.failed === 1 ? 's' : ''} triage.`,
-    };
-  }
-
-  if (summary.skipped > 0) {
-    return {
-      label: 'Run degraded',
-      tone: 'warning',
-      summaryLine: `${summary.skipped} skipped test${summary.skipped === 1 ? '' : 's'} reduced coverage.`,
-    };
-  }
-
-  return {
-    label: 'Run healthy',
-    tone: 'healthy',
-    summaryLine:
-      summary.total > 0 ? 'All executed tests passed.' : 'No tests were captured in this run.',
-  };
-}
-
 export function formatDisplayTime(raw: string): string {
   try {
     const d = new Date(raw);
@@ -339,443 +68,33 @@ export function formatDisplayTime(raw: string): string {
   }
 }
 
-function formatDurationMs(ms: number): string {
-  if (!ms || ms < 0) return '0s';
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function truncateMiddle(value: string, max = 18): string {
-  if (!value || value.length <= max) return value;
-  const keep = Math.floor((max - 1) / 2);
-  return `${value.slice(0, keep)}…${value.slice(-keep)}`;
-}
-
-function iconSvg(name: string): string {
-  const common =
-    'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
-  switch (name) {
-    case 'doc':
-      // Square document glyph (less flat than tall-only page path)
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M7 3.5h7.5L19 8v12.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path ${common} d="M14 3.5V8h5"/><path ${common} d="M9 13h6M9 16.5h4"/></svg>`;
-    case 'layers':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="m12 3 9 5-9 5-9-5 9-5z"/><path ${common} d="m3 12 9 5 9-5"/><path ${common} d="m3 16 9 5 9-5"/></svg>`;
-    case 'calendar':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><rect ${common} x="3" y="5" width="18" height="16" rx="2"/><path ${common} d="M8 3v4M16 3v4M3 10h18"/></svg>`;
-    case 'clock':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle ${common} cx="12" cy="12" r="9"/><path ${common} d="M12 7v5l3 2"/></svg>`;
-    case 'heart':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/></svg>`;
-    case 'list':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/></svg>`;
-    case 'check':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="m6 12 4 4 8-8"/></svg>`;
-    case 'x':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M7 7l10 10M17 7 7 17"/></svg>`;
-    case 'skip':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M6 7v10l7-5-7-5zM15 7v10"/></svg>`;
-    case 'chart':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M12 3a9 9 0 1 0 9 9h-9V3z"/><path ${common} d="M13.5 3.5A8.5 8.5 0 0 1 20.5 10.5H13.5V3.5z"/></svg>`;
-    case 'pin':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11z"/><circle ${common} cx="12" cy="10" r="2.5"/></svg>`;
-    case 'search':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle ${common} cx="11" cy="11" r="7"/><path ${common} d="m20 20-3.5-3.5"/></svg>`;
-    case 'warn':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M12 3 2 20h20L12 3z"/><path ${common} d="M12 10v4M12 17h.01"/></svg>`;
-    case 'download':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><path ${common} d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>`;
-    case 'table':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><rect ${common} x="3" y="4" width="18" height="16" rx="2"/><path ${common} d="M3 10h18M3 15h18M9 10v10M15 10v10"/></svg>`;
-    case 'sun':
-      return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle ${common} cx="12" cy="12" r="4"/><path ${common} d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M5 19l1.5-1.5"/></svg>`;
-    default:
-      return '';
-  }
-}
-
-export function renderHero(
-  mode: 'local' | 'ci',
-  summary: TestSummary,
-  collectedTests: CollectedTestData[],
-): string {
-  const verdict = getVerdict(summary);
-  const unhealthyCount = collectedTests.filter((testData) =>
-    UNHEALTHY_STATUSES.has(testData.status),
-  ).length;
-
-  const displayTime = formatDisplayTime(summary.timestamp);
-  const appEnv = summary.runMeta?.appEnv ?? 'unknown';
-  const runId = summary.runMeta?.runId;
-  const totalDuration = formatDurationMs(summary.runMeta?.totalDurationMs ?? 0);
-  const showFailMark = verdict.tone === 'critical';
-
-  return `
-    <header class="hero hero--${verdict.tone}">
-      <div class="hero__top-row">
-        <div class="hero__identity">
-          <div class="hero__mark" aria-hidden="true">
-            ${iconSvg('doc')}
-            ${showFailMark ? `<span class="hero__mark-x">×</span>` : ''}
-          </div>
-          <div class="hero__copy">
-            <div class="hero__eyebrow">${mode === 'ci' ? 'CI EXECUTION REPORT' : 'LOCAL EXECUTION REPORT'}</div>
-            <h1 class="hero__title">${verdict.label === 'Run failed' ? 'Run Failed' : verdict.label === 'Run healthy' ? 'Run Healthy' : 'Run Degraded'}</h1>
-            <p class="hero__subtitle">${verdict.summaryLine}</p>
-          </div>
-        </div>
-        <div class="hero__top-actions">
-          <span class="badge ${mode === 'ci' ? 'badge--ci' : 'badge--local'}">${iconSvg('pin')} ${mode === 'ci' ? 'CI MODE' : 'LOCAL MODE'}</span>
-          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
-            <span class="theme-toggle__icon" aria-hidden="true">${iconSvg('sun')}</span>
-            <span class="theme-toggle__label">Light</span>
-          </button>
-        </div>
-      </div>
-      <div class="hero__meta-inline">
-        <div class="hero__meta-item">
-          <span class="hero__meta-icon" aria-hidden="true">${iconSvg('layers')}</span>
-          <span class="hero__meta-text">
-            <span class="hero__meta-label">APP_ENV</span>
-            <strong>${escapeHtml(appEnv)}</strong>
-          </span>
-        </div>
-        ${
-          runId
-            ? `<div class="hero__meta-item">
-          <span class="hero__meta-icon" aria-hidden="true">${iconSvg('list')}</span>
-          <span class="hero__meta-text">
-            <span class="hero__meta-label">Run ID</span>
-            <strong title="${escapeHtml(runId)}">${escapeHtml(truncateMiddle(runId, 16))}</strong>
-          </span>
-        </div>`
-            : ''
-        }
-        <div class="hero__meta-item">
-          <span class="hero__meta-icon" aria-hidden="true">${iconSvg('calendar')}</span>
-          <span class="hero__meta-text">
-            <span class="hero__meta-label">Generated</span>
-            <strong>${escapeHtml(displayTime)}</strong>
-          </span>
-        </div>
-        <div class="hero__meta-item">
-          <span class="hero__meta-icon" aria-hidden="true">${iconSvg('clock')}</span>
-          <span class="hero__meta-text">
-            <span class="hero__meta-label">Duration</span>
-            <strong>${escapeHtml(totalDuration)}</strong>
-          </span>
-        </div>
-        <div class="hero__meta-item">
-          <span class="hero__meta-icon" aria-hidden="true">${iconSvg('heart')}</span>
-          <span class="hero__meta-text">
-            <span class="hero__meta-label">Unhealthy</span>
-            <strong>${unhealthyCount}</strong>
-          </span>
-        </div>
-      </div>
-      <div class="hero-stat-bar">
-        <div class="hero-stat">
-          <span class="hero-stat__icon" aria-hidden="true">${iconSvg('list')}</span>
-          <span class="hero-stat__copy"><span class="hero-stat__num">${summary.total}</span><span class="hero-stat__lbl">Total</span></span>
-        </div>
-        <div class="hero-stat hero-stat--passed">
-          <span class="hero-stat__icon" aria-hidden="true">${iconSvg('check')}</span>
-          <span class="hero-stat__copy"><span class="hero-stat__num">${summary.passed}</span><span class="hero-stat__lbl">Passed</span></span>
-        </div>
-        <div class="hero-stat hero-stat--failed">
-          <span class="hero-stat__icon" aria-hidden="true">${iconSvg('x')}</span>
-          <span class="hero-stat__copy"><span class="hero-stat__num">${summary.failed}</span><span class="hero-stat__lbl">Failed</span></span>
-        </div>
-        <div class="hero-stat hero-stat--skipped">
-          <span class="hero-stat__icon" aria-hidden="true">${iconSvg('skip')}</span>
-          <span class="hero-stat__copy"><span class="hero-stat__num">${summary.skipped}</span><span class="hero-stat__lbl">Skipped</span></span>
-        </div>
-        <div class="hero-stat hero-stat--accent">
-          <span class="hero-stat__icon" aria-hidden="true">${iconSvg('chart')}</span>
-          <span class="hero-stat__copy"><span class="hero-stat__num">${summary.passRate}%</span><span class="hero-stat__lbl">Pass rate</span></span>
-        </div>
-      </div>
-    </header>
-  `;
-}
-
-export function renderRoleHealthStrip(
-  summary: TestSummary,
-  collectedTests: CollectedTestData[],
-): string {
-  if (summary.reportMode !== 'role-aware' || !summary.rolesInScope?.length) {
-    return '';
+function getVerdict(summary: TestSummary): {
+  label: string;
+  tone: 'healthy' | 'warning' | 'critical';
+  summaryLine: string;
+} {
+  if (summary.failed > 0) {
+    return {
+      label: 'Run failed',
+      tone: 'critical',
+      summaryLine: `${summary.failed} unhealthy test${summary.failed === 1 ? '' : 's'} need${summary.failed === 1 ? 's' : ''} triage.`,
+    };
   }
 
-  const chips = summary.rolesInScope
-    .map((role) => {
-      const tests = collectedTests.filter((t) => (t.role || '') === role);
-      const total = tests.length;
-      const passed = tests.filter((t) => t.status === 'passed').length;
-      const rate = total > 0 ? Math.round((passed / total) * 100) : 0;
-      const tone = rate >= 90 ? 'good' : rate >= 70 ? 'warn' : 'bad';
-      return `<div class="role-health__chip role-health__chip--${tone}" title="${escapeHtml(role)}">
-        <strong>${escapeHtml(role)}</strong>
-        <span>${passed}/${total}</span>
-        <span class="role-health__rate">${rate}%</span>
-      </div>`;
-    })
-    .join('');
-
-  return `<section class="role-health" aria-label="Pass rate by role">${chips}</section>`;
-}
-
-export function renderStatGrid(summary: TestSummary): string {
-  return `
-    <div class="stat-grid">
-      <div class="stat-card"><div class="stat-card__label">Total</div><div class="stat-card__value">${summary.total}</div></div>
-      <div class="stat-card stat-card--passed"><div class="stat-card__label">Passed</div><div class="stat-card__value">${summary.passed}</div></div>
-      <div class="stat-card stat-card--failed"><div class="stat-card__label">Failed</div><div class="stat-card__value">${summary.failed}</div></div>
-      <div class="stat-card stat-card--skipped"><div class="stat-card__label">Skipped</div><div class="stat-card__value">${summary.skipped}</div></div>
-      <div class="stat-card stat-card--accent"><div class="stat-card__label">Pass rate</div><div class="stat-card__value">${summary.passRate}%</div></div>
-    </div>
-  `;
-}
-
-const ARTIFACTS_LIST_LIMIT = 4;
-
-function collectAttachmentsByKind(
-  tests: CollectedTestData[],
-  kind: CollectedAttachment['kind'],
-): Array<{ testId: string; title: string; name: string; href: string }> {
-  const rows: Array<{ testId: string; title: string; name: string; href: string }> = [];
-  for (const test of tests) {
-    for (const attachment of test.attachments) {
-      if (attachment.kind !== kind || !attachment.relativePath) continue;
-      rows.push({
-        testId: test.testId || '-',
-        title: test.title || test.fullTitle || 'test',
-        name: attachment.name || kind,
-        href: attachment.relativePath,
-      });
-    }
-  }
-  return rows;
-}
-
-function collectRetriedTests(
-  tests: CollectedTestData[],
-): Array<{ testId: string; title: string; retry: number }> {
-  return tests
-    .filter((t) => t.retry > 0)
-    .map((t) => ({
-      testId: t.testId || '-',
-      title: t.title || t.fullTitle || 'test',
-      retry: t.retry,
-    }));
-}
-
-function renderArtifactFileList(
-  items: Array<{ testId: string; title: string; name?: string; href?: string; retry?: number }>,
-  emptyLabel: string,
-  limit = ARTIFACTS_LIST_LIMIT,
-): string {
-  if (items.length === 0) {
-    return `<p class="artifacts-card__empty">${escapeHtml(emptyLabel)}</p>`;
+  if (summary.skipped > 0) {
+    return {
+      label: 'Run degraded',
+      tone: 'warning',
+      summaryLine: `${summary.skipped} skipped test${summary.skipped === 1 ? '' : 's'} reduced coverage.`,
+    };
   }
 
-  const visible = items.slice(0, limit);
-  const remaining = items.length - visible.length;
-
-  return `
-    <ul class="artifacts-card__files">
-      ${visible
-        .map((item) => {
-          const label = item.name
-            ? `${item.testId} · ${item.name}`
-            : `${item.testId}${item.retry != null ? ` · retry ×${item.retry}` : ''}`;
-          const sub = escapeHtml(item.title);
-          if (item.href) {
-            return `<li>
-              <a class="artifacts-card__file" href="${escapeHtml(item.href)}" target="_blank" rel="noopener" title="${sub}">
-                <span class="artifacts-card__file-name">${escapeHtml(label)}</span>
-                <span class="artifacts-card__file-sub">${sub}</span>
-              </a>
-            </li>`;
-          }
-          return `<li>
-            <div class="artifacts-card__file artifacts-card__file--static" title="${sub}">
-              <span class="artifacts-card__file-name">${escapeHtml(label)}</span>
-              <span class="artifacts-card__file-sub">${sub}</span>
-            </div>
-          </li>`;
-        })
-        .join('')}
-    </ul>
-    ${
-      remaining > 0
-        ? `<p class="artifacts-card__more">+${remaining} more — open Attachments folder</p>`
-        : ''
-    }
-  `;
-}
-
-/**
- * Single Operate-surface card: evidence inventory (with real files) + related report links.
- * Default collapsed so table triage stays primary; expand when QA needs drill-down.
- */
-export function renderArtifactsStrip(collectedTests: CollectedTestData[]): string {
-  const retried = collectRetriedTests(collectedTests);
-  const traces = collectAttachmentsByKind(collectedTests, 'trace');
-  const screenshots = collectAttachmentsByKind(collectedTests, 'screenshot');
-  const videos = collectAttachmentsByKind(collectedTests, 'video');
-
-  const totalEvidence = traces.length + screenshots.length + videos.length;
-  const readiness =
-    totalEvidence === 0 && retried.length === 0
-      ? 'No retries or attachments in this run'
-      : `${retried.length} retried · ${traces.length} trace · ${screenshots.length} ss · ${videos.length} video`;
-
-  const buckets = [
-    {
-      key: 'retries',
-      label: 'Retries',
-      count: retried.length,
-      body: renderArtifactFileList(
-        retried.map((r) => ({ testId: r.testId, title: r.title, retry: r.retry })),
-        'No retried tests',
-      ),
-    },
-    {
-      key: 'traces',
-      label: 'Traces',
-      count: traces.length,
-      body: renderArtifactFileList(traces, 'No trace files'),
-    },
-    {
-      key: 'screenshots',
-      label: 'Screenshots',
-      count: screenshots.length,
-      body: renderArtifactFileList(screenshots, 'No screenshots'),
-    },
-    {
-      key: 'videos',
-      label: 'Videos',
-      count: videos.length,
-      body: renderArtifactFileList(videos, 'No videos'),
-    },
-  ];
-
-  return `
-    <details class="artifacts-card" aria-label="Evidence and related reports">
-      <summary class="artifacts-card__summary">
-        <div class="artifacts-card__titles">
-          <span class="artifacts-card__eyebrow">Evidence &amp; reports</span>
-          <span class="artifacts-card__title">Drill-down inventory</span>
-          <span class="artifacts-card__readiness">${escapeHtml(readiness)}</span>
-        </div>
-        <span class="artifacts-card__chevron" aria-hidden="true"></span>
-      </summary>
-
-      <div class="artifacts-card__body">
-        <p class="artifacts-card__hint">Open a file or related report. Preview paths resolve one level up to <code>reports/</code>.</p>
-
-        <div class="artifacts-card__grid">
-          ${buckets
-            .map(
-              (b) => `
-            <article class="artifacts-bucket artifacts-bucket--${b.key}${b.count === 0 ? ' artifacts-bucket--empty' : ''}">
-              <header class="artifacts-bucket__head">
-                <span class="artifacts-bucket__label">${b.label}</span>
-                <strong class="artifacts-bucket__count">${b.count}</strong>
-              </header>
-              ${b.body}
-            </article>`,
-            )
-            .join('')}
-        </div>
-
-        <div class="artifacts-card__links" id="deep-links">
-          <span class="artifacts-card__links-label">Related</span>
-          <a class="artifacts-link" href="html/index.html" data-deep-link="html" target="_blank" rel="noopener">
-            <span class="artifacts-link__title">Playwright HTML</span>
-            <span class="artifacts-link__path">reports/html/index.html</span>
-          </a>
-          <a class="artifacts-link" href="test-summary.json" data-deep-link="summary" target="_blank" rel="noopener">
-            <span class="artifacts-link__title">Test summary JSON</span>
-            <span class="artifacts-link__path">reports/test-summary.json</span>
-          </a>
-          <a class="artifacts-link" href="attachments/" data-deep-link="attachments" target="_blank" rel="noopener">
-            <span class="artifacts-link__title">Attachments folder</span>
-            <span class="artifacts-link__path">reports/attachments/</span>
-          </a>
-        </div>
-      </div>
-    </details>
-    <script>
-    (function () {
-      try {
-        var raw = String(location.pathname || '') + ' ' + String(location.href || '');
-        var path = raw.split('\\\\').join('/').toLowerCase();
-        var inPreview = path.indexOf('/preview/') !== -1 || path.indexOf('/preview\\\\') !== -1;
-        if (!inPreview) return;
-        document.querySelectorAll('#deep-links a.artifacts-link, #deep-links a.deep-link').forEach(function (a) {
-          var link = a.getAttribute('href') || '';
-          if (link && link.charAt(0) !== '.' && link.charAt(0) !== '/' && link.indexOf('../') !== 0) {
-            a.setAttribute('href', '../' + link);
-          }
-        });
-        document.querySelectorAll('.artifacts-card a.artifacts-card__file').forEach(function (a) {
-          var link = a.getAttribute('href') || '';
-          if (link && link.charAt(0) !== '.' && link.charAt(0) !== '/' && link.indexOf('../') !== 0 && link.indexOf('http') !== 0) {
-            a.setAttribute('href', '../' + link);
-          }
-        });
-      } catch (e) {}
-    })();
-    </script>
-  `;
-}
-
-export function renderFailureAlert(unhealthyCount: number): string {
-  const exportButtons = `
-    <div class="alert__actions export-buttons" role="group" aria-label="Export options">
-      <button class="btn btn--ghost btn--sm" id="btn-copy-confluence" type="button">
-        <span class="btn__icon" aria-hidden="true">${iconSvg('doc')}</span>
-        Copy for Confluence
-      </button>
-      <button class="btn btn--ghost btn--sm" id="btn-copy-tsv" type="button">
-        <span class="btn__icon" aria-hidden="true">${iconSvg('table')}</span>
-        Copy Data (TSV)
-      </button>
-      <button class="btn btn--primary btn--sm" id="btn-download-csv" type="button">
-        <span class="btn__icon" aria-hidden="true">${iconSvg('download')}</span>
-        Download CSV
-      </button>
-    </div>
-  `;
-
-  if (unhealthyCount === 0) {
-    return `
-      <div class="alert alert--success">
-        <div class="alert__body">
-          <span class="alert__icon" aria-hidden="true">${iconSvg('check')}</span>
-          <div class="alert__copy">
-            <strong>Queue clear.</strong>
-            <span>No unhealthy tests were captured in this run.</span>
-          </div>
-        </div>
-        ${exportButtons}
-      </div>
-    `;
-  }
-
-  return `
-    <div class="alert alert--warning">
-      <div class="alert__body">
-        <span class="alert__icon" aria-hidden="true">${iconSvg('warn')}</span>
-        <div class="alert__copy">
-          <strong>Incident queue active.</strong>
-          <span>${unhealthyCount} unhealthy test${unhealthyCount === 1 ? '' : 's'} surfaced in this run.</span>
-        </div>
-      </div>
-      ${exportButtons}
-    </div>
-  `;
+  return {
+    label: 'Run healthy',
+    tone: 'healthy',
+    summaryLine:
+      summary.total > 0 ? 'All executed tests passed.' : 'No tests were captured in this run.',
+  };
 }
 
 export function renderChartScript(summary: TestSummary): string {
@@ -1209,19 +528,28 @@ export function renderInteractiveScript(): string {
 
           /* ---- Filters ---- */
     var FILTER_KEY = 'dashboard-filters-v1';
+    var SEARCH_DEBOUNCE_MS = 250;
     var searchEl = document.getElementById('dash-search');
     var statusEl = document.getElementById('filter-status');
     var priorityEl = document.getElementById('filter-priority');
     var roleEl = document.getElementById('filter-role');
     var evidenceEl = document.getElementById('filter-evidence');
     var countEl = document.getElementById('filter-count');
+    var moduleEl = document.getElementById('module-filter-select');
+    var featureEl = document.getElementById('feature-filter-select');
+    var emptyEl = document.getElementById('filter-empty');
+    var emptyResetBtn = document.getElementById('filter-empty-reset');
 
     function readState() {
+      var qRaw = searchEl && searchEl.value || '';
       return {
-        q: (searchEl && searchEl.value || '').trim().toLowerCase(),
+        qRaw: qRaw,
+        q: qRaw.trim().toLowerCase(),
         status: statusEl && statusEl.value || '',
         priority: priorityEl && priorityEl.value || '',
         role: roleEl && roleEl.value || '',
+        module: moduleEl && moduleEl.value || '',
+        feature: featureEl && featureEl.value || '',
         evidence: !!(evidenceEl && evidenceEl.checked)
       };
     }
@@ -1231,7 +559,13 @@ export function renderInteractiveScript(): string {
       var status = el.getAttribute('data-status') || '';
       var priority = el.getAttribute('data-priority') || '';
       var role = el.getAttribute('data-role') || '';
+      var moduleName = el.getAttribute('data-module') || '';
+      var featureName = el.getAttribute('data-feature') || '';
+
       if (state.q && search.indexOf(state.q) === -1) return false;
+      if (state.module && moduleName !== state.module) return false;
+      if (state.feature && featureName !== state.feature) return false;
+
       if (state.status === 'failed') {
         if (['failed','timedOut','interrupted'].indexOf(status) === -1) return false;
       } else if (state.status && status !== state.status) return false;
@@ -1245,8 +579,28 @@ export function renderInteractiveScript(): string {
       return true;
     }
 
+    function syncUrlHash(state) {
+      try {
+        var p = new URLSearchParams();
+        if (state.qRaw) p.set('q', state.qRaw);
+        if (state.status) p.set('status', state.status);
+        if (state.priority) p.set('priority', state.priority);
+        if (state.role) p.set('role', state.role);
+        if (state.module) p.set('module', state.module);
+        if (state.feature) p.set('feature', state.feature);
+        if (state.evidence) p.set('evidence', '1');
+        var qs = p.toString();
+        var targetHash = qs ? '#/?' + qs : '#/';
+        if (window.location.hash !== targetHash && (!window.location.hash || window.location.hash.indexOf('#/') === 0)) {
+          history.replaceState(null, '', targetHash);
+        }
+      } catch (e) {}
+    }
+
     function applyFilters() {
       var state = readState();
+      syncUrlHash(state);
+
       // Count unique tests from active view only (avoid accordion+table double count)
       var activePanel = document.querySelector('.view-panel--active') || document;
       var nodes = activePanel.querySelectorAll('[data-search]');
@@ -1276,8 +630,30 @@ export function renderInteractiveScript(): string {
         group.hidden = !any;
       });
       if (countEl) countEl.textContent = 'Showing ' + shown + ' of ' + total;
+      if (emptyEl) emptyEl.hidden = shown > 0 || total === 0;
+
       try { localStorage.setItem(FILTER_KEY, JSON.stringify(state)); } catch (e) {}
       window.__DASHBOARD_FILTER_STATE__ = state;
+    }
+
+    var searchDebounceTimer = null;
+    if (searchEl) {
+      searchEl.addEventListener('input', function () {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(applyFilters, SEARCH_DEBOUNCE_MS);
+      });
+    }
+    if (emptyResetBtn) {
+      emptyResetBtn.addEventListener('click', function () {
+        if (searchEl) searchEl.value = '';
+        if (statusEl) statusEl.value = '';
+        if (priorityEl) priorityEl.value = '';
+        if (roleEl) roleEl.value = '';
+        if (moduleEl) moduleEl.value = '';
+        if (featureEl) featureEl.value = '';
+        if (evidenceEl) evidenceEl.checked = false;
+        applyFilters();
+      });
     }
 
     try {

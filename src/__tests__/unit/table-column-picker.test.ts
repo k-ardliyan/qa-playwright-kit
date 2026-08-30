@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { TableColumnPicker } from '../../support/custom-dashboard/components/table/TableToolbar';
-import { renderTableColumnPicker } from '../../support/custom-dashboard/build-table-view';
 import { renderInteractiveScript } from '../../support/custom-dashboard/shared';
 
 test.describe('Table Column Picker Component & Structure', () => {
@@ -30,16 +29,6 @@ test.describe('Table Column Picker Component & Structure', () => {
     expect(html).toContain('data-col-toggle="notes"');
     expect(html).toContain('data-pin-sticky="header"');
     expect(html).toContain('data-pin-sticky="left"');
-  });
-
-  test('renderTableColumnPicker helper renders matching scrollable body and footer structure', () => {
-    const html = renderTableColumnPicker();
-
-    expect(html).toContain('class="column-picker"');
-    expect(html).toContain('class="column-picker__body"');
-    expect(html).toContain('class="column-picker__actions"');
-    expect(html).toContain('id="column-picker-show-all"');
-    expect(html).toContain('id="column-picker-reset"');
   });
 
   test('renderInteractiveScript contains Show All and Reset button handlers', () => {

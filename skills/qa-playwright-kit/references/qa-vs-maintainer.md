@@ -10,10 +10,10 @@ If a change would touch a protected path, **stop**. Do not patch. File a maintai
 
 ## Who you are
 
-| Role | Does | Does not |
-| --- | --- | --- |
+| Role                     | Does                                                                                                                        | Does not                                                                      |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | **QA User** (this skill) | Write requirements, run setup / `env:edit`, run pipeline, read dashboard, decide APPROVE / FILE BUG / REVISE / MARK BLOCKED | Edit framework core, MCP, reporter, dashboard, CI, or agent instruction files |
-| **Framework Maintainer** | `src/`, `tools/`, `config/` (non-env), `.github/agents/`, CI, MCP, dashboard, this skill pack | Daily requirement authoring |
+| **Framework Maintainer** | `src/`, `tools/`, `config/` (non-env), `.github/agents/`, CI, MCP, dashboard, this skill pack                               | Daily requirement authoring                                                   |
 
 ---
 
@@ -21,12 +21,12 @@ If a change would touch a protected path, **stop**. Do not patch. File a maintai
 
 From `config/qa-kit.workspace.json`:
 
-| Zone | Glob | This skill may |
-| --- | --- | --- |
-| `qa` | `requirements/**` | Write and edit freely |
-| `review` | `specs/**`, `tests/**` | Generate and heal specs; add POM under `tests/pages/`; add fixtures under `tests/data/`; register POM in `tests/fixtures.ts`. Review Planner/Generator output; do not rewrite it by hand unless Heal requires a spec fix |
-| `generated` | `artifacts/**` | Read only. Never hand-edit reports, traces, or catalogs |
-| `protected` | `src/**`, `tools/**`, `config/**`, `.github/agents/**` | **No writes.** Exception: `config/environments/*.env` via `npm run setup` / `npm run env:edit` only — never edit `*.env.example`, `qa-kit.workspace.json`, or Playwright config |
+| Zone        | Glob                                                   | This skill may                                                                                                                                                                                                           |
+| ----------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `qa`        | `requirements/**`                                      | Write and edit freely                                                                                                                                                                                                    |
+| `review`    | `specs/**`, `tests/**`                                 | Generate and heal specs; add POM under `tests/pages/`; add fixtures under `tests/data/`; register POM in `tests/fixtures.ts`. Review Planner/Generator output; do not rewrite it by hand unless Heal requires a spec fix |
+| `generated` | `artifacts/**`                                         | Read only. Never hand-edit reports, traces, or catalogs                                                                                                                                                                  |
+| `protected` | `src/**`, `tools/**`, `config/**`, `.github/agents/**` | **No writes.** Exception: `config/environments/*.env` via `npm run setup` / `npm run env:edit` only — never edit `*.env.example`, `qa-kit.workspace.json`, or Playwright config                                          |
 
 Also protected (not in the glob, still maintainer): `AGENTS.md`, `package.json`, `playwright.config.ts` policy sections, `.github/workflows/**`, `skills/**`, `docs/architecture/**`.
 
@@ -34,18 +34,18 @@ Also protected (not in the glob, still maintainer): `AGENTS.md`, `package.json`,
 
 ## Allowed vs escalate
 
-| Symptom | QA action | Escalate? |
-| --- | --- | --- |
-| Requirement unclear or expected result wrong | Revise `requirements/*.md`, re-run Plan | No |
-| Generated spec uses Playwright API names as `test.step` titles | Heal / regenerate the spec under `tests/` per [generator-step-titles.md](generator-step-titles.md) | No |
-| Locator stale or assertion wrong in `tests/*.spec.ts` | Heal (max 3 cycles) or regenerate | No |
-| Auth / BASE_URL / credentials wrong | `npm run setup`, `env:edit`, `auth:setup` | No |
-| Application under test is behaving incorrectly | FILE BUG (product defect), keep test | No |
-| `health_check` fails on MCP build or missing `src/` file | Stop. Report to maintainer | **Yes** |
-| Dashboard Table View still shows `toBeVisible()` after specs use `test.step` correctly | Reporter / `formatSteps` bug. Do not edit `src/support/` | **Yes** |
-| `validate:requirement` rejects a valid `_TEMPLATE.md` shape | Parser / validator bug | **Yes** |
-| Pipeline agent (Planner / Generator / Healer / Reporter) instructions are wrong | Do not edit `.github/agents/` | **Yes** |
-| Need a new MCP tool, npm script, or CI job | Maintainer task | **Yes** |
+| Symptom                                                                                | QA action                                                                                          | Escalate? |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------- |
+| Requirement unclear or expected result wrong                                           | Revise `requirements/*.md`, re-run Plan                                                            | No        |
+| Generated spec uses Playwright API names as `test.step` titles                         | Heal / regenerate the spec under `tests/` per [generator-step-titles.md](generator-step-titles.md) | No        |
+| Locator stale or assertion wrong in `tests/*.spec.ts`                                  | Heal (max 3 cycles) or regenerate                                                                  | No        |
+| Auth / BASE_URL / credentials wrong                                                    | `npm run setup`, `env:edit`, `auth:setup`                                                          | No        |
+| Application under test is behaving incorrectly                                         | FILE BUG (product defect), keep test                                                               | No        |
+| `health_check` fails on MCP build or missing `src/` file                               | Stop. Report to maintainer                                                                         | **Yes**   |
+| Dashboard Table View still shows `toBeVisible()` after specs use `test.step` correctly | Reporter / `formatSteps` bug. Do not edit `src/support/`                                           | **Yes**   |
+| `validate:requirement` rejects a valid `_TEMPLATE.md` shape                            | Parser / validator bug                                                                             | **Yes**   |
+| Pipeline agent (Planner / Generator / Healer / Reporter) instructions are wrong        | Do not edit `.github/agents/`                                                                      | **Yes**   |
+| Need a new MCP tool, npm script, or CI job                                             | Maintainer task                                                                                    | **Yes**   |
 
 ---
 

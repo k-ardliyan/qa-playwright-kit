@@ -36,6 +36,32 @@ test.describe('dashboard shell interactive state keys', () => {
     expect(html).not.toContain('dashboard-columns-v2');
   });
 
+  test('search input is debounced and filters sync into hash query', () => {
+    const html = renderDocumentShell({
+      pageTitle: 'test',
+      mode: 'local',
+      summary: emptySummary,
+      collectedTests: [],
+      body: '',
+      includeChart: false,
+    });
+    expect(html).toContain('var SEARCH_DEBOUNCE_MS = 250');
+    expect(html).toContain("searchEl.addEventListener('input'");
+    expect(html).toContain('setTimeout(applyFilters, SEARCH_DEBOUNCE_MS)');
+    expect(html).toContain("p.set('q', state.qRaw)");
+    expect(html).toContain("p.set('module', state.module)");
+    expect(html).toContain("p.set('feature', state.feature)");
+    expect(html).toContain("qs ? '#/?' + qs : '#/'");
+    expect(html).toContain('history.replaceState');
+    expect(html).toContain("getElementById('module-filter-select')");
+    expect(html).toContain("getElementById('feature-filter-select')");
+    expect(html).toContain('if (state.module && moduleName !== state.module) return false');
+    expect(html).toContain('if (state.feature && featureName !== state.feature) return false');
+    expect(html).toContain("getElementById('filter-empty')");
+    expect(html).toContain("getElementById('filter-empty-reset')");
+    expect(html).toContain("getElementById('filter-count')");
+  });
+
   test('jsonForScript keeps embedded JSON parseable with hostile strings', () => {
     const out = jsonForScript({ qaNotes: '</script><script>alert(1)</script>' });
     expect(out).not.toContain('</script>');

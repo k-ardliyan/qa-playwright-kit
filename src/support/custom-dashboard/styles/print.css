@@ -1,0 +1,72 @@
+/* ─── Print Stylesheet for Export & Physical Audit ───────────────────────── */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt;
+  }
+
+  .page-shell {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Hide interactive controls, toolbars, and banners in print */
+  .app-nav,
+  .save-banner-top,
+  .unified-toolbar,
+  .view-toggle,
+  .theme-toggle,
+  .export-buttons,
+  .column-picker,
+  .btn-save-primary,
+  .quick-filters-bar,
+  .drawer-backdrop,
+  .test-drawer,
+  .repo-footer {
+    display: none !important;
+  }
+
+  /* Expand table and rows cleanly */
+  .table-wrapper {
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+  }
+
+  .qa-report-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .qa-report-table th,
+  .qa-report-table td {
+    border: 1px solid #dddddd !important;
+    padding: 4px 6px !important;
+    color: #000000 !important;
+  }
+
+  .hero {
+    border: 1px solid #cccccc !important;
+    box-shadow: none !important;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .hero-stat-bar {
+    border-top: 1px solid #cccccc !important;
+  }
+
+  .error-block {
+    background: #f8f8f8 !important;
+    color: #990000 !important;
+    border: 1px solid #e0e0e0 !important;
+    white-space: pre-wrap !important;
+  }
+
+  /* Page break rules */
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
