@@ -61,11 +61,29 @@ test.describe('syncAgentSkillsAndMcp', () => {
     const claudeSkillMd = path.join(tempRepo, '.claude', 'skills', 'test-skill', 'SKILL.md');
     expect(fs.existsSync(claudeSkillMd)).toBe(true);
 
-    // Verify Hermes skills detection helper
-    expect(result.hermesProfileSkillsDir !== undefined).toBe(true);
+    // Verify Hermes skills detection property exists on result (null in headless CI without Hermes base, string locally)
+    expect('hermesProfileSkillsDir' in result).toBe(true);
 
     // Verify MCP generated configs (.cursor/mcp.json, etc.)
     const cursorMcp = path.join(tempRepo, '.cursor', 'mcp.json');
     expect(fs.existsSync(cursorMcp)).toBe(true);
+  });
+
+  test('resolves active Hermes profile skills dir when hermes base exists', () => {
+    const origEnv = process.env.LOCALAPPDATA;
+    try {
+      process.env.LOCALAPPDATA = tempRepo;
+      // create <tempRepo>/hermes/active_profile
+      const hermesDir = path.join(tempRepo, 'hermes');
+      fs.mkdirSync(path.join(hermesDir, 'profiles', 'custom-qa', 'skills'), { recursive: true });
+      fs.writeFileSync(path.join(hermesDir, 'active_profile'), 'custom-qa', 'utf8');
+
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { resolveHermesActiveSkillsDir } = require('@/setup/agent-sync');
+      const resolved = resolveHermesActiveSkillsDir();
+      expect(resolved).toContain('custom-qa');
+    } finally {
+      process.env.LOCALAPPDATA = origEnv;
+    }
   });
 });

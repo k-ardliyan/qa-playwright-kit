@@ -96,9 +96,9 @@ export function syncAgentSkillsAndMcp(repoRoot: string = process.cwd()): AgentSy
 
   // Also include active Hermes profile skills dir if available
   const hermesSkillsDir = resolveHermesActiveSkillsDir();
+  result.hermesProfileSkillsDir = hermesSkillsDir;
   if (hermesSkillsDir) {
     targetAgentSkillsDirs.push(hermesSkillsDir);
-    result.hermesProfileSkillsDir = hermesSkillsDir;
   }
 
   if (fs.existsSync(sourceSkillsDir)) {
