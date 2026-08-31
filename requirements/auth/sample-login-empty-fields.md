@@ -110,6 +110,7 @@
 
 - **Test ID:** `TC-AUTH-EXT-004`
 - **Prioritas skenario:** `low`
+- **Layer terdampak:** `FE`
 
 **Prekondisi:** CAPTCHA aktif di halaman login
 
