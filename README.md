@@ -249,8 +249,6 @@ npm run mcp:build          # build custom QA server
 npm run mcp:config         # generate config semua platform (claude/cursor/kiro)
 ```
 
-21 tool lengkap → [CUSTOM-MCP.md](CUSTOM-MCP.md)
-
 </details>
 
 ---
@@ -311,7 +309,9 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 | Skenario `(@manual)`             | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
 | Command cheat sheet              | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
 | Troubleshooting                  | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
-| MCP tool reference               | [CUSTOM-MCP.md](CUSTOM-MCP.md)                                     |
+| Arsitektur & Folder Map          | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                       |
+| Domain glossary & roles          | [docs/CONTEXT.md](docs/CONTEXT.md)                                 |
+| Riwayat perubahan                | [docs/CHANGELOG.md](docs/CHANGELOG.md)                             |
 | Pipeline agent contract          | [AGENTS.md](AGENTS.md)                                             |
 
 </details>

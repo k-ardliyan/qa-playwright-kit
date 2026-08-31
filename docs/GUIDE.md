@@ -350,7 +350,7 @@ Buat POM scaffold dari halaman https://staging.app/login:
 | `failure_scenario_recommended` | warn     | Ada kata gagal/error tapi tidak ada skenario `(@failure)`                           |
 | `layer_recommended`            | warn     | Skenario tanpa `**Layer terdampak:**` (FE/BE/DB/API) — SOURCE dashboard kurang info |
 
-Detail tool: [CUSTOM-MCP.md](../CUSTOM-MCP.md).
+Detail tool dan pipeline: [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -378,7 +378,7 @@ Detail tool: [CUSTOM-MCP.md](../CUSTOM-MCP.md).
 | Step rule         | Gunakan `test.step(...)` per aksi                                         |
 | Traceability rule | Tambah header `// spec:` dan `// seed:` (wajib untuk tes hasil Generator) |
 
-Tes legacy (login, smoke, seed, demo) exempt — lihat [MAINTENANCE.md](../MAINTENANCE.md).
+Tes legacy (login, smoke, seed, demo) exempt via `tools/mcp/src/tools/validate-generated-tests.ts`.
 
 ---
 

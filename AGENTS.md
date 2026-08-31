@@ -4,7 +4,7 @@
 
 Before writing or editing any file:
 
-1. Read [`ARCHITECTURE.md`](ARCHITECTURE.md) for the project map.
+1. Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the project map.
 2. Load the QA Playwright Kit skill pack: [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) (or via `.agents/skills/qa-playwright-kit/SKILL.md`).
 3. Then use this table to find the specific reference you need.
 
@@ -12,7 +12,7 @@ Before writing or editing any file:
 | ------------------------------- | ------------------------------------------------------------------------ |
 | QA Skill & Runbook (English)    | [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) |
 | Auth pattern, fixture chain     | [`docs/AUTH-CONTEXT-CONVENTION.md`](docs/AUTH-CONTEXT-CONVENTION.md)     |
-| Domain glossary (roles, terms)  | [`CONTEXT.md`](CONTEXT.md)                                               |
+| Domain glossary (roles, terms)  | [`docs/CONTEXT.md`](docs/CONTEXT.md)                                     |
 | Commands, env, npm scripts      | [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md)                               |
 | Requirement format              | [`requirements/_TEMPLATE.md`](requirements/_TEMPLATE.md)                 |
 | Writing a requirement           | [`docs/WRITING-REQUIREMENTS.md`](docs/WRITING-REQUIREMENTS.md)           |

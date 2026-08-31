@@ -30,7 +30,7 @@
 - **Scope (Path A — Template core)** — Write requirement → AI pipeline → generated specs in `tests/`. Recommended starting point.
 - **Generator verification** — How the Generator confirms selectors before writing code: CLI attach (preferred) or MCP browser tools (fallback).
 - **Framework Scope** — Generic, multi-project. The QA Playwright Kit is a reusable toolkit that works across different web applications. Application-specific code (auth flows, POMs, env configs) lives in each project's instance (fork).
-- **Reference Adapter** — Not bundled. Forks can define their own adapter via `PLAYWRIGHT_ADAPTER_*` envs (see `CUSTOM-MCP.md`).
+- **Reference Adapter** — Not bundled. Forks can define their own adapter via `PLAYWRIGHT_ADAPTER_*` envs.
 - **Deployment Model** — Template Fork. This repository acts as a core template. Each QA project forks or duplicates this repository into its own separate Git repository to maintain absolute isolation of tests, credentials, and custom page objects. Upstream updates (core logic, prompts, MCP config) are pulled and merged manually from the core template repository registered as a Git `upstream` remote.
 
 ## Configuration & Security
