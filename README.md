@@ -102,7 +102,7 @@ npm run qa:run
 #    Pipeline: snapshot → Plan → Generate → Execute → Heal → Report
 ```
 
-> Detail pasca-pipeline → [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)
+> Detail pasca-pipeline → [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)
 
 ---
 
@@ -229,9 +229,6 @@ qa-playwright-kit/
 ├─ config/              Environment credentials & Playwright configs
 ├─ docs/                Operational & architectural documentation
 ```
-
-Detail: [docs/architecture/DIRECTORY-MAP.md](docs/architecture/DIRECTORY-MAP.md) · [DECISIONS.md](docs/architecture/DECISIONS.md)
-
 </details>
 
 ---
@@ -282,26 +279,6 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 ---
 
 <details>
-<summary><b>🧩 Integration Recipes</b></summary>
-
-<br/>
-
-| Recipe                                   | Use Case                                                   |
-| ---------------------------------------- | ---------------------------------------------------------- |
-| `playwright.config.nextjs-e2e.recipe.ts` | Next.js app under `/e2e` dengan auth setup + `webServer`   |
-| `playwright.role-projects.recipe.ts`     | Multi-role via `buildRoleProjects` + `.auth/<role>.json`   |
-| `FILE-UPLOAD-DOWNLOAD.md`                | Fixture-first `@upload` / `@download` — no OS picker       |
-| `PDF-EXCEL-CONTENT-ASSERT.md`            | `@file-content` PDF text / Excel headers                   |
-| `NETWORK-ASSERT.md`                      | `@network-assert` live payload/response — partial contract |
-| `MULTI-SESSION-SYNC.md`                  | Dual `browser.newContext` admin↔user data sync             |
-
-Semua → [docs/recipes/README.md](docs/recipes/README.md)
-
-</details>
-
----
-
-<details>
 <summary><b>🛠️ Tech Stack</b></summary>
 
 <br/>
@@ -326,23 +303,16 @@ Semua → [docs/recipes/README.md](docs/recipes/README.md)
 
 | Saya ingin...                    | Buka                                                               |
 | -------------------------------- | ------------------------------------------------------------------ |
-| Setup QA pertama kali            | [docs/GUIDE.md](docs/GUIDE.md)                                     |
-| Panduan pemula step-by-step      | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)                 |
+| Panduan QA & setup               | [docs/GUIDE.md](docs/GUIDE.md)                                     |
 | Menulis requirement valid        | [docs/WRITING-REQUIREMENTS.md](docs/WRITING-REQUIREMENTS.md)       |
 | Auth per role + OTP/CAPTCHA      | [docs/AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) |
 | Kredensial & multi-role          | [docs/CREDENTIALS.md](docs/CREDENTIALS.md)                         |
-| Pasca-pipeline                   | [docs/POST-PIPELINE.md](docs/POST-PIPELINE.md)                     |
-| Dashboard triage guide           | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
+| Dashboard triage guide & report  | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
 | Skenario `(@manual)`             | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
-| Environment (local/staging/prod) | [docs/ENVIRONMENT-GUIDE.md](docs/ENVIRONMENT-GUIDE.md)             |
 | Command cheat sheet              | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
-| Integration recipes              | [docs/recipes/README.md](docs/recipes/README.md)                   |
-| Full E2E walkthrough             | [docs/SAMPLE-E2E-PIPELINE.md](docs/SAMPLE-E2E-PIPELINE.md)         |
-| Fork ke project lain             | [docs/FORK-ONBOARDING.md](docs/FORK-ONBOARDING.md)                 |
 | Troubleshooting                  | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
 | MCP tool reference               | [CUSTOM-MCP.md](CUSTOM-MCP.md)                                     |
 | Pipeline agent contract          | [AGENTS.md](AGENTS.md)                                             |
-| Architecture decisions           | [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md)   |
 
 </details>
 
@@ -356,8 +326,6 @@ Kontribusi welcome! Untuk perubahan besar:
 2. Buat branch dari `main` (`feat/...`, `fix/...`, `docs/...`)
 3. Jalankan `npm run test:quality` sebelum push
 4. Update changelog & dokumentasi relevan
-
-> Lihat [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md) untuk WHY di balik constraint framework.
 
 ---
 

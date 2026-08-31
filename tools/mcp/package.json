@@ -14,13 +14,13 @@
     "dev:http": "tsx src/index.ts"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^2.21.0",
+    "@dotenvx/dotenvx": "^2.22.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@playwright/test": "^1.62.1",
     "playwright": "^1.62.1"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.4.0",
     "exceljs": "^4.4.0",
     "pdf-parse": "^2.4.5",
     "typescript": "^6.0.3"

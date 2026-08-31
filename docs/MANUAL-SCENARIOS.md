@@ -75,8 +75,6 @@ Jangan pakai `(@manual)` hanya karena "ribet" — biasanya bisa diotomasi dengan
 
 **Prinsip:** fixture-first + local-first. MCP tools (`inspect_file`, `extract_pdf_text`, `read_excel_summary`, `list_test_fixtures`, `browser_network_requests`) untuk **inspect-time** saja; test yang di-commit tetap assert lewat helper `@/support/pw`.
 
-Recipe: [FILE-UPLOAD-DOWNLOAD.md](recipes/FILE-UPLOAD-DOWNLOAD.md) · [PDF-EXCEL-CONTENT-ASSERT.md](recipes/PDF-EXCEL-CONTENT-ASSERT.md) · [NETWORK-ASSERT.md](recipes/NETWORK-ASSERT.md).
-
 Kalau ragu, tanya maintainer framework dulu sebelum tandai `(@manual)`.
 
 ---

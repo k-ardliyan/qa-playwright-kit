@@ -25,7 +25,6 @@ Small, committed files for upload/download/content self-tests and generated spec
 - Path: `network/contracts/<feature>/<name>.json`
 - Partial match only (method, urlIncludes, status, requiredKeys, matchObject)
 - Never store real Authorization cookies/tokens — helpers redact on capture
-- See `docs/recipes/network-assert.md`
 
 ## Adding a fixture
 

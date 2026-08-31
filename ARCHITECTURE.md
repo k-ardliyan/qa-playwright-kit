@@ -27,8 +27,6 @@ config/                ← Environments & Playwright configuration presets
 ## Canonical References
 
 > Tabel lengkap ada di [`AGENTS.md`](AGENTS.md) § Architecture Quick Reference — di-load otomatis setiap sesi.
-> WHY di balik setiap constraint: [`docs/architecture/DECISIONS.md`](docs/architecture/DECISIONS.md)
-> Failure lessons dari sesi sebelumnya: [`docs/architecture/LESSONS-LEARNED.md`](docs/architecture/LESSONS-LEARNED.md)
 
 ## Key Conventions (inline)
 

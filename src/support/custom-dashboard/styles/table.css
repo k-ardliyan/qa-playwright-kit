@@ -224,16 +224,16 @@
   border-collapse: collapse;
   font-size: 12.5px;
   --row-bg: var(--surface);
-  --row-bg-hover: #f7efe6;
-  --row-bg-failed: #fdf1ef;
-  --row-bg-skipped: #fdf8ec;
+  --row-bg-hover: #f1f5f9;
+  --row-bg-failed: #fef2f2;
+  --row-bg-skipped: #fffbeb;
 }
 
 html[data-theme='dark'] .data-table {
   --row-bg: var(--surface);
-  --row-bg-hover: #32271e;
-  --row-bg-failed: #2a1818;
-  --row-bg-skipped: #2a2314;
+  --row-bg-hover: #1e293b;
+  --row-bg-failed: rgba(239, 68, 68, 0.12);
+  --row-bg-skipped: rgba(245, 158, 11, 0.12);
 }
 
 .data-table th {
@@ -541,7 +541,7 @@ html[data-theme='dark'] .tbl-test-id code {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: linear-gradient(90deg, var(--accent-soft), rgba(243, 228, 212, 0.35));
+  background: linear-gradient(90deg, var(--accent-soft), rgba(37, 99, 235, 0.02));
   border: 1px solid var(--border-strong);
   border-bottom: 0;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
@@ -552,8 +552,8 @@ html[data-theme='dark'] .tbl-test-id code {
 }
 
 html[data-theme='dark'] .role-section-header {
-  background: linear-gradient(90deg, rgba(212, 165, 116, 0.18), rgba(212, 165, 116, 0.06));
-  border-color: rgba(212, 165, 116, 0.28);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.04));
+  border-color: rgba(59, 130, 246, 0.28);
   color: var(--accent-strong);
 }
 

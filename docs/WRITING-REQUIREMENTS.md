@@ -70,7 +70,7 @@ Capability tags (opsional, digabung di judul SC):
 | `(@hybrid)`             | Seed API + assert UI                                                       |
 | `(@aria)` / `(@visual)` | Snapshot a11y / screenshot                                                 |
 
-Upload **bukan** `@manual`. PDF **teks** = `@file-content`; PDF **layout** visual = `@manual`. Lihat [MANUAL-SCENARIOS.md](MANUAL-SCENARIOS.md) dan recipes file di `docs/recipes/`. Live network payload/response = `@network-assert` (bukan `@manual`, bukan overload `@network` mock) — lihat [NETWORK-ASSERT.md](recipes/NETWORK-ASSERT.md).
+Upload **bukan** `@manual`. PDF **teks** = `@file-content`; PDF **layout** visual = `@manual`. Lihat [MANUAL-SCENARIOS.md](MANUAL-SCENARIOS.md). Live network payload/response = `@network-assert` (bukan `@manual`, bukan overload `@network` mock).
 
 Jika tidak diberi tag tipe, skenario dianggap `(@success)` secara default.
 

@@ -2,11 +2,13 @@
 export function AccordionToolbar() {
   return (
     <div
-      class="accordion-toolbar"
+      class="accordion-toolbar view-toolbar--hidden"
       id="accordion-toolbar"
       data-toolbar-for="accordion"
       role="toolbar"
       aria-label="Accordion controls"
+      hidden
+      aria-hidden="true"
     >
       <span class="accordion-toolbar__label">Accordion</span>
       <select

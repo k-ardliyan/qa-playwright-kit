@@ -65,15 +65,14 @@ pre,
   pointer-events: none;
   z-index: var(--z-base);
   background:
-    radial-gradient(ellipse 42% 34% at 0% 0%, rgba(197, 213, 192, 0.28), transparent 62%),
-    radial-gradient(ellipse 36% 30% at 100% 100%, rgba(232, 196, 196, 0.22), transparent 60%),
-    radial-gradient(ellipse 28% 22% at 92% 8%, rgba(243, 228, 212, 0.45), transparent 55%);
+    radial-gradient(ellipse 50% 40% at 0% 0%, rgba(37, 99, 235, 0.05), transparent 60%),
+    radial-gradient(ellipse 40% 35% at 100% 100%, rgba(16, 185, 129, 0.05), transparent 60%);
 }
 
 html[data-theme='dark'] .page-backdrop {
   background:
-    radial-gradient(ellipse 42% 34% at 0% 0%, rgba(120, 140, 110, 0.12), transparent 62%),
-    radial-gradient(ellipse 36% 30% at 100% 100%, rgba(140, 100, 100, 0.12), transparent 60%);
+    radial-gradient(ellipse 50% 40% at 0% 0%, rgba(59, 130, 246, 0.08), transparent 60%),
+    radial-gradient(ellipse 40% 35% at 100% 100%, rgba(52, 211, 153, 0.06), transparent 60%);
 }
 
 .page {

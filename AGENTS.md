@@ -8,23 +8,20 @@ Before writing or editing any file:
 2. Load the QA Playwright Kit skill pack: [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) (or via `.agents/skills/qa-playwright-kit/SKILL.md`).
 3. Then use this table to find the specific reference you need.
 
-| Need                            | File                                                                       |
-| ------------------------------- | -------------------------------------------------------------------------- |
-| QA Skill & Runbook (English)    | [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md)   |
-| Exact path of any `src/` module | [`docs/architecture/DIRECTORY-MAP.md`](docs/architecture/DIRECTORY-MAP.md) |
-| Auth pattern, fixture chain     | [`docs/AUTH-CONTEXT-CONVENTION.md`](docs/AUTH-CONTEXT-CONVENTION.md)       |
-| WHY behind each constraint      | [`docs/architecture/DECISIONS.md`](docs/architecture/DECISIONS.md)         |
-| Domain glossary (roles, terms)  | [`CONTEXT.md`](CONTEXT.md)                                                 |
-| Commands, env, npm scripts      | [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md)                                 |
-| Requirement format              | [`requirements/_TEMPLATE.md`](requirements/_TEMPLATE.md)                   |
-| Writing a requirement           | [`docs/WRITING-REQUIREMENTS.md`](docs/WRITING-REQUIREMENTS.md)             |
+| Need                            | File                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| QA Skill & Runbook (English)    | [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) |
+| Auth pattern, fixture chain     | [`docs/AUTH-CONTEXT-CONVENTION.md`](docs/AUTH-CONTEXT-CONVENTION.md)     |
+| Domain glossary (roles, terms)  | [`CONTEXT.md`](CONTEXT.md)                                               |
+| Commands, env, npm scripts      | [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md)                               |
+| Requirement format              | [`requirements/_TEMPLATE.md`](requirements/_TEMPLATE.md)                 |
+| Writing a requirement           | [`docs/WRITING-REQUIREMENTS.md`](docs/WRITING-REQUIREMENTS.md)           |
 
 > **Skills & Rules:** Always consult [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) and its `references/` for standard requirement language, step titles, report contracts, and QA boundaries.
-> After creating any file under `src/`, update `docs/architecture/DIRECTORY-MAP.md` in the same commit.
 
 > **Token budget:** Load sub-agent files on-demand — only when executing that specific phase. Do NOT read all agent files at session start. For quick lookups use Architecture Quick Reference above.
 
-> **Context maintenance:** When generated code is incorrect, immediately: (1) append lesson to `docs/architecture/LESSONS-LEARNED.md`, (2) update the relevant TL;DR in the sub-agent file.
+> **Context maintenance:** When generated code is incorrect, immediately update the relevant TL;DR in the sub-agent file.
 
 ---
 

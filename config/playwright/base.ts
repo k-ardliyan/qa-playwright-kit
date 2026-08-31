@@ -2,7 +2,7 @@ import type { PlaywrightTestConfig, Project } from '@playwright/test';
 import { devices } from '@playwright/test';
 
 /**
- * Shared Playwright execution policy for template core, Reference Adapter, and docs/recipes/.
+ * Shared Playwright execution policy for template core and Reference Adapter.
  * Forks merge this file from upstream, then override testDir / projects / reporter paths locally.
  *
  * Call buildPlaywrightSharedDefaults() only after loadEnvironment() in each config entry file.

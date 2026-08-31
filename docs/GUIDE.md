@@ -2,13 +2,11 @@
 
 Panduan setup, pipeline, dan troubleshooting tim QA.
 
-> **🆕 Baru pertama kali setup?** Mulai dari [GETTING-STARTED.md](GETTING-STARTED.md) — panduan step-by-step untuk QA baru.
->
 > **🆘 Setup error?** Cek [TROUBLESHOOTING.md](TROUBLESHOOTING.md) untuk 10 error paling umum + solusinya.
 >
-> **▶️ Baru selesai setup wizard?** Setelah pipeline pertama jalan, baca [POST-PIPELINE.md](POST-PIPELINE.md) untuk failureSource + 6 keputusan QA.
+> **▶️ Baru selesai menjalankan pipeline?** Baca [REPORT-GUIDE.md](REPORT-GUIDE.md) untuk memahami dashboard triage, failureSource, dan keputusan QA.
 
-Referensi cepat: [CHEATSHEET.md](CHEATSHEET.md) · [GETTING-STARTED.md](GETTING-STARTED.md) · [ENVIRONMENT-GUIDE.md](ENVIRONMENT-GUIDE.md) · [SAMPLE-E2E-PIPELINE.md](SAMPLE-E2E-PIPELINE.md) · [AGENTS.md](../AGENTS.md)
+Referensi cepat: [CHEATSHEET.md](CHEATSHEET.md) · [REPORT-GUIDE.md](REPORT-GUIDE.md) · [CREDENTIALS.md](CREDENTIALS.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md) · [AGENTS.md](../AGENTS.md)
 
 ---
 
@@ -25,14 +23,13 @@ Referensi cepat: [CHEATSHEET.md](CHEATSHEET.md) · [GETTING-STARTED.md](GETTING-
 
 ## Setup Lokal (Sekali per Mesin)
 
-**Setup lengkap ada di [GETTING-STARTED.md](GETTING-STARTED.md)** — termasuk prasyarat, wizard step-by-step, troubleshooting.
-
-Quick reference:
+Prasyarat: Node.js >= 20.19.0 dan Git terpasang di sistem.
 
 ```bash
 npm install                 # install dependencies
 npm run setup               # interactive setup (6 steps)
 npm run setup:check         # verify setup setelah selesai
+npm run health:check        # pastikan MCP server siap
 ```
 
 > **Setup error?** Cek [TROUBLESHOOTING.md](TROUBLESHOOTING.md) untuk 10 error paling umum + solusinya.

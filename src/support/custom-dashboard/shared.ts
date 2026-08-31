@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { getDashboardStyles } from './styles';
+import { buildClientBootstrapJs } from './client';
 import type { CollectedAttachment, CollectedStep, CollectedTestData, TestSummary } from './types';
 
 export const REPORT_DIR = path.resolve(process.cwd(), 'reports');
@@ -277,6 +278,7 @@ export function renderDocumentShell(options: {
   const chartScript = includeChart ? renderChartScript(summary) : '';
   const themeScript = renderThemeScript();
   const interactiveScript = renderInteractiveScript();
+  const clientBootstrap = buildClientBootstrapJs();
 
   return `<!doctype html>
 <html lang="en" data-density="dense">
@@ -300,6 +302,7 @@ export function renderDocumentShell(options: {
   ${themeScript}
   ${chartScript}
   ${interactiveScript}
+  ${clientBootstrap}
 </body>
 </html>`;
 }
@@ -309,59 +312,7 @@ export function renderInteractiveScript(): string {
   return `
   <script>
   (function () {
-    /* ---- View toggle (Accordion ↔ Table) ---- */
-        document.querySelectorAll('.toggle-btn[data-view]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var view = btn.getAttribute('data-view');
-            document.querySelectorAll('.view-panel').forEach(function (panel) {
-              var active = panel.id === 'view-' + view;
-              panel.classList.toggle('view-panel--active', active);
-              panel.classList.toggle('view-panel--hidden', !active);
-              panel.setAttribute('aria-hidden', String(!active));
-            });
-            // Toolbars sit OUTSIDE view panels — toggle by data-toolbar-for
-            document.querySelectorAll('[data-toolbar-for]').forEach(function (tb) {
-              var forView = tb.getAttribute('data-toolbar-for');
-              var show = forView === view;
-              tb.hidden = !show;
-              tb.setAttribute('aria-hidden', String(!show));
-              tb.classList.toggle('view-toolbar--hidden', !show);
-            });
-            document.querySelectorAll('.toggle-btn[data-view]').forEach(function (b) {
-              var isActive = b === btn;
-              b.classList.toggle('toggle-btn--active', isActive);
-              b.setAttribute('aria-selected', String(isActive));
-            });
-            // Hide/show command-bar filter tools when switching to/from History tab
-            var isHistory = view === 'history';
-            var cmdBar = document.getElementById('command-bar');
-            if (cmdBar) {
-              var tableOnlyEls = cmdBar.querySelectorAll('#btn-export,#btn-columns,#filter-status,#filter-priority,#filter-role,.cmd-search-wrap');
-              tableOnlyEls.forEach(function(el) {
-                el.style.display = isHistory ? 'none' : '';
-              });
-            }
-            // Recount after view switch
-            if (typeof applyFilters === 'function') applyFilters();
-            else {
-              var evt = new Event('change');
-              var statusEl2 = document.getElementById('filter-status');
-              if (statusEl2) statusEl2.dispatchEvent(evt);
-            }
-          });
-        });
-        // Initial toolbar visibility (table active by default)
-                document.querySelectorAll('[data-toolbar-for]').forEach(function (tb) {
-                  var forView = tb.getAttribute('data-toolbar-for');
-                  var show = forView === 'table';
-                  tb.hidden = !show;
-                  tb.setAttribute('aria-hidden', String(!show));
-                  tb.classList.toggle('view-toolbar--hidden', !show);
-                });
-
     /* ---- Column visibility (Filter columns) ---- */
-    // v3: taxonomy added module/feature/source columns — bump key so users with
-    // stale v2 localStorage get the new defaults instead of hidden columns.
     var COL_KEY = 'dashboard-columns-v3';
     var LOCKED_COLS = { testId: true, status: true, no: true };
     var DEFAULT_COLS = {
@@ -478,7 +429,6 @@ export function renderInteractiveScript(): string {
           colState = Object.assign({}, DEFAULT_COLS);
           applyColumnVisibility(colState);
           saveColState(colState);
-          // Restore sticky pins to default (on)
           var pinH = document.getElementById('pin-sticky-header');
           var pinL = document.getElementById('pin-sticky-left');
           if (pinH) pinH.checked = true;
@@ -489,336 +439,160 @@ export function renderInteractiveScript(): string {
       }
     }
 
-          /* ---- Sticky pin toggles (table-only) ---- */
-          var STICKY_KEY = 'dashboard-sticky-pins-v1';
-          function applyStickyPins() {
-            var pinHeader = document.getElementById('pin-sticky-header');
-            var pinLeft = document.getElementById('pin-sticky-left');
-            var headerOn = !pinHeader || pinHeader.checked;
-            var leftOn = !pinLeft || pinLeft.checked;
-            document.documentElement.setAttribute('data-sticky-header', headerOn ? 'on' : 'off');
-            document.documentElement.setAttribute('data-sticky-left', leftOn ? 'on' : 'off');
-          }
-          function saveStickyPins() {
-            try {
-              var pinHeader = document.getElementById('pin-sticky-header');
-              var pinLeft = document.getElementById('pin-sticky-left');
-              localStorage.setItem(STICKY_KEY, JSON.stringify({
-                header: !pinHeader || pinHeader.checked,
-                left: !pinLeft || pinLeft.checked
-              }));
-            } catch (e) {}
-          }
-          try {
-            var savedPins = JSON.parse(localStorage.getItem(STICKY_KEY) || 'null');
-            if (savedPins) {
-              var pinHeaderEl = document.getElementById('pin-sticky-header');
-              var pinLeftEl = document.getElementById('pin-sticky-left');
-              if (pinHeaderEl && typeof savedPins.header === 'boolean') pinHeaderEl.checked = savedPins.header;
-              if (pinLeftEl && typeof savedPins.left === 'boolean') pinLeftEl.checked = savedPins.left;
-            }
-          } catch (e) {}
-          applyStickyPins();
-          document.querySelectorAll('[data-pin-sticky]').forEach(function (input) {
-            input.addEventListener('change', function () {
-              applyStickyPins();
-              saveStickyPins();
-            });
-          });
-
-          /* ---- Filters ---- */
-    var FILTER_KEY = 'dashboard-filters-v1';
-    var SEARCH_DEBOUNCE_MS = 250;
-    var searchEl = document.getElementById('dash-search');
-    var statusEl = document.getElementById('filter-status');
-    var priorityEl = document.getElementById('filter-priority');
-    var roleEl = document.getElementById('filter-role');
-    var evidenceEl = document.getElementById('filter-evidence');
-    var countEl = document.getElementById('filter-count');
-    var moduleEl = document.getElementById('module-filter-select');
-    var featureEl = document.getElementById('feature-filter-select');
-    var emptyEl = document.getElementById('filter-empty');
-    var emptyResetBtn = document.getElementById('filter-empty-reset');
-
-    function readState() {
-      var qRaw = searchEl && searchEl.value || '';
-      return {
-        qRaw: qRaw,
-        q: qRaw.trim().toLowerCase(),
-        status: statusEl && statusEl.value || '',
-        priority: priorityEl && priorityEl.value || '',
-        role: roleEl && roleEl.value || '',
-        module: moduleEl && moduleEl.value || '',
-        feature: featureEl && featureEl.value || '',
-        evidence: !!(evidenceEl && evidenceEl.checked)
-      };
+    /* ---- Sticky pin toggles (table-only) ---- */
+    var STICKY_KEY = 'dashboard-sticky-pins-v1';
+    function applyStickyPins() {
+      var pinHeader = document.getElementById('pin-sticky-header');
+      var pinLeft = document.getElementById('pin-sticky-left');
+      var headerOn = !pinHeader || pinHeader.checked;
+      var leftOn = !pinLeft || pinLeft.checked;
+      document.documentElement.setAttribute('data-sticky-header', headerOn ? 'on' : 'off');
+      document.documentElement.setAttribute('data-sticky-left', leftOn ? 'on' : 'off');
     }
-
-    function rowMatches(el, state) {
-      var search = el.getAttribute('data-search') || '';
-      var status = el.getAttribute('data-status') || '';
-      var priority = el.getAttribute('data-priority') || '';
-      var role = el.getAttribute('data-role') || '';
-      var moduleName = el.getAttribute('data-module') || '';
-      var featureName = el.getAttribute('data-feature') || '';
-
-      if (state.q && search.indexOf(state.q) === -1) return false;
-      if (state.module && moduleName !== state.module) return false;
-      if (state.feature && featureName !== state.feature) return false;
-
-      if (state.status === 'failed') {
-        if (['failed','timedOut','interrupted'].indexOf(status) === -1) return false;
-      } else if (state.status && status !== state.status) return false;
-      if (state.priority && priority !== state.priority) return false;
-      if (state.role && role !== state.role) return false;
-      if (state.evidence) {
-        if (el.getAttribute('data-has-trace') !== '1'
-          && el.getAttribute('data-has-screenshot') !== '1'
-          && el.getAttribute('data-has-video') !== '1') return false;
-      }
-      return true;
-    }
-
-    function syncUrlHash(state) {
+    function saveStickyPins() {
       try {
-        var p = new URLSearchParams();
-        if (state.qRaw) p.set('q', state.qRaw);
-        if (state.status) p.set('status', state.status);
-        if (state.priority) p.set('priority', state.priority);
-        if (state.role) p.set('role', state.role);
-        if (state.module) p.set('module', state.module);
-        if (state.feature) p.set('feature', state.feature);
-        if (state.evidence) p.set('evidence', '1');
-        var qs = p.toString();
-        var targetHash = qs ? '#/?' + qs : '#/';
-        if (window.location.hash !== targetHash && (!window.location.hash || window.location.hash.indexOf('#/') === 0)) {
-          history.replaceState(null, '', targetHash);
-        }
+        var pinHeader = document.getElementById('pin-sticky-header');
+        var pinLeft = document.getElementById('pin-sticky-left');
+        localStorage.setItem(STICKY_KEY, JSON.stringify({
+          header: !pinHeader || pinHeader.checked,
+          left: !pinLeft || pinLeft.checked
+        }));
       } catch (e) {}
     }
-
-    function applyFilters() {
-      var state = readState();
-      syncUrlHash(state);
-
-      // Count unique tests from active view only (avoid accordion+table double count)
-      var activePanel = document.querySelector('.view-panel--active') || document;
-      var nodes = activePanel.querySelectorAll('[data-search]');
-      // Still apply hide/show to ALL data-search nodes so switching views stays consistent
-      document.querySelectorAll('[data-search]').forEach(function (el) {
-        var ok = rowMatches(el, state);
-        if (ok) {
-          el.hidden = false;
-          el.removeAttribute('hidden');
-          if (el.style) el.style.display = '';
-        } else {
-          el.hidden = true;
-          if (el.tagName === 'TR') el.style.display = 'none';
-        }
-      });
-      var shown = 0, total = 0;
-      nodes.forEach(function (el) {
-        total += 1;
-        if (!el.hidden && !(el.style && el.style.display === 'none')) shown += 1;
-      });
-      document.querySelectorAll('.role-section').forEach(function (section) {
-        var any = section.querySelector('[data-search]:not([hidden])');
-        section.hidden = !any;
-      });
-      document.querySelectorAll('.test-group').forEach(function (group) {
-        var any = group.querySelector('[data-search]:not([hidden])');
-        group.hidden = !any;
-      });
-      if (countEl) countEl.textContent = 'Showing ' + shown + ' of ' + total;
-      if (emptyEl) emptyEl.hidden = shown > 0 || total === 0;
-
-      try { localStorage.setItem(FILTER_KEY, JSON.stringify(state)); } catch (e) {}
-      window.__DASHBOARD_FILTER_STATE__ = state;
-    }
-
-    var searchDebounceTimer = null;
-    if (searchEl) {
-      searchEl.addEventListener('input', function () {
-        clearTimeout(searchDebounceTimer);
-        searchDebounceTimer = setTimeout(applyFilters, SEARCH_DEBOUNCE_MS);
-      });
-    }
-    if (emptyResetBtn) {
-      emptyResetBtn.addEventListener('click', function () {
-        if (searchEl) searchEl.value = '';
-        if (statusEl) statusEl.value = '';
-        if (priorityEl) priorityEl.value = '';
-        if (roleEl) roleEl.value = '';
-        if (moduleEl) moduleEl.value = '';
-        if (featureEl) featureEl.value = '';
-        if (evidenceEl) evidenceEl.checked = false;
-        applyFilters();
-      });
-    }
-
     try {
-      var savedF = JSON.parse(localStorage.getItem(FILTER_KEY) || 'null');
-      if (savedF) {
-        if (searchEl && savedF.q) searchEl.value = savedF.q;
-        if (statusEl && savedF.status) statusEl.value = savedF.status;
-        if (priorityEl && savedF.priority) priorityEl.value = savedF.priority;
-        if (roleEl && savedF.role) roleEl.value = savedF.role;
-        if (evidenceEl) evidenceEl.checked = !!savedF.evidence;
+      var savedPins = JSON.parse(localStorage.getItem(STICKY_KEY) || 'null');
+      if (savedPins) {
+        var pinHeaderEl = document.getElementById('pin-sticky-header');
+        var pinLeftEl = document.getElementById('pin-sticky-left');
+        if (pinHeaderEl && typeof savedPins.header === 'boolean') pinHeaderEl.checked = savedPins.header;
+        if (pinLeftEl && typeof savedPins.left === 'boolean') pinLeftEl.checked = savedPins.left;
       }
     } catch (e) {}
-
-    ['input','change'].forEach(function (evt) {
-      [searchEl, statusEl, priorityEl, roleEl, evidenceEl].forEach(function (el) {
-        if (el) el.addEventListener(evt, applyFilters);
+    applyStickyPins();
+    document.querySelectorAll('[data-pin-sticky]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        applyStickyPins();
+        saveStickyPins();
       });
     });
-    applyFilters();
 
-    document.addEventListener('keydown', function (e) {
-      if (e.key === '/' && e.target && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {
-        e.preventDefault();
-        if (searchEl) searchEl.focus();
+    /* ---- Native-like step filter (per test card) ---- */
+    function setTreeItemVisible(item, show) {
+      if (!item) return;
+      if (show) {
+        item.hidden = false;
+        item.removeAttribute('hidden');
+        if (item.style) item.style.display = '';
+        item.classList.remove('tree-item--filtered-out');
+      } else {
+        item.hidden = true;
+        item.setAttribute('hidden', '');
+        if (item.style) item.style.display = 'none';
+        item.classList.add('tree-item--filtered-out');
       }
-    });
+    }
 
-    /* ---- Copy failure packet ---- */
-        document.addEventListener('click', function (e) {
-          var btn = e.target && e.target.closest ? e.target.closest('[data-copy-packet]') : null;
-          if (!btn) return;
-          var packet = btn.getAttribute('data-copy-packet') || '';
-          try {
-            navigator.clipboard.writeText(packet).then(function () {
-              var orig = btn.textContent;
-              btn.textContent = 'Copied';
-              setTimeout(function () { btn.textContent = orig; }, 1500);
-            });
-          } catch (err) {
-            /* ignore */
-          }
-        });
-
-        /* ---- Native-like step filter (per test card)
-         * Critical: .tree-item { display:flex } overrides UA [hidden].
-         * Always toggle class .tree-item--filtered-out + CSS display:none !important.
-         */
-        function setTreeItemVisible(item, show) {
-          if (!item) return;
-          if (show) {
-            item.hidden = false;
-            item.removeAttribute('hidden');
-            if (item.style) item.style.display = '';
-            item.classList.remove('tree-item--filtered-out');
-          } else {
-            item.hidden = true;
-            item.setAttribute('hidden', '');
-            if (item.style) item.style.display = 'none';
-            item.classList.add('tree-item--filtered-out');
-          }
+    function directChildrenRoot(item) {
+      if (!item || !item.children) return null;
+      var body = null;
+      for (var c = 0; c < item.children.length; c++) {
+        var ch = item.children[c];
+        if (ch.classList && ch.classList.contains('tree-item__body')) {
+          body = ch;
+          break;
         }
+      }
+      if (!body) return null;
+      for (var k = 0; k < body.children.length; k++) {
+        var g = body.children[k];
+        if (g.classList && g.classList.contains('tree-item__children')) return g;
+      }
+      return null;
+    }
 
-        function directChildrenRoot(item) {
-          if (!item || !item.children) return null;
-          var body = null;
-          for (var c = 0; c < item.children.length; c++) {
-            var ch = item.children[c];
-            if (ch.classList && ch.classList.contains('tree-item__body')) {
-              body = ch;
+    function applyStepFilter(input) {
+      if (!input || !input.closest) return;
+      var panel = input.closest('[data-steps-panel], .steps-panel, .chip-body--steps, .detail-chip');
+      if (!panel) return;
+      var tree = panel.querySelector('.steps-tree') || panel.querySelector('.tree-item-list');
+      if (!tree) return;
+      var emptyEl = panel.querySelector('[data-step-filter-empty]');
+
+      var q = String(input.value || '').trim().toLowerCase();
+      var items = Array.prototype.slice.call(tree.querySelectorAll('.tree-item'));
+
+      if (!q) {
+        items.forEach(function (item) { setTreeItemVisible(item, true); });
+        if (emptyEl) {
+          emptyEl.hidden = true;
+          emptyEl.setAttribute('hidden', '');
+        }
+        return;
+      }
+
+      var selfHits = new Map();
+      items.forEach(function (item) {
+        var title = (item.getAttribute('data-step-title') || '').toLowerCase();
+        if (!title) {
+          var labelEl = item.querySelector('.tree-item__label');
+          title = labelEl ? String(labelEl.textContent || '').toLowerCase() : '';
+        }
+        selfHits.set(item, title.indexOf(q) !== -1);
+      });
+
+      var visibleCount = 0;
+      items.slice().reverse().forEach(function (item) {
+        var selfMatch = !!selfHits.get(item);
+        var childVisible = false;
+        var kidsRoot = directChildrenRoot(item);
+        if (kidsRoot) {
+          for (var i = 0; i < kidsRoot.children.length; i++) {
+            var child = kidsRoot.children[i];
+            if (!child.classList || !child.classList.contains('tree-item')) continue;
+            if (!child.classList.contains('tree-item--filtered-out')) {
+              childVisible = true;
               break;
             }
           }
-          if (!body) return null;
-          for (var k = 0; k < body.children.length; k++) {
-            var g = body.children[k];
-            if (g.classList && g.classList.contains('tree-item__children')) return g;
-          }
-          return null;
         }
+        var show = selfMatch || childVisible;
+        setTreeItemVisible(item, show);
+        if (show) visibleCount += 1;
+        if (show && childVisible && item.tagName === 'DETAILS') item.open = true;
+      });
 
-        function applyStepFilter(input) {
-          if (!input || !input.closest) return;
-          var panel = input.closest('[data-steps-panel], .steps-panel, .chip-body--steps, .detail-chip');
-          if (!panel) return;
-          var tree = panel.querySelector('.steps-tree') || panel.querySelector('.tree-item-list');
-          if (!tree) return;
-          var emptyEl = panel.querySelector('[data-step-filter-empty]');
-
-          var q = String(input.value || '').trim().toLowerCase();
-          var items = Array.prototype.slice.call(tree.querySelectorAll('.tree-item'));
-
-          if (!q) {
-            items.forEach(function (item) { setTreeItemVisible(item, true); });
-            if (emptyEl) {
-              emptyEl.hidden = true;
-              emptyEl.setAttribute('hidden', '');
-            }
-            return;
-          }
-
-          var selfHits = new Map();
-          items.forEach(function (item) {
-            var title = (item.getAttribute('data-step-title') || '').toLowerCase();
-            if (!title) {
-              var labelEl = item.querySelector('.tree-item__label');
-              title = labelEl ? String(labelEl.textContent || '').toLowerCase() : '';
-            }
-            selfHits.set(item, title.indexOf(q) !== -1);
-          });
-
-          // Bottom-up: keep parent if any direct child remains visible.
-          var visibleCount = 0;
-          items.slice().reverse().forEach(function (item) {
-            var selfMatch = !!selfHits.get(item);
-            var childVisible = false;
-            var kidsRoot = directChildrenRoot(item);
-            if (kidsRoot) {
-              for (var i = 0; i < kidsRoot.children.length; i++) {
-                var child = kidsRoot.children[i];
-                if (!child.classList || !child.classList.contains('tree-item')) continue;
-                if (!child.classList.contains('tree-item--filtered-out')) {
-                  childVisible = true;
-                  break;
-                }
-              }
-            }
-            var show = selfMatch || childVisible;
-            setTreeItemVisible(item, show);
-            if (show) visibleCount += 1;
-            if (show && childVisible && item.tagName === 'DETAILS') item.open = true;
-          });
-
-          if (emptyEl) {
-            if (visibleCount === 0) {
-              emptyEl.hidden = false;
-              emptyEl.removeAttribute('hidden');
-            } else {
-              emptyEl.hidden = true;
-              emptyEl.setAttribute('hidden', '');
-            }
-          }
+      if (emptyEl) {
+        if (visibleCount === 0) {
+          emptyEl.hidden = false;
+          emptyEl.removeAttribute('hidden');
+        } else {
+          emptyEl.hidden = true;
+          emptyEl.setAttribute('hidden', '');
         }
+      }
+    }
 
-        function isStepFilterInput(t) {
-          return !!(t && t.nodeType === 1 && t.matches && t.matches('[data-step-filter], .step-filter__input'));
-        }
+    function isStepFilterInput(t) {
+      return !!(t && t.nodeType === 1 && t.matches && t.matches('[data-step-filter], .step-filter__input'));
+    }
 
-        document.addEventListener('input', function (e) {
-          if (isStepFilterInput(e.target)) applyStepFilter(e.target);
-        });
-        // type=search fires "search" on clear (×) in Chromium
-        document.addEventListener('search', function (e) {
-          if (isStepFilterInput(e.target)) applyStepFilter(e.target);
-        });
-        document.addEventListener('keyup', function (e) {
-          if (isStepFilterInput(e.target)) applyStepFilter(e.target);
-        });
-        document.addEventListener('submit', function (e) {
-          var form = e.target;
-          if (form && form.classList && form.classList.contains('step-filter')) {
-            e.preventDefault();
-          }
-        });
-      })();
-      </script>`;
+    document.addEventListener('input', function (e) {
+      if (isStepFilterInput(e.target)) applyStepFilter(e.target);
+    });
+    document.addEventListener('search', function (e) {
+      if (isStepFilterInput(e.target)) applyStepFilter(e.target);
+    });
+    document.addEventListener('keyup', function (e) {
+      if (isStepFilterInput(e.target)) applyStepFilter(e.target);
+    });
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (form && form.classList && form.classList.contains('step-filter')) {
+        e.preventDefault();
+      }
+    });
+  })();
+  </script>`;
 }
 
 export type { CollectedStep, CollectedTestData, TestSummary };

@@ -219,7 +219,6 @@ function isAllowlistedFile(filePath: string): boolean {
   return (
     rel.startsWith('CHANGELOG') ||
     rel.startsWith('.hermes/') ||
-    rel.startsWith('docs/architecture/') ||
     rel.startsWith('docs/migration/') ||
     rel.startsWith('docs/history/') ||
     // Negative test examples intentionally contain violations for validation test suites

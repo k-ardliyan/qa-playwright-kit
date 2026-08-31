@@ -17,29 +17,33 @@
 }
 
 .hero--critical {
-  border-color: rgba(196, 149, 106, 0.35);
-  background: linear-gradient(180deg, #fff9f2 0%, #ffffff 55%);
+  border-color: rgba(239, 68, 68, 0.35);
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 60%);
 }
 
 .hero--warning {
-  border-color: rgba(196, 138, 43, 0.3);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 60%);
 }
 
 .hero--healthy {
-  border-color: rgba(61, 139, 85, 0.28);
+  border-color: rgba(16, 185, 129, 0.32);
+  background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 60%);
 }
 
 html[data-theme='dark'] .hero--critical {
-  border-color: rgba(212, 165, 116, 0.35);
-  background: linear-gradient(180deg, #2a1f16 0%, var(--surface) 60%);
+  border-color: rgba(248, 113, 113, 0.35);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.15) 0%, var(--surface) 65%);
 }
 
 html[data-theme='dark'] .hero--warning {
   border-color: rgba(251, 191, 36, 0.35);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.15) 0%, var(--surface) 65%);
 }
 
 html[data-theme='dark'] .hero--healthy {
-  border-color: rgba(74, 222, 128, 0.32);
+  border-color: rgba(52, 211, 153, 0.32);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.12) 0%, var(--surface) 65%);
 }
 
 .hero__top-row {
@@ -306,7 +310,7 @@ html[data-theme='dark'] .theme-toggle__moon {
   gap: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, #fffaf4 0%, #ffffff 100%);
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
   overflow: hidden;
 }
 

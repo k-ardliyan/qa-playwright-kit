@@ -15,6 +15,7 @@ export function buildTestFilterJs(): string {
     var moduleEl = document.getElementById('module-filter-select');
     var featureEl = document.getElementById('feature-filter-select');
     var resetBtn = document.getElementById('btn-reset-filters');
+    var emptyResetBtn = document.getElementById('filter-empty-reset');
     var accEmptyEl = document.getElementById('accordion-filter-empty');
 
     function readState() {
@@ -115,6 +116,8 @@ export function buildTestFilterJs(): string {
       document.querySelectorAll('#tbl-filter-empty').forEach(function (r) {
         r.hidden = !isNoneShown;
       });
+      var filterEmptyEl = document.getElementById('filter-empty');
+      if (filterEmptyEl) filterEmptyEl.hidden = !isNoneShown;
       if (accEmptyEl) accEmptyEl.hidden = !isNoneShown;
 
       var hasActiveFilter = !!(
@@ -152,6 +155,11 @@ export function buildTestFilterJs(): string {
       searchEl.addEventListener('input', function () {
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(applyFilters, SEARCH_DEBOUNCE_MS);
+      });
+    }
+    if (emptyResetBtn) {
+      emptyResetBtn.addEventListener('click', function () {
+        window.resetDashboardFilters();
       });
     }
 

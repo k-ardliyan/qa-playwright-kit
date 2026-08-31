@@ -1,7 +1,7 @@
 # Kredensial & Multi-Role
 
 > **Satu halaman** untuk ganti password, tambah/hapus role, dan refresh session login.  
-> Setup awal? Mulai dari [GETTING-STARTED.md](GETTING-STARTED.md) (`npm run setup`).
+> Setup awal? Jalankan `npm run setup` — lihat [GUIDE.md](GUIDE.md).
 
 ---
 
@@ -142,7 +142,7 @@ Lihat [TROUBLESHOOTING.md](TROUBLESHOOTING.md) Error #5.
 
 | Dokumen                                                  | Isi                        |
 | -------------------------------------------------------- | -------------------------- |
-| [GETTING-STARTED.md](GETTING-STARTED.md)                 | Setup pertama              |
+| [GUIDE.md](GUIDE.md)                                     | Panduan setup & pipeline   |
 | [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md) | Auth state per role        |
 | [WRITING-REQUIREMENTS.md](WRITING-REQUIREMENTS.md)       | Mode general vs role-aware |
-| [GUIDE.md](GUIDE.md)                                     | Pipeline harian            |
+| [CHEATSHEET.md](CHEATSHEET.md)                           | Command ringkas            |

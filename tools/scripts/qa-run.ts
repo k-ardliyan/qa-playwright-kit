@@ -409,7 +409,7 @@ async function main(): Promise<void> {
         title: 'Pre-flight gagal',
         detail: pre.issues.map((i) => `• ${i}`).join('\n'),
         hint: 'Perbaiki semua issue di atas lalu coba lagi.',
-        docsLink: 'docs/POST-PIPELINE.md',
+        docsLink: 'docs/TROUBLESHOOTING.md',
         exitCode: EXIT.FIXABLE,
       });
       process.exit(EXIT.FIXABLE);

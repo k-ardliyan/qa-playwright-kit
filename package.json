@@ -75,28 +75,28 @@
     "dashboard:serve": "tsx src/cli/dashboard-server.ts --no-idle"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^2.21.0",
+    "@dotenvx/dotenvx": "^2.22.0",
     "@eslint/js": "^10.0.1",
     "@kitajs/html": "^4.2.13",
     "@kitajs/ts-html-plugin": "^4.1.4",
     "@playwright/mcp": "0.0.79",
     "@playwright/test": "^1.62.1",
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.4.0",
     "@types/prompts": "^2.4.9",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.1",
     "eslint-plugin-playwright": "^2.11.0",
     "exceljs": "^4.4.0",
     "fast-check": "^4.9.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.3.0",
+    "lint-staged": "^17.4.1",
     "pdf-parse": "^2.4.5",
     "playwright": "1.62.1",
     "playwright-core": "1.62.1",
     "prettier": "^3.9.6",
     "prompts": "^2.4.2",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.68.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

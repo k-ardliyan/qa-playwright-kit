@@ -2,7 +2,6 @@
  * Standard exit codes for all QA Playwright Kit CLI scripts.
  *
  * Konsisten di seluruh CLI agar predictable untuk scripting, CI, dan non-coder QA.
- * Lihat docs/EXIT-CODES.md untuk referensi lengkap.
  *
  * @module scripts/exit-codes
  */

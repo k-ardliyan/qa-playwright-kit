@@ -28,7 +28,7 @@ From `config/qa-kit.workspace.json`:
 | `generated` | `artifacts/**`                                         | Read only. Never hand-edit reports, traces, or catalogs                                                                                                                                                                  |
 | `protected` | `src/**`, `tools/**`, `config/**`, `.github/agents/**` | **No writes.** Exception: `config/environments/*.env` via `npm run setup` / `npm run env:edit` only — never edit `*.env.example`, `qa-kit.workspace.json`, or Playwright config                                          |
 
-Also protected (not in the glob, still maintainer): `AGENTS.md`, `package.json`, `playwright.config.ts` policy sections, `.github/workflows/**`, `skills/**`, `docs/architecture/**`.
+Also protected (not in the glob, still maintainer): `AGENTS.md`, `package.json`, `playwright.config.ts` policy sections, `.github/workflows/**`, `skills/**`.
 
 ---
 
