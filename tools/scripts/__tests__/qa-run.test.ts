@@ -79,7 +79,7 @@ test.describe('qa:run CLI', () => {
     expect(out).toContain('--dry-run');
     expect(out).toContain('--no-confirm');
     expect(out).toContain('--open-dashboard');
-    expect(out).toContain('--no-open-dashboard');
+    expect(out).not.toContain('--no-open-dashboard'); // default OFF — flag tidak lagi didokumentasikan
   });
 
   test('no args exits with usage error', () => {

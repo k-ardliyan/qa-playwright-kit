@@ -18,15 +18,17 @@
 
 ## Kriteria Penerimaan
 
-- Form login menolak submit ketika field username/email kosong
-- Form login menolak submit ketika field password kosong
-- Pesan validasi tampil di dekat field yang kosong
+- **AC-01:** Form login menolak submit ketika field username/email kosong.
+- **AC-02:** Form login menolak submit ketika field password kosong.
+- **AC-03:** Pesan validasi tampil di dekat field yang kosong.
+- **AC-04:** CAPTCHA aktif di halaman login diverifikasi secara manual.
 
 ## Skenario Uji
 
 ### SC-01: Submit dengan Username Kosong (@failure)
 
 - **Test ID:** `TC-AUTH-EXT-001`
+- **Covers:** `AC-01`, `AC-03`
 - **Prioritas skenario:** `medium`
 - **Layer terdampak:** `FE`
 
@@ -54,6 +56,7 @@
 ### SC-02: Submit dengan Password Kosong (@failure)
 
 - **Test ID:** `TC-AUTH-EXT-002`
+- **Covers:** `AC-02`, `AC-03`
 - **Prioritas skenario:** `medium`
 - **Layer terdampak:** `FE`
 
@@ -81,6 +84,7 @@
 ### SC-03: Submit dengan Username dan Password Kosong (@failure)
 
 - **Test ID:** `TC-AUTH-EXT-003`
+- **Covers:** `AC-01`, `AC-02`, `AC-03`
 - **Prioritas skenario:** `medium`
 - **Layer terdampak:** `FE`
 
@@ -109,6 +113,7 @@
 ### SC-04: Verifikasi CAPTCHA pada Login (@manual)
 
 - **Test ID:** `TC-AUTH-EXT-004`
+- **Covers:** `AC-04`
 - **Prioritas skenario:** `low`
 - **Layer terdampak:** `FE`
 

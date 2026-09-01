@@ -53,7 +53,7 @@ function main(): void {
     console.log(`Generated ${args.platform} config.`);
   } else {
     generateConfig();
-    console.log('Generated claude/cursor/kiro configs from .mcp.json.');
+    console.log('Generated claude/cursor/kiro/codex configs from .mcp.json.');
   }
 }
 

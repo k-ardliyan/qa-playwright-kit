@@ -41,6 +41,7 @@ import {
 
 import { validateSetup, type ValidationResult } from './wizard-validate';
 import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
+import { ensureBrowsers } from './browser-check';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -105,6 +106,9 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   if (!opts.lang) {
     lang = await promptLanguage();
   }
+
+  // ─── Step 2b: Playwright browser availability ───────────────────────────
+  await ensureBrowsers(lang);
 
   // ─── Step 3: Detect existing ────────────────────────────────────────────
   const existing = readExistingEnv(appEnv);
@@ -433,12 +437,21 @@ function printSummary(data: {
 
   if (data.challengeMode !== 'none') {
     console.log(
-      `  ℹ ${t(lang, 'Langkah berikutnya: jalankan auth setup untuk membuat session:', 'Next step: Run auth setup to materialize sessions:')}`,
+      `  ℹ ${t(
+        lang,
+        'Langkah berikutnya: buat session login, lalu mulai pipeline QA:',
+        'Next step: materialize login sessions, then start the QA pipeline:',
+      )}`,
     );
     console.log('    npm run auth:setup');
+    console.log('    npm run qa:run');
   } else {
     console.log(
-      `  ℹ ${t(lang, 'Langkah berikutnya: jalankan test pertamamu:', 'Next step: Run your first test:')}`,
+      `  ℹ ${t(
+        lang,
+        'Langkah berikutnya: mulai pipeline QA (preflight + prompt Hermes):',
+        'Next step: start the QA pipeline (preflight + Hermes prompt):',
+      )}`,
     );
     console.log('    npm run qa:run');
   }

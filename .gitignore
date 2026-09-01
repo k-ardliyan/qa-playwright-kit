@@ -76,6 +76,7 @@ mcp-server/dist/
 claude_desktop_config.json
 .cursor/mcp.json
 .kiro/
+.codex/
 
 # Generated capability manifest (generated at build/runtime)
 agent-manifest.json

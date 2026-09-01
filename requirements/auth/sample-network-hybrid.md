@@ -23,15 +23,16 @@
 
 ## Kriteria Penerimaan
 
-- Daftar invoice menampilkan baris hasil seed API
-- Ketika API list mengembalikan HTTP 500, UI menampilkan pesan error yang observable
-- Struktur landmark utama daftar tetap konsisten (ARIA)
+- **AC-01:** Daftar invoice menampilkan baris hasil seed API.
+- **AC-02:** Ketika API list mengembalikan HTTP 500, UI menampilkan pesan error yang observable.
+- **AC-03:** Struktur landmark utama daftar tetap konsisten (ARIA).
 
 ## Skenario Uji
 
 ### SC-01: Seed invoice via API lalu tampil di UI (@success @hybrid)
 
 - **Test ID:** `TC-API-001`
+- **Covers:** `AC-01`
 - **Prioritas skenario:** `high`
 - **Layer terdampak:** `API` `FE`
 
@@ -60,6 +61,7 @@
 ### SC-02: API list 500 menampilkan error UI (@failure @network)
 
 - **Test ID:** `TC-API-002`
+- **Covers:** `AC-02`
 - **Prioritas skenario:** `high`
 - **Layer terdampak:** `FE` `API`
 
@@ -87,6 +89,7 @@
 ### SC-03: Struktur ARIA main list stabil (@success @aria)
 
 - **Test ID:** `TC-API-003`
+- **Covers:** `AC-03`
 - **Prioritas skenario:** `medium`
 - **Layer terdampak:** `FE`
 

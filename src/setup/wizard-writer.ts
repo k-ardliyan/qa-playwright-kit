@@ -216,13 +216,18 @@ export function writeEnvFile(options: EnvWriteOptions): EnvWriteResult {
 
 /**
  * Resolve the env file path for a given APP_ENV.
+ * Canonical location is config/environments/ (ARCH-002). Legacy
+ * environments/ is a read-only migration fallback for pre-existing files;
+ * NEW files are always written to the canonical config/environments/.
  */
 export function resolveEnvPath(appEnv: AppEnv): string {
   // Find repo root by climbing up from cwd
   const repoRoot = findRepoRoot();
   const configPath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env`);
   if (fs.existsSync(configPath)) return configPath;
-  return path.join(repoRoot, 'environments', `${appEnv}.env`);
+  const legacyPath = path.join(repoRoot, 'environments', `${appEnv}.env`);
+  if (fs.existsSync(legacyPath)) return legacyPath;
+  return configPath;
 }
 
 /**

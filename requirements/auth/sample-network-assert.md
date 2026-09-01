@@ -23,15 +23,16 @@
 
 ## Kriteria Penerimaan
 
-- Setelah submit, FE mengirim POST ke endpoint demo dengan field yang diisi user
-- Response backend (atau fulfill setara) menandai sukses dan UI menampilkan status sukses
-- Field sensitif tidak di-assert sebagai exact secret di fixture kontrak
+- **AC-01:** Setelah submit, FE mengirim POST ke endpoint demo dengan field yang diisi user.
+- **AC-02:** Response backend (atau fulfill setara) menandai sukses dan UI menampilkan status sukses.
+- **AC-03:** Field sensitif tidak di-assert sebagai exact secret di fixture kontrak.
 
 ## Skenario Uji
 
 ### SC-01: Submit demo resource — live payload + response (@success @network-assert)
 
 - **Test ID:** `TC-NET-001`
+- **Covers:** `AC-01`, `AC-02`, `AC-03`
 - **Prioritas skenario:** `high`
 - **Layer terdampak:** `FE` `API`
 
@@ -70,6 +71,7 @@
 ### SC-02: API submit 500 menampilkan error UI (@failure @network)
 
 - **Test ID:** `TC-NET-002`
+- **Covers:** `AC-02`
 - **Prioritas skenario:** `medium`
 - **Layer terdampak:** `FE` `API`
 

@@ -49,6 +49,16 @@ function stripTrailingSlash(v: string): string {
   return v.endsWith('/') ? v.slice(0, -1) : v;
 }
 
+/** Strip control characters that corrupt .env values (paste artifacts). */
+function stripControlChars(v: string): string {
+  let out = '';
+  for (const ch of v) {
+    const c = ch.charCodeAt(0);
+    if (c >= 0x20 || c === 0x09 || c === 0x0a || c === 0x0d) out += ch;
+  }
+  return out;
+}
+
 /**
  * Pure numbered-choice parser — unit-testable without TTY.
  * Returns 1-based index on success, or an error message string on failure.
@@ -202,7 +212,7 @@ export async function promptBaseUrl(lang: WizardLang, existing?: string): Promis
       { onCancel },
     );
 
-    const url = stripTrailingSlash(value as string);
+    const url = stripTrailingSlash(stripControlChars(value as string));
 
     // Reachability is tested automatically (no confirmation prompt).
     // On failure the user chooses: continue anyway or re-enter the URL.

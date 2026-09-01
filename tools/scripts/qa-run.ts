@@ -153,8 +153,8 @@ Options (tsx / agent only):
   --dry-run        Validate only, exit 0 tanpa side-effect lain
   --no-confirm     Skip konfirmasi interaktif sebelum --smoke
   --open-dashboard Setelah cetak prompt, buka artifacts/reports/custom-dashboard.html
-                   otomatis di browser default (default: ON jika file ada).
-                   Pakai --no-open-dashboard untuk skip.
+                   otomatis (default: OFF — dashboard dari run SEBELUMNYA bisa
+                   menyesatkan; aktifkan eksplisit kalau memang mau lihat).
   -h, --help       Tampilkan pesan ini
 
 Examples:
@@ -172,7 +172,7 @@ function parseArgs(argv: string[]): QAArgs {
     noConfirm: false,
     help: false,
     smoke: false,
-    openDashboard: true,
+    openDashboard: false,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -462,7 +462,9 @@ async function main(): Promise<void> {
       printInfo('Prompt di-skip. Jalankan pipeline manual via Hermes.');
     }
 
-    // Auto-open dashboard (default ON, no prompt)
+    // Auto-open dashboard — opt-in only (default OFF). The dashboard file
+    // reflects the PREVIOUS run; opening it right after qa:run (before the
+    // pipeline ran) would show stale data and mislead the user.
     if (args.openDashboard) {
       openCustomDashboard(repoRoot);
     }
