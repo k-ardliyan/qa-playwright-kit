@@ -56,6 +56,12 @@ test.describe('parseNumberedChoice (type-then-Enter numbered picker)', () => {
     expect(parseNumberedChoice('', 5)).toBe('Masukkan angka 1-5');
     expect(parseNumberedChoice('9', 5)).toBe('Masukkan angka 1-5');
   });
+
+  test('english messages when lang=en', () => {
+    expect(parseNumberedChoice('', 4, 'en')).toBe('Enter a number 1-4');
+    expect(parseNumberedChoice('9', 4, 'en')).toBe('Enter a number 1-4');
+    expect(parseNumberedChoice('2', 4, 'en')).toBe(2);
+  });
 });
 
 test.describe('validateSetup with encrypted values', () => {
@@ -66,7 +72,7 @@ test.describe('validateSetup with encrypted values', () => {
       TEST_USER_PASSWORD: 'encrypted:p',
     };
     const v = await validateSetup('dev', env as Record<string, string>, '/tmp/dev.env');
-    expect(v.warnings.join(' ')).toContain('BASE_URL is encrypted');
+    expect(v.warnings.join(' ')).toContain('BASE_URL terenkripsi');
     expect(v.reachable).toBe(false);
     expect(v.rolesEncrypted).toContain('user');
     expect(v.rolesReady).not.toContain('user');
@@ -93,6 +99,17 @@ test.describe('validateSetup with encrypted values', () => {
     const v = await validateSetup('dev', env as Record<string, string>, '/tmp/dev.env');
     expect(v.rolesEncrypted).toContain('finance');
     expect(v.rolesReady).not.toContain('finance');
+  });
+
+  test('english messages when lang=en', async () => {
+    const v = await validateSetup(
+      'dev',
+      { BASE_URL: 'encrypted:abc' } as Record<string, string>,
+      '/tmp/dev.env',
+      'en',
+    );
+    expect(v.warnings.join(' ')).toContain('BASE_URL is encrypted');
+    expect(v.warnings.join(' ')).not.toContain('terenkripsi');
   });
 
   test('isSetupReady returns false for encrypted BASE_URL or any credential', () => {

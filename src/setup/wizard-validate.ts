@@ -3,6 +3,7 @@
  *
  * Verifies the env file is parseable, BASE_URL reachable,
  * and role credentials are login-ready (not template placeholders).
+ * Messages are bilingual (id/en) — language follows the wizard choice.
  *
  * @module src/setup/wizard-validate
  */
@@ -15,6 +16,7 @@ import {
 } from '../shared/utils/role-credentials';
 import { isEncryptedValue } from './wizard-writer';
 import { checkReachable } from './reachability';
+import { type WizardLang, t } from './i18n';
 
 export { isReachableStatus, checkReachable } from './reachability';
 
@@ -48,6 +50,7 @@ export async function validateSetup(
   appEnv: AppEnv,
   envMap: Record<string, string> | null,
   envFilePath: string | null,
+  lang: WizardLang = 'id',
 ): Promise<ValidationResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -56,7 +59,13 @@ export async function validateSetup(
   if (!envMap || !envFilePath) {
     return {
       valid: false,
-      errors: [`No env file found for APP_ENV=${appEnv}`],
+      errors: [
+        t(
+          lang,
+          `Tidak ada file env untuk APP_ENV=${appEnv}`,
+          `No env file found for APP_ENV=${appEnv}`,
+        ),
+      ],
       warnings: [],
       reachable: false,
       rolesReady: [],
@@ -69,18 +78,28 @@ export async function validateSetup(
   // 2. BASE_URL
   const baseUrl = envMap['BASE_URL'] ?? '';
   if (!baseUrl) {
-    errors.push('BASE_URL is not set');
+    errors.push(t(lang, 'BASE_URL belum diisi', 'BASE_URL is not set'));
   }
 
   let reachable = false;
   if (isEncryptedValue(baseUrl)) {
     warnings.push(
-      'BASE_URL is encrypted — reachability not checked (update via: npm run env:edit)',
+      t(
+        lang,
+        'BASE_URL terenkripsi — reachability tidak dicek (update via: npm run env:edit)',
+        'BASE_URL is encrypted — reachability not checked (update via: npm run env:edit)',
+      ),
     );
   } else if (baseUrl) {
     reachable = await checkReachable(baseUrl);
     if (!reachable) {
-      warnings.push(`BASE_URL (${baseUrl}) is not reachable — tests may fail`);
+      warnings.push(
+        t(
+          lang,
+          `BASE_URL (${baseUrl}) tidak bisa diakses — test mungkin gagal`,
+          `BASE_URL (${baseUrl}) is not reachable — tests may fail`,
+        ),
+      );
     }
   }
 
@@ -105,7 +124,13 @@ export async function validateSetup(
     const hasAny =
       envMap[userKeys.passwordKey] || envMap[userKeys.emailKey] || envMap[userKeys.usernameKey];
     if (hasAny && isPlaceholderCredential(envMap[userKeys.passwordKey] ?? '')) {
-      warnings.push('Role "user" has template credentials — update before running tests');
+      warnings.push(
+        t(
+          lang,
+          'Role "user" masih kredensial template — update sebelum menjalankan test',
+          'Role "user" has template credentials — update before running tests',
+        ),
+      );
     }
     rolesIncomplete.push('user');
   }
@@ -137,7 +162,13 @@ export async function validateSetup(
       const hasAny =
         envMap[roleKeys.passwordKey] || envMap[roleKeys.emailKey] || envMap[roleKeys.usernameKey];
       if (hasAny && isPlaceholderCredential(envMap[roleKeys.passwordKey] ?? '')) {
-        warnings.push(`Role "${roleName}" has template credentials — update before running tests`);
+        warnings.push(
+          t(
+            lang,
+            `Role "${roleName}" masih kredensial template — update sebelum menjalankan test`,
+            `Role "${roleName}" has template credentials — update before running tests`,
+          ),
+        );
       }
       rolesIncomplete.push(roleName);
     }
@@ -147,7 +178,13 @@ export async function validateSetup(
   const challengeMode = envMap['AUTH_CHALLENGE_MODE'] ?? 'none';
   const validModes = ['none', 'auto', 'otp-browser', 'otp-stdin', 'captcha-browser'];
   if (!validModes.includes(challengeMode)) {
-    errors.push(`Invalid AUTH_CHALLENGE_MODE: "${challengeMode}"`);
+    errors.push(
+      t(
+        lang,
+        `AUTH_CHALLENGE_MODE tidak valid: "${challengeMode}"`,
+        `Invalid AUTH_CHALLENGE_MODE: "${challengeMode}"`,
+      ),
+    );
   }
 
   // 5. .auth directory

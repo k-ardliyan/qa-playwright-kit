@@ -2,11 +2,12 @@
  * Setup Wizard — core orchestrator.
  *
  * Interactive CLI wizard that guides users through:
- * 1. APP_ENV selection
- * 2. BASE_URL configuration
- * 3. Role credential entry
- * 4. Auth challenge mode
- * 5. File write + validation
+ * 1. Language selection (Indonesian default, English opt-in)
+ * 2. APP_ENV selection
+ * 3. BASE_URL configuration
+ * 4. Role credential entry (re-try on mismatch; back navigation)
+ * 5. Auth challenge mode
+ * 6. File write + validation
  *
  * Non-interactive mode (--check) validates existing setup without prompting.
  *
@@ -18,6 +19,7 @@ import { type ChallengeMode } from '../support/human-challenge';
 import { type WizardRoleInput } from '../shared/utils/role-credentials';
 import { logger } from '../utils/logger';
 import {
+  promptLanguage,
   promptAppEnv,
   promptBaseUrl,
   promptRoleCredentials,
@@ -25,7 +27,9 @@ import {
   promptChallengeMode,
   confirmOverwrite,
   type RoleFields,
+  BACK,
 } from './wizard-prompts';
+import { type WizardLang, t, DEFAULT_LANG } from './i18n';
 import prompts from 'prompts';
 import {
   writeEnvFile,
@@ -45,6 +49,8 @@ export interface WizardOptions {
   checkOnly?: boolean;
   /** Override APP_ENV (default: resolve from existing) */
   appEnv?: AppEnv;
+  /** Language override (default: Indonesian unless prompted) */
+  lang?: WizardLang;
 }
 
 export interface WizardResult {
@@ -65,17 +71,20 @@ export interface WizardResult {
  *
  * Flow:
  * 1. Detect existing config → if exists, ask update or skip
- * 2. Prompt APP_ENV (default: resolve from existing)
- * 3. Prompt BASE_URL + validate reachable
- * 4. Prompt role credentials
- * 5. Prompt AUTH_CHALLENGE_MODE
- * 6. Prompt encryption
- * 7. Write env file
- * 8. Validate
- * 9. Print summary
+ * 2. Prompt language (unless pinned via --lang)
+ * 3. Prompt APP_ENV (default: resolve from existing)
+ * 4. Prompt BASE_URL + validate reachable
+ * 5. Prompt role credentials (back/mismatch handled inside prompts)
+ * 6. Prompt AUTH_CHALLENGE_MODE
+ * 7. Prompt encryption
+ * 8. Write env file
+ * 9. Validate
+ * 10. Print summary
  */
 export async function runSetupWizard(options?: WizardOptions): Promise<WizardResult> {
   const opts = options ?? {};
+
+  let lang: WizardLang = opts.lang ?? DEFAULT_LANG;
 
   // ─── Step 1: Resolve APP_ENV ────────────────────────────────────────────
   let appEnv: AppEnv;
@@ -89,18 +98,29 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
 
   // ─── Check-only mode ────────────────────────────────────────────────────
   if (opts.checkOnly) {
-    return runCheckOnly(appEnv);
+    return runCheckOnly(appEnv, lang);
   }
 
-  // ─── Step 2: Detect existing ────────────────────────────────────────────
+  // ─── Step 2: Language (skipped when pinned via --lang) ──────────────────
+  if (!opts.lang) {
+    lang = await promptLanguage();
+  }
+
+  // ─── Step 3: Detect existing ────────────────────────────────────────────
   const existing = readExistingEnv(appEnv);
 
   if (existing) {
     const envPath = resolveEnvPath(appEnv);
-    const shouldUpdate = await confirmOverwrite(envPath);
+    const shouldUpdate = await confirmOverwrite(lang, envPath);
     if (!shouldUpdate) {
-      logger.info('Setup wizard cancelled — keeping existing config.');
-      const validation = await validateSetup(appEnv, existing, envPath);
+      logger.info(
+        t(
+          lang,
+          'Setup wizard dibatalkan — config yang ada dipertahankan.',
+          'Setup wizard cancelled — keeping existing config.',
+        ),
+      );
+      const validation = await validateSetup(appEnv, existing, envPath, lang);
       return {
         envFilePath: envPath,
         roles: [],
@@ -110,36 +130,40 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     }
   }
 
-  // ─── Step 3: Prompt APP_ENV (skip when pinned via --env) ─────────────────
-  appEnv = opts.appEnv ?? (await promptAppEnv(appEnv));
+  // ─── Step 4: Prompt APP_ENV (skip when pinned via --env) ────────────────
+  appEnv = opts.appEnv ?? (await promptAppEnv(lang, appEnv));
 
-  // ─── Step 4: Prompt BASE_URL ────────────────────────────────────────────
+  // ─── Step 5: Prompt BASE_URL ────────────────────────────────────────────
   const existingUrl =
     existing && !isEncryptedValue(existing['BASE_URL']) ? existing['BASE_URL'] : undefined;
-  const baseUrl = await promptBaseUrl(existingUrl);
+  const baseUrl = await promptBaseUrl(lang, existingUrl);
 
-  // ─── Step 5: Prompt roles ───────────────────────────────────────────────
+  // ─── Step 6: Prompt roles ───────────────────────────────────────────────
   const existingRoles = existing ? detectExistingRoles(existing) : [];
-  const roleNames = await promptRoles(existingRoles.length > 0 ? existingRoles : undefined);
+  const roleNames = await promptRoles(lang, existingRoles.length > 0 ? existingRoles : undefined);
 
   const roleInputs: WizardRoleInput[] = [];
+
   for (const role of roleNames) {
-    const existingFields = existing ? getExistingRoleFields(existing, role) : undefined;
-    const fields = await promptRoleCredentials(role, existingFields);
+    let fields: RoleFields | typeof BACK | undefined;
+    do {
+      const existingFields = existing ? getExistingRoleFields(existing, role) : undefined;
+      fields = await promptRoleCredentials(lang, role, existingFields);
+    } while (fields === BACK);
     roleInputs.push({ name: role, fields });
   }
 
-  // ─── Step 6: Prompt challenge mode ──────────────────────────────────────
+  // ─── Step 7: Prompt challenge mode ──────────────────────────────────────
   const existingChallenge = existing?.['AUTH_CHALLENGE_MODE'];
-  const challengeMode = await promptChallengeMode(existingChallenge);
+  const challengeMode = await promptChallengeMode(lang, existingChallenge);
 
-  // ─── Step 6b: Preview (masked) + confirm before write ─────────────────────
-  printPreview({ appEnv, baseUrl, roles: roleInputs, challengeMode });
+  // ─── Step 7b: Preview (masked) + confirm before write ───────────────────
+  printPreview({ lang, appEnv, baseUrl, roles: roleInputs, challengeMode });
   const { ok } = await prompts(
     {
       type: 'confirm',
       name: 'ok',
-      message: 'Write these values to the env file?',
+      message: t(lang, 'Tulis nilai-nilai ini ke file env?', 'Write these values to the env file?'),
       initial: true,
     },
     {
@@ -150,7 +174,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   );
   if (!ok) throw new Error('SETUP_WIZARD_CANCELLED');
 
-  // ─── Step 7: Write env file ─────────────────────────────────────────────
+  // ─── Step 8: Write env file ─────────────────────────────────────────────
   const writeResult = writeEnvFile({
     appEnv,
     baseUrl,
@@ -158,26 +182,51 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     challengeMode,
   });
 
-  logger.info(`✅ Env file written: ${writeResult.envFilePath}`);
+  logger.info(
+    t(
+      lang,
+      `✅ File env ditulis: ${writeResult.envFilePath}`,
+      `✅ Env file written: ${writeResult.envFilePath}`,
+    ),
+  );
   if (writeResult.keysPreserved > 0) {
-    logger.info(`   Preserved ${writeResult.keysPreserved} existing keys`);
+    logger.info(
+      t(
+        lang,
+        `   ${writeResult.keysPreserved} key lama dipertahankan`,
+        `   Preserved ${writeResult.keysPreserved} existing keys`,
+      ),
+    );
   }
 
-  // ─── Step 8: Sync Agent Skills & MCP Configs ────────────────────────────
+  // ─── Step 9: Sync Agent Skills & MCP Configs ────────────────────────────
   const agentSync = syncAgentSkillsAndMcp(process.cwd());
   if (agentSync.skillsSynced.length > 0) {
-    logger.info(`✅ Agent skills synced: ${agentSync.skillsSynced.join(', ')}`);
+    logger.info(
+      t(
+        lang,
+        `✅ Agent skills disinkronkan: ${agentSync.skillsSynced.join(', ')}`,
+        `✅ Agent skills synced: ${agentSync.skillsSynced.join(', ')}`,
+      ),
+    );
   }
   if (agentSync.mcpConfigsGenerated) {
-    logger.info('✅ Cross-platform MCP configs generated (.cursor, .kiro, claude)');
+    logger.info(
+      t(
+        lang,
+        '✅ Config MCP lintas platform dibuat (.cursor, .kiro, claude)',
+        '✅ Cross-platform MCP configs generated (.cursor, .kiro, claude)',
+      ),
+    );
   }
 
-  // ─── Step 9: Validate ───────────────────────────────────────────────────
+  // ─── Step 10: Validate ──────────────────────────────────────────────────
   const freshEnv = readExistingEnv(appEnv);
-  const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath);
+  const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath, lang);
 
-  // ─── Step 10: Print summary ─────────────────────────────────────────────
+  // ─── Step 11: Print summary ─────────────────────────────────────────────
   printSummary({
+    lang,
     appEnv,
     baseUrl,
     roles: roleNames,
@@ -204,20 +253,24 @@ function maskPassword(v: string): string {
 }
 
 function printPreview(opts: {
+  lang: WizardLang;
   appEnv: AppEnv;
   baseUrl: string;
   roles: WizardRoleInput[];
   challengeMode: ChallengeMode;
 }): void {
+  const { lang, appEnv, baseUrl, roles, challengeMode } = opts;
   console.log('');
-  console.log('─── Preview (masked) ─────────────────────────────');
-  console.log(`  APP_ENV=${opts.appEnv}`);
-  console.log(`  BASE_URL=${opts.baseUrl}`);
   console.log(
-    `  HEADLESS=${opts.challengeMode === 'otp-browser' || opts.challengeMode === 'captcha-browser' || opts.challengeMode === 'auto' ? 'false' : 'true'}`,
+    `─── ${t(lang, 'Pratinjau (disamarkan)', 'Preview (masked)')} ─────────────────────────────`,
   );
-  console.log(`  AUTH_CHALLENGE_MODE=${opts.challengeMode}`);
-  for (const r of opts.roles) {
+  console.log(`  APP_ENV=${appEnv}`);
+  console.log(`  BASE_URL=${baseUrl}`);
+  console.log(
+    `  HEADLESS=${challengeMode === 'otp-browser' || challengeMode === 'captcha-browser' || challengeMode === 'auto' ? 'false' : 'true'}`,
+  );
+  console.log(`  AUTH_CHALLENGE_MODE=${challengeMode}`);
+  for (const r of roles) {
     const prefix = r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_');
     if (r.fields.email) console.log(`  ${prefix}_EMAIL=${r.fields.email}`);
     if (r.fields.username) console.log(`  ${prefix}_USERNAME=${r.fields.username}`);
@@ -268,18 +321,20 @@ function getExistingRoleFields(
   return Object.keys(fields).length > 0 ? fields : undefined;
 }
 
-async function runCheckOnly(appEnv: AppEnv): Promise<WizardResult> {
+async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardResult> {
   const existing = readExistingEnv(appEnv);
   const envPath = resolveEnvPath(appEnv);
-  const validation = await validateSetup(appEnv, existing, envPath);
+  const validation = await validateSetup(appEnv, existing, envPath, lang);
 
   // Sync / check skills and MCP
   const agentSync = syncAgentSkillsAndMcp(process.cwd());
 
   if (validation.valid) {
-    console.log('✅ Setup is valid and ready for testing.');
+    console.log(
+      t(lang, '✅ Setup valid dan siap untuk testing.', '✅ Setup is valid and ready for testing.'),
+    );
   } else {
-    console.log('❌ Setup has issues:');
+    console.log(t(lang, '❌ Setup bermasalah:', '❌ Setup has issues:'));
     for (const err of validation.errors) {
       console.log(`   ERROR: ${err}`);
     }
@@ -291,8 +346,10 @@ async function runCheckOnly(appEnv: AppEnv): Promise<WizardResult> {
     }
   }
 
-  console.log(`   Reachable: ${validation.reachable ? '✅' : '❌'}`);
-  console.log(`   Roles ready: ${validation.rolesReady.join(', ') || 'none'}`);
+  console.log(`   ${t(lang, 'Dapat diakses', 'Reachable')}: ${validation.reachable ? '✅' : '❌'}`);
+  console.log(
+    `   ${t(lang, 'Role siap', 'Roles ready')}: ${validation.rolesReady.join(', ') || t(lang, 'tidak ada', 'none')}`,
+  );
   if (agentSync.skillsSynced.length > 0) {
     const dest = agentSync.hermesProfileSkillsDir ? ` (${agentSync.hermesProfileSkillsDir})` : '';
     console.log(`   Skills synced: ${agentSync.skillsSynced.join(', ')}${dest}`);
@@ -302,10 +359,16 @@ async function runCheckOnly(appEnv: AppEnv): Promise<WizardResult> {
   }
   if (validation.rolesEncrypted.length > 0) {
     console.log(
-      `   Encrypted roles: ${validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+      t(
+        lang,
+        `   Role terenkripsi: ${validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+        `   Encrypted roles: ${validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+      ),
     );
   }
-  console.log(`   Roles incomplete: ${validation.rolesIncomplete.join(', ') || 'none'}`);
+  console.log(
+    `   ${t(lang, 'Role belum lengkap', 'Roles incomplete')}: ${validation.rolesIncomplete.join(', ') || t(lang, 'tidak ada', 'none')}`,
+  );
 
   return {
     envFilePath: envPath,
@@ -316,6 +379,7 @@ async function runCheckOnly(appEnv: AppEnv): Promise<WizardResult> {
 }
 
 function printSummary(data: {
+  lang: WizardLang;
   appEnv: AppEnv;
   baseUrl: string;
   roles: string[];
@@ -324,17 +388,22 @@ function printSummary(data: {
   validation: ValidationResult;
   agentSync?: AgentSyncResult;
 }): void {
+  const { lang } = data;
   console.log('');
   console.log('═══════════════════════════════════════════════════');
-  console.log('  Setup Wizard — Summary');
+  console.log(`  ${t(lang, 'Setup Wizard — Ringkasan', 'Setup Wizard — Summary')}`);
   console.log('═══════════════════════════════════════════════════');
   console.log(`  APP_ENV:     ${data.appEnv}`);
   console.log(`  BASE_URL:    ${data.baseUrl}`);
-  console.log(`  Roles:       ${data.roles.join(', ')}`);
-  console.log(`  Challenge:   ${data.challengeMode}`);
+  console.log(`  ${t(lang, 'Roles', 'Roles')}:       ${data.roles.join(', ')}`);
+  console.log(`  ${t(lang, 'Challenge', 'Challenge')}:   ${data.challengeMode}`);
   console.log(`  Env file:    ${data.writeResult.envFilePath}`);
-  console.log(`  Reachable:   ${data.validation.reachable ? '✅' : '❌'}`);
-  console.log(`  Ready roles: ${data.validation.rolesReady.join(', ') || 'none'}`);
+  console.log(
+    `  ${t(lang, 'Dapat diakses', 'Reachable')}:   ${data.validation.reachable ? '✅' : '❌'}`,
+  );
+  console.log(
+    `  ${t(lang, 'Role siap', 'Ready roles')}: ${data.validation.rolesReady.join(', ') || t(lang, 'tidak ada', 'none')}`,
+  );
   if (data.agentSync && data.agentSync.skillsSynced.length > 0) {
     const dests = ['.agents/skills'];
     if (data.agentSync.hermesProfileSkillsDir) dests.push('hermes profile');
@@ -345,13 +414,17 @@ function printSummary(data: {
   }
   if (data.validation.rolesEncrypted.length > 0) {
     console.log(
-      `  Encrypted:   ${data.validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+      t(
+        lang,
+        `  Terenkripsi: ${data.validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+        `  Encrypted:   ${data.validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
+      ),
     );
   }
   console.log('');
 
   if (data.validation.warnings.length > 0) {
-    console.log('  ⚠ Warnings:');
+    console.log(`  ⚠ ${t(lang, 'Peringatan', 'Warnings')}:`);
     for (const w of data.validation.warnings) {
       console.log(`    - ${w}`);
     }
@@ -359,11 +432,15 @@ function printSummary(data: {
   }
 
   if (data.challengeMode !== 'none') {
-    console.log('  ℹ Next step: Run auth setup to materialize sessions:');
-    console.log('    npx playwright test --config src/support/auth.setup.ts');
+    console.log(
+      `  ℹ ${t(lang, 'Langkah berikutnya: jalankan auth setup untuk membuat session:', 'Next step: Run auth setup to materialize sessions:')}`,
+    );
+    console.log('    npm run auth:setup');
   } else {
-    console.log('  ℹ Next step: Run your first test:');
-    console.log('    npx playwright test');
+    console.log(
+      `  ℹ ${t(lang, 'Langkah berikutnya: jalankan test pertamamu:', 'Next step: Run your first test:')}`,
+    );
+    console.log('    npm run qa:run');
   }
   console.log('═══════════════════════════════════════════════════');
   console.log('');
