@@ -452,7 +452,7 @@ async function main(): Promise<void> {
       process.stdout.write('\n📋 Paste prompt di bawah ke Hermes Agent:\n');
       process.stdout.write('─'.repeat(64) + '\n');
       const reqMarkdown = fs.readFileSync(resolvedReq, 'utf-8');
-      process.stdout.write(buildAgentPrompt(relReq, reqMarkdown));
+      process.stdout.write(buildAgentPrompt(relReq, reqMarkdown, 'id'));
       process.stdout.write('─'.repeat(64) + '\n\n');
       printInfo(
         'Setelah Hermes menjalankan pipeline, hasilnya ada di reports/pipeline-report-*.md dan reports/custom-dashboard.html.',

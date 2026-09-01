@@ -40,12 +40,13 @@ test.describe('qa:run prompt builder', () => {
 - **Halaman awal:** /finance/invoices
 - **Role scope:** finance
 `;
-    const prompt = buildAgentPrompt('requirements/finance/approve-invoice.md', md);
+    const prompt = buildAgentPrompt('requirements/finance/approve-invoice.md', md, 'en');
     expect(prompt).toContain('requirements/finance/approve-invoice.md');
     expect(prompt).toContain('/finance/invoices');
     expect(prompt).toContain('authenticated');
     expect(prompt).not.toMatch(/This is a LOGIN \/ first-auth requirement/);
     expect(prompt).toContain('requirementPath matches this file');
+    expect(prompt).toContain('[[ HARD RULE ]]');
   });
 
   test('login requirement keeps login snapshot guidance', () => {
@@ -55,12 +56,29 @@ test.describe('qa:run prompt builder', () => {
 - **Auth state:** unauthenticated
 - **Halaman awal:** /login
 `;
-    const prompt = buildAgentPrompt('requirements/login.md', md);
+    const prompt = buildAgentPrompt('requirements/login.md', md, 'en');
     expect(prompt).toContain('LOGIN / first-auth');
     expect(prompt).toContain('/login');
     expect(prompt).toContain('snapshot_page');
-    expect(prompt).toContain('Test Step = **Langkah:**');
-    expect(prompt).toContain('Do NOT copy credential:');
+    expect(prompt).toContain('Test Step = Langkah verbatim');
+    expect(prompt).toContain('[[ HARD RULE ]]');
+    expect(prompt).toContain('credential values into test.step');
+  });
+
+  test('bilingual prompt switches language', () => {
+    const md = `
+# REQ-AUTH-01: Login form
+## Metadata
+- **Auth state:** unauthenticated
+- **Halaman awal:** /login
+`;
+    const idPrompt = buildAgentPrompt('requirements/login.md', md, 'id');
+    const enPrompt = buildAgentPrompt('requirements/login.md', md, 'en');
+
+    expect(idPrompt).toContain('Jalankan pipeline dalam mode otomatis');
+    expect(idPrompt).toContain('[[ CEK KETAT ]]');
+    expect(enPrompt).toContain('Run the pipeline in automatic mode');
+    expect(enPrompt).toContain('[[ HARD RULE ]]');
   });
 });
 

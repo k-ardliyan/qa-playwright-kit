@@ -506,7 +506,7 @@ function printSummary(data: {
   }
 
   if (data.loginRequirementPath && data.loginMarkdown) {
-    const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown);
+    const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown, lang);
     console.log('');
     console.log('  ─────────────────────────────────');
     console.log(
