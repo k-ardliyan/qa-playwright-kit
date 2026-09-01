@@ -290,6 +290,40 @@ test('form: loginIdPref username uses credential:user.username', () => {
   assert.ok(!md.includes('identifier: credential:user.email'), 'must not default to email');
 });
 
+test('form: generates all 13 scenarios including Tier 2 on-page UX and accessibility', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'none' }));
+  assert.ok(md.includes('SC-08: Toggle Visibilitas Password Show dan Hide'), 'SC-08 missing');
+  assert.ok(
+    md.includes('SC-09: Login Berhasil dengan Identifier Mengandung Spasi Awal dan Akhir'),
+    'SC-09 missing',
+  );
+  assert.ok(
+    md.includes('SC-10: Submit Form Login via Penekanan Tombol Keyboard Enter'),
+    'SC-10 missing',
+  );
+  assert.ok(md.includes('SC-11: Interaksi Checkbox Ingat Saya Remember Me'), 'SC-11 missing');
+  assert.ok(
+    md.includes('SC-12: Login Berhasil dengan Identifier Huruf Kapital Case-Insensitive'),
+    'SC-12 missing',
+  );
+  assert.ok(
+    md.includes('SC-13: Verifikasi Keberadaan dan Validitas Tautan Lupa Password dan Registrasi'),
+    'SC-13 missing',
+  );
+  assert.ok(md.includes('**AC-08:**'), 'AC-08 missing');
+  assert.ok(md.includes('**AC-13:**'), 'AC-13 missing');
+});
+
+test('form challenge mode: generates 13 scenarios with shifted AC coverage (AC-09..14)', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'otp-browser' }), {
+    generated: false,
+  });
+  assert.ok(md.includes('SC-07: Verifikasi OTP di Browser (@manual)'), 'SC-07 OTP missing');
+  assert.ok(md.includes('SC-08: Toggle Visibilitas Password Show dan Hide'), 'SC-08 missing');
+  assert.ok(md.includes('Covers:** `AC-09`'), 'SC-08 should cover AC-09 in challenge mode');
+  assert.ok(md.includes('**AC-14:**'), 'AC-14 missing in challenge mode');
+});
+
 test('writeLoginRequirementFile skips custom (non-autogen) login.md', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'login-req-'));
   const custom = path.join(tmp, 'requirements');

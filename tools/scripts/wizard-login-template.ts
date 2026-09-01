@@ -451,7 +451,6 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
         });
       })()
     : '';
-
   const extra = challengeManualScenario(
     state,
     challengeMode,
@@ -462,6 +461,9 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
     identCred,
     sc,
   );
+  if (challengeMode !== 'none') {
+    sc += 1;
+  }
 
   const negatives =
     scEmptyIdent +
@@ -476,7 +478,188 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
     `\n---\n\n` +
     scFictional;
 
-  return `## Skenario Uji\n\n` + negatives + (includeAutoSuccess ? `\n---\n\n` + scSuccess : extra);
+  const tier2Scenarios = (() => {
+    const acOffset = challengeMode !== 'none' ? 1 : 0;
+    const ac = (n: number) => `\`AC-${String(n + acOffset).padStart(2, '0')}\``;
+
+    const id8 = take();
+    const scTogglePass = scenarioBlock({
+      heading: id8.heading('Toggle Visibilitas Password Show dan Hide (@ui)'),
+      testId: id8.testId,
+      covers: ac(8),
+      priority: 'medium',
+      layer: 'FE',
+      role: roleName,
+      precondition: `Pengguna berada di halaman \`${state.baseUrl}${loginUrl}\`.`,
+      inputLines: ['password: literal:MySecretPassword123!'],
+      steps: [
+        'Buka halaman login',
+        'Isi field password dengan `MySecretPassword123!`',
+        'Periksa tipe input password sebelum toggle',
+        'Klik icon atau tombol show password',
+        'Periksa tipe input password setelah toggle aktif',
+        'Klik icon atau tombol hide password sekali lagi',
+        'Periksa tipe input password setelah toggle nonaktif',
+      ],
+      results: [
+        'Field password awalnya memiliki atribut `type="password"`',
+        'Setelah tombol show diklik, atribut input berubah menjadi `type="text"` dan nilai password terlihat di UI',
+        'Setelah tombol hide diklik kembali, atribut input kembali menjadi `type="password"`',
+        'Teks nilai password yang telah diinput tidak terhapus atau berubah',
+      ],
+    });
+
+    const id9 = take();
+    const scTrimWhitespace = scenarioBlock({
+      heading: id9.heading(
+        'Login Berhasil dengan Identifier Mengandung Spasi Awal dan Akhir (@success)',
+      ),
+      testId: id9.testId,
+      covers: ac(9),
+      priority: 'high',
+      layer: 'FE BE',
+      role: roleName,
+      precondition: 'Akun pengguna valid terdaftar di sistem.',
+      inputLines: [
+        'identifier: literal:  test.user@example.com  ',
+        `password: ${credentialKey(roleName, 'password')}`,
+      ],
+      steps: [
+        'Buka halaman login',
+        'Isi field login dengan email yang memiliki karakter spasi di awal dan akhir (`  test.user@example.com  `)',
+        'Isi field password dengan password valid',
+        `Klik tombol submit (${submitButtons})`,
+      ],
+      results: [
+        'Sistem otomatis melakukan trim pada nilai identifier tanpa menampilkan error validasi spasi',
+        `URL pathname diarahkan ke \`${successUrlPath}\``,
+        'Form login tidak terlihat lagi di halaman',
+      ],
+    });
+
+    const id10 = take();
+    const scEnterSubmit = scenarioBlock({
+      heading: id10.heading('Submit Form Login via Penekanan Tombol Keyboard Enter (@success)'),
+      testId: id10.testId,
+      covers: ac(10),
+      priority: 'high',
+      layer: 'FE',
+      role: roleName,
+      precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, belum login.`,
+      inputLines: [`identifier: ${identCred}`, `password: ${credentialKey(roleName, 'password')}`],
+      steps: [
+        'Buka halaman login',
+        `Isi field login (${loginFields})`,
+        `Isi field password (${passwordFields})`,
+        'Tekan tombol `Enter` pada keyboard saat kursor masih aktif di field password tanpa mengklik tombol submit',
+      ],
+      results: [
+        'Form login ter-submit secara otomatis via event keyboard',
+        `URL pathname berpindah ke \`${successUrlPath}\` dan tidak lagi berada di \`${loginUrl}\``,
+        'Tidak ada pesan error yang tampil',
+      ],
+    });
+
+    const id11 = take();
+    const scRememberMe = scenarioBlock({
+      heading: id11.heading('Interaksi Checkbox Ingat Saya Remember Me (@ui)'),
+      testId: id11.testId,
+      covers: ac(11),
+      priority: 'low',
+      layer: 'FE',
+      role: roleName,
+      precondition: `Pengguna berada di halaman \`${state.baseUrl}${loginUrl}\`.`,
+      inputLines: ['rememberMe: literal:true'],
+      steps: [
+        'Buka halaman login',
+        'Periksa status awal checkbox "Ingat Saya" atau "Remember Me"',
+        'Klik checkbox "Ingat Saya" untuk mencentang',
+        'Periksa status checkbox setelah diklik',
+        'Klik kembali checkbox "Ingat Saya" untuk membatalkan centang',
+        'Periksa status akhir checkbox',
+      ],
+      results: [
+        'Checkbox "Ingat Saya" tampil di area form login',
+        'Saat pertama diklik, elemen checkbox berstatus `checked` (tercentang)',
+        'Saat diklik kedua kali, elemen checkbox kembali berstatus `unchecked` (tidak tercentang)',
+        'Tidak memicu reload halaman atau validasi error',
+      ],
+    });
+
+    const id12 = take();
+    const scCaseInsensitive = scenarioBlock({
+      heading: id12.heading(
+        'Login Berhasil dengan Identifier Huruf Kapital Case-Insensitive (@success)',
+      ),
+      testId: id12.testId,
+      covers: ac(12),
+      priority: 'high',
+      layer: 'FE BE',
+      role: roleName,
+      precondition: 'Akun pengguna terdaftar dengan email huruf kecil atau campuran.',
+      inputLines: [
+        'identifier: literal:TEST.USER@EXAMPLE.COM',
+        `password: ${credentialKey(roleName, 'password')}`,
+      ],
+      steps: [
+        'Buka halaman login',
+        'Isi field login dengan email berhuruf kapital penuh (`TEST.USER@EXAMPLE.COM`)',
+        'Isi field password dengan password valid',
+        `Klik tombol submit (${submitButtons})`,
+      ],
+      results: [
+        'Sistem mengenali email secara case-insensitive tanpa memunculkan error "User tidak ditemukan"',
+        `URL pathname berhasil berpindah ke \`${successUrlPath}\``,
+        'Dashboard ter-render dengan session aktif',
+      ],
+    });
+
+    const id13 = take();
+    const scSecondaryLinks = scenarioBlock({
+      heading: id13.heading(
+        'Verifikasi Keberadaan dan Validitas Tautan Lupa Password dan Registrasi (@ui)',
+      ),
+      testId: id13.testId,
+      covers: ac(13),
+      priority: 'medium',
+      layer: 'FE',
+      role: roleName,
+      precondition: `Pengguna berada di halaman \`${state.baseUrl}${loginUrl}\`.`,
+      inputLines: [
+        'forgotPasswordHref: literal:/forgot-password',
+        'registerHref: literal:/register',
+      ],
+      steps: [
+        'Buka halaman login',
+        'Periksa keberadaan elemen tautan "Lupa Kata Sandi?" atau "Forgot Password?"',
+        'Periksa nilai atribut `href` pada tautan lupa kata sandi',
+        'Periksa keberadaan elemen tautan "Daftar" atau "Sign Up"',
+        'Periksa nilai atribut `href` pada tautan pendaftaran',
+      ],
+      results: [
+        'Tautan lupa kata sandi tampil di halaman login dan atribut `href` mengarah ke path lupa password (misal `/forgot-password` atau memicu modal reset)',
+        'Tautan registrasi akun baru tampil di halaman login dan atribut `href` mengarah ke path registrasi (misal `/register` atau `/signup`)',
+        'Kedua tautan terlihat jelas dan berstatus enabled',
+      ],
+    });
+
+    return [
+      scTogglePass,
+      scTrimWhitespace,
+      scEnterSubmit,
+      scRememberMe,
+      scCaseInsensitive,
+      scSecondaryLinks,
+    ].join('\n---\n\n');
+  })();
+
+  return (
+    `## Skenario Uji\n\n` +
+    negatives +
+    (includeAutoSuccess ? `\n---\n\n` + scSuccess : extra) +
+    `\n---\n\n` +
+    tier2Scenarios
+  );
 }
 
 function ssoScenarios(state: LoginTemplateState): string {
@@ -594,12 +777,22 @@ function formAcceptance(state: LoginTemplateState, challengeMode: ChallengeMode)
     `- **AC-07:** Login berhasil dengan kredensial valid me-redirect ke path \`${state.successUrlPath}\` ` +
       `(assert pathname, bukan URL dengan \`?redirect=\`) dan session tersimpan di \`.auth/{APP_ENV}/${roleName}.json\`.`,
   ];
+  let nextAc = 8;
   if (challengeMode !== 'none') {
     lines.push(
-      `- **AC-08:** Setelah password, tantangan ${challengeMode} diselesaikan manusia; skenario ditandai (@manual) ` +
+      `- **AC-${String(nextAc).padStart(2, '0')}:** Setelah password, tantangan ${challengeMode} diselesaikan manusia; skenario ditandai (@manual) ` +
         `karena OTP/CAPTCHA tidak diotomasi di pipeline (AUTH_CHALLENGE_MODE hanya untuk auth:setup).`,
     );
+    nextAc++;
   }
+  lines.push(
+    `- **AC-${String(nextAc).padStart(2, '0')}:** Form login menyediakan tombol/icon toggle show/hide password yang mengubah atribut type input antara password dan text.`,
+    `- **AC-${String(nextAc + 1).padStart(2, '0')}:** Sistem secara otomatis memotong (trim) karakter spasi di awal dan akhir identifier pada saat submit sehingga login dengan kredensial valid tetap berhasil.`,
+    `- **AC-${String(nextAc + 2).padStart(2, '0')}:** Form login dapat di-submit menggunakan penekanan tombol keyboard Enter ketika fokus berada pada input field.`,
+    `- **AC-${String(nextAc + 3).padStart(2, '0')}:** Checkbox "Ingat Saya" (Remember Me) dapat di-toggle status checked dan unchecked-nya oleh pengguna.`,
+    `- **AC-${String(nextAc + 4).padStart(2, '0')}:** Identifier email bersifat case-insensitive sehingga input kredensial valid berhuruf kapital tetap berhasil login ke \`${state.successUrlPath}\`.`,
+    `- **AC-${String(nextAc + 5).padStart(2, '0')}:** Tautan bantuan sekunder seperti "Lupa Kata Sandi?" dan "Daftar Akun" tampil di halaman login dengan URL target yang valid.`,
+  );
   return lines.join('\n') + '\n\n';
 }
 
