@@ -5,7 +5,7 @@ import { PLAYWRIGHT_MCP_BASELINE_VERSION, isValidSemver } from '../../shared/mcp
 
 test.describe('MCP Version Governance (MCP-002)', () => {
   test('defines canonical explicit semver baseline', () => {
-    expect(PLAYWRIGHT_MCP_BASELINE_VERSION).toBe('0.0.79');
+    expect(PLAYWRIGHT_MCP_BASELINE_VERSION).toBe('0.0.80');
     expect(isValidSemver(PLAYWRIGHT_MCP_BASELINE_VERSION)).toBe(true);
   });
 

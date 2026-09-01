@@ -12,12 +12,12 @@ Referensi cepat: [CHEATSHEET.md](CHEATSHEET.md) · [REPORT-GUIDE.md](REPORT-GUID
 
 ## Mulai di Sini
 
-| Langkah                           | Dokumen                                                                                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Tulis requirement                 | [requirements/\_TEMPLATE.md](../requirements/_TEMPLATE.md) · [WRITING-REQUIREMENTS.md](WRITING-REQUIREMENTS.md)          |
-| Rapikan catatan (ChatGPT/Gemini)  | [WRITING-REQUIREMENTS.md → Prompt untuk AI eksternal](WRITING-REQUIREMENTS.md#prompt-untuk-ai-eksternal-chatgpt--gemini) |
-| Pipeline AI                       | Section **Prompt Siap Pakai** di dokumen ini                                                                             |
-| Contoh requirement valid (sample) | [requirements/auth/sample-login-empty-fields.md](../requirements/auth/sample-login-empty-fields.md)                      |
+| Langkah                            | Dokumen                                                                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Tulis requirement                  | [requirements/\_TEMPLATE.md](../requirements/_TEMPLATE.md) · [WRITING-REQUIREMENTS.md](WRITING-REQUIREMENTS.md)          |
+| Rapikan catatan (ChatGPT/Gemini)   | [WRITING-REQUIREMENTS.md → Prompt untuk AI eksternal](WRITING-REQUIREMENTS.md#prompt-untuk-ai-eksternal-chatgpt--gemini) |
+| Pipeline AI                        | Section **Prompt Siap Pakai** di dokumen ini                                                                             |
+| Contoh requirement login (catalog) | [requirements/auth/login-none.md](../requirements/auth/login-none.md)                                                    |
 
 ---
 
@@ -113,10 +113,13 @@ npx playwright test tests/demo/demo-network-assert.spec.ts --project=demo
 npm run test:network-assert
 ```
 
-Contoh requirement capability:
+Contoh requirement login per challenge mode:
 
-- Mock + hybrid: `requirements/auth/sample-network-hybrid.md`
-- Live assert: `requirements/auth/sample-network-assert.md`
+- Tanpa challenge: `requirements/auth/login-none.md`
+- OTP browser: `requirements/auth/login-otp-browser.md`
+- OTP terminal: `requirements/auth/login-otp-stdin.md`
+- CAPTCHA browser: `requirements/auth/login-captcha-browser.md`
+- Auto-detect: `requirements/auth/login-auto.md`
 
 CI shard merge: set `PW_BLOB=1` (nightly; PR e2e saat `shardCount` > 1) → `artifacts/blob-report/` → `npx playwright merge-reports`.
 
@@ -160,37 +163,22 @@ Warning baru yang mungkin muncul setelah upgrade:
 
 ---
 
-## Walkthrough: Sample format vs setup awal (real project)
+## Walkthrough: Setup awal (real project)
 
-**Setup awal (setelah wizard) — website kamu:**
+**Setelah wizard — website kamu:**
 
 ```bash
+npm run setup
+# wizard menulis requirements/login.md sesuai AUTH_CHALLENGE_MODE
+# lalu print prompt Hermes siap-paste
+
 npm run qa:run
-# Hermes: snapshot_page → plan → generate → execute → report
+# atau paste prompt yang sudah dicetak wizard
 ```
 
-**Sample format (latihan empty-field, Path B demo):**
+OTP/CAPTCHA: `npm run auth:setup` / `auth:setup:headed` dulu, baru pipeline.
 
-```bash
-# 1. Validasi format sample
-npm run validate:requirement
-
-# 2. Di Hermes, kirim prompt pipeline (lihat section Prompt Siap Pakai)
-#    Sample ini butuh POM loginPage — bukan default setup awal
-
-# 3. Jalankan tes (setelah generate)
-npm test
-
-# 4. Lihat laporan
-start reports/custom-dashboard.html   # Windows
-npx playwright show-report            # detail trace + screenshot
-```
-
-Output sample yang diharapkan:
-
-- `specs/sample-login-empty-fields-test-plan.md` (dibuat Planner)
-- `tests/login-empty-fields.spec.ts` (dibuat Generator)
-- SC-01 dan SC-02 jalan; SC-03 `(@manual)` di-skip
+Catalog mode (bukan target app): `requirements/auth/login-<none|auto|otp-browser|otp-stdin|captcha-browser>.md`.
 
 ---
 

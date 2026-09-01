@@ -42,7 +42,7 @@ test.describe('Sample Feature', () => {
   });
 
   test('CF-201 & CF-203: trace_requirement builds complete TraceabilityContractV1 with 4D coverageState', () => {
-    const reqPath = 'requirements/auth/sample-login-empty-fields.md';
+    const reqPath = 'requirements/auth/login-otp-browser.md';
     const result = traceRequirement({ requirementPath: reqPath });
 
     expect(result.status).toBe('success');
@@ -50,19 +50,19 @@ test.describe('Sample Feature', () => {
 
     const trace = result.data!;
     expect(trace.schemaVersion).toBe('qa.traceability/v1');
-    expect(trace.requirementId).toBe('REQ-AUTH-002');
+    expect(trace.requirementId).toBe('REQ-AUTH-OTP-BROWSER');
     expect(trace.requirementTitle).toContain('Login');
     expect(trace.acceptanceCriteria.length).toBeGreaterThan(0);
     expect(trace.scenarios.length).toBeGreaterThan(0);
     expect(trace.coverageState).toBeDefined();
     expect(['planned', 'unplanned']).toContain(trace.coverageState?.design);
 
-    // Scenario 4 in sample is manual
-    const sc4 = trace.scenarios.find((s) => s.scenarioId === 'SC-04');
-    expect(sc4).toBeDefined();
-    expect(sc4?.executionStatus).toBe('manual');
-    expect(sc4?.coverageState?.automation).toBe('manual');
-    expect(sc4?.coverageState?.verification).toBe('manual-verification-required');
+    // Last scenario in otp-browser catalog is the (@manual) OTP path
+    const sc7 = trace.scenarios.find((s) => s.scenarioId === 'SC-07');
+    expect(sc7).toBeDefined();
+    expect(sc7?.executionStatus).toBe('manual');
+    expect(sc7?.coverageState?.automation).toBe('manual');
+    expect(sc7?.coverageState?.verification).toBe('manual-verification-required');
 
     // Metrics
     expect(trace.metrics.totalScenarios).toBeGreaterThan(0);

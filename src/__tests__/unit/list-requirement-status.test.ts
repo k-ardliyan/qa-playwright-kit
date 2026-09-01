@@ -49,10 +49,8 @@ test.describe('requirementStem', () => {
     expect(requirementStem('requirements/login.md')).toBe('login');
   });
 
-  test('preserves subdirectory — auth/sample-login-empty-fields.md', () => {
-    expect(requirementStem('requirements/auth/sample-login-empty-fields.md')).toBe(
-      'auth/sample-login-empty-fields',
-    );
+  test('preserves subdirectory — auth/login-none.md', () => {
+    expect(requirementStem('requirements/auth/login-none.md')).toBe('auth/login-none');
   });
 
   test('handles deep nesting', () => {
@@ -76,9 +74,7 @@ test.describe('expectedPlanPath', () => {
   });
 
   test('nested requirement preserves subdirectory in specs path', () => {
-    expect(expectedPlanPath('auth/sample-login-empty-fields')).toBe(
-      'specs/auth/sample-login-empty-fields-test-plan.md',
-    );
+    expect(expectedPlanPath('auth/login-none')).toBe('specs/auth/login-none-test-plan.md');
   });
 
   test('deep nesting is preserved', () => {

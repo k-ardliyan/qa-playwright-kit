@@ -95,11 +95,13 @@ npm run setup                 # setup interaktif 6 langkah
 **Setelah wizard selesai:**
 
 ```bash
-# 1) Preflight + validasi + cetak prompt Hermes (TTY pilih file)
-npm run qa:run
+# 1) Wizard sudah menulis requirements/login.md + print prompt Hermes
+#    OTP/CAPTCHA: npm run auth:setup (atau auth:setup:headed)
 
 # 2) Paste prompt ke Hermes Agent
 #    Pipeline: snapshot → Plan → Generate → Execute → Heal → Report
+
+# atau: npm run qa:run
 ```
 
 > Detail pasca-pipeline → [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)

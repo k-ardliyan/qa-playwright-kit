@@ -22,16 +22,12 @@ test.describe('validate-requirement CLI contract', () => {
   });
 
   test('validates existing sample requirement file successfully', () => {
-    const res = spawnSync(
-      tsxBin,
-      [validateReqCli, 'requirements/auth/sample-login-empty-fields.md'],
-      {
-        cwd: repoRoot,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        shell: true,
-      },
-    );
+    const res = spawnSync(tsxBin, [validateReqCli, 'requirements/auth/login-none.md'], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
+    });
 
     expect(res.status).toBe(EXIT.OK);
     const output = (res.stdout ?? '') + (res.stderr ?? '');

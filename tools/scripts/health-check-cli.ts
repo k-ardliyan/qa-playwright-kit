@@ -19,7 +19,7 @@ const HINTS: Record<string, { hint: string; docs: string; severity: 'fixable' | 
     severity: 'fixable',
   },
   playwright_mcp: {
-    hint: 'Jalankan: npm install @playwright/mcp@0.0.79',
+    hint: 'Jalankan: npm install @playwright/mcp@0.0.80',
     docs: 'docs/GUIDE.md#setup-lokal',
     severity: 'fixable',
   },

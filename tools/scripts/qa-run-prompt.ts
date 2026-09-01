@@ -40,7 +40,9 @@ export function buildAgentPrompt(reqRelPath: string, markdown = ''): string {
   const startHint = hints.startPage || '/';
   const lines: string[] = [
     `Run full pipeline in automatic mode for ${reqRelPath} (orchestrator: AGENTS.md).`,
-    `Sample files under requirements/**/sample-*.md are format demos only — not the real project site.`,
+    `Catalog files under requirements/auth/login-<mode>.md match AUTH_CHALLENGE_MODE; setup writes requirements/login.md for the live site.`,
+    `Dashboard columns: Test Step = **Langkah:** verbatim (aksi UI only). Input Data = **Input Data:** via setTestMetadata.inputData. Expected = **Hasil yang Diharapkan:** verbatim.`,
+    `Do NOT copy credential:/literal:/seed:/fixture: values, emails, or passwords into test.step titles.`,
   ];
 
   if (loginLike) {

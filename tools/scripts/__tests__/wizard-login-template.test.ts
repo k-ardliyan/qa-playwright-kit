@@ -7,8 +7,12 @@
  */
 
 import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
   buildLoginRequirement,
+  writeLoginRequirementFile,
   type LoginTemplateState,
   type RoleSpec,
 } from '../wizard-login-template';
@@ -57,7 +61,7 @@ test('form: no POM metadata (Path A)', () => {
 test('form: fictional user, never wrong password on real role', () => {
   const md = buildLoginRequirement(baseState());
   assert.ok(md.includes('qa.invalid.user.not.exists'), 'fictional user missing');
-  assert.ok(md.includes('${TEST_USER_PASSWORD}'), 'should reference env var in template literal');
+  assert.ok(md.includes('credential:user.password'), 'should use credential provenance');
   assert.ok(md.toLowerCase().includes('tidak terkunci'), 'must warn account not locked');
 });
 
@@ -72,10 +76,11 @@ test('form: pathname assertion (not URL contains)', () => {
   assert.ok(md.includes('TIDAK** mengandung'), 'should assert exclusion');
 });
 
-test('form: refers to env var, not plaintext', () => {
+test('form: refers to credential provenance, not plaintext', () => {
   const md = buildLoginRequirement(baseState());
-  assert.ok(md.includes('TEST_USER_EMAIL'), 'env var missing');
-  assert.ok(md.includes('TEST_USER_PASSWORD'), 'env var missing');
+  assert.ok(md.includes('credential:user.email'), 'credential email missing');
+  assert.ok(md.includes('credential:user.password'), 'credential password missing');
+  assert.ok(md.includes('TEST_USER_EMAIL'), 'env prefix still documented in precondition');
 });
 
 test('form: multi-role adds Role scope metadata', () => {
@@ -102,6 +107,17 @@ test('form: uses successUrlPath from state', () => {
   assert.ok(md.includes('/home'), 'custom success path missing');
 });
 
+function langkahBlocks(md: string): string {
+  const parts = md.split('**Langkah:**');
+  return parts
+    .slice(1)
+    .map((p) => {
+      if (!p.includes('**Hasil yang Diharapkan:**')) return '';
+      return p.split('**Hasil yang Diharapkan:**')[0] ?? '';
+    })
+    .join('\n');
+}
+
 test('form: field hints are interpolated when provided', () => {
   const md = buildLoginRequirement(
     baseState({
@@ -115,14 +131,28 @@ test('form: field hints are interpolated when provided', () => {
   assert.ok(md.includes('`Masuk`'), 'custom submit hint missing');
 });
 
+test('form: steps never repeat Input Data values', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'otp-browser' }));
+  const steps = langkahBlocks(md);
+  assert.ok(!steps.includes('credential:'), 'steps must not copy credential provenance');
+  assert.ok(!steps.includes('literal:'), 'steps must not copy literal provenance');
+  assert.ok(!steps.includes('qa.invalid.user.not.exists'), 'fictional user belongs in Input Data');
+  assert.ok(!steps.includes('WrongPasswordInvalid!'), 'password value belongs in Input Data');
+  assert.ok(!steps.includes('https://stg.erpku.com'), 'URL belongs in Prekondisi / Input Data');
+  assert.ok(md.includes('identifier: credential:user.email'), 'input data still has credentials');
+  assert.ok(
+    md.includes('identifier: literal:qa.invalid.user.not.exists'),
+    'input data still has fictional user',
+  );
+  assert.ok(md.includes('Test Step'), 'footer must teach dashboard column split');
+});
+
 test('form: includes snapshot_page / catalog guidance for site-specific locators', () => {
   const md = buildLoginRequirement(baseState());
   assert.ok(md.includes('snapshot_page'), 'must instruct snapshot_page');
   assert.ok(md.includes('selector-catalog'), 'must mention selector-catalog');
-  assert.ok(
-    md.includes('sample-*.md') || md.includes('sample-'),
-    'must distinguish from sample files',
-  );
+  assert.ok(md.includes('**Module:** auth'), 'module metadata missing');
+  assert.ok(md.includes('**Feature:** login'), 'feature metadata missing');
 });
 
 test('form: auth path uses APP_ENV scope vocabulary', () => {
@@ -174,6 +204,65 @@ test('none: halaman awal is /', () => {
 
 // ─── general ─────────────────────────────────────────────────────────────────
 
+test('form none: no OTP/CAPTCHA manual scenario', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'none' }));
+  assert.ok(!md.includes('Verifikasi OTP'), 'none must not add OTP scenario');
+  assert.ok(!md.includes('AUTH_CHALLENGE_MODE=otp'), 'none must not mention otp mode');
+  assert.ok(md.includes('SC-01: Submit dengan Identifier Kosong'), 'negatives start first');
+  assert.ok(md.includes('SC-04: Submit dengan Identifier Hanya Spasi'), 'whitespace case present');
+  assert.ok(md.includes('literal:   '), 'whitespace literal must keep trailing spaces');
+  assert.ok(md.includes('SC-07: Login Berhasil'), 'success is last auto scenario');
+});
+
+test('form otp-browser: negatives first; OTP is last (@manual) covering AC-07', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'otp-browser' }), {
+    generated: false,
+  });
+  assert.ok(md.includes('# REQ-AUTH-OTP-BROWSER:'), 'catalog id missing');
+  assert.ok(
+    !md.includes('Login Berhasil dengan Kredensial Valid (@success)'),
+    'must not emit auto success when OTP required',
+  );
+  assert.ok(md.includes('SC-01: Submit dengan Identifier Kosong'), 'empty ident first');
+  assert.ok(md.includes('SC-06: Login Gagal dengan User Fiktif'), 'fictional before challenge');
+  assert.ok(md.includes('SC-07: Verifikasi OTP di Browser (@manual)'), 'otp last');
+  assert.ok(md.includes('`TC-LOGIN-007`'), 'challenge Test ID must stay 3-digit');
+  assert.ok(md.includes('AUTH_CHALLENGE_MODE=otp-browser'), 'mode missing');
+  assert.ok(md.includes('**AC-08:**'), 'challenge AC missing');
+  assert.ok(md.includes('Covers:** `AC-07`, `AC-08`'), 'manual success must cover AC-07');
+  assert.ok(md.includes('credential:user.email'), 'credential provenance missing');
+  const idxFail = md.indexOf('SC-01:');
+  const idxFictional = md.indexOf('SC-06:');
+  const idxOtp = md.indexOf('SC-07:');
+  assert.ok(idxFail < idxFictional && idxFictional < idxOtp, 'order: empty → fictional → otp');
+});
+
+test('form captcha-browser: CAPTCHA stays (@manual), never terminal', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'captcha-browser' }), {
+    generated: false,
+  });
+  assert.ok(md.includes('# REQ-AUTH-CAPTCHA:'), 'captcha id missing');
+  assert.ok(
+    md.includes('SC-07: Verifikasi CAPTCHA di Browser (@manual)'),
+    'captcha scenario missing',
+  );
+  assert.ok(md.includes('terminal tidak bisa'), 'must say terminal cannot solve CAPTCHA');
+});
+
+test('form otp-stdin: OTP typed in terminal, still (@manual)', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'otp-stdin' }), {
+    generated: false,
+  });
+  assert.ok(md.includes('# REQ-AUTH-OTP-STDIN:'), 'stdin id missing');
+  assert.ok(md.includes('SC-07: Verifikasi OTP di Terminal (@manual)'), 'stdin scenario missing');
+});
+
+test('form auto: OTP or CAPTCHA (@manual)', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'auto' }), { generated: false });
+  assert.ok(md.includes('# REQ-AUTH-AUTO:'), 'auto id missing');
+  assert.ok(md.includes('SC-07: Verifikasi OTP atau CAPTCHA'), 'auto scenario missing');
+});
+
 test('output ends with newline', () => {
   const md = buildLoginRequirement(baseState());
   assert.ok(md.endsWith('\n'), 'should end with newline');
@@ -185,13 +274,48 @@ test('no plaintext secret leaked into requirement', () => {
       roles: [{ name: 'admin', authFile: '.auth/local/admin.json' }],
     }),
   );
-  assert.ok(md.includes('${ADMIN_EMAIL}'), 'should reference env var');
-  assert.ok(md.includes('${ADMIN_PASSWORD}'), 'should reference env var');
+  assert.ok(md.includes('credential:admin.email'), 'should reference credential provenance');
+  assert.ok(md.includes('credential:admin.password'), 'should reference credential provenance');
   const inputBlock = md.split('**Input Data:**')[1]?.split('**Langkah:**')[0] ?? '';
-  assert.ok(
-    !/password\s*:\s*[A-Za-z0-9!@#$%^&*]+/i.test(inputBlock),
-    'no plaintext password in input',
+  const pwdLines = inputBlock.split('\n').filter((l) => /password:/i.test(l));
+  assert.ok(pwdLines.length > 0, 'password input line missing');
+  for (const line of pwdLines) {
+    assert.ok(/credential:|literal:/.test(line), `password must use provenance prefix: ${line}`);
+  }
+});
+
+test('form: loginIdPref username uses credential:user.username', () => {
+  const md = buildLoginRequirement(baseState({ loginIdPref: 'username' }));
+  assert.ok(md.includes('credential:user.username'), 'username credential missing');
+  assert.ok(!md.includes('identifier: credential:user.email'), 'must not default to email');
+});
+
+test('writeLoginRequirementFile skips custom (non-autogen) login.md', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'login-req-'));
+  const custom = path.join(tmp, 'requirements');
+  fs.mkdirSync(custom);
+  fs.writeFileSync(path.join(custom, 'login.md'), '# REQ-CUSTOM: Hand-written\n', 'utf-8');
+  const result = writeLoginRequirementFile(tmp, baseState());
+  assert.equal(result.skipped, true);
+  const kept = fs.readFileSync(path.join(custom, 'login.md'), 'utf-8');
+  assert.ok(kept.includes('REQ-CUSTOM'), 'custom file must not be overwritten');
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+test('writeLoginRequirementFile overwrites AUTO-GENERATED login.md', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'login-req-'));
+  const dir = path.join(tmp, 'requirements');
+  fs.mkdirSync(dir);
+  fs.writeFileSync(
+    path.join(dir, 'login.md'),
+    '<!--\n  AUTO-GENERATED oleh setup wizard\n-->\n# stale\n',
+    'utf-8',
   );
+  const result = writeLoginRequirementFile(tmp, baseState());
+  assert.equal(result.skipped, false);
+  const next = fs.readFileSync(path.join(dir, 'login.md'), 'utf-8');
+  assert.ok(next.includes('# REQ-AUTH-001: Login — erpku'), 'autogen file should be rewritten');
+  fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 // ─── reporter ───────────────────────────────────────────────────────────────

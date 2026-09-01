@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Login catalogs match AUTH_CHALLENGE_MODE — 2026-09-01
+- **Setup writes `requirements/login.md`:** after env write, wizard renders a real login requirement from BASE_URL + roles + `AUTH_CHALLENGE_MODE` and prints a ready-to-paste Hermes prompt (`>>> `). File is gitignored (per-project).
+- **Five committed catalogs** under `requirements/auth/login-<mode>.md` matching wizard choices 1:1: `none`, `auto`, `otp-browser`, `otp-stdin`, `captcha-browser`. OTP/CAPTCHA scenarios stay `(@manual)`.
+- **Removed format-demo samples:** `sample-login-empty-fields.md`, `sample-network-hybrid.md`, `sample-network-assert.md`. Tests/docs/quality gate retargeted to `login-none.md` (traceability manual case → `login-otp-browser.md`).
+- **Steps vs Input Data:** generated login steps are UI actions only (`Buka halaman login`, `Isi field login`). Values stay in `**Input Data:**` (`credential:` / `literal:`). Hermes prompt forbids copying those values into `test.step` titles (dashboard Test Step vs Input Data columns).
+- **Login catalogs: negatives first:** empty identifier/password/both → whitespace → malformed format → fictional user, then success (or OTP/CAPTCHA `@manual` last). No wrong-password on a real account (anti-lockout).
+
 ### Script de-clutter — 2026-09-01
 - **Removed unused npm scripts (no callers in CI, docs, or code):** `test:smart-shard`, `test:failed-only` (core logic still unit-tested via `test:unit`), `manifest:generate` (manifest still generated at build/runtime; `agent-manifest.json` remains gitignored), duplicate `dashboard:serve` (identical to `dashboard`). 64 → 60 scripts.
 

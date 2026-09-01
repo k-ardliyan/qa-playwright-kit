@@ -6,7 +6,7 @@ import { computeSourceHash } from '../../../tools/mcp/src/contracts/hashing';
 
 test.describe('Staleness Invalidation & Resume Safety (Phase 9)', () => {
   const repoRoot = path.resolve(__dirname, '../../../');
-  const reqPath = 'requirements/auth/sample-login-empty-fields.md';
+  const reqPath = 'requirements/auth/login-none.md';
   const reqAbs = path.resolve(repoRoot, reqPath);
 
   test('resumeState invalidates all phases when requirement hash changes', () => {

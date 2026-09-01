@@ -176,7 +176,7 @@ async function main(): Promise<void> {
       printError({
         title: 'MCP Compatibility Error',
         detail: err,
-        hint: 'Run npm install @playwright/mcp@0.0.79 or check package.json',
+        hint: 'Run npm install @playwright/mcp@0.0.80 or check package.json',
       });
     }
 

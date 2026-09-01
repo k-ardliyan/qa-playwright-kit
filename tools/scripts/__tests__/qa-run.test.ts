@@ -59,6 +59,8 @@ test.describe('qa:run prompt builder', () => {
     expect(prompt).toContain('LOGIN / first-auth');
     expect(prompt).toContain('/login');
     expect(prompt).toContain('snapshot_page');
+    expect(prompt).toContain('Test Step = **Langkah:**');
+    expect(prompt).toContain('Do NOT copy credential:');
   });
 });
 

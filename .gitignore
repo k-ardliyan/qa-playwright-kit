@@ -114,3 +114,6 @@ src/utils/*.d.ts
 # Setup wizard state & run pointer (per-machine, not tracked)
 .wizard-state.json
 .latest-run
+
+# Per-project login requirement (written by npm run setup from AUTH_CHALLENGE_MODE)
+requirements/login.md

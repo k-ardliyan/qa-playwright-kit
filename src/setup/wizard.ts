@@ -31,6 +31,7 @@ import {
 } from './wizard-prompts';
 import { type WizardLang, t, DEFAULT_LANG } from './i18n';
 import prompts from 'prompts';
+import * as fs from 'node:fs';
 import {
   writeEnvFile,
   readExistingEnv,
@@ -42,6 +43,12 @@ import {
 import { validateSetup, type ValidationResult } from './wizard-validate';
 import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
+import {
+  buildLoginRequirement,
+  loginStateFromWizard,
+  writeLoginRequirementFile,
+} from '../../tools/scripts/wizard-login-template';
+import { buildAgentPrompt } from '../../tools/scripts/qa-run-prompt';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -63,6 +70,8 @@ export interface WizardResult {
   isNewSetup: boolean;
   /** Validation result after write */
   validation: ValidationResult;
+  /** Relative path of generated requirements/login.md (interactive run only) */
+  loginRequirementPath?: string;
 }
 
 // ─── Main orchestrator ───────────────────────────────────────────────────────
@@ -203,6 +212,38 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     );
   }
 
+  // ─── Step 8b: Write requirements/login.md from this env + challenge ────
+  const loginState = loginStateFromWizard({
+    baseUrl,
+    appEnv,
+    roles: roleNames,
+    challengeMode,
+    loginIdPref: roleInputs[0]?.fields.loginIdPref,
+    loginUrl:
+      existing && !isEncryptedValue(existing['AUTH_LOGIN_URL_PATH'])
+        ? existing['AUTH_LOGIN_URL_PATH']
+        : undefined,
+    successUrlPath:
+      existing && !isEncryptedValue(existing['AUTH_SUCCESS_URL_PATH'])
+        ? existing['AUTH_SUCCESS_URL_PATH']
+        : undefined,
+  });
+  const loginFile = writeLoginRequirementFile(process.cwd(), loginState);
+  const loginMarkdown = loginFile.skipped
+    ? fs.readFileSync(loginFile.absolutePath, 'utf-8')
+    : buildLoginRequirement(loginState, { generated: true });
+  logger.info(
+    t(
+      lang,
+      loginFile.skipped
+        ? `ℹ ${loginFile.relativePath} sudah ada (bukan auto-generated) — tidak ditimpa`
+        : `✅ Requirement login ditulis: ${loginFile.relativePath} (mode ${challengeMode})`,
+      loginFile.skipped
+        ? `ℹ ${loginFile.relativePath} already exists (not auto-generated) — left intact`
+        : `✅ Login requirement written: ${loginFile.relativePath} (mode ${challengeMode})`,
+    ),
+  );
+
   // ─── Step 9: Sync Agent Skills & MCP Configs ────────────────────────────
   const agentSync = syncAgentSkillsAndMcp(process.cwd());
   if (agentSync.skillsSynced.length > 0) {
@@ -238,6 +279,8 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     writeResult,
     validation,
     agentSync,
+    loginRequirementPath: loginFile.relativePath,
+    loginMarkdown,
   });
 
   return {
@@ -245,6 +288,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     roles: roleNames,
     isNewSetup: writeResult.isNewFile,
     validation,
+    loginRequirementPath: loginFile.relativePath,
   };
 }
 
@@ -391,6 +435,8 @@ function printSummary(data: {
   writeResult: EnvWriteResult;
   validation: ValidationResult;
   agentSync?: AgentSyncResult;
+  loginRequirementPath?: string;
+  loginMarkdown?: string;
 }): void {
   const { lang } = data;
   console.log('');
@@ -435,26 +481,48 @@ function printSummary(data: {
     console.log('');
   }
 
+  if (data.loginRequirementPath) {
+    console.log(`  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementPath}`);
+  }
+  console.log('');
+
   if (data.challengeMode !== 'none') {
     console.log(
       `  ℹ ${t(
         lang,
-        'Langkah berikutnya: buat session login, lalu mulai pipeline QA:',
-        'Next step: materialize login sessions, then start the QA pipeline:',
+        'Langkah berikutnya: buat session login, lalu paste prompt Hermes:',
+        'Next step: materialize login sessions, then paste the Hermes prompt:',
       )}`,
     );
     console.log('    npm run auth:setup');
-    console.log('    npm run qa:run');
   } else {
     console.log(
       `  ℹ ${t(
         lang,
-        'Langkah berikutnya: mulai pipeline QA (preflight + prompt Hermes):',
-        'Next step: start the QA pipeline (preflight + Hermes prompt):',
+        'Langkah berikutnya: paste prompt Hermes di bawah (atau npm run qa:run):',
+        'Next step: paste the Hermes prompt below (or npm run qa:run):',
       )}`,
     );
-    console.log('    npm run qa:run');
   }
+
+  if (data.loginRequirementPath && data.loginMarkdown) {
+    const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown);
+    console.log('');
+    console.log('  ─────────────────────────────────');
+    console.log(
+      t(
+        lang,
+        '  Salin prompt di bawah ini dan paste ke Hermes chat:',
+        '  Copy the prompt below and paste it into Hermes chat:',
+      ),
+    );
+    console.log('');
+    for (const line of prompt.trimEnd().split('\n')) {
+      console.log(`  >>> ${line}`);
+    }
+    console.log('  ─────────────────────────────────');
+  }
+
   console.log('═══════════════════════════════════════════════════');
   console.log('');
 }

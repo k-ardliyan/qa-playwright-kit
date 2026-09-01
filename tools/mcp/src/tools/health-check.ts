@@ -47,7 +47,7 @@ function checkMcpBuild(): HealthCheckItem {
 }
 
 /**
- * Normalize a package spec like "^0.0.79", "~0.0.79" or "0.0.79" to the exact version.
+ * Normalize a package spec like "^0.0.80", "~0.0.80" or "0.0.80" to the exact version.
  * Returns null when no concrete version can be pinned.
  */
 export function normalizePinnedVersion(spec: string | undefined): string | null {

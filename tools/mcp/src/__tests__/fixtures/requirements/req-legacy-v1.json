@@ -2,10 +2,10 @@
   "schemaVersion": "qa.requirement/v1",
   "requirementId": "REQ-LEGACY-001",
   "title": "Legacy Auth Scenario Without Explicit AC IDs",
-  "sourcePath": "requirements/auth/sample-login-empty-fields.md",
+  "sourcePath": "requirements/auth/login-none.md",
   "sourceHash": "e5f6a7b8c9d0e1f2",
   "module": "auth",
-  "feature": "sample-login-empty-fields",
+  "feature": "login-none",
   "priority": "medium",
   "tags": ["auth", "legacy"],
   "auth": {

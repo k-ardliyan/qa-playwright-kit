@@ -11,12 +11,7 @@ test.describe('Harness qa:run Contract & Typed Validation (Phase 5)', () => {
   test('validates requirement directly via in-process contract validator on --dry-run', () => {
     const result = spawnSync(
       tsxBin,
-      [
-        qaRunBin,
-        'requirements/auth/sample-login-empty-fields.md',
-        '--dry-run',
-        '--no-open-dashboard',
-      ],
+      [qaRunBin, 'requirements/auth/login-none.md', '--dry-run', '--no-open-dashboard'],
       {
         cwd: repoRoot,
         encoding: 'utf-8',

@@ -2,18 +2,21 @@
 /**
  * wizard-login-template — Render requirements/login.md from WizardState.
  *
- * Pure function: no I/O, no network. Unit-testable.
- * Renderer untuk requirements/login.md. Tidak di-wire ke src/setup saat ini.
- *
- * File ini = requirement REAL per project (BASE_URL + path + roles dari wizard),
- * BUKAN sample format di requirements/sample-*.md.
+ * Renderer + optional write of requirements/login.md.
+ * Wired from src/setup/wizard.ts after env write. Also used to emit
+ * committed catalogs at requirements/auth/login-<challengeMode>.md.
  *
  * Vocabulary:
  * - Credential role default = **user** (TEST_USER_*)
  * - Pipeline mode **general** = non-role-aware (auth → user), not an env role name
+ * - OTP/CAPTCHA scenarios stay (@manual) — AUTH_CHALLENGE_MODE only helps auth:setup
  *
  * @module scripts/wizard-login-template
  */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { ChallengeMode } from '../../src/support/human-challenge';
 
 export type LoginMechanism = 'form' | 'sso' | 'none';
 
@@ -31,6 +34,10 @@ export interface LoginTemplateState {
   successUrlPath: string; // e.g. '/dashboard'
   roles: RoleSpec[];
   mechanism: LoginMechanism;
+  /** AUTH_CHALLENGE_MODE from wizard. Ignored when mechanism is sso/none. */
+  challengeMode?: ChallengeMode;
+  /** LOGIN_ID_PREF for primary role — drives credential:<role>.<field>. */
+  loginIdPref?: 'email' | 'username' | 'phone';
   /** Opsional: hint field login (email/username/phone). */
   loginFieldHints?: string[];
   /** Opsional: hint field password. */
@@ -43,7 +50,15 @@ const DEFAULT_LOGIN_FIELDS = ['email', 'username', 'user'];
 const DEFAULT_PASSWORD_FIELDS = ['password', 'pass', 'kata sandi'];
 const DEFAULT_SUBMIT_BUTTONS = ['Masuk', 'Login', 'Sign in', 'Log in'];
 
-function canonicalRole(name: string): string {
+const CHALLENGE_REQ_ID: Record<ChallengeMode, string> = {
+  none: 'REQ-AUTH-NONE',
+  auto: 'REQ-AUTH-AUTO',
+  'otp-browser': 'REQ-AUTH-OTP-BROWSER',
+  'otp-stdin': 'REQ-AUTH-OTP-STDIN',
+  'captcha-browser': 'REQ-AUTH-CAPTCHA',
+};
+
+export function canonicalRole(name: string): string {
   const n = name.trim().toLowerCase();
   if (n === 'default' || n === 'general' || n === '') return 'user';
   return n;
@@ -52,6 +67,17 @@ function canonicalRole(name: string): string {
 function envPrefixFor(role: RoleSpec): string {
   const n = canonicalRole(role.name);
   return n === 'user' ? 'TEST_USER' : n.toUpperCase().replace(/-/g, '_');
+}
+
+function credentialKey(
+  roleName: string,
+  field: 'email' | 'username' | 'phone' | 'password',
+): string {
+  return `credential:${canonicalRole(roleName)}.${field}`;
+}
+
+function identifierCredential(roleName: string, pref?: 'email' | 'username' | 'phone'): string {
+  return credentialKey(roleName, pref ?? 'email');
 }
 
 function formatList(items: string[]): string {
@@ -66,20 +92,28 @@ function formatList(items: string[]): string {
   );
 }
 
-function frontmatter(title: string): string {
+function resolveChallenge(state: LoginTemplateState): ChallengeMode {
+  if (state.mechanism !== 'form') return 'none';
+  return state.challengeMode ?? 'none';
+}
+
+function frontmatter(title: string, challengeMode: ChallengeMode, generated: boolean): string {
+  const origin = generated
+    ? '  AUTO-GENERATED oleh setup wizard dari nilai REAL project (BASE_URL, login path, roles, AUTH_CHALLENGE_MODE).\n'
+    : `  Catalog AUTH_CHALLENGE_MODE=${challengeMode}. Setup wizard menulis requirements/login.md dari mode yang dipilih.\n`;
   return (
     `${title}\n\n` +
     `<!--\n` +
-    `  AUTO-GENERATED oleh setup Phase 7 dari nilai REAL project (BASE_URL, login path, roles).\n` +
-    `  Ini BUKAN sample format — sample ada di requirements/sample-*.md.\n` +
+    origin +
     `  Locator berbeda per website: Generator WAJIB snapshot_page dulu, lalu live-verify selector.\n` +
     `  Jangan tulis password/secret di file ini.\n` +
+    `  OTP/CAPTCHA di requirement tetap (@manual). AUTH_CHALLENGE_MODE hanya membantu npm run auth:setup.\n` +
     `-->\n\n`
   );
 }
 
-function metadata(state: LoginTemplateState, halamanAwal: string): string {
-  const tags = `#auth #ui #smoke`;
+function metadata(state: LoginTemplateState, halamanAwal: string, feature: string): string {
+  const tags = `#auth #ui #smoke #login`;
   const lines: string[] = [
     '## Metadata',
     '',
@@ -87,6 +121,8 @@ function metadata(state: LoginTemplateState, halamanAwal: string): string {
     `- **Prioritas:** high`,
     `- **Auth state:** unauthenticated`,
     `- **Halaman awal:** ${halamanAwal}`,
+    `- **Module:** auth`,
+    `- **Feature:** ${feature}`,
   ];
 
   if (state.mechanism !== 'none' && state.roles.length > 1) {
@@ -100,7 +136,108 @@ function metadata(state: LoginTemplateState, halamanAwal: string): string {
   return lines.join('\n') + '\n\n';
 }
 
-function formScenarios(state: LoginTemplateState): string {
+function scenarioBlock(opts: {
+  heading: string;
+  testId: string;
+  covers: string;
+  priority?: string;
+  layer?: string;
+  role?: string;
+  precondition: string;
+  inputLines: string[];
+  steps: string[];
+  results: string[];
+}): string {
+  const roleLine = opts.role ? `- **Role:** \`${opts.role}\`\n` : '';
+  return (
+    `### ${opts.heading}\n\n` +
+    `- **Test ID:** \`${opts.testId}\`\n` +
+    `- **Covers:** ${opts.covers}\n` +
+    roleLine +
+    `- **Prioritas skenario:** \`${opts.priority ?? 'high'}\`\n` +
+    `- **Layer terdampak:** \`${opts.layer ?? 'FE BE'}\`\n\n` +
+    `**Prekondisi:** ${opts.precondition}\n\n` +
+    `**Input Data:**\n\n` +
+    opts.inputLines.map((l) => `- ${l}`).join('\n') +
+    `\n\n` +
+    `**Langkah:**\n\n` +
+    opts.steps.map((s, i) => `${i + 1}. ${s}`).join('\n') +
+    `\n\n` +
+    `**Hasil yang Diharapkan:**\n\n` +
+    opts.results.map((r) => `- ${r}`).join('\n') +
+    `\n`
+  );
+}
+
+function challengeManualScenario(
+  state: LoginTemplateState,
+  mode: ChallengeMode,
+  roleName: string,
+  loginFields: string,
+  passwordFields: string,
+  submitButtons: string,
+  identCred: string,
+  scIndex: number,
+): string {
+  const loginUrl = state.loginUrl;
+  const successUrlPath = state.successUrlPath;
+  const headings: Record<Exclude<ChallengeMode, 'none'>, string> = {
+    auto: 'Verifikasi OTP atau CAPTCHA (auto-detect) (@manual)',
+    'otp-browser': 'Verifikasi OTP di Browser (@manual)',
+    'otp-stdin': 'Verifikasi OTP di Terminal (@manual)',
+    'captcha-browser': 'Verifikasi CAPTCHA di Browser (@manual)',
+  };
+  const extraStep: Record<Exclude<ChallengeMode, 'none'>, string> = {
+    auto: 'Selesaikan OTP atau CAPTCHA yang muncul (mode auto: CAPTCHA di browser; OTP di browser jika headed, fallback terminal jika TTY)',
+    'otp-browser': 'Isi kode OTP di kolom yang tampil di browser (jangan ketik OTP di terminal)',
+    'otp-stdin': 'Ketik kode OTP di terminal saat diminta (halaman browser tetap terbuka)',
+    'captcha-browser': 'Selesaikan CAPTCHA di browser (terminal tidak bisa mengisi CAPTCHA)',
+  };
+  const reason: Record<Exclude<ChallengeMode, 'none'>, string> = {
+    auto: 'OTP/CAPTCHA tidak diotomasi di pipeline — skenario tetap (@manual). AUTH_CHALLENGE_MODE=auto hanya membantu `npm run auth:setup` mendeteksi tantangan lalu pause di browser atau terminal.',
+    'otp-browser':
+      'Kode OTP berasal dari perangkat/SMS/email manusia — tidak diotomasi di pipeline. AUTH_CHALLENGE_MODE=otp-browser hanya membantu `npm run auth:setup` (headed) menyimpan sesi `.auth/{APP_ENV}/<role>.json`.',
+    'otp-stdin':
+      'Kode OTP diketik manusia di terminal — tidak diotomasi di pipeline. AUTH_CHALLENGE_MODE=otp-stdin hanya membantu `npm run auth:setup` (TTY wajib) menyimpan sesi.',
+    'captcha-browser':
+      'CAPTCHA tidak bisa diisi dari terminal atau CI — skenario tetap (@manual). AUTH_CHALLENGE_MODE=captcha-browser hanya membantu `npm run auth:setup:headed` pause di browser sampai manusia selesai.',
+  };
+  if (mode === 'none') return '';
+  const heading = headings[mode];
+  const scLabel = String(scIndex).padStart(2, '0');
+  const tcId = String(scIndex).padStart(3, '0');
+  return (
+    `\n---\n\n` +
+    scenarioBlock({
+      heading: `SC-${scLabel}: ${heading}`,
+      testId: `TC-LOGIN-${tcId}`,
+      covers: '`AC-07`, `AC-08`',
+      priority: 'medium',
+      layer: 'FE',
+      role: roleName,
+      precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, kredensial valid, AUTH_CHALLENGE_MODE=${mode}.`,
+      inputLines: [
+        `identifier: ${identCred}`,
+        `password: ${credentialKey(roleName, 'password')}`,
+        `challengeMode: literal:${mode}`,
+      ],
+      steps: [
+        `Buka halaman login`,
+        `Isi field login (${loginFields})`,
+        `Isi field password (${passwordFields})`,
+        `Klik tombol submit (${submitButtons})`,
+        extraStep[mode],
+      ],
+      results: [
+        `Setelah tantangan selesai, URL pathname mengandung \`${successUrlPath}\` **DAN TIDAK** mengandung \`${loginUrl}\``,
+        `Form login tidak terlihat lagi`,
+        reason[mode],
+      ],
+    })
+  );
+}
+
+function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode): string {
   const primaryRole = state.roles[0] ?? {
     name: 'user',
     authFile: '.auth/local/user.json',
@@ -117,73 +254,257 @@ function formScenarios(state: LoginTemplateState): string {
       ? primaryRole.authFile
       : `.auth/{APP_ENV}/${roleName}.json`;
 
-  return (
-    `## Skenario Uji\n\n` +
-    `### SC-01: Login Gagal dengan User Fiktif (@failure)\n\n` +
-    `- **Test ID:** TC-LOGIN-001\n` +
-    `- **Prioritas skenario:** high\n` +
-    `- **Layer terdampak:** FE BE\n\n` +
-    `**Prekondisi:** Aplikasi berjalan di \`${state.baseUrl}\`. Akun \`qa.invalid.user.not.exists\` ` +
-    `**tidak ada** di sistem (user fiktif, bukan password salah pada akun real).\n\n` +
-    `**Input Data:**\n\n` +
-    `- field login: \`qa.invalid.user.not.exists\`\n` +
-    `- field password: \`WrongPasswordInvalid!\`\n\n` +
-    `**Langkah:**\n\n` +
-    `1. Buka \`${state.baseUrl}${loginUrl}\`\n` +
-    `2. Isi field login (${loginFields}) dengan \`qa.invalid.user.not.exists\`\n` +
-    `3. Isi field password (${passwordFields}) dengan \`WrongPasswordInvalid!\`\n` +
-    `4. Klik tombol submit (${submitButtons})\n\n` +
-    `**Hasil yang Diharapkan:**\n\n` +
-    `- URL tetap mengandung \`${loginUrl}\` (tidak redirect ke \`${successUrlPath}\`)\n` +
-    `- Pesan error yang observable tampil di halaman (mis. "Email atau password salah")\n` +
-    `- Tombol submit kembali enabled (tidak stuck loading)\n` +
-    `- Akun role \`${roleName}\` **tidak terkunci** — user fiktif di luar scope lockout\n\n` +
-    `---\n\n` +
-    `### SC-02: Login Berhasil dengan Kredensial Valid (@success)\n\n` +
-    `- **Test ID:** TC-LOGIN-002\n` +
-    `- **Prioritas skenario:** high\n` +
-    `- **Layer terdampak:** FE BE\n\n` +
-    `**Prekondisi:** Akun \`${envPrefix}_EMAIL\` (atau USERNAME/PHONE) terdaftar di aplikasi ` +
-    `(lihat \`environments/{APP_ENV}.env\` — JANGAN tulis nilainya di sini).\n\n` +
-    `**Input Data:**\n\n` +
-    `- field login: nilai env \`${envPrefix}_EMAIL\` (atau USERNAME/PHONE sesuai preferensi)\n` +
-    `- field password: nilai env \`${envPrefix}_PASSWORD\`\n\n` +
-    `**Langkah:**\n\n` +
-    `1. Buka \`${state.baseUrl}${loginUrl}\`\n` +
-    `2. Isi field login (${loginFields}) dengan \`\${${envPrefix}_EMAIL}\`\n` +
-    `3. Isi field password (${passwordFields}) dengan \`\${${envPrefix}_PASSWORD}\`\n` +
-    `4. Klik tombol submit (${submitButtons})\n\n` +
-    `**Hasil yang Diharapkan:**\n\n` +
-    `- URL pathname mengandung \`${successUrlPath}\` **DAN TIDAK** mengandung \`${loginUrl}\`\n` +
-    `- Form login tidak terlihat lagi (sudah diganti konten dashboard/beranda)\n` +
-    `- Session tersimpan di \`${authFile}\` (atau \`.auth/{APP_ENV}/${roleName}.json\`) via auth.setup\n` +
-    `- Tidak ada pesan error yang tampil\n\n`
+  const identCred = identifierCredential(roleName, state.loginIdPref);
+  const includeAutoSuccess = challengeMode === 'none';
+  let sc = 1;
+  const take = (): { heading: (title: string) => string; testId: string } => {
+    const n = sc;
+    sc += 1;
+    const label = String(n).padStart(2, '0');
+    return {
+      heading: (title: string) => `SC-${label}: ${title}`,
+      testId: `TC-LOGIN-${String(n).padStart(3, '0')}`,
+    };
+  };
+
+  const stayOnLogin = [
+    `URL tetap mengandung \`${loginUrl}\` (tidak redirect ke \`${successUrlPath}\`)`,
+    'Tombol submit kembali enabled (tidak stuck loading)',
+  ];
+
+  const id1 = take();
+  const scEmptyIdent = scenarioBlock({
+    heading: id1.heading('Submit dengan Identifier Kosong (@failure)'),
+    testId: id1.testId,
+    covers: '`AC-01`',
+    priority: 'high',
+    layer: 'FE',
+    role: roleName,
+    precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, belum login.`,
+    inputLines: ['identifier: literal:', `password: ${credentialKey(roleName, 'password')}`],
+    steps: [
+      'Buka halaman login',
+      'Biarkan field login kosong',
+      `Isi field password (${passwordFields})`,
+      `Klik tombol submit (${submitButtons})`,
+    ],
+    results: [
+      stayOnLogin[0]!,
+      'Pesan validasi tampil di dekat field identifier',
+      'Request otentikasi tidak dikirim',
+      stayOnLogin[1]!,
+    ],
+  });
+
+  const id2 = take();
+  const scEmptyPass = scenarioBlock({
+    heading: id2.heading('Submit dengan Password Kosong (@failure)'),
+    testId: id2.testId,
+    covers: '`AC-02`',
+    priority: 'high',
+    layer: 'FE',
+    role: roleName,
+    precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, belum login.`,
+    inputLines: [`identifier: ${identCred}`, 'password: literal:'],
+    steps: [
+      'Buka halaman login',
+      `Isi field login (${loginFields})`,
+      'Biarkan field password kosong',
+      `Klik tombol submit (${submitButtons})`,
+    ],
+    results: [
+      stayOnLogin[0]!,
+      'Pesan validasi tampil di dekat field password',
+      'Request otentikasi tidak dikirim',
+      stayOnLogin[1]!,
+    ],
+  });
+
+  const id3 = take();
+  const scBothEmpty = scenarioBlock({
+    heading: id3.heading('Submit dengan Identifier dan Password Kosong (@failure)'),
+    testId: id3.testId,
+    covers: '`AC-03`',
+    priority: 'high',
+    layer: 'FE',
+    role: roleName,
+    precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, belum login.`,
+    inputLines: ['identifier: literal:', 'password: literal:'],
+    steps: [
+      'Buka halaman login',
+      'Biarkan field login kosong',
+      'Biarkan field password kosong',
+      `Klik tombol submit (${submitButtons})`,
+    ],
+    results: [
+      stayOnLogin[0]!,
+      'Pesan validasi tampil di dekat field identifier',
+      'Pesan validasi tampil di dekat field password',
+      'Request otentikasi tidak dikirim',
+    ],
+  });
+
+  const id4 = take();
+  const scWhitespace = scenarioBlock({
+    heading: id4.heading('Submit dengan Identifier Hanya Spasi (@failure)'),
+    testId: id4.testId,
+    covers: '`AC-04`',
+    priority: 'medium',
+    layer: 'FE',
+    role: roleName,
+    precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, belum login.`,
+    inputLines: ['identifier: literal:   ', `password: ${credentialKey(roleName, 'password')}`],
+    steps: [
+      'Buka halaman login',
+      'Isi field login dengan karakter spasi saja (nilai di Input Data)',
+      `Isi field password (${passwordFields})`,
+      `Klik tombol submit (${submitButtons})`,
+    ],
+    results: [
+      stayOnLogin[0]!,
+      'Pesan validasi tampil di dekat field identifier (spasi diperlakukan kosong)',
+      'Request otentikasi tidak dikirim',
+    ],
+  });
+
+  const id5 = take();
+  const scMalformed = scenarioBlock({
+    heading: id5.heading('Submit dengan Identifier Format Tidak Valid (@failure)'),
+    testId: id5.testId,
+    covers: '`AC-05`',
+    priority: 'medium',
+    layer: 'FE',
+    role: roleName,
+    precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, belum login. Identifier fiktif, bukan akun real.`,
+    inputLines: [
+      'identifier: literal:bukan-email-atau-phone',
+      `password: ${credentialKey(roleName, 'password')}`,
+    ],
+    steps: [
+      'Buka halaman login',
+      `Isi field login (${loginFields})`,
+      `Isi field password (${passwordFields})`,
+      `Klik tombol submit (${submitButtons})`,
+    ],
+    results: [
+      stayOnLogin[0]!,
+      'Pesan validasi format tampil di dekat field identifier',
+      'Request otentikasi tidak dikirim, atau ditolak di UI tanpa redirect',
+    ],
+  });
+
+  const id6 = take();
+  const scFictional = scenarioBlock({
+    heading: id6.heading('Login Gagal dengan User Fiktif (@failure)'),
+    testId: id6.testId,
+    covers: '`AC-06`',
+    priority: 'high',
+    role: roleName,
+    precondition:
+      `Aplikasi berjalan di \`${state.baseUrl}\`. Akun \`qa.invalid.user.not.exists\` ` +
+      `**tidak ada** di sistem (user fiktif — jangan pakai password salah pada akun real).`,
+    inputLines: [
+      'identifier: literal:qa.invalid.user.not.exists',
+      'password: literal:WrongPasswordInvalid!',
+    ],
+    steps: [
+      'Buka halaman login',
+      `Isi field login (${loginFields})`,
+      `Isi field password (${passwordFields})`,
+      `Klik tombol submit (${submitButtons})`,
+    ],
+    results: [
+      stayOnLogin[0]!,
+      'Pesan error yang observable tampil di halaman (mis. "Email atau password salah")',
+      stayOnLogin[1]!,
+      `Akun role \`${roleName}\` **tidak terkunci** — user fiktif di luar scope lockout`,
+    ],
+  });
+
+  const scSuccess = includeAutoSuccess
+    ? (() => {
+        const id7 = take();
+        return scenarioBlock({
+          heading: id7.heading('Login Berhasil dengan Kredensial Valid (@success)'),
+          testId: id7.testId,
+          covers: '`AC-07`',
+          role: roleName,
+          precondition:
+            `Akun \`${envPrefix}_EMAIL\` (atau USERNAME/PHONE) terdaftar di aplikasi ` +
+            `(lihat \`config/environments/{APP_ENV}.env\` — JANGAN tulis nilainya di sini).`,
+          inputLines: [
+            `identifier: ${identCred}`,
+            `password: ${credentialKey(roleName, 'password')}`,
+          ],
+          steps: [
+            'Buka halaman login',
+            `Isi field login (${loginFields})`,
+            `Isi field password (${passwordFields})`,
+            `Klik tombol submit (${submitButtons})`,
+          ],
+          results: [
+            `URL pathname mengandung \`${successUrlPath}\` **DAN TIDAK** mengandung \`${loginUrl}\``,
+            'Form login tidak terlihat lagi (sudah diganti konten dashboard/beranda)',
+            `Session tersimpan di \`${authFile}\` (atau \`.auth/{APP_ENV}/${roleName}.json\`) via auth.setup`,
+            'Tidak ada pesan error yang tampil di halaman',
+          ],
+        });
+      })()
+    : '';
+
+  const extra = challengeManualScenario(
+    state,
+    challengeMode,
+    roleName,
+    loginFields,
+    passwordFields,
+    submitButtons,
+    identCred,
+    sc,
   );
+
+  const negatives =
+    scEmptyIdent +
+    `\n---\n\n` +
+    scEmptyPass +
+    `\n---\n\n` +
+    scBothEmpty +
+    `\n---\n\n` +
+    scWhitespace +
+    `\n---\n\n` +
+    scMalformed +
+    `\n---\n\n` +
+    scFictional;
+
+  return `## Skenario Uji\n\n` + negatives + (includeAutoSuccess ? `\n---\n\n` + scSuccess : extra);
 }
 
 function ssoScenarios(state: LoginTemplateState): string {
   return (
     `## Skenario Uji\n\n` +
-    `### SC-01: Login via SSO (@manual)\n\n` +
-    `- **Test ID:** TC-LOGIN-SSO-001\n` +
-    `- **Prioritas skenario:** high\n` +
-    `- **Layer terdampak:** FE\n\n` +
-    `**Prekondisi:** SSO provider (Google/Microsoft/OAuth) sudah terkonfigurasi di aplikasi.\n\n` +
-    `**Langkah:**\n\n` +
-    `1. Buka \`${state.baseUrl}${state.loginUrl}\`\n` +
-    `2. Klik tombol SSO (label spesifik aplikasi)\n` +
-    `3. Pilih akun SSO yang sesuai\n` +
-    `4. Selesaikan alur OAuth sampai kembali ke aplikasi\n\n` +
-    `**Hasil yang Diharapkan:**\n\n` +
-    `- URL pathname mengandung \`${state.successUrlPath}\` **DAN TIDAK** mengandung \`${state.loginUrl}\`\n` +
-    `- User teridentifikasi sesuai akun SSO yang dipilih\n\n` +
-    `**Alasan manual:** SSO/OAuth membutuhkan interaksi dengan provider eksternal ` +
-    `(popup, MFA, consent screen) yang tidak bisa diotomasi dari Playwright tanpa ` +
-    `stub provider. Jalankan via \`npm run manual:check\` untuk tracking.\n\n` +
-    `---\n\n` +
-    `### Catatan untuk Hermes\n\n` +
+    scenarioBlock({
+      heading: 'SC-01: Login via SSO (@manual)',
+      testId: 'TC-LOGIN-SSO-001',
+      covers: '`AC-01`, `AC-02`',
+      layer: 'FE',
+      precondition: `SSO provider (Google/Microsoft/OAuth) sudah terkonfigurasi di \`${state.baseUrl}\`.`,
+      inputLines: ['provider: literal:sso'],
+      steps: [
+        'Buka halaman login',
+        'Klik tombol SSO (label spesifik aplikasi)',
+        'Pilih akun SSO yang sesuai',
+        'Selesaikan alur OAuth sampai kembali ke aplikasi',
+      ],
+      results: [
+        `URL pathname mengandung \`${state.successUrlPath}\` **DAN TIDAK** mengandung \`${state.loginUrl}\``,
+        'User teridentifikasi sesuai akun SSO yang dipilih',
+        'Tidak bisa diotomasi: popup OAuth, MFA, dan consent screen provider eksternal tidak dijalankan dari CI. Tracking: `npm run manual:check`.',
+      ],
+    }) +
+    `\n---\n\n` +
+    `## Catatan untuk Hermes\n\n` +
     `Aplikasi ini memakai SSO. Setelah setup selesai, minta Hermes:\n\n` +
-    `> \`Tolong buat src/support/auth.setup.ts untuk SSO login di ${state.baseUrl}${state.loginUrl}\`\n\n` +
+    `> \`Tolong buat tests/auth.setup.ts untuk SSO login di ${state.baseUrl}${state.loginUrl}\`\n\n` +
     `Setelah auth.setup.ts siap, requirement ini bisa diotomasi dengan ` +
     `menambahkan storageState per-role (\`.auth/{APP_ENV}/<role>.json\`) dan menghapus tag \`(@manual)\`.\n\n`
   );
@@ -192,24 +513,24 @@ function ssoScenarios(state: LoginTemplateState): string {
 function noneScenarios(state: LoginTemplateState): string {
   return (
     `## Skenario Uji\n\n` +
-    `### SC-01: Halaman Utama Termuat Tanpa Login (@success)\n\n` +
-    `- **Test ID:** TC-PUBLIC-001\n` +
-    `- **Prioritas skenario:** high\n` +
-    `- **Layer terdampak:** FE\n\n` +
-    `**Prekondisi:** Aplikasi berjalan di \`${state.baseUrl}\` tanpa mekanisme login.\n\n` +
-    `**Input Data:**\n\n` +
-    `- URL: \`${state.baseUrl}/\`\n\n` +
-    `**Langkah:**\n\n` +
-    `1. Buka \`${state.baseUrl}/\`\n` +
-    `2. Tunggu halaman termuat (networkidle)\n\n` +
-    `**Hasil yang Diharapkan:**\n\n` +
-    `- URL bukan halaman error (status bukan 4xx/5xx)\n` +
-    `- Body halaman memiliki konten visible (text content > 0)\n` +
-    `- Tidak ada form login yang tampil (mechanism: none)\n\n`
+    scenarioBlock({
+      heading: 'SC-01: Halaman Utama Termuat Tanpa Login (@success)',
+      testId: 'TC-PUBLIC-001',
+      covers: '`AC-01`, `AC-02`',
+      layer: 'FE',
+      precondition: `Aplikasi berjalan di \`${state.baseUrl}\` tanpa mekanisme login.`,
+      inputLines: [`url: literal:${state.baseUrl}/`],
+      steps: ['Buka halaman utama', 'Tunggu halaman termuat (konten visible)'],
+      results: [
+        'URL bukan halaman error (status bukan 4xx/5xx)',
+        'Body halaman memiliki konten visible (text content > 0)',
+        'Tidak ada form login yang tampil (mechanism: none)',
+      ],
+    })
   );
 }
 
-function footer(state: LoginTemplateState): string {
+function footer(state: LoginTemplateState, challengeMode: ChallengeMode): string {
   const roleName = canonicalRole(state.roles[0]?.name ?? 'user');
   const roleList =
     state.roles.length > 0 ? state.roles.map((r) => canonicalRole(r.name)).join(', ') : 'user';
@@ -223,8 +544,13 @@ function footer(state: LoginTemplateState): string {
 
   // IMPORTANT: jangan pakai heading ### di sini — validator requirement
   // menganggap ### sebagai skenario (butuh Langkah/Hasil).
+  const challengeNote =
+    challengeMode === 'none'
+      ? `- AUTH_CHALLENGE_MODE=none — tidak ada OTP/CAPTCHA setelah password\n`
+      : `- AUTH_CHALLENGE_MODE=${challengeMode} — bantu sesi via \`npm run auth:setup\` / \`auth:setup:headed\`; skenario tantangan tetap (@manual)\n`;
+
   return (
-    `---\n\n` +
+    `\n---\n\n` +
     `## Catatan Pipeline (wajib diikuti Hermes)\n\n` +
     `**1) Capture locator catalog dulu (per website)**\n\n` +
     `Setiap app punya form/label berbeda. Jangan hardcode selector generik.\n\n` +
@@ -236,57 +562,173 @@ function footer(state: LoginTemplateState): string {
     `- Generator pakai locator dari catalog + live verify (playwright-cli / browser_* MCP)\n` +
     `- Path A (default): inline locator dari catalog — **tanpa POM**\n` +
     `- Path B (opsional nanti): \`generate_page_object\` + register fixture\n\n` +
-    `**2) Role & env**\n\n` +
+    `**2) Role, env, challenge**\n\n` +
     `- Akun kredensial default: role **\`user\`** (\`TEST_USER_*\`) — dipakai mode pipeline **general**\n` +
     `- Role aktif di requirement ini: \`${roleName}\` (roles: ${roleList})\n` +
     `- Multi-role: tambah via \`npm run env:edit\` + metadata Role scope (jangan buat role bernama \`general\`)\n` +
     `- Auth file: \`.auth/{APP_ENV}/<role>.json\` (helper: \`authStatePath('<role>')\`)\n` +
     `- Kredensial hanya dari env (\`TEST_USER_*\` / \`{ROLE}_*\`) — jangan hardcode secret\n` +
-    `- Selector environment: **APP_ENV** saja (\`npm run env:status\` / \`env:use\`)\n\n` +
-    `**3) Output pipeline**\n\n` +
+    `- Selector environment: **APP_ENV** saja (\`npm run env:status\` / \`env:use\`)\n` +
+    challengeNote +
+    `\n` +
+    `**3) Dashboard columns (jangan campur)**\n\n` +
+    `- **Test Step** = teks langkah skenario verbatim (aksi UI). Dilarang menaruh nilai Input Data di judul \`test.step\`.\n` +
+    `- **Input Data** = blok input skenario (\`credential:\` / \`literal:\` / \`seed:\` / \`fixture:\`) via \`setTestMetadata.inputData\`.\n` +
+    `- **Expected** = hasil yang diharapkan verbatim. Pass: \`captureActualResult\` = string yang sama.\n\n` +
+    `**4) Output pipeline**\n\n` +
     `- Plan: \`specs/login-test-plan.md\`\n` +
-    `- Spec: \`src/tests/login*.spec.ts\`\n` +
-    `- Report: \`reports/pipeline-report-*.md\` + \`reports/custom-dashboard.html\`\n`
+    `- Spec: \`tests/login*.spec.ts\`\n` +
+    `- Report: \`artifacts/reports/pipeline-report-*.md\` + \`artifacts/reports/custom-dashboard.html\`\n`
   );
 }
 
-export function buildLoginRequirement(state: LoginTemplateState): string {
+function formAcceptance(state: LoginTemplateState, challengeMode: ChallengeMode): string {
+  const roleName = canonicalRole(state.roles[0]?.name ?? 'user');
+  const lines: string[] = [
+    `- **AC-01:** Form login menolak submit ketika field identifier (email/username/phone) kosong.`,
+    `- **AC-02:** Form login menolak submit ketika field password kosong.`,
+    `- **AC-03:** Form login menolak submit ketika identifier dan password kosong.`,
+    `- **AC-04:** Form login menolak identifier yang hanya spasi (diperlakukan kosong).`,
+    `- **AC-05:** Form login menolak identifier dengan format tidak valid (bukan email/username/phone yang diterima aplikasi).`,
+    `- **AC-06:** Login gagal dengan user fiktif menampilkan pesan error observable, tetap di halaman login, dan akun role \`${roleName}\` tidak terkunci.`,
+    `- **AC-07:** Login berhasil dengan kredensial valid me-redirect ke path \`${state.successUrlPath}\` ` +
+      `(assert pathname, bukan URL dengan \`?redirect=\`) dan session tersimpan di \`.auth/{APP_ENV}/${roleName}.json\`.`,
+  ];
+  if (challengeMode !== 'none') {
+    lines.push(
+      `- **AC-08:** Setelah password, tantangan ${challengeMode} diselesaikan manusia; skenario ditandai (@manual) ` +
+        `karena OTP/CAPTCHA tidak diotomasi di pipeline (AUTH_CHALLENGE_MODE hanya untuk auth:setup).`,
+    );
+  }
+  return lines.join('\n') + '\n\n';
+}
+
+export function projectNameFromUrl(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).hostname.replace(/^www\./, '') || 'Target App';
+  } catch {
+    return 'Target App';
+  }
+}
+
+/** Placeholder state for committed catalogs under requirements/auth/login-<mode>.md. */
+export function catalogLoginState(mode: ChallengeMode): LoginTemplateState {
+  return {
+    projectName: 'Target App',
+    baseUrl: 'https://app.example.com',
+    loginUrl: '/login',
+    successUrlPath: '/dashboard',
+    roles: [{ name: 'user', authFile: '.auth/{APP_ENV}/user.json' }],
+    mechanism: 'form',
+    challengeMode: mode,
+  };
+}
+
+export function loginStateFromWizard(opts: {
+  baseUrl: string;
+  appEnv: string;
+  roles: string[];
+  challengeMode: ChallengeMode;
+  loginUrl?: string;
+  successUrlPath?: string;
+  loginIdPref?: string;
+}): LoginTemplateState {
+  const roles = (opts.roles.length > 0 ? opts.roles : ['user']).map((name) => {
+    const n = canonicalRole(name);
+    return { name: n, authFile: `.auth/${opts.appEnv}/${n}.json` };
+  });
+  return {
+    projectName: projectNameFromUrl(opts.baseUrl),
+    baseUrl: opts.baseUrl.replace(/\/$/, ''),
+    loginUrl: ensureLeadingSlash(opts.loginUrl, '/login'),
+    successUrlPath: ensureLeadingSlash(opts.successUrlPath, '/dashboard'),
+    roles,
+    mechanism: 'form',
+    challengeMode: opts.challengeMode,
+    loginIdPref: parseLoginIdPref(opts.loginIdPref),
+  };
+}
+
+function parseLoginIdPref(raw: string | undefined): 'email' | 'username' | 'phone' | undefined {
+  return raw === 'email' || raw === 'username' || raw === 'phone' ? raw : undefined;
+}
+
+function ensureLeadingSlash(raw: string | undefined, fallback: string): string {
+  const v = raw?.trim();
+  if (!v) return fallback;
+  return v.startsWith('/') ? v : `/${v}`;
+}
+
+const AUTOGEN_MARKER = 'AUTO-GENERATED oleh setup wizard';
+
+function isAutogeneratedLogin(content: string): boolean {
+  return content.includes(AUTOGEN_MARKER);
+}
+
+/** Write generated login.md under repoRoot/requirements/login.md. Returns relative path. */
+export function writeLoginRequirementFile(
+  repoRoot: string,
+  state: LoginTemplateState,
+): { relativePath: string; absolutePath: string; skipped: boolean } {
+  const relativePath = 'requirements/login.md';
+  const absolutePath = path.join(repoRoot, relativePath);
+  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+  if (fs.existsSync(absolutePath)) {
+    const existing = fs.readFileSync(absolutePath, 'utf-8');
+    if (!isAutogeneratedLogin(existing)) {
+      return { relativePath, absolutePath, skipped: true };
+    }
+  }
+  fs.writeFileSync(absolutePath, buildLoginRequirement(state, { generated: true }), 'utf-8');
+  return { relativePath, absolutePath, skipped: false };
+}
+
+export function buildLoginRequirement(
+  state: LoginTemplateState,
+  opts?: { generated?: boolean },
+): string {
+  const challengeMode = resolveChallenge(state);
+  const generated = opts?.generated !== false;
   const projectLabel = state.projectName || 'Target App';
-  const title =
-    state.mechanism === 'none'
-      ? `# REQ-AUTH-001: Smoke Publik — ${projectLabel}`
-      : `# REQ-AUTH-001: Login — ${projectLabel}`;
+
+  let title: string;
+  let feature: string;
+  if (state.mechanism === 'none') {
+    title = `# REQ-AUTH-001: Smoke Publik — ${projectLabel}`;
+    feature = 'public-home';
+  } else if (state.mechanism === 'sso') {
+    title = `# REQ-AUTH-001: Login SSO — ${projectLabel}`;
+    feature = 'login-sso';
+  } else if (generated) {
+    title = `# REQ-AUTH-001: Login — ${projectLabel}`;
+    feature = 'login';
+  } else {
+    title = `# ${CHALLENGE_REQ_ID[challengeMode]}: Login — ${challengeMode} — ${projectLabel}`;
+    feature = `login-${challengeMode}`;
+  }
 
   let body = '';
   const halamanAwal = state.mechanism === 'none' ? '/' : state.loginUrl;
 
-  body += frontmatter(title);
-  body += metadata(state, halamanAwal);
+  body += frontmatter(title, challengeMode, generated);
+  body += metadata(state, halamanAwal, feature);
   body += `## Kriteria Penerimaan\n\n`;
 
   if (state.mechanism === 'form') {
-    const roleName = canonicalRole(state.roles[0]?.name ?? 'user');
-    body +=
-      `- Login gagal dengan kredensial invalid menampilkan pesan error observable dan tetap di halaman login\n` +
-      `- Login berhasil dengan kredensial valid me-redirect ke path \`${state.successUrlPath}\` ` +
-      `(assert pathname, bukan URL dengan \`?redirect=\`)\n` +
-      `- Session tersimpan setelah login berhasil di \`.auth/{APP_ENV}/${roleName}.json\`\n` +
-      `- Field form login menggunakan label/placeholder sesuai aplikasi (dideteksi Generator)\n` +
-      `- Akun role \`${roleName}\` **tidak terkunci** setelah SC-01 (user fiktif)\n\n`;
-    body += formScenarios(state);
+    body += formAcceptance(state, challengeMode);
+    body += formScenarios(state, challengeMode);
   } else if (state.mechanism === 'sso') {
     body +=
-      `- Login via SSO berhasil dan me-redirect ke path \`${state.successUrlPath}\`\n` +
-      `- Session SSO tersimpan (browser cookies / id_token)\n\n`;
+      `- **AC-01:** Login via SSO berhasil dan me-redirect ke path \`${state.successUrlPath}\`.\n` +
+      `- **AC-02:** Session SSO tersimpan (browser cookies / id_token).\n\n`;
     body += ssoScenarios(state);
   } else {
     body +=
-      `- Halaman utama \`${state.baseUrl}/\` termuat tanpa error\n` +
-      `- Aplikasi tidak menampilkan form login (mechanism: none)\n` +
-      `- Body halaman berisi konten visible\n\n`;
+      `- **AC-01:** Halaman utama \`${state.baseUrl}/\` termuat tanpa error.\n` +
+      `- **AC-02:** Aplikasi tidak menampilkan form login (mechanism: none) dan body berisi konten visible.\n\n`;
     body += noneScenarios(state);
   }
 
-  body += footer(state);
+  body += footer(state, challengeMode);
   return body;
 }

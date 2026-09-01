@@ -45,7 +45,7 @@
     "sync:mcp-generated:check": "tsx tools/scripts/sync-mcp-generated.ts --check",
     "xss:scan": "xss-scan",
     "quality:check-code": "npm run format:check && npm run lint && npm run typecheck && npm run mcp:typecheck && npm run xss:scan",
-    "quality:check-rules": "npm run validate:architecture && npm run validate:ephemeral && npm run validate && npm run sync:mcp-generated:check && npm run mcp:check && npx tsx tools/validators/validate-requirement.ts requirements/auth/sample-login-empty-fields.md && npm run validate:test-plan && npm run test:contract && npm run test:traceability && npm run test:mcp-profiles && npm run test:property && npm run test:unit && npm run test:file-content && npm run test:network-assert",
+    "quality:check-rules": "npm run validate:architecture && npm run validate:ephemeral && npm run validate && npm run sync:mcp-generated:check && npm run mcp:check && npx tsx tools/validators/validate-requirement.ts requirements/auth/login-none.md && npm run validate:test-plan && npm run test:contract && npm run test:traceability && npm run test:mcp-profiles && npm run test:property && npm run test:unit && npm run test:file-content && npm run test:network-assert",
     "test:quality": "npm run install:mcp-server && npm run setup:check && npm run quality:check-code && npm run quality:check-rules && npm run mcp:build && npm run health:check",
     "setup": "tsx src/setup/index.ts",
     "setup:check": "tsx src/setup/index.ts --check",
@@ -75,11 +75,11 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^2.22.0",
+    "@dotenvx/dotenvx": "^2.23.0",
     "@eslint/js": "^10.0.1",
     "@kitajs/html": "^4.2.13",
     "@kitajs/ts-html-plugin": "^4.1.4",
-    "@playwright/mcp": "0.0.79",
+    "@playwright/mcp": "^0.0.80",
     "@playwright/test": "^1.62.1",
     "@types/node": "^26.4.0",
     "@types/prompts": "^2.4.9",
@@ -96,7 +96,7 @@
     "prompts": "^2.4.2",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.68.0"
+    "typescript-eslint": "^8.69.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

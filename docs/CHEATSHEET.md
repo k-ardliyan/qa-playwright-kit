@@ -30,7 +30,7 @@ npm run setup:check && npm run health:check
 
 ```bash
 # Setelah setup → requirements/login.md = REAL website kamu
-# (sample format: requirements/sample-*.md — jangan dipakai setup awal)
+# (catalog mode: requirements/auth/login-<none|auto|otp-browser|otp-stdin|captcha-browser>.md)
 npm run qa:run
 # Hermes: snapshot_page dulu (locator per site) → plan → generate → report
 
@@ -170,5 +170,5 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 
 ---
 
-> **Tips:** Setup awal = `requirements/login.md` (hasil wizard, per website + `snapshot_page`).
-> Sample format saja: `requirements/auth/sample-login-empty-fields.md` / `requirements/auth/sample-network-hybrid.md` / `requirements/auth/sample-network-assert.md`.
+> **Tips:** Setup awal = `npm run setup` menulis `requirements/login.md` (mode challenge + URL/role) lalu print prompt Hermes.
+> Catalog mode: `requirements/auth/login-none.md` / `login-auto.md` / `login-otp-browser.md` / `login-otp-stdin.md` / `login-captcha-browser.md`.
