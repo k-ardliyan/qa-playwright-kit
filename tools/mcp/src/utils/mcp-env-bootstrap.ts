@@ -42,7 +42,7 @@ export function bootstrapMcpEnvironment(startDir: string): string {
     // Fallback if not compiled to cjs yet
   }
   process.stderr.write(
-    `[qa-playwright-kit-mcp] APP_ENV=${resolved.appEnv} (source=${resolved.source}) → environments/${resolved.appEnv}.env\n`,
+    `[qa-playwright-kit-mcp] APP_ENV=${resolved.appEnv} (source=${resolved.source}) → config/environments/${resolved.appEnv}.env\n`,
   );
 
   const loadEnvironment = getLoadEnvironment(repoRoot);

@@ -49,6 +49,7 @@ export interface LoginTemplateState {
 const DEFAULT_LOGIN_FIELDS = ['email', 'username', 'user'];
 const DEFAULT_PASSWORD_FIELDS = ['password', 'pass', 'kata sandi'];
 const DEFAULT_SUBMIT_BUTTONS = ['Masuk', 'Login', 'Sign in', 'Log in'];
+const DEFAULT_LOGOUT_BUTTONS = ['Logout', 'Keluar', 'Sign out'];
 
 const CHALLENGE_REQ_ID: Record<ChallengeMode, string> = {
   none: 'REQ-AUTH-NONE',
@@ -478,8 +479,9 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
     `\n---\n\n` +
     scFictional;
 
+  const acOffset = challengeMode !== 'none' ? 1 : 0;
+
   const tier2Scenarios = (() => {
-    const acOffset = challengeMode !== 'none' ? 1 : 0;
     const ac = (n: number) => `\`AC-${String(n + acOffset).padStart(2, '0')}\``;
 
     const id8 = take();
@@ -653,12 +655,167 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
     ].join('\n---\n\n');
   })();
 
+  const tier3Scenarios = (() => {
+    const ac = (n: number) => `\`AC-${String(n + acOffset).padStart(2, '0')}\``;
+    const logoutButtons = formatList(DEFAULT_LOGOUT_BUTTONS);
+
+    const id14 = take();
+    const scDeepLink = scenarioBlock({
+      heading: id14.heading(
+        'Akses Halaman Protected Tanpa Login Mengarahkan ke Login (@access-restriction)',
+      ),
+      testId: id14.testId,
+      covers: ac(14),
+      priority: 'high',
+      layer: 'FE BE',
+      role: roleName,
+      precondition: `Pengguna belum login (tidak ada sesi tersimpan). Aplikasi memiliki area protected setelah login (mis. \`${successUrlPath}\`).`,
+      inputLines: ['protectedPath: literal:/dashboard'],
+      steps: [
+        'Buka langsung path protected dari address bar (nilai di Input Data)',
+        'Tunggu aplikasi selesai melakukan redirect',
+      ],
+      results: [
+        `URL diarahkan ke halaman login (pathname mengandung \`${loginUrl}\`)`,
+        'Konten halaman protected tidak ditampilkan sama sekali',
+        'Tidak terjadi error 5xx atau halaman error',
+      ],
+    });
+
+    const id15 = take();
+    const scReloadSession = scenarioBlock({
+      heading: id15.heading('Sesi Tetap Aktif Setelah Reload Halaman (@success)'),
+      testId: id15.testId,
+      covers: ac(15),
+      priority: 'high',
+      layer: 'FE BE',
+      role: roleName,
+      precondition: `Kredensial valid tersedia. Pengguna sudah login sukses dan berada di \`${successUrlPath}\`.`,
+      inputLines: [`identifier: ${identCred}`, `password: ${credentialKey(roleName, 'password')}`],
+      steps: [
+        'Login dengan kredensial valid',
+        'Reload halaman (refresh browser)',
+        'Periksa status login pada halaman yang termuat ulang',
+      ],
+      results: [
+        'Setelah reload, pengguna tetap dalam keadaan login (form login tidak tampil)',
+        `URL tetap berada di area \`${successUrlPath}\``,
+        'Elemen khas pengguna yang sudah login (menu/nama akun) masih tampil',
+      ],
+    });
+
+    const id16 = take();
+    const scBrowserBack = scenarioBlock({
+      heading: id16.heading('Navigasi Back Browser Setelah Login Tidak Mengakhiri Sesi (@success)'),
+      testId: id16.testId,
+      covers: ac(16),
+      priority: 'medium',
+      layer: 'FE',
+      role: roleName,
+      precondition: `Kredensial valid tersedia. Pengguna sudah login sukses ke \`${successUrlPath}\`.`,
+      inputLines: [`identifier: ${identCred}`, `password: ${credentialKey(roleName, 'password')}`],
+      steps: [
+        'Login dengan kredensial valid',
+        'Tekan tombol back pada browser',
+        'Akses kembali path sukses dari address bar (nilai di Input Data)',
+      ],
+      results: [
+        'Pengguna tetap dalam keadaan login — aplikasi tidak meminta login ulang',
+        `Akses ulang \`${successUrlPath}\` berhasil tanpa form login`,
+      ],
+    });
+
+    const id17 = take();
+    const scDoubleSubmit = scenarioBlock({
+      heading: id17.heading('Klik Ganda Tombol Submit Tidak Memproses Login Dua Kali (@ui)'),
+      testId: id17.testId,
+      covers: ac(17),
+      priority: 'medium',
+      layer: 'FE',
+      role: roleName,
+      precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, kredensial valid.`,
+      inputLines: [`identifier: ${identCred}`, `password: ${credentialKey(roleName, 'password')}`],
+      steps: [
+        'Isi field login dan password dengan kredensial valid',
+        'Klik tombol submit dua kali secara cepat (double click)',
+        'Tunggu proses otentikasi selesai',
+      ],
+      results: [
+        'Tombol submit menjadi disabled atau menampilkan indikator loading selama proses',
+        'Tidak terjadi error duplikasi atau kegagalan yang tampil di UI',
+        'Pengguna berada di area sukses setelah proses selesai',
+      ],
+    });
+
+    const id18 = take();
+    const scXssIdentifier = scenarioBlock({
+      heading: id18.heading(
+        'Identifier Berisi Karakter HTML dan Script Tidak Dieksekusi (@failure)',
+      ),
+      testId: id18.testId,
+      covers: ac(18),
+      priority: 'medium',
+      layer: 'FE BE',
+      role: roleName,
+      precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`. Nilai identifier di bawah adalah markup fiktif, bukan akun real.`,
+      inputLines: [
+        'identifier: literal:`<script>alert("xss")</script>`',
+        `password: ${credentialKey(roleName, 'password')}`,
+      ],
+      steps: [
+        'Isi field login dengan literal markup (nilai di Input Data)',
+        `Isi field password (${passwordFields})`,
+        `Klik tombol submit (${submitButtons})`,
+      ],
+      results: [
+        'Nilai identifier dirender sebagai teks biasa (di-escape), bukan dieksekusi sebagai script',
+        'Tidak ada dialog/alert browser yang muncul',
+        `Tetap berada di \`${loginUrl}\` dengan pesan validasi atau error`,
+      ],
+    });
+
+    const id19 = take();
+    const scLogout = scenarioBlock({
+      heading: id19.heading(
+        'Logout Mengakhiri Sesi dan Melindungi Halaman Kembali (@access-restriction)',
+      ),
+      testId: id19.testId,
+      covers: ac(19),
+      priority: 'low',
+      layer: 'FE BE',
+      role: roleName,
+      precondition: `Kredensial valid tersedia. Pengguna sudah login sukses.`,
+      inputLines: [`logoutButton: literal:(${DEFAULT_LOGOUT_BUTTONS.join(' | ')})`],
+      steps: [
+        'Login dengan kredensial valid',
+        `Klik menu atau tombol logout (${logoutButtons})`,
+        'Konfirmasi logout jika dialog konfirmasi tampil',
+        'Akses ulang path sukses dari address bar',
+      ],
+      results: [
+        `Setelah logout, aplikasi mengarahkan ke halaman login (\`${loginUrl}\`)`,
+        `Akses ulang \`${successUrlPath}\` diarahkan kembali ke \`${loginUrl}\` — sesi benar-benar berakhir`,
+      ],
+    });
+
+    return [
+      scDeepLink,
+      scReloadSession,
+      scBrowserBack,
+      scDoubleSubmit,
+      scXssIdentifier,
+      scLogout,
+    ].join('\n---\n\n');
+  })();
+
   return (
     `## Skenario Uji\n\n` +
     negatives +
     (includeAutoSuccess ? `\n---\n\n` + scSuccess : extra) +
     `\n---\n\n` +
-    tier2Scenarios
+    tier2Scenarios +
+    `\n---\n\n` +
+    tier3Scenarios
   );
 }
 
@@ -792,6 +949,12 @@ function formAcceptance(state: LoginTemplateState, challengeMode: ChallengeMode)
     `- **AC-${String(nextAc + 3).padStart(2, '0')}:** Checkbox "Ingat Saya" (Remember Me) dapat di-toggle status checked dan unchecked-nya oleh pengguna.`,
     `- **AC-${String(nextAc + 4).padStart(2, '0')}:** Identifier email bersifat case-insensitive sehingga input kredensial valid berhuruf kapital tetap berhasil login ke \`${state.successUrlPath}\`.`,
     `- **AC-${String(nextAc + 5).padStart(2, '0')}:** Tautan bantuan sekunder seperti "Lupa Kata Sandi?" dan "Daftar Akun" tampil di halaman login dengan URL target yang valid.`,
+    `- **AC-${String(nextAc + 6).padStart(2, '0')}:** Mengakses halaman protected tanpa sesi mengarahkan pengguna ke halaman login tanpa menampilkan konten protected (deep-link protection).`,
+    `- **AC-${String(nextAc + 7).padStart(2, '0')}:** Setelah login sukses, reload halaman tidak mengakhiri sesi — pengguna tetap login di \`${state.successUrlPath}\`.`,
+    `- **AC-${String(nextAc + 8).padStart(2, '0')}:** Navigasi back browser setelah login tidak mengakhiri sesi; akses ulang area sukses tidak meminta login ulang.`,
+    `- **AC-${String(nextAc + 9).padStart(2, '0')}:** Klik ganda pada tombol submit tidak memproses otentikasi dua kali (tombol disabled atau menampilkan loading selama proses).`,
+    `- **AC-${String(nextAc + 10).padStart(2, '0')}:** Identifier berisi markup/script dirender sebagai teks (di-escape), tidak dieksekusi, dan submit ditolak.`,
+    `- **AC-${String(nextAc + 11).padStart(2, '0')}:** Logout mengakhiri sesi; akses halaman protected setelah logout diarahkan kembali ke \`${state.loginUrl}\`.`,
   );
   return lines.join('\n') + '\n\n';
 }

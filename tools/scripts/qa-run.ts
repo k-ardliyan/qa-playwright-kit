@@ -213,9 +213,8 @@ function preflight(repoRoot: string): PreFlightResult {
   const appEnv = resolveAppEnv({ repoRoot }).appEnv;
   const envPath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env`);
   const envExamplePath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env.example`);
-  const legacyEnvPath = path.join(repoRoot, 'environments', `${appEnv}.env`);
 
-  if (!fs.existsSync(envPath) && !fs.existsSync(envExamplePath) && !fs.existsSync(legacyEnvPath)) {
+  if (!fs.existsSync(envPath) && !fs.existsSync(envExamplePath)) {
     issues.push(
       `Environment file tidak ada. Buat: cp config/environments/local.env.example config/environments/${appEnv}.env  lalu: npm run env:use:${appEnv}`,
     );
@@ -244,9 +243,7 @@ function preflight(repoRoot: string): PreFlightResult {
     ? envPath
     : fs.existsSync(envExamplePath)
       ? envExamplePath
-      : fs.existsSync(legacyEnvPath)
-        ? legacyEnvPath
-        : null;
+      : null;
   if (targetEnv) {
     const content = fs.readFileSync(targetEnv, 'utf-8');
     if (!/^BASE_URL\s*=\s*\S+/m.test(content)) {

@@ -133,8 +133,8 @@ export function isFriendlyError(value: unknown): value is FriendlyErrorInstance 
  * @example
  *   throw friendly({
  *     title: 'Environment file tidak ditemukan',
- *     detail: 'environments/local.env does not exist',
- *     hint: 'Salin: cp environments/local.env.example environments/local.env',
+ *     detail: 'config/environments/local.env does not exist',
+ *     hint: 'Salin: cp config/environments/local.env.example config/environments/local.env',
  *     docsLink: 'docs/GUIDE.md#setup-lokal',
  *   });
  */

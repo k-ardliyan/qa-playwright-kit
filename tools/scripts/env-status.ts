@@ -1,6 +1,7 @@
 /// <reference types="node" />
 /**
  * env-status — Show active APP_ENV, source, file, roles (no secrets).
+ * Canonical path: config/environments/{APP_ENV}.env
  *
  * Usage: npm run env:status
  */
@@ -43,7 +44,7 @@ function main(): void {
   process.stdout.write(`  APP_ENV   = ${resolved.appEnv}\n`);
   process.stdout.write(`  source    = ${resolved.source}\n`);
   process.stdout.write(
-    `  file      = environments/${resolved.appEnv}.env` +
+    `  file      = config/environments/${resolved.appEnv}.env` +
       (exists ? '' : exampleExists ? ' (missing — example exists)' : ' (MISSING)') +
       '\n',
   );
@@ -151,8 +152,8 @@ function main(): void {
   if (!exists && !exampleExists) {
     printError({
       title: 'Environment file missing',
-      detail: `No environments/${resolved.appEnv}.env or .example`,
-      hint: `cp environments/local.env.example environments/${resolved.appEnv}.env`,
+      detail: `No config/environments/${resolved.appEnv}.env or .example`,
+      hint: `cp config/environments/local.env.example config/environments/${resolved.appEnv}.env`,
       exitCode: EXIT.FIXABLE,
     });
     process.exit(EXIT.FIXABLE);
@@ -160,7 +161,7 @@ function main(): void {
 
   if (!exists && exampleExists) {
     printWarn(
-      `Profile file missing — copy example: cp environments/${resolved.appEnv}.env.example environments/${resolved.appEnv}.env`,
+      `Profile file missing — copy example: cp config/environments/${resolved.appEnv}.env.example config/environments/${resolved.appEnv}.env`,
     );
     process.exit(EXIT.FIXABLE);
   }

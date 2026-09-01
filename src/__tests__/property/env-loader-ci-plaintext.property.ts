@@ -1,9 +1,9 @@
 /// <reference types="node" />
 
 /**
- * Regression: plaintext environments/{APP_ENV}.env must load even when
- * dotenvx private keys are missing (CI materializes plaintext secrets).
- * Fallback to .env.example only applies to encrypted files.
+ * Regression: plaintext config/environments/{APP_ENV}.env must load even
+ * when dotenvx private keys are missing (CI materializes plaintext secrets).
+ * Encrypted primaries without keys fail fast — never load the dummy template.
  */
 
 import assert from 'node:assert/strict';
@@ -39,7 +39,7 @@ function withTempRepo(
   };
 
   try {
-    fs.mkdirSync(path.join(dir, 'environments'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'config', 'environments'), { recursive: true });
     fs.writeFileSync(
       path.join(dir, 'package.json'),
       JSON.stringify({ name: 'env-loader-ci-fixture' }),
@@ -82,9 +82,9 @@ function main(): void {
   // 1) Plaintext CI file + no keys → keep real BASE_URL (do NOT fall back to example)
   withTempRepo(
     {
-      'environments/staging.env':
+      'config/environments/staging.env':
         'BASE_URL=https://ci-real.example.com/\nTEST_USER_EMAIL=ci@example.com\nTEST_USER_PASSWORD=s3cret-valid\n',
-      'environments/staging.env.example':
+      'config/environments/staging.env.example':
         'BASE_URL=https://staging.your-app.example.com/\nTEST_USER_EMAIL=test@example.com\nTEST_USER_PASSWORD=your_password_here\n',
     },
     () => {
@@ -117,43 +117,27 @@ function main(): void {
   );
   process.stdout.write('✓ plaintext CI env loads without decryption keys\n');
 
-  // 2) Encrypted primary + no keys + example exists → fall back to example + APP_ENV reassert
+  // 2) Encrypted primary + no keys → fail fast with actionable guidance
   withTempRepo(
     {
-      'environments/staging.env':
+      'config/environments/staging.env':
         'BASE_URL=encrypted:BA+84DBdeadbeef\nTEST_USER_PASSWORD=encrypted:BA+84DBdeadbeef\nAPP_ENV=should-not-win\n',
-      'environments/staging.env.example':
+      'config/environments/staging.env.example':
         'BASE_URL=https://staging.your-app.example.com/\nTEST_USER_PASSWORD=your_password_here\nAPP_ENV=should-not-win\n',
     },
     () => {
-      const warnings: string[] = [];
-      const originalWarn = logger.warn.bind(logger) as LoggerMethod;
-      logger.warn = ((message: string) => {
-        warnings.push(message);
-      }) as LoggerMethod;
-
-      try {
-        loadEnvironment();
-        assert.equal(process.env.APP_ENV, 'staging', 'APP_ENV must be re-asserted after fallback');
-        assert.equal(process.env.BASE_URL, 'https://staging.your-app.example.com/');
-        assert.equal(
-          warnings.some((m) => m.includes('Falling back to dummy template')),
-          true,
-          'expected encrypted-without-keys fallback warning',
-        );
-        assert.equal(isPlaceholderBaseUrl(process.env.BASE_URL), true);
-        assert.equal(
-          isRoleLoginReady(process.env as Record<string, string>, roleCredentialKeys('user')),
-          false,
-          'example template credentials must not be login-ready',
-        );
-      } finally {
-        logger.warn = originalWarn;
-      }
+      assert.throws(
+        () => loadEnvironment(),
+        /no dotenvx private key is available/,
+        'encrypted env without keys must throw, not load the dummy template',
+      );
+      // The throw happens before dotenvx.config — template values must not leak into env
+      assert.equal(process.env.APP_ENV, 'staging');
+      assert.equal(process.env.BASE_URL, undefined);
     },
     { APP_ENV: 'staging', CI: 'true' },
   );
-  process.stdout.write('✓ encrypted env without keys still falls back to example\n');
+  process.stdout.write('✓ encrypted env without keys fails fast (no dummy template)\n');
 
   // 3) Pure unit: placeholder detectors
   assert.equal(isPlaceholderCredential('your_password_here'), true);

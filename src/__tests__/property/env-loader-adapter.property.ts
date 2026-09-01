@@ -38,9 +38,9 @@ runCase('adapter overlay fills AUTH keys from .env.example', () => {
     };
 
     try {
-      fs.mkdirSync(path.join(root, 'environments'), { recursive: true });
+      fs.mkdirSync(path.join(root, 'config', 'environments'), { recursive: true });
       fs.writeFileSync(
-        path.join(root, 'environments', 'local.env'),
+        path.join(root, 'config', 'environments', 'local.env'),
         'BASE_URL=https://core.example/\n',
         'utf8',
       );
@@ -87,9 +87,9 @@ runCase('core credentials win over adapter overlay keys', () => {
     };
 
     try {
-      fs.mkdirSync(path.join(root, 'environments'), { recursive: true });
+      fs.mkdirSync(path.join(root, 'config', 'environments'), { recursive: true });
       fs.writeFileSync(
-        path.join(root, 'environments', 'local.env'),
+        path.join(root, 'config', 'environments', 'local.env'),
         'AUTH_SUCCESS_URL_PATH=/from-core\n',
         'utf8',
       );

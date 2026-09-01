@@ -27,7 +27,7 @@ Prasyarat: Node.js >= 20.19.0 dan Git terpasang di sistem.
 
 ```bash
 npm install                 # install dependencies
-npm run setup               # interactive setup (6 steps)
+npm run setup               # generate clean .env → encrypt secrets + login.md
 npm run setup:check         # verify setup setelah selesai
 npm run health:check        # pastikan MCP server siap
 ```
@@ -381,19 +381,19 @@ Tes legacy (login, smoke, seed, demo) exempt via `tools/mcp/src/tools/validate-g
 
 ## Environment: Active target (`APP_ENV`)
 
-| Variable                   | Fungsi                                                                                                                |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **`APP_ENV`**              | **Satu-satunya nama paten** — selector file `environments/{name}.env` (`local` \| `dev` \| `staging` \| `production`) |
-| `BASE_URL`                 | URL aplikasi                                                                                                          |
-| `TEST_USER_*` / `{ROLE}_*` | Kredensial                                                                                                            |
-| `PLAYWRIGHT_CONFIG`        | Path config Playwright                                                                                                |
+| Variable                   | Fungsi                                                                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **`APP_ENV`**              | **Satu-satunya nama paten** — selector file `config/environments/{name}.env` (`local` \| `dev` \| `staging` \| `production`) |
+| `BASE_URL`                 | URL aplikasi                                                                                                                 |
+| `TEST_USER_*` / `{ROLE}_*` | Kredensial                                                                                                                   |
+| `PLAYWRIGHT_CONFIG`        | Path config Playwright                                                                                                       |
 
 `ENV_NAME` **tidak dipakai lagi** sebagai konsep. Kalau masih muncul di file lama, diabaikan. Kode yang masih baca `env.ENV_NAME` mendapat **read-only alias** ke `APP_ENV` (deprecated).
 
 ### Switch environment (lokal)
 
 ```bash
-npm run env:use:dev             # pin environments/.active-env
+npm run env:use:dev             # pin config/environments/.active-env
 npm run env:status              # lihat APP_ENV + source=pin|os|default
 APP_ENV=staging npm test        # one-shot override (mengalahkan pin)
 ```

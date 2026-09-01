@@ -31,6 +31,12 @@
 - **AC-11:** Checkbox "Ingat Saya" (Remember Me) dapat di-toggle status checked dan unchecked-nya oleh pengguna.
 - **AC-12:** Identifier email bersifat case-insensitive sehingga input kredensial valid berhuruf kapital tetap berhasil login ke `/dashboard`.
 - **AC-13:** Tautan bantuan sekunder seperti "Lupa Kata Sandi?" dan "Daftar Akun" tampil di halaman login dengan URL target yang valid.
+- **AC-14:** Mengakses halaman protected tanpa sesi mengarahkan pengguna ke halaman login tanpa menampilkan konten protected (deep-link protection).
+- **AC-15:** Setelah login sukses, reload halaman tidak mengakhiri sesi — pengguna tetap login di `/dashboard`.
+- **AC-16:** Navigasi back browser setelah login tidak mengakhiri sesi; akses ulang area sukses tidak meminta login ulang.
+- **AC-17:** Klik ganda pada tombol submit tidak memproses otentikasi dua kali (tombol disabled atau menampilkan loading selama proses).
+- **AC-18:** Identifier berisi markup/script dirender sebagai teks (di-escape), tidak dieksekusi, dan submit ditolak.
+- **AC-19:** Logout mengakhiri sesi; akses halaman protected setelah logout diarahkan kembali ke `/login`.
 
 ## Skenario Uji
 
@@ -432,6 +438,176 @@
 - Tautan lupa kata sandi tampil di halaman login dan atribut `href` mengarah ke path lupa password (misal `/forgot-password` atau memicu modal reset)
 - Tautan registrasi akun baru tampil di halaman login dan atribut `href` mengarah ke path registrasi (misal `/register` atau `/signup`)
 - Kedua tautan terlihat jelas dan berstatus enabled
+
+---
+
+### SC-14: Akses Halaman Protected Tanpa Login Mengarahkan ke Login (@access-restriction)
+
+- **Test ID:** `TC-LOGIN-014`
+- **Covers:** `AC-14`
+- **Role:** `user`
+- **Prioritas skenario:** `high`
+- **Layer terdampak:** `FE BE`
+
+**Prekondisi:** Pengguna belum login (tidak ada sesi tersimpan). Aplikasi memiliki area protected setelah login (mis. `/dashboard`).
+
+**Input Data:**
+
+- protectedPath: literal:/dashboard
+
+**Langkah:**
+
+1. Buka langsung path protected dari address bar (nilai di Input Data)
+2. Tunggu aplikasi selesai melakukan redirect
+
+**Hasil yang Diharapkan:**
+
+- URL diarahkan ke halaman login (pathname mengandung `/login`)
+- Konten halaman protected tidak ditampilkan sama sekali
+- Tidak terjadi error 5xx atau halaman error
+
+---
+
+### SC-15: Sesi Tetap Aktif Setelah Reload Halaman (@success)
+
+- **Test ID:** `TC-LOGIN-015`
+- **Covers:** `AC-15`
+- **Role:** `user`
+- **Prioritas skenario:** `high`
+- **Layer terdampak:** `FE BE`
+
+**Prekondisi:** Kredensial valid tersedia. Pengguna sudah login sukses dan berada di `/dashboard`.
+
+**Input Data:**
+
+- identifier: credential:user.email
+- password: credential:user.password
+
+**Langkah:**
+
+1. Login dengan kredensial valid
+2. Reload halaman (refresh browser)
+3. Periksa status login pada halaman yang termuat ulang
+
+**Hasil yang Diharapkan:**
+
+- Setelah reload, pengguna tetap dalam keadaan login (form login tidak tampil)
+- URL tetap berada di area `/dashboard`
+- Elemen khas pengguna yang sudah login (menu/nama akun) masih tampil
+
+---
+
+### SC-16: Navigasi Back Browser Setelah Login Tidak Mengakhiri Sesi (@success)
+
+- **Test ID:** `TC-LOGIN-016`
+- **Covers:** `AC-16`
+- **Role:** `user`
+- **Prioritas skenario:** `medium`
+- **Layer terdampak:** `FE`
+
+**Prekondisi:** Kredensial valid tersedia. Pengguna sudah login sukses ke `/dashboard`.
+
+**Input Data:**
+
+- identifier: credential:user.email
+- password: credential:user.password
+
+**Langkah:**
+
+1. Login dengan kredensial valid
+2. Tekan tombol back pada browser
+3. Akses kembali path sukses dari address bar (nilai di Input Data)
+
+**Hasil yang Diharapkan:**
+
+- Pengguna tetap dalam keadaan login — aplikasi tidak meminta login ulang
+- Akses ulang `/dashboard` berhasil tanpa form login
+
+---
+
+### SC-17: Klik Ganda Tombol Submit Tidak Memproses Login Dua Kali (@ui)
+
+- **Test ID:** `TC-LOGIN-017`
+- **Covers:** `AC-17`
+- **Role:** `user`
+- **Prioritas skenario:** `medium`
+- **Layer terdampak:** `FE`
+
+**Prekondisi:** Pengguna di `https://app.example.com/login`, kredensial valid.
+
+**Input Data:**
+
+- identifier: credential:user.email
+- password: credential:user.password
+
+**Langkah:**
+
+1. Isi field login dan password dengan kredensial valid
+2. Klik tombol submit dua kali secara cepat (double click)
+3. Tunggu proses otentikasi selesai
+
+**Hasil yang Diharapkan:**
+
+- Tombol submit menjadi disabled atau menampilkan indikator loading selama proses
+- Tidak terjadi error duplikasi atau kegagalan yang tampil di UI
+- Pengguna berada di area sukses setelah proses selesai
+
+---
+
+### SC-18: Identifier Berisi Karakter HTML dan Script Tidak Dieksekusi (@failure)
+
+- **Test ID:** `TC-LOGIN-018`
+- **Covers:** `AC-18`
+- **Role:** `user`
+- **Prioritas skenario:** `medium`
+- **Layer terdampak:** `FE BE`
+
+**Prekondisi:** Pengguna di `https://app.example.com/login`. Nilai identifier di bawah adalah markup fiktif, bukan akun real.
+
+**Input Data:**
+
+- identifier: literal:`<script>alert("xss")</script>`
+- password: credential:user.password
+
+**Langkah:**
+
+1. Isi field login dengan literal markup (nilai di Input Data)
+2. Isi field password (`password`, `pass`, atau `kata sandi`)
+3. Klik tombol submit (`Masuk`, `Login`, `Sign in`, atau `Log in`)
+
+**Hasil yang Diharapkan:**
+
+- Nilai identifier dirender sebagai teks biasa (di-escape), bukan dieksekusi sebagai script
+- Tidak ada dialog/alert browser yang muncul
+- Tetap berada di `/login` dengan pesan validasi atau error
+
+---
+
+### SC-19: Logout Mengakhiri Sesi dan Melindungi Halaman Kembali (@access-restriction)
+
+- **Test ID:** `TC-LOGIN-019`
+- **Covers:** `AC-19`
+- **Role:** `user`
+- **Prioritas skenario:** `low`
+- **Layer terdampak:** `FE BE`
+
+**Prekondisi:** Kredensial valid tersedia. Pengguna sudah login sukses.
+
+**Input Data:**
+
+- logoutButton: literal:(Logout | Keluar | Sign out)
+
+**Langkah:**
+
+1. Login dengan kredensial valid
+2. Klik menu atau tombol logout (`Logout`, `Keluar`, atau `Sign out`)
+3. Konfirmasi logout jika dialog konfirmasi tampil
+4. Akses ulang path sukses dari address bar
+
+**Hasil yang Diharapkan:**
+
+- Setelah logout, aplikasi mengarahkan ke halaman login (`/login`)
+- Akses ulang `/dashboard` diarahkan kembali ke `/login` — sesi benar-benar berakhir
 
 ---
 

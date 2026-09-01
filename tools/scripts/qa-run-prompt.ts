@@ -9,6 +9,7 @@ export function parseRequirementPromptHints(markdown: string): {
   authState: 'authenticated' | 'unauthenticated' | 'unknown';
   startPage: string | null;
   roleScope: string | null;
+  challengeMode: 'none' | 'auto' | 'otp-browser' | 'otp-stdin' | 'captcha-browser' | null;
 } {
   const authRaw =
     markdown
@@ -23,7 +24,10 @@ export function parseRequirementPromptHints(markdown: string): {
         : 'unknown';
   const startPage = markdown.match(/^\s*-\s+\*\*Halaman awal:\*\*\s*(\S+)/im)?.[1]?.trim() ?? null;
   const roleScope = markdown.match(/^\s*-\s+\*\*Role scope:\*\*\s*(.+)$/im)?.[1]?.trim() ?? null;
-  return { authState, startPage, roleScope };
+  const challengeRaw = markdown.match(
+    /AUTH_CHALLENGE_MODE=(none|auto|otp-browser|otp-stdin|captcha-browser)/,
+  )?.[1] as 'none' | 'auto' | 'otp-browser' | 'otp-stdin' | 'captcha-browser' | undefined;
+  return { authState, startPage, roleScope, challengeMode: challengeRaw ?? null };
 }
 
 function isLoginRequirement(reqRelPath: string, markdown: string): boolean {
@@ -48,8 +52,8 @@ export function buildAgentPrompt(reqRelPath: string, markdown: string, lang: Wiz
     ),
     t(
       lang,
-      'File katalog requirements/auth/login-<mode>.md sesuai AUTH_CHALLENGE_MODE; setup menulis requirements/login.md untuk situs live.',
-      'Catalog files under requirements/auth/login-<mode>.md match AUTH_CHALLENGE_MODE; setup writes requirements/login.md for the live site.',
+      'Langkah pertama: panggil health_check (qa-playwright-kit MCP). Jika ada check fail, STOP dan laporkan — jangan lanjut ke Plan.',
+      'First step: call health_check (qa-playwright-kit MCP). If any check fails, STOP and report — do not continue to Plan.',
     ),
     t(
       lang,
@@ -80,6 +84,15 @@ export function buildAgentPrompt(reqRelPath: string, markdown: string, lang: Wiz
         'Use selector-catalog locators (Path A, no POM); live-verify — every website differs.',
       ),
     );
+    if (hints.challengeMode && hints.challengeMode !== 'none') {
+      lines.push(
+        t(
+          lang,
+          'Tantangan setelah password terdeteksi. Jika file .auth/{APP_ENV} belum ada, jalankan npm run auth:setup (OTP/CAPTCHA: auth:setup:headed) dulu — skenario challenge tetap (@manual).',
+          'A post-password challenge was detected. If .auth/{APP_ENV} files are missing, run npm run auth:setup (OTP/CAPTCHA: auth:setup:headed) first — challenge scenarios stay (@manual).',
+        ),
+      );
+    }
   } else if (hints.authState === 'authenticated') {
     const roles = hints.roleScope || 'user (default)';
     lines.push(

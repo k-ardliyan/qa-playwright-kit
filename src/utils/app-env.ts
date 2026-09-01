@@ -3,7 +3,7 @@
  *
  * Resolution order:
  * 1. process.env.APP_ENV (CI / one-shot shell) — always wins when valid
- * 2. environments/.active-env pin (local only; ignored when CI=true)
+ * 2. config/environments/.active-env pin (local only; ignored when CI=true)
  * 3. default = local
  *
  * @module src/utils/app-env
@@ -29,9 +29,9 @@ export interface ResolveAppEnvOptions {
 export interface ResolvedAppEnv {
   appEnv: AppEnv;
   source: AppEnvSource;
-  /** Absolute path to environments/{appEnv}.env */
+  /** Absolute path to {envDir}/{appEnv}.env (canonical: config/environments/) */
   filePath: string;
-  /** Absolute path to environments/.active-env */
+  /** Absolute path to {envDir}/.active-env (canonical: config/environments/) */
   pinPath: string;
   rawOsValue?: string;
   rawPinValue?: string;
@@ -42,9 +42,7 @@ export function isKnownAppEnv(value: string): value is AppEnv {
 }
 
 export function getEnvironmentsDir(repoRoot: string): string {
-  const configDir = path.join(repoRoot, 'config', 'environments');
-  if (fs.existsSync(configDir)) return configDir;
-  return path.join(repoRoot, 'environments');
+  return path.join(repoRoot, 'config', 'environments');
 }
 
 export function readActiveEnvPin(repoRoot: string): string | null {

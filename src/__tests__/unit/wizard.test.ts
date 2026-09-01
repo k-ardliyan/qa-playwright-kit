@@ -1,10 +1,17 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import { isReachableStatus } from '@/setup/reachability';
-import { isEncryptedValue } from '@/setup/wizard-writer';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { isEncryptedValue, buildEnvFileContent } from '@/setup/wizard-writer';
+import { isSecretEnvKey, secretKeysFromEnvText } from '@/utils/env-secrets';
 import { validateSetup, isSetupReady } from '@/setup/wizard-validate';
 import { parseNumberedChoice } from '@/setup/wizard-prompts';
 import { browsersDir, hasChromiumInstalled, buildInstallCommand } from '@/setup/browser-check';
+import {
+  buildAgentPrompt,
+  parseRequirementPromptHints,
+} from '../../../tools/scripts/qa-run-prompt';
 
 test.describe('wizard reachability predicate', () => {
   test('alive statuses (2xx, 302, 304, 401)', () => {
@@ -17,6 +24,129 @@ test.describe('wizard reachability predicate', () => {
     for (const s of [403, 404, 500, 503]) {
       expect(isReachableStatus(s), `status ${s} should NOT be reachable`).toBe(false);
     }
+  });
+});
+
+test.describe('buildEnvFileContent generates a clean env file', () => {
+  function withTempRepo(seedEnv?: string): (cleanup?: boolean) => void {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wizard-writer-'));
+    const originalCwd = process.cwd();
+    fs.writeFileSync(
+      path.join(tmp, 'package.json'),
+      JSON.stringify({ name: 'wizard-writer-fixture' }),
+    );
+    const envDir = path.join(tmp, 'config', 'environments');
+    fs.mkdirSync(envDir, { recursive: true });
+    if (seedEnv !== undefined) {
+      fs.writeFileSync(path.join(envDir, 'dev.env'), seedEnv, 'utf-8');
+    }
+    process.chdir(tmp);
+    return (skipRemove = false) => {
+      process.chdir(originalCwd);
+      if (!skipRemove) fs.rmSync(tmp, { recursive: true, force: true });
+    };
+  }
+
+  test('fresh setup: sections + wizard values, no example comments or placeholders', () => {
+    const cleanup = withTempRepo();
+    try {
+      const built = buildEnvFileContent({
+        appEnv: 'dev',
+        baseUrl: 'https://dev.kit.example',
+        roles: [
+          {
+            name: 'user',
+            fields: { email: 'qa@kit.example', password: 's3cret-valid' },
+          },
+        ],
+        challengeMode: 'none',
+      });
+
+      expect(built.content).toContain('BASE_URL=https://dev.kit.example');
+      expect(built.content).toContain('TEST_USER_EMAIL=qa@kit.example');
+      expect(built.content).toContain('TEST_USER_PASSWORD=s3cret-valid');
+      expect(built.content).toContain('HEADLESS=true');
+      expect(built.content).toContain('AUTH_CHALLENGE_MODE=none');
+      expect(built.content).toContain('SLOW_MO=0');
+      expect(built.content).toContain('PLAYWRIGHT_CONFIG=playwright.config.ts');
+      expect(built.content).toContain('# ── Role: user');
+      expect(built.content).toMatch(/^# dev\.env — di-generate/m);
+      expect(built.content).not.toContain('encrypted:');
+      expect(built.content).not.toContain('your_password_here');
+      expect(built.content).not.toMatch(/^#\s*[A-Z0-9_]+=.*$/m);
+    } finally {
+      cleanup();
+    }
+  });
+
+  test('update flow: preserves plaintext extras, drops empty/dotenvx/ciphertext keys', () => {
+    const cleanup = withTempRepo(
+      [
+        '#/---[DOTENV_PUBLIC_KEY]---/',
+        'DOTENV_PUBLIC_KEY_DEVDEVELOPMENT="02fc"',
+        '# stale template comment',
+        'BASE_URL=http://old.example',
+        'SOME_EXTRA_KEY=keep-me',
+        'EMPTY_KEY=',
+        'OLD_PASSWORD=encrypted:deadbeef',
+        'TEST_USER_PASSWORD=plaintext-old',
+        '',
+      ].join('\n'),
+    );
+    try {
+      const built = buildEnvFileContent({
+        appEnv: 'dev',
+        baseUrl: 'https://dev.kit.example',
+        roles: [
+          {
+            name: 'user',
+            fields: { username: 'qa-user', password: 's3cret-valid' },
+          },
+        ],
+        challengeMode: 'otp-stdin',
+      });
+
+      expect(built.content).toContain('SOME_EXTRA_KEY=keep-me');
+      expect(built.content).not.toContain('EMPTY_KEY');
+      expect(built.content).not.toContain('encrypted:');
+      expect(built.content).not.toContain('plaintext-old');
+      expect(built.content).not.toContain('# stale template comment');
+      expect(built.content).not.toContain('#/---');
+      expect(built.content).toContain('TEST_USER_USERNAME=qa-user');
+      expect(built.content).toContain('TEST_USER_PASSWORD=s3cret-valid');
+      expect(built.content).toContain('HEADLESS=true');
+      expect(built.keysPreserved).toBe(1);
+    } finally {
+      cleanup();
+    }
+  });
+});
+
+test.describe('secret-key classification', () => {
+  test('passwords/tokens/secrets encrypt; urls/flags/identifiers do not', () => {
+    expect(isSecretEnvKey('TEST_USER_PASSWORD')).toBe(true);
+    expect(isSecretEnvKey('FINANCE_PASSWORD')).toBe(true);
+    expect(isSecretEnvKey('API_TOKEN')).toBe(true);
+    expect(isSecretEnvKey('WEBHOOK_SECRET')).toBe(true);
+    expect(isSecretEnvKey('PASSWORD')).toBe(true);
+    expect(isSecretEnvKey('TEST_USER_EMAIL')).toBe(false);
+    expect(isSecretEnvKey('TEST_USER_USERNAME')).toBe(false);
+    expect(isSecretEnvKey('TEST_USER_PHONE')).toBe(false);
+    expect(isSecretEnvKey('BASE_URL')).toBe(false);
+    expect(isSecretEnvKey('HEADLESS')).toBe(false);
+    expect(isSecretEnvKey('AUTH_CHALLENGE_MODE')).toBe(false);
+    expect(isSecretEnvKey('DOTENV_PUBLIC_KEY')).toBe(false);
+  });
+
+  test('secretKeysFromEnvText lists only secret keys present', () => {
+    const text = [
+      'BASE_URL=https://x',
+      'TEST_USER_EMAIL=a@b.com',
+      'TEST_USER_PASSWORD=p',
+      'FINANCE_PASSWORD=q',
+      'HEADLESS=true',
+    ].join('\n');
+    expect(secretKeysFromEnvText(text)).toEqual(['TEST_USER_PASSWORD', 'FINANCE_PASSWORD']);
   });
 });
 
@@ -175,5 +305,44 @@ test.describe('browser availability check', () => {
     const l = buildInstallCommand('/home/x/repo', 'linux');
     expect(l.command).toBe('gnome-terminal');
     expect(l.args.join(' ')).toContain('npx playwright install chromium');
+  });
+});
+
+test.describe('Hermes prompt builder (mode-aware)', () => {
+  const loginMarkdown = (challengeMode: string): string =>
+    [
+      '# REQ-AUTH-001: Login — Demo App',
+      '- **Auth state:** unauthenticated',
+      '- **Halaman awal:** /login',
+      `AUTH_CHALLENGE_MODE=${challengeMode} — catatan pipeline`,
+      '',
+    ].join('\n');
+
+  test('prompt always starts the pipeline with health_check', () => {
+    const prompt = buildAgentPrompt('requirements/login.md', loginMarkdown('none'), 'id');
+    expect(prompt).toContain('health_check');
+    expect(prompt).toContain('test.step');
+  });
+
+  test('login requirement with challenge mode gets auth:setup reminder', () => {
+    const prompt = buildAgentPrompt('requirements/login.md', loginMarkdown('otp-browser'), 'id');
+    expect(prompt).toContain('auth:setup');
+    expect(prompt).toContain('(@manual)');
+  });
+
+  test('challenge none does not add the auth:setup reminder', () => {
+    const prompt = buildAgentPrompt('requirements/login.md', loginMarkdown('none'), 'id');
+    expect(prompt).not.toContain('auth:setup');
+  });
+
+  test('parse hints extract the challenge mode', () => {
+    expect(parseRequirementPromptHints(loginMarkdown('otp-stdin')).challengeMode).toBe('otp-stdin');
+    expect(parseRequirementPromptHints('no markers here').challengeMode).toBeNull();
+  });
+
+  test('english prompt uses english strings', () => {
+    const prompt = buildAgentPrompt('requirements/login.md', loginMarkdown('none'), 'en');
+    expect(prompt).toContain('Run the pipeline in automatic mode');
+    expect(prompt).not.toContain('Jalankan pipeline');
   });
 });

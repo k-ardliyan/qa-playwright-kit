@@ -34,8 +34,8 @@ function withTempEnvFile(
   const originalCwd = process.cwd();
   process.chdir(dir);
 
-  fs.mkdirSync(path.join(dir, 'environments'), { recursive: true });
-  fs.copyFileSync(envPath, path.join(dir, 'environments', 'local.env'));
+  fs.mkdirSync(path.join(dir, 'config', 'environments'), { recursive: true });
+  fs.copyFileSync(envPath, path.join(dir, 'config', 'environments', 'local.env'));
 
   return Promise.resolve()
     .then(() => run(envPath))

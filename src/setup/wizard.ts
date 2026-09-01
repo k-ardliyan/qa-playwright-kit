@@ -3,11 +3,19 @@
  *
  * Interactive CLI wizard that guides users through:
  * 1. Language selection (Indonesian default, English opt-in)
- * 2. APP_ENV selection
- * 3. BASE_URL configuration
- * 4. Role credential entry (re-try on mismatch; back navigation)
- * 5. Auth challenge mode
- * 6. File write + validation
+ * 2. APP_ENV selection (final target resolved once)
+ * 3. Existing-config update/keep for that env (with current-state summary)
+ * 4. Playwright Chromium availability (offer install if missing)
+ * 5. BASE_URL configuration
+ * 6. Role credential entry (re-try on mismatch; back navigation)
+ * 7. Auth challenge mode
+ * 8. Preview + generate clean env file, upsert values, encrypt secret keys
+ * 9. Write requirements/login.md + sync agent skills/MCP
+ * 10. REAL artifact verification (deps, decrypt roundtrip, browser, artifacts)
+ * 11. Summary + Hermes prompt
+ *
+ * Secret keys (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`) are encrypted automatically
+ * after write. URLs, flags, identifiers stay plaintext.
  *
  * Non-interactive mode (--check) validates existing setup without prompting.
  *
@@ -17,7 +25,6 @@
 import { type AppEnv, resolveAppEnv } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
 import { type WizardRoleInput } from '../shared/utils/role-credentials';
-import { logger } from '../utils/logger';
 import {
   promptLanguage,
   promptAppEnv,
@@ -43,6 +50,8 @@ import {
 import { validateSetup, type ValidationResult } from './wizard-validate';
 import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
+import { verifySetupArtifacts, type SetupCheck } from './verify-setup';
+import { printBanner, printChecklist, printSection, printStep, stepLine } from './ui';
 import {
   buildLoginRequirement,
   loginStateFromWizard,
@@ -70,9 +79,13 @@ export interface WizardResult {
   isNewSetup: boolean;
   /** Validation result after write */
   validation: ValidationResult;
+  /** Real artifact checks (deps, decrypt roundtrip, browser, files) */
+  checks: SetupCheck[];
   /** Relative path of generated requirements/login.md (interactive run only) */
   loginRequirementPath?: string;
 }
+
+const TOTAL_STEPS = 6;
 
 // ─── Main orchestrator ───────────────────────────────────────────────────────
 
@@ -80,53 +93,60 @@ export interface WizardResult {
  * Run the setup wizard.
  *
  * Flow:
- * 1. Detect existing config → if exists, ask update or skip
- * 2. Prompt language (unless pinned via --lang)
- * 3. Prompt APP_ENV (default: resolve from existing)
- * 4. Prompt BASE_URL + validate reachable
- * 5. Prompt role credentials (back/mismatch handled inside prompts)
- * 6. Prompt AUTH_CHALLENGE_MODE
- * 7. Prompt encryption
- * 8. Write env file
- * 9. Validate
- * 10. Print summary
+ * 1. Prompt language (unless pinned via --lang)
+ * 2. Resolve the FINAL APP_ENV once (--env > prompt, default from pin/OS)
+ * 3. Detect existing config for that env → show current state → update or keep
+ * 4. Offer Playwright Chromium install if missing (runs in a parallel terminal)
+ * 5. Prompt BASE_URL + validate reachable
+ * 6. Prompt role credentials (back/mismatch handled inside prompts)
+ * 7. Prompt AUTH_CHALLENGE_MODE
+ * 8. Preview (masked) + confirm → generate clean env → encrypt secrets
+ * 9. Write requirements/login.md; sync agent skills/MCP
+ * 10. Verify artifacts for real (deps, keys, decrypt roundtrip, browser, files)
+ * 11. Summary + next steps + Hermes prompt
+ *
+ * Non-secret keys stay plaintext. Re-encrypt after env:edit uses the same helper.
  */
 export async function runSetupWizard(options?: WizardOptions): Promise<WizardResult> {
   const opts = options ?? {};
 
   let lang: WizardLang = opts.lang ?? DEFAULT_LANG;
 
-  // ─── Step 1: Resolve APP_ENV ────────────────────────────────────────────
-  let appEnv: AppEnv;
-
-  if (opts.appEnv) {
-    appEnv = opts.appEnv;
-  } else {
-    const resolved = resolveAppEnv({ repoRoot: process.cwd() });
-    appEnv = resolved.appEnv;
-  }
-
-  // ─── Check-only mode ────────────────────────────────────────────────────
+  // ─── Check-only mode (no prompts) ───────────────────────────────────────
   if (opts.checkOnly) {
+    const appEnv = opts.appEnv ?? resolveAppEnv({ repoRoot: process.cwd() }).appEnv;
     return runCheckOnly(appEnv, lang);
   }
 
-  // ─── Step 2: Language (skipped when pinned via --lang) ──────────────────
+  printBanner(lang);
+  stepLine(
+    t(
+      lang,
+      `${TOTAL_STEPS} langkah singkat — bahasa, environment, URL, kredensial, challenge, verifikasi.`,
+      `${TOTAL_STEPS} short steps — language, environment, URL, credentials, challenge, verification.`,
+    ),
+  );
+
+  // ─── Step 1: Language (skipped when pinned via --lang) ──────────────────
+  printStep(1, TOTAL_STEPS, lang, 'Bahasa', 'Language');
   if (!opts.lang) {
     lang = await promptLanguage();
   }
 
-  // ─── Step 2b: Playwright browser availability ───────────────────────────
-  await ensureBrowsers(lang);
+  // ─── Step 2: APP_ENV — final target resolved ONCE (--env > prompt) ──────
+  printStep(2, TOTAL_STEPS, lang, 'Environment (APP_ENV)', 'Environment (APP_ENV)');
+  const defaultAppEnv = resolveAppEnv({ repoRoot: process.cwd() }).appEnv;
+  const appEnv: AppEnv = opts.appEnv ?? (await promptAppEnv(lang, defaultAppEnv));
 
-  // ─── Step 3: Detect existing ────────────────────────────────────────────
+  // ─── Step 3: Existing config for the FINAL env ──────────────────────────
   const existing = readExistingEnv(appEnv);
+  const envPath = resolveEnvPath(appEnv);
 
   if (existing) {
-    const envPath = resolveEnvPath(appEnv);
+    describeExistingEnv(lang, existing);
     const shouldUpdate = await confirmOverwrite(lang, envPath);
     if (!shouldUpdate) {
-      logger.info(
+      stepLine(
         t(
           lang,
           'Setup wizard dibatalkan — config yang ada dipertahankan.',
@@ -139,19 +159,22 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
         roles: [],
         isNewSetup: false,
         validation,
+        checks: [],
       };
     }
   }
 
-  // ─── Step 4: Prompt APP_ENV (skip when pinned via --env) ────────────────
-  appEnv = opts.appEnv ?? (await promptAppEnv(lang, appEnv));
+  // ─── Step 4: Playwright browser availability (install runs in parallel) ─
+  await ensureBrowsers(lang);
 
-  // ─── Step 5: Prompt BASE_URL ────────────────────────────────────────────
+  // ─── Step 3: Prompt BASE_URL ────────────────────────────────────────────
+  printStep(3, TOTAL_STEPS, lang, 'URL aplikasi', 'Application URL');
   const existingUrl =
     existing && !isEncryptedValue(existing['BASE_URL']) ? existing['BASE_URL'] : undefined;
   const baseUrl = await promptBaseUrl(lang, existingUrl);
 
-  // ─── Step 6: Prompt roles ───────────────────────────────────────────────
+  // ─── Step 4: Prompt roles ───────────────────────────────────────────────
+  printStep(4, TOTAL_STEPS, lang, 'Kredensial role', 'Role credentials');
   const existingRoles = existing ? detectExistingRoles(existing) : [];
   const roleNames = await promptRoles(lang, existingRoles.length > 0 ? existingRoles : undefined);
 
@@ -166,11 +189,13 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     roleInputs.push({ name: role, fields });
   }
 
-  // ─── Step 7: Prompt challenge mode ──────────────────────────────────────
+  // ─── Step 5: Prompt challenge mode ──────────────────────────────────────
+  printStep(5, TOTAL_STEPS, lang, 'Mode challenge (OTP/CAPTCHA)', 'Challenge mode (OTP/CAPTCHA)');
   const existingChallenge = existing?.['AUTH_CHALLENGE_MODE'];
   const challengeMode = await promptChallengeMode(lang, existingChallenge);
 
-  // ─── Step 7b: Preview (masked) + confirm before write ───────────────────
+  // ─── Step 6: Preview (masked) + confirm before write ────────────────────
+  printStep(6, TOTAL_STEPS, lang, 'Konfirmasi & verifikasi', 'Confirm & verify');
   printPreview({ lang, appEnv, baseUrl, roles: roleInputs, challengeMode });
   const { ok } = await prompts(
     {
@@ -187,7 +212,9 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   );
   if (!ok) throw new Error('SETUP_WIZARD_CANCELLED');
 
-  // ─── Step 8: Write env file ─────────────────────────────────────────────
+  // ─── Phase: write env + requirement + sync ──────────────────────────────
+  printSection(lang, 'Menulis file', 'Writing files');
+
   const writeResult = writeEnvFile({
     appEnv,
     baseUrl,
@@ -195,24 +222,35 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     challengeMode,
   });
 
-  logger.info(
+  stepLine(
     t(
       lang,
-      `✅ File env ditulis: ${writeResult.envFilePath}`,
-      `✅ Env file written: ${writeResult.envFilePath}`,
+      `✓ File env ditulis: ${shortPath(writeResult.envFilePath)}`,
+      `✓ Env file written: ${shortPath(writeResult.envFilePath)}`,
     ),
   );
-  if (writeResult.keysPreserved > 0) {
-    logger.info(
+  if (writeResult.keysEncrypted.length > 0) {
+    stepLine(
       t(
         lang,
-        `   ${writeResult.keysPreserved} key lama dipertahankan`,
-        `   Preserved ${writeResult.keysPreserved} existing keys`,
+        `✓ Secret terenkripsi: ${writeResult.keysEncrypted.join(', ')}`,
+        `✓ Encrypted secrets: ${writeResult.keysEncrypted.join(', ')}`,
       ),
     );
   }
-
-  // ─── Step 8b: Write requirements/login.md from this env + challenge ────
+  if (writeResult.keysPreserved > 0) {
+    stepLine(
+      t(
+        lang,
+        `✓ ${writeResult.keysPreserved} key lama dipertahankan`,
+        `✓ Preserved ${writeResult.keysPreserved} existing keys`,
+      ),
+    );
+  }
+  for (const w of writeResult.warnings ?? []) {
+    stepLine(`⚠ ${w}`);
+  }
+  // ─── Write requirements/login.md from this env + challenge ──────────────
   const loginState = loginStateFromWizard({
     baseUrl,
     appEnv,
@@ -232,44 +270,60 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   const loginMarkdown = loginFile.skipped
     ? fs.readFileSync(loginFile.absolutePath, 'utf-8')
     : buildLoginRequirement(loginState, { generated: true });
-  logger.info(
+  stepLine(
     t(
       lang,
       loginFile.skipped
-        ? `ℹ ${loginFile.relativePath} sudah ada (bukan auto-generated) — tidak ditimpa`
-        : `✅ Requirement login ditulis: ${loginFile.relativePath} (mode ${challengeMode})`,
+        ? `✓ ${loginFile.relativePath} sudah ada (bukan auto-generated) — tidak ditimpa`
+        : `✓ Requirement login ditulis: ${loginFile.relativePath} (mode ${challengeMode})`,
       loginFile.skipped
-        ? `ℹ ${loginFile.relativePath} already exists (not auto-generated) — left intact`
-        : `✅ Login requirement written: ${loginFile.relativePath} (mode ${challengeMode})`,
+        ? `✓ ${loginFile.relativePath} already exists (not auto-generated) — left intact`
+        : `✓ Login requirement written: ${loginFile.relativePath} (mode ${challengeMode})`,
     ),
   );
 
-  // ─── Step 9: Sync Agent Skills & MCP Configs ────────────────────────────
+  // ─── Sync Agent Skills & MCP Configs ────────────────────────────────────
   const agentSync = syncAgentSkillsAndMcp(process.cwd());
   if (agentSync.skillsSynced.length > 0) {
-    logger.info(
+    stepLine(
       t(
         lang,
-        `✅ Agent skills disinkronkan: ${agentSync.skillsSynced.join(', ')}`,
-        `✅ Agent skills synced: ${agentSync.skillsSynced.join(', ')}`,
+        `✓ Agent skills disinkronkan: ${agentSync.skillsSynced.join(', ')}`,
+        `✓ Agent skills synced: ${agentSync.skillsSynced.join(', ')}`,
       ),
     );
   }
   if (agentSync.mcpConfigsGenerated) {
-    logger.info(
+    stepLine(
       t(
         lang,
-        '✅ Config MCP lintas platform dibuat (.cursor, .kiro, claude)',
-        '✅ Cross-platform MCP configs generated (.cursor, .kiro, claude)',
+        '✓ Config MCP lintas platform dibuat (.cursor, .kiro, claude, .codex)',
+        '✓ Cross-platform MCP configs generated (.cursor, .kiro, claude, .codex)',
       ),
     );
   }
 
-  // ─── Step 10: Validate ──────────────────────────────────────────────────
+  // ─── Phase: REAL artifact verification ──────────────────────────────────
+  printSection(lang, 'Verifikasi artefak (nyata)', 'Artifact verification (real)');
+
+  const checks = verifySetupArtifacts({
+    repoRoot: process.cwd(),
+    appEnv,
+    envPath: writeResult.envFilePath,
+    envMap: readExistingEnv(appEnv),
+    roles: roleNames,
+    lang,
+    loginRequirementPath: loginFile.relativePath,
+    skillsSynced: agentSync.skillsSynced.length > 0,
+    mcpConfigsGenerated: agentSync.mcpConfigsGenerated,
+  });
+  printChecklist(checks.map(toChecklistItem));
+
+  // ─── Validate (parse + reachability + roles) ────────────────────────────
   const freshEnv = readExistingEnv(appEnv);
   const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath, lang);
 
-  // ─── Step 11: Print summary ─────────────────────────────────────────────
+  // ─── Summary ────────────────────────────────────────────────────────────
   printSummary({
     lang,
     appEnv,
@@ -288,11 +342,53 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     roles: roleNames,
     isNewSetup: writeResult.isNewFile,
     validation,
+    checks,
     loginRequirementPath: loginFile.relativePath,
   };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function shortPath(abs: string): string {
+  const rel = abs.replace(/\\/g, '/').split('/node_modules/')[0] ?? abs;
+  const cwd = process.cwd().replace(/\\/g, '/');
+  return rel.startsWith(cwd) ? rel.slice(cwd.length + 1) : abs;
+}
+
+function toChecklistItem(check: SetupCheck): {
+  label: string;
+  status: 'pass' | 'warn' | 'fail';
+  detail?: string;
+  fix?: string;
+} {
+  return { label: check.label, status: check.status, detail: check.detail, fix: check.fix };
+}
+
+/**
+ * Show what the existing env currently configures so the update/keep decision
+ * is informed: BASE_URL, detected roles (with encrypted-password marker), and
+ * challenge mode.
+ */
+function describeExistingEnv(lang: WizardLang, envMap: Record<string, string>): void {
+  printSection(lang, 'Config saat ini', 'Current config');
+  const baseUrl = envMap['BASE_URL'];
+  if (baseUrl && !isEncryptedValue(baseUrl)) {
+    stepLine(`  BASE_URL  : ${baseUrl}`);
+  }
+  const roles = detectExistingRoles(envMap);
+  const roleParts = roles.map((role) => {
+    const prefix = role === 'user' ? 'TEST_USER' : role.toUpperCase().replace(/-/g, '_');
+    const pw = envMap[`${prefix}_PASSWORD`];
+    return isEncryptedValue(pw) ? `${role} ${t(lang, '(terenkripsi)', '(encrypted)')}` : role;
+  });
+  stepLine(
+    `  ${t(lang, 'Roles', 'Roles')}    : ${roleParts.join(', ') || t(lang, 'tidak ada', 'none')}`,
+  );
+  const challenge = envMap['AUTH_CHALLENGE_MODE'];
+  if (challenge) {
+    stepLine(`  ${t(lang, 'Challenge', 'Challenge')}: ${challenge}`);
+  }
+}
 
 function maskPassword(v: string): string {
   if (v.length <= 4) return '****';
@@ -308,25 +404,24 @@ function printPreview(opts: {
   challengeMode: ChallengeMode;
 }): void {
   const { lang, appEnv, baseUrl, roles, challengeMode } = opts;
-  console.log('');
-  console.log(
-    `─── ${t(lang, 'Pratinjau (disamarkan)', 'Preview (masked)')} ─────────────────────────────`,
+  printSection(lang, 'Pratinjau (disamarkan)', 'Preview (masked)');
+  stepLine(`  APP_ENV      ${appEnv}`);
+  stepLine(`  BASE_URL     ${baseUrl}`);
+  stepLine(
+    `  HEADLESS     ${
+      challengeMode === 'otp-browser' ||
+      challengeMode === 'captcha-browser' ||
+      challengeMode === 'auto'
+        ? 'false'
+        : 'true'
+    }`,
   );
-  console.log(`  APP_ENV=${appEnv}`);
-  console.log(`  BASE_URL=${baseUrl}`);
-  console.log(
-    `  HEADLESS=${challengeMode === 'otp-browser' || challengeMode === 'captcha-browser' || challengeMode === 'auto' ? 'false' : 'true'}`,
-  );
-  console.log(`  AUTH_CHALLENGE_MODE=${challengeMode}`);
+  stepLine(`  CHALLENGE    ${challengeMode}`);
   for (const r of roles) {
     const prefix = r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_');
-    if (r.fields.email) console.log(`  ${prefix}_EMAIL=${r.fields.email}`);
-    if (r.fields.username) console.log(`  ${prefix}_USERNAME=${r.fields.username}`);
-    if (r.fields.phone) console.log(`  ${prefix}_PHONE=${r.fields.phone}`);
-    console.log(`  ${prefix}_PASSWORD=${maskPassword(r.fields.password)}`);
-    if (r.fields.loginIdPref) console.log(`  ${prefix}_LOGIN_ID_PREF=${r.fields.loginIdPref}`);
+    const id = r.fields.email ?? r.fields.username ?? r.fields.phone ?? '-';
+    stepLine(`  ${prefix.padEnd(13)}${id} / ${maskPassword(r.fields.password)}`);
   }
-  console.log('────────────────────────────────────────────────');
 }
 
 function detectExistingRoles(envMap: Record<string, string>): string[] {
@@ -423,6 +518,7 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
     roles: validation.rolesReady,
     isNewSetup: false,
     validation,
+    checks: [],
   };
 }
 
@@ -439,90 +535,90 @@ function printSummary(data: {
   loginMarkdown?: string;
 }): void {
   const { lang } = data;
+  const line = '═'.repeat(54);
   console.log('');
-  console.log('═══════════════════════════════════════════════════');
-  console.log(`  ${t(lang, 'Setup Wizard — Ringkasan', 'Setup Wizard — Summary')}`);
-  console.log('═══════════════════════════════════════════════════');
-  console.log(`  APP_ENV:     ${data.appEnv}`);
-  console.log(`  BASE_URL:    ${data.baseUrl}`);
-  console.log(`  ${t(lang, 'Roles', 'Roles')}:       ${data.roles.join(', ')}`);
-  console.log(`  ${t(lang, 'Challenge', 'Challenge')}:   ${data.challengeMode}`);
-  console.log(`  Env file:    ${data.writeResult.envFilePath}`);
-  console.log(
-    `  ${t(lang, 'Dapat diakses', 'Reachable')}:   ${data.validation.reachable ? '✅' : '❌'}`,
+  console.log(line);
+  console.log(`  ${t(lang, 'Setup selesai — Ringkasan', 'Setup finished — Summary')}`);
+  console.log(line);
+  stepLine(`  APP_ENV      : ${data.appEnv}`);
+  stepLine(`  BASE_URL     : ${data.baseUrl}`);
+  stepLine(`  ${t(lang, 'Roles', 'Roles')}        : ${data.roles.join(', ')}`);
+  stepLine(`  ${t(lang, 'Challenge', 'Challenge')}    : ${data.challengeMode}`);
+  stepLine(`  ${t(lang, 'Env file', 'Env file')}    : config/environments/${data.appEnv}.env`);
+  stepLine(
+    `  ${t(lang, 'Dapat diakses', 'Reachable')}   : ${data.validation.reachable ? '✅' : '❌'}`,
   );
-  console.log(
-    `  ${t(lang, 'Role siap', 'Ready roles')}: ${data.validation.rolesReady.join(', ') || t(lang, 'tidak ada', 'none')}`,
-  );
-  if (data.agentSync && data.agentSync.skillsSynced.length > 0) {
-    const dests = ['.agents/skills'];
-    if (data.agentSync.hermesProfileSkillsDir) dests.push('hermes profile');
-    console.log(`  Skills:      ${data.agentSync.skillsSynced.join(', ')} (${dests.join(', ')})`);
-  }
-  if (data.agentSync?.mcpConfigsGenerated) {
-    console.log('  MCP Configs: .cursor, .kiro, claude (generated)');
+
+  const roleSummary: string[] = [];
+  if (data.validation.rolesReady.length > 0) {
+    roleSummary.push(`${t(lang, 'siap', 'ready')}: ${data.validation.rolesReady.join(', ')}`);
   }
   if (data.validation.rolesEncrypted.length > 0) {
-    console.log(
-      t(
-        lang,
-        `  Terenkripsi: ${data.validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
-        `  Encrypted:   ${data.validation.rolesEncrypted.join(', ')} (update via: npm run env:edit)`,
-      ),
+    roleSummary.push(
+      `${t(lang, 'terenkripsi', 'encrypted')}: ${data.validation.rolesEncrypted.join(', ')} (${t(lang, 'dicek via decrypt', 'verified via decrypt')})`,
     );
   }
+  if (data.validation.rolesIncomplete.length > 0) {
+    roleSummary.push(
+      `${t(lang, 'belum lengkap', 'incomplete')}: ${data.validation.rolesIncomplete.join(', ')}`,
+    );
+  }
+  if (roleSummary.length > 0) {
+    stepLine(`  ${t(lang, 'Roles', 'Roles')}        : ${roleSummary.join(' · ')}`);
+  }
+
   console.log('');
 
   if (data.validation.warnings.length > 0) {
-    console.log(`  ⚠ ${t(lang, 'Peringatan', 'Warnings')}:`);
+    stepLine(`  ⚠ ${t(lang, 'Peringatan', 'Warnings')}:`);
     for (const w of data.validation.warnings) {
-      console.log(`    - ${w}`);
+      console.log(`      - ${w}`);
     }
     console.log('');
   }
 
-  if (data.loginRequirementPath) {
-    console.log(`  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementPath}`);
-  }
-  console.log('');
-
   if (data.challengeMode !== 'none') {
-    console.log(
-      `  ℹ ${t(
+    stepLine(`  ℹ ${t(lang, 'Langkah berikutnya:', 'Next steps:')}`);
+    console.log('      1. npm run auth:setup');
+    stepLine(
+      t(
         lang,
-        'Langkah berikutnya: buat session login, lalu paste prompt Hermes:',
-        'Next step: materialize login sessions, then paste the Hermes prompt:',
-      )}`,
+        '       (buat sesi login; OTP/CAPTCHA: npm run auth:setup:headed)',
+        '       (materialize sessions; OTP/CAPTCHA: npm run auth:setup:headed)',
+      ),
     );
-    console.log('    npm run auth:setup');
+    console.log(
+      `      2. ${t(lang, 'paste prompt Hermes di bawah (atau npm run qa:run)', 'paste the Hermes prompt below (or npm run qa:run)')}`,
+    );
   } else {
+    stepLine(`  ℹ ${t(lang, 'Langkah berikutnya:', 'Next steps:')}`);
     console.log(
-      `  ℹ ${t(
-        lang,
-        'Langkah berikutnya: paste prompt Hermes di bawah (atau npm run qa:run):',
-        'Next step: paste the Hermes prompt below (or npm run qa:run):',
-      )}`,
+      `      1. ${t(lang, 'paste prompt Hermes di bawah (atau npm run qa:run)', 'paste the Hermes prompt below (or npm run qa:run)')}`,
     );
+  }
+
+  if (data.loginRequirementPath) {
+    stepLine(`  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementPath}`);
   }
 
   if (data.loginRequirementPath && data.loginMarkdown) {
     const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown, lang);
     console.log('');
-    console.log('  ─────────────────────────────────');
-    console.log(
+    console.log('  ' + '─'.repeat(52));
+    stepLine(
       t(
         lang,
-        '  Salin prompt di bawah ini dan paste ke Hermes chat:',
-        '  Copy the prompt below and paste it into Hermes chat:',
+        'Salin SELURUH blok di bawah ini → paste ke Hermes chat:',
+        'Copy the ENTIRE block below → paste into the Hermes chat:',
       ),
     );
+    console.log('  ' + '─'.repeat(52));
     console.log('');
-    for (const line of prompt.trimEnd().split('\n')) {
-      console.log(`  >>> ${line}`);
-    }
-    console.log('  ─────────────────────────────────');
+    console.log(prompt.trimEnd());
+    console.log('');
+    console.log('  ' + '─'.repeat(52));
   }
 
-  console.log('═══════════════════════════════════════════════════');
+  console.log(line);
   console.log('');
 }

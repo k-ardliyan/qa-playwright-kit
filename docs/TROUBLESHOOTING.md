@@ -108,12 +108,12 @@ Panduan lengkap: [CREDENTIALS.md](CREDENTIALS.md).
 
 ### Error #5d: Nightly / E2E CI → `net::ERR_NAME_NOT_RESOLVED` di `staging.your-app.example.com`
 
-**Gejala:** Job `authenticate:user` gagal ke URL placeholder; log `Falling back to dummy template: environments/staging.env.example`.
+**Gejala:** Job `authenticate:user` gagal ke URL placeholder; log `Encrypted config/environments/staging.env found but no dotenvx private key is available`.
 
 **Root cause (historis + ops):**
 
 1. Secret `BASE_URL` (dan kredensial) belum di-set di repo → workflow materialize `BASE_URL=` kosong, atau job jalan tanpa secret.
-2. Bug lama: env-loader fallback ke `.env.example` hanya karena keys hilang, **meski** file CI plaintext. Sudah diperbaiki: fallback hanya jika file berisi `encrypted:`.
+2. Perilaku lama: env-loader diam-diam fallback ke `.env.example` saat file terenkripsi tanpa keys. Sekarang **fail-fast**: throw dengan panduan restore kunci — test tidak lagi jalan pakai kredensial dummy (file CI plaintext tetap dimuat apa adanya).
 3. Kredensial template (`test@example.com` / `your_password_here`) dulu dianggap login-ready → auth.setup tetap `page.goto` ke dummy URL. Sekarang `isRoleLoginReady` menolak placeholder.
 
 **Fix:**
@@ -122,7 +122,7 @@ Panduan lengkap: [CREDENTIALS.md](CREDENTIALS.md).
 2. Workflow `e2e.yml` / `nightly-e2e.yml` punya job `check-secrets` — tanpa `BASE_URL` job E2E di-skip (bukan fail DNS dummy).
 3. Step **Materialize CI environment file** fail-fast bila secret kosong / masih `your-app.example.com` / password atau identity hilang.
 4. Auth setup di CI: throw jika `BASE_URL` masih placeholder kit.
-5. Jangan commit `environments/staging.env` encrypted ke CI; biarkan materialize menulis plaintext ephemeral.
+5. Jangan commit `config/environments/staging.env` (encrypted atau plaintext) ke CI; biarkan materialize menulis plaintext ephemeral.
 
 ---
 
@@ -161,7 +161,7 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 
 ### Error #6: Auth Setup Gagal — `selector not found` / `timeout`
 
-**Gejala:** Phase 5 wizard exit dengan error selector tidak ditemukan.
+**Gejala:** `npm run auth:setup` / `auth:setup:headed` gagal — selector login tidak ditemukan.
 
 **Root cause:** Selector form login aplikasi Anda berbeda dari default (`input[type=email]`, `input[type=password]`).
 
@@ -275,7 +275,7 @@ node --version
 npm --version
 npx playwright --version
 cat .mcp.json | head -20
-ls -la environments/
+ls -la config/environments/
 ```
 
 Lalu tanya ke **Hermes Agent** di VS Code:

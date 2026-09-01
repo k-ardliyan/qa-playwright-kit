@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * env-use — Pin active APP_ENV for local work (environments/.active-env).
+ * env-use — Pin active APP_ENV for local work (config/environments/.active-env).
  *
  * Usage:
  *   npm run env:use

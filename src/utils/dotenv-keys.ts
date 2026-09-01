@@ -4,9 +4,9 @@
  * Rules:
  * - Prefer ~/.dotenvx-keys/<package-name>/.env.keys (outside repo)
  * - Never overwrite an existing global keys file wholesale — merge new DOTENV_PRIVATE_KEY* lines
- * - Migrate both environments/.env.keys and root .env.keys
+ * - Migrate config/environments/.env.keys and root .env.keys
  *
- * Used by env-loader, setup-check, and env-edit.
+ * Used by env-loader and env-edit.
  *
  * @module src/utils/dotenv-keys
  */
@@ -35,7 +35,10 @@ export function getGlobalKeysPath(repoRoot: string): string {
 }
 
 export function listWorkspaceKeyCandidates(repoRoot: string): string[] {
-  return [path.resolve(repoRoot, 'environments', '.env.keys'), path.resolve(repoRoot, '.env.keys')];
+  return [
+    path.resolve(repoRoot, 'config', 'environments', '.env.keys'),
+    path.resolve(repoRoot, '.env.keys'),
+  ];
 }
 
 export interface MergeKeysResult {

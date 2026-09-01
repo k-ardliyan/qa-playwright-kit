@@ -21,10 +21,10 @@ If Node < 20.19.0: download LTS from https://nodejs.org/, install, restart termi
 
 ```bash
 npm install
-npm run setup        # interactive wizard (6 steps)
+npm run setup        # interactive wizard
 ```
 
-The wizard writes `config/environments/{APP_ENV}.env`. What the wizard does **not** do: install browsers, run auth setup, create requirements, or encrypt credentials.
+The wizard **generates** a clean `config/environments/{APP_ENV}.env` (only active keys, no placeholder comments — `{APP_ENV}.env.example` stays the commented documentation), encrypts secret keys (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`), writes `requirements/login.md`, offers Chromium install if missing, and prints a Hermes prompt. What the wizard does **not** do: encrypt URLs/flags/identifiers, or run `auth:setup`.
 
 ---
 
@@ -81,4 +81,4 @@ Dashboard opens automatically in the browser. If not: open `artifacts/reports/cu
 | Auth file is 36 bytes                       | `.auth/{APP_ENV}/user.json` size    | Re-run `npm run auth:setup`                  |
 | `npm run qa:run` hangs without a picker     | stdin is not a TTY                  | Run from an interactive terminal, not a pipe |
 | Dashboard redirects to `/login` after login | localStorage missing in auth file   | `npm run env:edit` → `npm run auth:setup`    |
-| `ENOENT environments/local.env`             | Env dir changed or wizard never ran | Run `npm run setup` first                    |
+| `ENOENT config/environments/local.env`      | Env dir changed or wizard never ran | Run `npm run setup` first                    |

@@ -51,7 +51,7 @@ async function main(): Promise<void> {
             true,
           );
           assert.equal(
-            infos.some((msg) => msg.includes('environments/local.env')),
+            infos.some((msg) => msg.includes('config/environments/local.env')),
             true,
           );
           assert.equal(process.env.APP_ENV, 'local');
@@ -116,7 +116,7 @@ async function main(): Promise<void> {
           true,
         );
       } else {
-        // pin — APP_ENV must be a known profile from environments/.active-env
+        // pin — APP_ENV must be a known profile from config/environments/.active-env
         assert.ok(
           process.env.APP_ENV && KNOWN.has(process.env.APP_ENV),
           `pinned APP_ENV not known: ${process.env.APP_ENV}`,
@@ -124,8 +124,9 @@ async function main(): Promise<void> {
         assert.equal(
           infos.some(
             (msg) =>
-              msg.includes(`Using APP_ENV=${process.env.APP_ENV} from environments/.active-env`) ||
-              msg.includes(`Loaded environment '${process.env.APP_ENV}'`),
+              msg.includes(
+                `Using APP_ENV=${process.env.APP_ENV} from config/environments/.active-env`,
+              ) || msg.includes(`Loaded environment '${process.env.APP_ENV}'`),
           ),
           true,
         );

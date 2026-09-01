@@ -55,7 +55,7 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 21 MC
 | **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                 |
 | **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                     |
 | **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                   |
-| **Encrypted creds**   | dotenvx auto-encrypt + `env:edit`                       | Kredensial tidak pernah plaintext di repo          |
+| **Encrypted creds**   | dotenvx after setup — secret keys only (`*_PASSWORD`)   | URL/flag tetap plaintext; env file gitignored      |
 
 ---
 
@@ -89,7 +89,7 @@ requirements/*.md          QA tulis requirement
 git clone https://github.com/k-ardliyan/qa-playwright-kit.git
 cd qa-playwright-kit
 npm install
-npm run setup                 # setup interaktif 6 langkah
+npm run setup                 # generate clean .env → encrypt secrets
 ```
 
 **Setelah wizard selesai:**
@@ -283,14 +283,14 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 
 <br/>
 
-| Layer         | Tools                                            |
-| ------------- | ------------------------------------------------ |
-| **Runtime**   | Node.js >= 20.19 · TypeScript 5.9+               |
-| **Testing**   | Playwright 1.62+ · MCP SDK 1.30+                 |
-| **AI Agent**  | Hermes Agent · Claude                            |
-| **Security**  | dotenvx (auto-encrypt)                           |
-| **CI/CD**     | GitHub Actions · Husky (pre-commit)              |
-| **Reporting** | Custom HTML Dashboard (triage table + accordion) |
+| Layer         | Tools                                                  |
+| ------------- | ------------------------------------------------------ |
+| **Runtime**   | Node.js >= 20.19 · TypeScript 5.9+                     |
+| **Testing**   | Playwright 1.62+ · MCP SDK 1.30+                       |
+| **AI Agent**  | Hermes Agent · Claude                                  |
+| **Security**  | dotenvx after setup (secret keys only, not whole file) |
+| **CI/CD**     | GitHub Actions · Husky (pre-commit)                    |
+| **Reporting** | Custom HTML Dashboard (triage table + accordion)       |
 
 </details>
 

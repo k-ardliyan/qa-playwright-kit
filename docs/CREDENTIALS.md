@@ -14,7 +14,7 @@
 | 1. Pilih / pin `APP_ENV`                   | `staging`                         |
 | 2. Isi `BASE_URL` + kredensial di file itu | `config/environments/staging.env` |
 
-Wizard Phase 1: **project name → APP_ENV → BASE_URL untuk env itu**.  
+Wizard: pilih **APP_ENV**, lalu **BASE_URL untuk env itu**.  
 Env lain: `npm run env:use:staging` (atau `env:use:dev` / `env:use:local`) lalu `npm run env:edit` (jangan mengasumsikan URL sama).
 
 ---
@@ -87,8 +87,7 @@ npm install
 npm run setup
 ```
 
-Phase 1: pilih **APP_ENV**, lalu **BASE_URL untuk env itu**.  
-Phase 2: kredensial ke file env yang sama. Nilai di `config/environments/{APP_ENV}.env` bisa dienkripsi via `npm run env:edit` (re-encrypt) — **itu normal**.
+Wizard **generate** `config/environments/{APP_ENV}.env` sebagai file data yang bersih: hanya key yang aktif, dikelompokkan per section, tanpa komentar placeholder (`.env.example` tetap jadi dokumentasi lengkap). Lalu **auto-encrypt secret saja** (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`); URL, flag, email/username/phone tetap plaintext — boleh diedit di file. `npm run env:edit` pakai helper encrypt yang sama, plus aksi **Rapikan file** untuk rebuild file lama ke format bersih.
 
 ---
 
@@ -127,6 +126,20 @@ npm run auth:setup:headed
 ---
 
 ## Enkripsi
+
+`npm run setup` **wajib** mengenkripsi secret setelah write. Bukan semua key:
+
+| Dienkripsi                                     | Tetap plaintext (edit file OK)                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `*_PASSWORD`, `*_SECRET`, `*_TOKEN`, `API_KEY` | `BASE_URL`, `HEADLESS`, `AUTH_CHALLENGE_MODE`, `*_EMAIL` / `*_USERNAME` / `*_PHONE`, `PLAYWRIGHT_CONFIG` |
+
+Kunci dekripsi: `~/.dotenvx-keys/qa-playwright-kit/.env.keys` (tidak ikut Git).
+
+Ganti password: `npm run env:edit` (bukan edit baris `encrypted:…`).
+
+```bash
+npm run env:edit   # menu → Simpan & encrypt (secret keys only)
+```
 
 | Item       | Lokasi                                           |
 | ---------- | ------------------------------------------------ |

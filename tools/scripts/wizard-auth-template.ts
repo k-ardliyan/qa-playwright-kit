@@ -56,11 +56,13 @@ setup('authenticate:${name}', async ({ page }) => {
   const phone = (process.env.${envPrefix}_PHONE ?? '').trim();
   const password = (process.env.${envPrefix}_PASSWORD ?? '').trim();
 
-  let loginId = '';
-  if (pref === 'email' && email) loginId = email;
-  else if (pref === 'username' && username) loginId = username;
-  else if (pref === 'phone' && phone) loginId = phone;
-  else loginId = email || username || phone;
+  const loginId =
+    (pref === 'email' && email) ||
+    (pref === 'username' && username) ||
+    (pref === 'phone' && phone) ||
+    email ||
+    username ||
+    phone;
 
   if (!loginId || !password) {
     fs.writeFileSync(authFile, JSON.stringify({ cookies: [], origins: [] }, null, 2));

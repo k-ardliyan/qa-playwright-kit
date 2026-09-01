@@ -1,9 +1,15 @@
 /**
  * Setup Wizard — environment file writer.
  *
- * Writes or merges `environments/{APP_ENV}.env` with role credentials,
- * BASE_URL, and challenge mode. Uses `normalizeWizardRoles()` for correct
- * env key mapping. Preserves existing keys not managed by the wizard.
+ * Generates a clean, minimal `config/environments/{APP_ENV}.env` (see
+ * `src/utils/env-clean.ts`): only keys that are actually set, grouped in
+ * sections, no commented-out placeholders. `*.env.example` stays the
+ * commented documentation — it is never copied into the derived file.
+ *
+ * Wizard values upsert over the previous file's active plaintext extras
+ * (SLOW_MO, PLAYWRIGHT_CONFIG, extra roles, free keys). Then secret keys
+ * (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`) are encrypted; identifiers, URLs,
+ * and flags stay plaintext so QA can edit them in the file.
  *
  * @module src/setup/wizard-writer
  */
@@ -13,6 +19,9 @@ import * as path from 'node:path';
 import { type AppEnv } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
 import { type WizardRoleInput, normalizeWizardRoles } from '../shared/utils/role-credentials';
+import { parseEnvText } from '../utils/env-text';
+import { buildCleanEnvContent, ENV_FILE_DEFAULTS } from '../utils/env-clean';
+import { encryptSecretKeysInFile } from '../utils/env-secrets';
 
 export interface EnvWriteOptions {
   appEnv: AppEnv;
@@ -30,9 +39,13 @@ export interface EnvWriteResult {
   keysWritten: number;
   /** Number of existing keys preserved */
   keysPreserved: number;
+  /** Secret keys encrypted after write */
+  keysEncrypted: string[];
+  /** Non-fatal warnings from the role normalization */
+  warnings: string[];
 }
 
-/** True when a value is dotenvx ciphertext (managed by env:edit, not the wizard). */
+/** True when a value is dotenvx ciphertext. */
 export function isEncryptedValue(v: string | undefined | null): boolean {
   return Boolean(v && v.trim().startsWith('encrypted:'));
 }
@@ -40,199 +53,113 @@ export function isEncryptedValue(v: string | undefined | null): boolean {
 /**
  * Read existing env file into a flat key-value map.
  * Returns null if the file does not exist.
+ * Ciphertext values are returned as-is (callers must skip via isEncryptedValue).
  */
 export function readExistingEnv(appEnv: AppEnv): Record<string, string> | null {
   const envPath = resolveEnvPath(appEnv);
   if (!fs.existsSync(envPath)) return null;
+  return parseEnvText(fs.readFileSync(envPath, 'utf-8'));
+}
 
-  const content = fs.readFileSync(envPath, 'utf-8');
-  const map: Record<string, string> = {};
-
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-
-    const eqIdx = trimmed.indexOf('=');
-    if (eqIdx < 0) continue;
-
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
-
-    // Remove surrounding quotes
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-
-    map[key] = value;
+function challengeHeadless(mode: ChallengeMode): 'true' | 'false' {
+  if (mode === 'otp-browser' || mode === 'captcha-browser' || mode === 'auto') {
+    return 'false';
   }
+  return 'true';
+}
 
-  return map;
+export interface BuiltEnvFile {
+  content: string;
+  keysWritten: number;
+  keysPreserved: number;
+  warnings: string[];
 }
 
 /**
- * Write the env file with wizard-collected values.
- * Merges with existing values — wizard keys overwrite, non-wizard keys are preserved.
+ * Generate clean env file content (no example copy): wizard values over
+ * preserved existing plaintext extras, plus canonical defaults. Pure-ish
+ * (reads the existing env file) — no encrypt. Used by writeEnvFile and tests.
+ */
+export function buildEnvFileContent(options: EnvWriteOptions): BuiltEnvFile {
+  const { appEnv, baseUrl, roles, challengeMode } = options;
+  const existing = readExistingEnv(appEnv) ?? {};
+  const values: Record<string, string> = {};
+  const wizardKeys = new Set<string>();
+  const put = (key: string, value: string): void => {
+    values[key] = value;
+    wizardKeys.add(key);
+  };
+
+  put('BASE_URL', baseUrl);
+  put('AUTH_CHALLENGE_MODE', challengeMode);
+  put('HEADLESS', challengeHeadless(challengeMode));
+
+  const { envUpserts, warnings } = normalizeWizardRoles(roles);
+  for (const [key, value] of Object.entries(envUpserts)) {
+    put(key, value);
+  }
+
+  let keysPreserved = 0;
+  for (const [key, value] of Object.entries(existing)) {
+    if (wizardKeys.has(key)) continue;
+    if (key.startsWith('DOTENV_')) continue;
+    if (isEncryptedValue(value)) continue;
+    if (value.trim() === '') continue;
+    values[key] = value;
+    keysPreserved += 1;
+  }
+
+  for (const [key, value] of Object.entries(ENV_FILE_DEFAULTS)) {
+    if (!(key in values)) values[key] = value;
+  }
+
+  return {
+    content: buildCleanEnvContent({ appEnv, values }),
+    keysWritten: wizardKeys.size,
+    keysPreserved,
+    warnings,
+  };
+}
+
+/**
+ * Generate the clean env file, write it, encrypt secrets.
+ * Existing non-wizard plaintext keys (SLOW_MO, PLAYWRIGHT_CONFIG, extra roles,
+ * free keys) are carried over. Ciphertext leftovers are not carried —
+ * re-enter via wizard/env:edit.
  */
 export function writeEnvFile(options: EnvWriteOptions): EnvWriteResult {
-  const { appEnv, baseUrl, roles, challengeMode } = options;
+  const { appEnv } = options;
+  const repoRoot = findRepoRoot();
   const envPath = resolveEnvPath(appEnv);
   const isNewFile = !fs.existsSync(envPath);
+  const built = buildEnvFileContent(options);
 
-  // Read existing values (for merge)
-  const existing = readExistingEnv(appEnv) ?? {};
-  const wizardKeys = new Set<string>();
-
-  // Build new values from wizard inputs
-  const newValues: Record<string, string> = {};
-
-  // BASE_URL
-  newValues['BASE_URL'] = baseUrl;
-  wizardKeys.add('BASE_URL');
-
-  // APP_ENV
-  newValues['APP_ENV'] = appEnv;
-  wizardKeys.add('APP_ENV');
-
-  // AUTH_CHALLENGE_MODE
-  newValues['AUTH_CHALLENGE_MODE'] = challengeMode;
-  wizardKeys.add('AUTH_CHALLENGE_MODE');
-
-  // HEADLESS (needed for challenge modes that need headed browser)
-  if (
-    challengeMode === 'otp-browser' ||
-    challengeMode === 'captcha-browser' ||
-    challengeMode === 'auto'
-  ) {
-    newValues['HEADLESS'] = 'false';
-    wizardKeys.add('HEADLESS');
-  } else {
-    newValues['HEADLESS'] = 'true';
-    wizardKeys.add('HEADLESS');
-  }
-
-  // Role credentials via normalizeWizardRoles
-  const { envUpserts, warnings } = normalizeWizardRoles(roles);
-
-  for (const [key, value] of Object.entries(envUpserts)) {
-    newValues[key] = value;
-    wizardKeys.add(key);
-  }
-
-  // Merge: wizard values overwrite, existing non-wizard keys preserved
-  const merged: Record<string, string> = { ...existing, ...newValues };
-
-  // Build env file content
-  const lines: string[] = [];
-  lines.push(`# Auto-generated by qa-playwright-kit setup wizard`);
-  lines.push(`# Updated: ${new Date().toISOString()}`);
-  lines.push(`# APP_ENV: ${appEnv}`);
-  lines.push('');
-
-  // Group: core config
-  lines.push('# ─── Core Configuration ───────────────────────────');
-  if (merged['APP_ENV']) lines.push(`APP_ENV=${merged['APP_ENV']}`);
-  if (merged['BASE_URL']) lines.push(`BASE_URL=${merged['BASE_URL']}`);
-  if (merged['HEADLESS']) lines.push(`HEADLESS=${merged['HEADLESS']}`);
-  lines.push('');
-
-  // Group: challenge mode
-  lines.push('# ─── Auth Challenge ──────────────────────────────');
-  if (merged['AUTH_CHALLENGE_MODE'])
-    lines.push(`AUTH_CHALLENGE_MODE=${merged['AUTH_CHALLENGE_MODE']}`);
-  if (merged['AUTH_CHALLENGE_TIMEOUT_MS'])
-    lines.push(`AUTH_CHALLENGE_TIMEOUT_MS=${merged['AUTH_CHALLENGE_TIMEOUT_MS']}`);
-  lines.push('');
-
-  // Group: role credentials
-  lines.push('# ─── Role Credentials ────────────────────────────');
-  const rolePrefixes = new Set<string>();
-  for (const key of Object.keys(merged)) {
-    const m = /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF)$/.exec(key);
-    if (m) rolePrefixes.add(m[1]);
-  }
-
-  // Always include TEST_USER first
-  const orderedPrefixes = ['TEST_USER'];
-  for (const prefix of rolePrefixes) {
-    if (prefix !== 'TEST_USER') orderedPrefixes.push(prefix);
-  }
-
-  for (const prefix of orderedPrefixes) {
-    const roleKeys = Object.keys(merged).filter(
-      (k) =>
-        k === `${prefix}_EMAIL` ||
-        k === `${prefix}_USERNAME` ||
-        k === `${prefix}_PHONE` ||
-        k === `${prefix}_PASSWORD` ||
-        k === `${prefix}_LOGIN_ID_PREF`,
-    );
-    if (roleKeys.length === 0) continue;
-
-    lines.push(
-      `# Role: ${prefix === 'TEST_USER' ? 'user' : prefix.toLowerCase().replace(/_/g, '-')}`,
-    );
-    for (const key of roleKeys.sort()) {
-      lines.push(`${key}=${merged[key]}`);
-    }
-    lines.push('');
-  }
-
-  // Group: other existing keys not managed by wizard
-  const roleKeyPattern = /^[A-Z0-9_]+_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF)$/;
-  const otherKeys = Object.keys(merged).filter(
-    (k) => !wizardKeys.has(k) && !k.startsWith('DOTENV_') && !roleKeyPattern.test(k),
-  );
-  if (otherKeys.length > 0) {
-    lines.push('# ─── Other (preserved) ──────────────────────────');
-    for (const key of otherKeys.sort()) {
-      lines.push(`${key}=${merged[key]}`);
-    }
-    lines.push('');
-  }
-
-  // Ensure directory exists
   const dir = path.dirname(envPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
+  fs.writeFileSync(envPath, built.content, 'utf-8');
 
-  fs.writeFileSync(envPath, lines.join('\n'), 'utf-8');
-
-  // Log warnings from normalizeWizardRoles
-  for (const w of warnings) {
-    console.warn(`⚠ ${w}`);
-  }
+  const { encryptedKeys } = encryptSecretKeysInFile(envPath, { repoRoot });
 
   return {
     envFilePath: envPath,
     isNewFile,
-    keysWritten: wizardKeys.size,
-    keysPreserved: otherKeys.length,
+    keysWritten: built.keysWritten,
+    keysPreserved: built.keysPreserved,
+    keysEncrypted: encryptedKeys,
+    warnings: built.warnings,
   };
 }
 
 /**
  * Resolve the env file path for a given APP_ENV.
- * Canonical location is config/environments/ (ARCH-002). Legacy
- * environments/ is a read-only migration fallback for pre-existing files;
- * NEW files are always written to the canonical config/environments/.
+ * Canonical (only) location: config/environments/{APP_ENV}.env
  */
 export function resolveEnvPath(appEnv: AppEnv): string {
-  // Find repo root by climbing up from cwd
-  const repoRoot = findRepoRoot();
-  const configPath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env`);
-  if (fs.existsSync(configPath)) return configPath;
-  const legacyPath = path.join(repoRoot, 'environments', `${appEnv}.env`);
-  if (fs.existsSync(legacyPath)) return legacyPath;
-  return configPath;
+  return path.join(findRepoRoot(), 'config', 'environments', `${appEnv}.env`);
 }
 
-/**
- * Find repository root by looking for package.json.
- */
 function findRepoRoot(): string {
   let dir = process.cwd();
   for (let i = 0; i < 12; i += 1) {

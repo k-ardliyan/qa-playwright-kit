@@ -29,7 +29,7 @@ function getAllowedPrefixes(): Record<Exclude<AllowedPathKind, 'tests'>, string[
     specs: [mcpWorkspace.specsRel, 'specs'],
     reports: [mcpWorkspace.reportsRel, 'reports'],
     'test-results': [mcpWorkspace.testResultsRel, 'test-results'],
-    environments: [mcpWorkspace.environmentsRel, 'environments'],
+    environments: [mcpWorkspace.environmentsRel],
     'selector-catalog': [mcpWorkspace.selectorCatalogRel, 'selector-catalog'],
     pages: [mcpWorkspace.pagesRel, 'tests/pages'],
     'test-data': [mcpWorkspace.testDataRel, 'tests/data', 'test-fixtures'],

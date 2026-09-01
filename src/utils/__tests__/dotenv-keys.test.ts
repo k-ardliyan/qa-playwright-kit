@@ -74,11 +74,12 @@ test('noop when local missing', () => {
 
 test('listWorkspaceKeyCandidates paths', () => {
   const c = listWorkspaceKeyCandidates('/repo');
-  assert.ok(c.some((p) => p.replace(/\\/g, '/').endsWith('environments/.env.keys')));
-  assert.ok(
-    c.some(
-      (p) => p.replace(/\\/g, '/').endsWith('/.env.keys') || p.endsWith(`${path.sep}.env.keys`),
-    ),
+  const norm = c.map((p) => p.replace(/\\/g, '/'));
+  assert.ok(norm.some((p) => p.endsWith('config/environments/.env.keys')));
+  assert.ok(norm.some((p) => p.endsWith('/.env.keys')));
+  assert.equal(
+    norm.some((p) => p.endsWith('environments/.env.keys') && !p.includes('config/')),
+    false,
   );
 });
 

@@ -6,6 +6,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Wizard UX, real verification & robust auth scenarios — 2026-09-02
+- **Wizard end-to-end UX:** banner pembuka + ringkasan `6 langkah`, header `[n/6]` per fase (Bahasa → Environment → URL → Kredensial → Challenge → Konfirmasi), section `Menulis file` / `Verifikasi artefak` yang konsisten, pratinjau per-role yang lebih kompak, dan deteksi config existing kini menampilkan state saat ini (BASE_URL, roles + status terenkripsi, challenge) sebelum prompt update/keep.
+- **Verifikasi artefak nyata** (`src/setup/verify-setup.ts`): setelah menulis, wizard mengecek **bukan sekadar asumsi** — node_modules, config Playwright, Chromium, file env + BASE_URL, secret ciphertext di disk, keberadaan file kunci dotenvx, **decrypt roundtrip asli** via dotenvx CLI, requirements/login.md, agent skills, MCP configs (.cursor/.kiro/.codex/claude), dan file sesi `.auth/{APP_ENV}/<role>.json`. Check kritis gagal → `npm run setup` exit non-zero.
+- **Prompt Hermes akhir diperbaiki:** dicetak sebagai blok bersih (tanpa prefix `>>>` per baris) agar gampang disalin; kini meminta `health_check` sebagai aksi pertama sebelum Plan, dan menambahkan reminder `npm run auth:setup` otomatis ketika requirement terdeteksi punya challenge (OTP/CAPTCHA) — mode dibaca dari `AUTH_CHALLENGE_MODE=` di requirement.
+- **Katalog auth lebih robust (`requirements/auth/login-*.md`, 13 → 19 skenario):** tier-3 baru — deep-link protection `(@access-restriction)`, reload session, browser back, double-submit, identifier markup/XSS-safe `(@failure)`, dan logout end-to-end `(@access-restriction)`; AC diperluas ke AC-19 (none) / AC-20 (challenge). Generator katalog kini script resmi: `tools/scripts/gen-login-catalogs.ts`. Skenario challenge `(@manual)` tetap tepat satu di SC-07; semua katalog valid `validate:requirement` 100/100.
+- **`EnvWriteResult.warnings`:** warning normalisasi role kini mengalir ke output wizard (bukan `console.warn` di dalam writer).
+
+### Clean generated env files — 2026-09-01
+- **Generator, bukan salinan:** `buildEnvFileContent` tidak lagi menyalin `*.env.example` verbatim. Wizard **generate** `{APP_ENV}.env` minimal via `src/utils/env-clean.ts`: hanya key aktif, dikelompokkan per section (URL Aplikasi / Role / Browser / Challenge / Playwright / Lainnya), tanpa komentar placeholder dan tanpa key opsional ter-comment (`# FINANCE_*`, `# AUTH_OTP_*`, dst). `.env.example` tetap dokumentasi ber-komentar.
+- **Upsert sadar-komentar:** `upsertEnvContent` kini mengenali `# KEY=...` — nilai di-uncomment-replace di posisinya (tidak lagi di-append di akhir file, duplikat ter-comment dibuang).
+- **Banner dotenvx ternormalisasi:** setelah encrypt, box ASCII `#/---/`, komentar `-fk <path>` machine-specific, dan marker `# <filename>` dibuang; baris `DOTENV_PUBLIC_KEY_*` fungsional tetap.
+- **Parser dotenv round-trip:** `parseEnvText` membuang inline comment (` # ...`) dan menghormati closing quote — value `DOTENV_PUBLIC_KEY="hex" # -fk <path>` tidak lagi terbaca sebagai hex+path.
+- **Urutan wizard diperbaiki:** APP_ENV final ditentukan **sekali** (`--env` > prompt dengan default pin/OS) **sebelum** membaca existing config — prefill BASE_URL/roles/challenge dan konfirmasi update tidak lagi bisa tertarget ke file env yang salah; browser check dipindah setelah keputusan update.
+- **Loader fail-fast:** file env terenkripsi tanpa private key kini **throw** dengan pesan actionable (restore `~/.dotenvx-keys/<project>/.env.keys` atau `npm run setup`) — tidak lagi diam-diam memuat template placeholder yang membuat test gagal login dengan kredensial dummy.
+- **env:edit — aksi "Rapikan file":** rebuild file dari key aktif ke layout bersih (jalur migrasi sekali klik untuk file lama yang masih berantakan).
+- **Isolasi dotenvx child:** child `dotenvx` tidak mewarisi nilai env untuk key milik file target (dotenvx mem-merge env di atas file — polusi `process.env` bisa ter-enkripsi ke file atau bocor ke output decrypt). `playwright-mcp-launch` kini memanggil `bootstrapMcpEnvironment` hanya di `main()` — import modul tidak lagi memuat env asli (side-effect import yang pernah mengotori worker test).
+
+### Setup auto-encrypts secrets from .env.example — 2026-09-01
+- **Encrypt pairing:** `encryptSecretKeysInFile` no longer injects `DOTENV_PRIVATE_KEY*` into the dotenvx child env (stale inherited keys + newly minted public key caused `DECRYPTION_FAILED` after a successful encrypt). Uses `-fk` against `~/.dotenvx-keys/<project>/.env.keys` when present; restores plaintext if decrypt-verify fails.
+- **Writer:** `writeEnvFile` copies `config/environments/{APP_ENV}.env.example` (comments + every template key), upserts wizard values, then encrypts **secret keys only** (`*_PASSWORD` / `*_SECRET` / `*_TOKEN` / `API_KEY`). URL, flags, identifiers stay plaintext — edit the file without `env:edit`.
+- **Shared helper:** `src/utils/env-secrets.ts` used by setup **and** `env:edit` (no more whole-file encrypt).
+- **No extra command after setup.** `npm run env:edit` remains for later password/role changes.
+- **Legacy `environments/` fallback removed.** Canonical path is only `config/environments/`.
+- **Dotenv text helpers** moved to `src/utils/env-text.ts` (env:edit re-exports).
+
+### Honesty: setup does not auto-encrypt — 2026-09-01
+- **Superseded** by “Setup auto-encrypts secrets from .env.example” (same day). Historical: first honesty pass deleted orphan `tools/validators/setup-check.ts` and stopped docs from claiming whole-file auto-encrypt.
+
 ### Login catalogs match AUTH_CHALLENGE_MODE — 2026-09-01
 - **Setup writes `requirements/login.md`:** after env write, wizard renders a real login requirement from BASE_URL + roles + `AUTH_CHALLENGE_MODE` and prints a ready-to-paste Hermes prompt (`>>> `). File is gitignored (per-project).
 - **Five committed catalogs** under `requirements/auth/login-<mode>.md` matching wizard choices 1:1: `none`, `auto`, `otp-browser`, `otp-stdin`, `captcha-browser`. OTP/CAPTCHA scenarios stay `(@manual)`.

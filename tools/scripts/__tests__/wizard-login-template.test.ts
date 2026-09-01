@@ -290,7 +290,7 @@ test('form: loginIdPref username uses credential:user.username', () => {
   assert.ok(!md.includes('identifier: credential:user.email'), 'must not default to email');
 });
 
-test('form: generates all 13 scenarios including Tier 2 on-page UX and accessibility', () => {
+test('form: generates all 19 scenarios including Tier 2 UX and Tier 3 robustness/session', () => {
   const md = buildLoginRequirement(baseState({ challengeMode: 'none' }));
   assert.ok(md.includes('SC-08: Toggle Visibilitas Password Show dan Hide'), 'SC-08 missing');
   assert.ok(
@@ -312,9 +312,20 @@ test('form: generates all 13 scenarios including Tier 2 on-page UX and accessibi
   );
   assert.ok(md.includes('**AC-08:**'), 'AC-08 missing');
   assert.ok(md.includes('**AC-13:**'), 'AC-13 missing');
+  assert.ok(
+    md.includes('SC-14: Akses Halaman Protected Tanpa Login Mengarahkan ke Login'),
+    'tier-3 deep-link missing',
+  );
+  assert.ok(md.includes('(@access-restriction)'), 'access-restriction tag missing');
+  assert.ok(md.includes('SC-15: Sesi Tetap Aktif Setelah Reload Halaman'), 'SC-15 missing');
+  assert.ok(md.includes('SC-16: Navigasi Back Browser'), 'SC-16 missing');
+  assert.ok(md.includes('SC-17: Klik Ganda Tombol Submit'), 'SC-17 missing');
+  assert.ok(md.includes('SC-18: Identifier Berisi Karakter HTML'), 'SC-18 missing');
+  assert.ok(md.includes('SC-19: Logout Mengakhiri Sesi'), 'SC-19 missing');
+  assert.ok(md.includes('**AC-19:**'), 'AC-19 missing');
 });
 
-test('form challenge mode: generates 13 scenarios with shifted AC coverage (AC-09..14)', () => {
+test('form challenge mode: 19 scenarios with shifted AC coverage (AC-09..20)', () => {
   const md = buildLoginRequirement(baseState({ challengeMode: 'otp-browser' }), {
     generated: false,
   });
@@ -322,6 +333,21 @@ test('form challenge mode: generates 13 scenarios with shifted AC coverage (AC-0
   assert.ok(md.includes('SC-08: Toggle Visibilitas Password Show dan Hide'), 'SC-08 missing');
   assert.ok(md.includes('Covers:** `AC-09`'), 'SC-08 should cover AC-09 in challenge mode');
   assert.ok(md.includes('**AC-14:**'), 'AC-14 missing in challenge mode');
+  assert.ok(md.includes('**AC-20:**'), 'AC-20 (tier-3 shifted) missing in challenge mode');
+  assert.ok(
+    md.includes('SC-19: Logout Mengakhiri Sesi'),
+    'tier-3 logout missing in challenge mode',
+  );
+  // exactly one (@manual) SCENARIO heading — the OTP challenge at SC-07
+  const manualScenarios = (md.match(/^### .*@manual/gm) ?? []).length;
+  assert.equal(manualScenarios, 1, 'challenge catalogs must keep exactly one @manual scenario');
+});
+
+test('form: tier-3 session scenarios use provenance, not literals for credentials', () => {
+  const md = buildLoginRequirement(baseState({ challengeMode: 'none' }));
+  const tier3 = md.slice(md.indexOf('SC-14:'));
+  assert.ok(tier3.includes('credential:user.password'), 'tier-3 must use credential provenance');
+  assert.ok(!/password: literal:\S/.test(tier3), 'tier-3 must not hardcode passwords');
 });
 
 test('writeLoginRequirementFile skips custom (non-autogen) login.md', () => {

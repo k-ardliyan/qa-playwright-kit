@@ -12,6 +12,8 @@
 import { runSetupWizard, type WizardOptions } from './wizard';
 import { type AppEnv, isKnownAppEnv } from '../utils/app-env';
 import { type WizardLang, isKnownLang } from './i18n';
+import { hasCriticalFailure } from './verify-setup';
+import { EnvEncryptError } from '../utils/env-secrets';
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -54,10 +56,14 @@ async function main(): Promise<void> {
   try {
     const result = await runSetupWizard(options);
 
-    if (!result.validation.valid && !options.checkOnly) {
-      console.warn('');
-      console.warn('⚠ Setup completed with validation issues. See summary above.');
-      process.exit(1);
+    if (!options.checkOnly) {
+      if (!result.validation.valid || hasCriticalFailure(result.checks)) {
+        console.warn('');
+        console.warn(
+          '⚠ Setup selesai dengan masalah / Setup finished with issues — see the verification checklist above.',
+        );
+        process.exit(1);
+      }
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.message === 'SETUP_WIZARD_CANCELLED') {
@@ -68,6 +74,9 @@ async function main(): Promise<void> {
       process.exit(0);
     }
     console.error('Setup wizard failed:', err instanceof Error ? err.message : err);
+    if (err instanceof EnvEncryptError && err.detail) {
+      console.error(' ', err.detail);
+    }
     process.exit(1);
   }
 }

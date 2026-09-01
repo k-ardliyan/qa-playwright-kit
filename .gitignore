@@ -88,6 +88,7 @@ Thumbs.db
 *.swp
 *.swo
 .vscode/settings.json
+.zcode/
 
 # Local debug / temp artifacts
 debug-validator.ts

@@ -11,8 +11,6 @@ import { authStatePath } from '../../src/support/auth-paths';
 import type { McpIntent, McpRuntimeConfig } from '../../src/shared/mcp/types';
 import type { McpCapability } from '../../src/shared/mcp/capability-manifest';
 
-bootstrapMcpEnvironment(__dirname);
-
 export function parseLauncherArgs(argv: string[]): {
   profile: McpIntent;
   role?: string;
@@ -94,6 +92,9 @@ export function resolveLauncherConfig(argv: string[]): McpRuntimeConfig {
 }
 
 async function main(): Promise<void> {
+  // CLI entry only — importing this module must stay side-effect free
+  // (pure helpers are unit-tested; bootstrap loads real env into process.env).
+  bootstrapMcpEnvironment(__dirname);
   const rawArgs = process.argv.slice(2);
   const parsed = parseLauncherArgs(rawArgs);
 

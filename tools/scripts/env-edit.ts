@@ -7,15 +7,15 @@
  *   npm run env:edit:list
  *   npm run env:use:local   # then env:edit uses the pinned env
  *
- * Decrypts environments/{APP_ENV}.env via dotenvx private keys,
- * lets QA list/edit/add/remove role credentials, then re-encrypts.
+ * Decrypts config/environments/{APP_ENV}.env via dotenvx private keys,
+ * lets QA list/edit/add/remove role credentials, then re-encrypts secret
+ * keys only (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`). Same helper as setup.
  *
  * @module scripts/env-edit
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
 import prompts from 'prompts';
 import { printOk, printWarn, printError, printInfo } from './format-error';
 import { EXIT } from './exit-codes';
@@ -28,7 +28,6 @@ import {
   upsertEnvContent,
   removeEnvKeys,
   parseEnvText,
-  isEncryptedEnvText,
   resolveLoginIdentifier,
   canonicalRoleName,
   isRoleLoginReady,
@@ -36,6 +35,12 @@ import {
 } from './env-edit-lib';
 import { getGlobalKeysPath, migrateWorkspaceEnvKeys } from '../../src/utils/dotenv-keys';
 import { resolveAppEnv, getEnvironmentsDir } from '../../src/utils/app-env';
+import { buildCleanEnvContent } from '../../src/utils/env-clean';
+import {
+  decryptEnvFileToText,
+  encryptSecretKeysInFile,
+  EnvEncryptError,
+} from '../../src/utils/env-secrets';
 
 const ROOT = process.cwd();
 const ENV_DIR = getEnvironmentsDir(ROOT);
@@ -100,6 +105,7 @@ function printHelp(): void {
     - Tambah / hapus role
     - Key bebas (advanced)
     - Re-encrypt file saja
+    - Rapikan file (rebuild bersih dari key aktif)
     - Regenerasi src/support/auth.setup.ts
 
   Refresh session login setelah edit:
@@ -131,158 +137,41 @@ function resolveKeysPath(): string | null {
   return null;
 }
 
-function loadPrivateKeysIntoEnv(keysPath: string): void {
-  const text = fs.readFileSync(keysPath, 'utf-8');
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eq = line.indexOf('=');
-    if (eq <= 0) continue;
-    const key = line.slice(0, eq).trim();
-    let val = line.slice(eq + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
-    if (key.startsWith('DOTENV_PRIVATE_KEY')) {
-      process.env[key] = val;
-    }
-  }
-}
-
-function migrateAllLocalKeyFiles(): void {
-  try {
-    const results = migrateWorkspaceEnvKeys(ROOT);
-    const any = results.some((r) => r.migrated);
-    if (any) {
-      printOk(`Kunci digabung ke: ${getGlobalKeysPath(ROOT)}`);
-    }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    printWarn(`Gagal pindahkan keys: ${msg}`);
-  }
-}
-
 // ─── Load / save env ───────────────────────────────────────────────────────
 
 function envFilePath(envName: string): string {
   return path.join(ENV_DIR, `${envName}.env`);
 }
 
+function failEncrypt(err: unknown): never {
+  const detail = err instanceof EnvEncryptError ? (err.detail ?? err.message) : String(err);
+  const title = err instanceof EnvEncryptError ? err.message : 'Gagal encrypt/decrypt env file';
+  printError({
+    title,
+    detail,
+    hint: 'Cek ~/.dotenvx-keys/<package>/.env.keys, atau recreate dari .env.example. docs/CREDENTIALS.md',
+    docsLink: 'docs/CREDENTIALS.md',
+    exitCode: EXIT.FIXABLE,
+  });
+  process.exit(EXIT.FIXABLE);
+}
+
 /** Decrypt env to plaintext string via dotenvx --stdout (does not rewrite file). */
 function decryptEnvToText(filePath: string, keysPath: string | null): string {
-  const raw = fs.readFileSync(filePath, 'utf-8');
-  if (!isEncryptedEnvText(raw)) return raw;
-
-  if (!keysPath) {
-    printError({
-      title: 'File env terenkripsi tapi kunci tidak ditemukan',
-      detail:
-        'Kunci dekripsi biasanya di ~/.dotenvx-keys/<package-name>/.env.keys — tidak ikut Git.',
-      hint: 'Minta .env.keys dari tim, atau buat ulang: hapus environments/local.env, salin dari .example, isi, lalu npm run env:edit lagi. Lihat docs/CREDENTIALS.md',
-      docsLink: 'docs/CREDENTIALS.md',
-      exitCode: EXIT.FIXABLE,
-    });
-    process.exit(EXIT.FIXABLE);
-  }
-
-  loadPrivateKeysIntoEnv(keysPath);
-
   try {
-    const out = execSync(`npx @dotenvx/dotenvx decrypt -f "${filePath}" --stdout --quiet`, {
-      cwd: ROOT,
-      encoding: 'utf-8',
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return String(out);
+    return decryptEnvFileToText(filePath, { repoRoot: ROOT, keysPath });
   } catch (err: unknown) {
-    const e = err as { stderr?: string; message?: string };
-    printError({
-      title: 'Gagal decrypt env file',
-      detail: (e.stderr || e.message || String(err)).split('\n')[0],
-      hint: 'Pastikan .env.keys cocok dengan file ini. Atau recreate environments/local.env dari example. docs/TROUBLESHOOTING.md Error #5',
-      docsLink: 'docs/TROUBLESHOOTING.md',
-      exitCode: EXIT.FIXABLE,
-    });
-    process.exit(EXIT.FIXABLE);
+    failEncrypt(err);
   }
 }
 
-/**
- * Encrypt env file.
- *
- * Do NOT force `-fk` to an existing global keys file for brand-new env files:
- * dotenvx may mint a new public-key name while pairing with the wrong private
- * key, producing ciphertext that cannot be decrypted (DECRYPTION_FAILED).
- *
- * Strategy:
- * 1. If private keys already loaded in process.env (from decrypt), encrypt as-is.
- * 2. Prefer encrypt without `-fk` so dotenvx keeps keypair coherent for this file.
- * 3. If a secure keys path exists and file already has DOTENV_PUBLIC_KEY, pass -fk
- *    only as a secondary attempt when (2) fails.
- * 4. Always merge any new local `.env.keys` into ~/.dotenvx-keys/<project>/.
- */
+/** Encrypt secret keys only (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`). */
 function encryptEnvFile(filePath: string, keysPath: string | null): void {
-  const attempts: string[] = [`npx @dotenvx/dotenvx encrypt -f "${filePath}" --quiet`];
-  if (keysPath && fs.existsSync(keysPath)) {
-    attempts.push(`npx @dotenvx/dotenvx encrypt -f "${filePath}" -fk "${keysPath}" --quiet`);
-  }
-
-  let lastErr = '';
-  let ok = false;
-  for (const cmd of attempts) {
-    try {
-      execSync(cmd, {
-        cwd: ROOT,
-        encoding: 'utf-8',
-        env: process.env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      ok = true;
-      break;
-    } catch (err: unknown) {
-      const e = err as { stderr?: string; message?: string };
-      lastErr = (e.stderr || e.message || String(err)).split('\n')[0];
-    }
-  }
-
-  if (!ok) {
-    printError({
-      title: 'Gagal encrypt env file',
-      detail: lastErr || 'unknown encrypt error',
-      hint: 'Cek instalasi @dotenvx/dotenvx. File mungkin masih plaintext — jangan commit.',
-      exitCode: EXIT.FIXABLE,
-    });
-    process.exit(EXIT.FIXABLE);
-  }
-
-  // Verify we can decrypt what we just wrote (fail closed if not)
   try {
-    const verifyKeys = resolveKeysPath() ?? keysPath;
-    if (verifyKeys) loadPrivateKeysIntoEnv(verifyKeys);
-    // also load any brand-new local keys before migrate
-    for (const p of [path.join(ENV_DIR, '.env.keys'), path.join(ROOT, '.env.keys')]) {
-      if (fs.existsSync(p)) loadPrivateKeysIntoEnv(p);
-    }
-    execSync(`npx @dotenvx/dotenvx decrypt -f "${filePath}" --stdout --quiet`, {
-      cwd: ROOT,
-      encoding: 'utf-8',
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    encryptSecretKeysInFile(filePath, { repoRoot: ROOT, keysPath });
   } catch (err: unknown) {
-    const e = err as { stderr?: string; message?: string };
-    printError({
-      title: 'Encrypt selesai tapi file tidak bisa di-decrypt ulang',
-      detail: (e.stderr || e.message || String(err)).split('\n')[0],
-      hint: 'Jangan commit file ini. Restore backup / recreate dari .env.example. Lapor maintainer jika berulang.',
-      docsLink: 'docs/CREDENTIALS.md',
-      exitCode: EXIT.FIXABLE,
-    });
-    process.exit(EXIT.FIXABLE);
+    failEncrypt(err);
   }
-
-  migrateAllLocalKeyFiles();
 }
 
 function saveEnvMap(filePath: string, content: string, keysPath: string | null): void {
@@ -300,19 +189,9 @@ function saveEnvMap(filePath: string, content: string, keysPath: string | null):
     }
   }
 
-  // Backup previous encrypted/plaintext file for safety
-  if (fs.existsSync(filePath)) {
-    const bak = filePath + '.bak';
-    try {
-      fs.copyFileSync(filePath, bak);
-    } catch {
-      // non-fatal
-    }
-  }
-
   fs.writeFileSync(filePath, content, 'utf-8');
   encryptEnvFile(filePath, keysPath);
-  printOk(`${path.relative(ROOT, filePath)} tersimpan & terenkripsi`);
+  printOk(`${path.relative(ROOT, filePath)} tersimpan (secret keys terenkripsi)`);
   printInfo(
     'Session lama mungkin invalid. Jalankan:\n' +
       '    npm run auth:setup\n' +
@@ -756,9 +635,9 @@ async function main(): Promise<void> {
   const filePath = envFilePath(flags.envName);
   if (!fs.existsSync(filePath)) {
     printError({
-      title: `File tidak ditemukan: environments/${flags.envName}.env`,
+      title: `File tidak ditemukan: config/environments/${flags.envName}.env`,
       detail: `Expected path: ${filePath}`,
-      hint: `Salin template: cp environments/local.env.example environments/${flags.envName}.env`,
+      hint: `Salin template: cp config/environments/local.env.example config/environments/${flags.envName}.env`,
       docsLink: 'docs/CREDENTIALS.md',
       exitCode: EXIT.USAGE,
     });
@@ -773,7 +652,7 @@ async function main(): Promise<void> {
   process.stdout.write('╔══════════════════════════════════════════════════════════════╗\n');
   process.stdout.write('║  🔐 env:edit — Kelola kredensial test                        ║\n');
   process.stdout.write('╚══════════════════════════════════════════════════════════════╝\n');
-  process.stdout.write(`  File: environments/${flags.envName}.env\n`);
+  process.stdout.write(`  File: config/environments/${flags.envName}.env\n`);
   if (keysPath) {
     process.stdout.write(`  Keys: ${keysPath}\n`);
   }
@@ -801,6 +680,10 @@ async function main(): Promise<void> {
         { title: 'Edit key bebas (advanced)', value: 'free' },
         { title: 'Simpan & encrypt', value: 'save' },
         { title: 'Re-encrypt file saja (tanpa ubah isi)', value: 'reencrypt' },
+        {
+          title: 'Rapikan file — rebuild bersih dari key aktif (hapus komentar placeholder)',
+          value: 'tidy',
+        },
         {
           title: 'Regenerasi src/support/auth.setup.ts dari roles di env',
           value: 'regen-auth',
@@ -907,6 +790,22 @@ async function main(): Promise<void> {
       content = decryptEnvToText(filePath, resolveKeysPath());
       map = parseEnvText(content);
       dirty = false;
+      continue;
+    }
+
+    if (action === 'tidy') {
+      // Rebuild the file from active keys only — same layout the setup wizard
+      // generates: sections, no commented-out placeholders, no dotenvx box.
+      map = parseEnvText(content);
+      const next = buildCleanEnvContent({ appEnv: flags.envName, values: map });
+      if (next !== content) {
+        content = next;
+        map = parseEnvText(content);
+        dirty = true;
+        printOk('Struktur file dirapikan (belum disimpan — pilih "Simpan & encrypt")');
+      } else {
+        printInfo('File sudah rapikan — tidak ada perubahan');
+      }
       continue;
     }
 

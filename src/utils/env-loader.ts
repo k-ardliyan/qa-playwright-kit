@@ -1,20 +1,21 @@
 /**
  * Environment Loader for the Playwright AI Agent Framework.
  *
- * Selects and loads the correct per-environment `.env` file from the
- * `environments/` folder based on resolved APP_ENV (see `resolveAppEnv`).
+ * Selects and loads the correct per-environment `.env` file from
+ * `config/environments/` based on resolved APP_ENV (see `resolveAppEnv`).
  *
  * Logic flow:
- * 1. Resolve APP_ENV: OS → pin (environments/.active-env) → default local
+ * 1. Resolve APP_ENV: OS → pin (config/environments/.active-env) → default local
  * 2. invalid_os / invalid_pin → warn + fall back to local
  * 3. default → info (not warn)
  * 4. Try loading candidates in order:
- *    a. environments/{APP_ENV}.env         (primary — real credentials)
- *    b. environments/{APP_ENV}.env.example (fallback — template, warn to fill values)
- * 5. If no candidate exists → throw descriptive Error listing all paths tried
- * 6. Set process.env.APP_ENV (+ APP_ENV_SOURCE)
- * 7. Log success at info level
- * 8. Optionally overlay adapter-specific env files (non-overriding)
+ *    a. config/environments/{APP_ENV}.env         (primary — real credentials)
+ *    b. config/environments/{APP_ENV}.env.example (fallback — template, warns)
+ * 5. Encrypted primary + no decryption key → throw (never load dummy template)
+ * 6. If no candidate exists → throw descriptive Error listing all paths tried
+ * 7. Set process.env.APP_ENV (+ APP_ENV_SOURCE)
+ * 8. Log success at info level
+ * 9. Optionally overlay adapter-specific env files (non-overriding)
  *
  * Supported environments: local | dev | staging | production
  *
@@ -68,31 +69,28 @@ export function getSecureKeysPath(): string {
     repoRoot = parent;
   }
 
-  // Prefer cwd if it looks like the project root (has environments/)
-  if (fs.existsSync(path.join(process.cwd(), 'environments'))) {
+  // Prefer cwd if it looks like the project root (has env dir)
+  if (fs.existsSync(path.join(process.cwd(), 'config', 'environments'))) {
     repoRoot = process.cwd();
   }
 
   try {
     const secure = resolveSecureKeysPath(repoRoot);
-    if (fs.existsSync(secure)) {
-      return secure;
-    }
     return secure;
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     logger.warn(`[SECURITY] Failed to resolve/migrate dotenv keys: ${errMsg}`);
-    return path.resolve(repoRoot, 'environments', '.env.keys');
+    return path.resolve(repoRoot, 'config', 'environments', '.env.keys');
   }
 }
 
 /**
- * Resolves APP_ENV (OS → pin → default), selects the matching file from the
- * `environments/` folder, and loads it into `process.env` via dotenv.
+ * Resolves APP_ENV (OS → pin → default), selects the matching file from
+ * `config/environments/`, and loads it into `process.env` via dotenvx.
  *
  * Lookup order (first match wins):
- * 1. `environments/{APP_ENV}.env`          — primary (real credentials)
- * 2. `environments/{APP_ENV}.env.example`  — template fallback (warn to fill values)
+ * 1. `config/environments/{APP_ENV}.env`          — primary (real credentials)
+ * 2. `config/environments/{APP_ENV}.env.example`  — template fallback
  *
  * When `options.adapterEnv` is set, overlays `{dir}/{name}.env` then
  * `{dir}/{name}.env.example` without overwriting keys already set by core load.
@@ -110,12 +108,12 @@ export function loadEnvironment(options?: LoadEnvironmentOptions): void {
     logger.warn(`APP_ENV has unrecognised value: "${resolved.rawOsValue}" — falling back to local`);
   } else if (resolved.source === 'invalid_pin') {
     logger.warn(
-      `environments/.active-env has unrecognised value: "${resolved.rawPinValue}" — falling back to local`,
+      `config/environments/.active-env has unrecognised value: "${resolved.rawPinValue}" — falling back to local`,
     );
   } else if (resolved.source === 'default') {
-    logger.info('Using default APP_ENV=local (environments/local.env)');
+    logger.info('Using default APP_ENV=local (config/environments/local.env)');
   } else if (resolved.source === 'pin') {
-    logger.info(`Using APP_ENV=${appEnv} from environments/.active-env`);
+    logger.info(`Using APP_ENV=${appEnv} from config/environments/.active-env`);
   }
   // source === 'os' → silent (explicit operator intent)
 
@@ -133,16 +131,6 @@ export function loadEnvironment(options?: LoadEnvironmentOptions): void {
     {
       resolvedPath: path.resolve(cwd, `config/environments/${appEnv}.env.example`),
       label: `config/environments/${appEnv}.env.example`,
-      isTemplate: true,
-    },
-    {
-      resolvedPath: path.resolve(cwd, `environments/${appEnv}.env`),
-      label: `environments/${appEnv}.env`,
-      isTemplate: false,
-    },
-    {
-      resolvedPath: path.resolve(cwd, `environments/${appEnv}.env.example`),
-      label: `environments/${appEnv}.env.example`,
       isTemplate: true,
     },
   ];
@@ -164,10 +152,12 @@ export function loadEnvironment(options?: LoadEnvironmentOptions): void {
         `Create config/environments/${appEnv}.env and replace placeholder values before running tests.`,
     );
   } else {
-    // [SECURITY GUARD] Only when the primary file is encrypted (contains `encrypted:`)
-    // and no decryption key is available, fall back to the plaintext .env.example.
-    // Plaintext files (CI-materialized secrets, local unencrypted) must load as-is —
-    // missing keys alone must NOT discard a real environments/{APP_ENV}.env.
+    // [SECURITY GUARD] Fail fast when the primary file is encrypted (contains
+    // `encrypted:`) but no decryption key is available. Silently loading the
+    // placeholder template here would run tests with dummy credentials and
+    // produce confusing login failures — the root cause is the env setup.
+    // Plaintext files (CI-materialized secrets, local unencrypted) load as-is —
+    // missing keys alone must NOT discard a real config/environments/{APP_ENV}.env.
     const fileText = fs.readFileSync(loaded.resolvedPath, 'utf8');
     const isEncrypted = fileText.includes('encrypted:');
 
@@ -179,36 +169,15 @@ export function loadEnvironment(options?: LoadEnvironmentOptions): void {
         process.env[`DOTENV_PRIVATE_KEY_${appEnvUpper}DEVELOPMENT`] ||
         process.env[`DOTENV_PRIVATE_KEY_${appEnvUpper}`];
 
-      const hasKeys = fs.existsSync(secureKeysPath) || Boolean(hasEnvKey);
-
-      if (!hasKeys) {
-        // Check canonical config/environments/ path first, then legacy environments/ fallback
-        const fallbackPaths = [
-          path.resolve(cwd, `config/environments/${appEnv}.env.example`),
-          path.resolve(cwd, `environments/${appEnv}.env.example`),
-        ];
-        const existingFallback = fallbackPaths.find((p) => fs.existsSync(p));
-        if (existingFallback) {
-          dotenvx.config({ path: existingFallback });
-          // Re-assert after dotenv — file must not hijack APP_ENV
-          process.env.APP_ENV = appEnv;
-          process.env.APP_ENV_SOURCE = resolved.source;
-          logger.warn(
-            `[SECURITY] Decryption keys missing for encrypted ${appEnv}.env. ` +
-              `Falling back to dummy template: ${path.relative(cwd, existingFallback)}`,
-          );
-          if (options?.adapterEnv) {
-            loadAdapterEnvOverlay(options.adapterEnv, cwd);
-          }
-          return;
-        }
+      if (!fs.existsSync(secureKeysPath) && !hasEnvKey) {
         throw new Error(
-          `Encrypted environments/${appEnv}.env found but no dotenvx private key is available, ` +
-            `and no .env.example fallback was found.\n` +
+          `Encrypted config/environments/${appEnv}.env found but no dotenvx private key is available.\n` +
             `Tried:\n` +
-            fallbackPaths.map((p) => `  - ${path.relative(cwd, p)}`).join('\n') +
-            `\n\nFix: restore ~/.dotenvx-keys/<project>/.env.keys, or recreate a plaintext ` +
-            `config/environments/${appEnv}.env (CI materialize / npm run env:edit).`,
+            `  - ${path.relative(cwd, secureKeysPath)}\n` +
+            `  - env DOTENV_PRIVATE_KEY / DOTENV_PRIVATE_KEY_${appEnvUpper}\n\n` +
+            `Fix: restore ~/.dotenvx-keys/<project>/.env.keys (shared securely, not via Git), ` +
+            `or recreate the env file with 'npm run setup' / 'npm run env:edit'.\n` +
+            `See docs/CREDENTIALS.md.`,
         );
       }
     }

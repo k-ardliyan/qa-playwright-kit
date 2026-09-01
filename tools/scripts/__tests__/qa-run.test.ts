@@ -29,6 +29,7 @@ test.describe('qa:run prompt builder', () => {
       authState: 'authenticated',
       startPage: '/finance/invoices',
       roleScope: 'finance, super-admin',
+      challengeMode: null,
     });
   });
 
