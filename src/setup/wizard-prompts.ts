@@ -208,7 +208,7 @@ export async function promptRoleCredentials(
     existing: pickId,
   });
 
-  const value = await prompts(
+  const { value } = await prompts(
     {
       type: 'text',
       name: 'value',

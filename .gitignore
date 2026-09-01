@@ -77,7 +77,7 @@ claude_desktop_config.json
 .cursor/mcp.json
 .kiro/
 
-# Generated capability manifest (regenerable via `npm run manifest:generate`)
+# Generated capability manifest (generated at build/runtime)
 agent-manifest.json
 
 # OS & Editor files

@@ -6,6 +6,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Script de-clutter — 2026-09-01
+- **Removed unused npm scripts (no callers in CI, docs, or code):** `test:smart-shard`, `test:failed-only` (core logic still unit-tested via `test:unit`), `manifest:generate` (manifest still generated at build/runtime; `agent-manifest.json` remains gitignored), duplicate `dashboard:serve` (identical to `dashboard`). 64 → 60 scripts.
+
 ### Harden 8.5 — 2026-08-26
 - **Dead wizard removed:** unused `tools/scripts/setup-wizard.ts` deleted. Canonical entry remains `src/setup/index.ts` (`npm run setup`). `wizard-auth-template.ts` kept (used by `env:edit`).
 - **CLI rename:** `npm run setup:wizard` → `npm run setup`. `setup:check` unchanged. No alias.
