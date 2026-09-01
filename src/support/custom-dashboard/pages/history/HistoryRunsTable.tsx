@@ -130,7 +130,7 @@ export function HistoryRunsTable({
               : `showArchiveDetail(${runIdFromRow})`;
             const compareAction = serveMode
               ? `window.location.href='/compare?baseline='+encodeURIComponent(${runIdFromRow})`
-              : `alert('Compare requires the dashboard server. Run: npm run dashboard:serve')`;
+              : `alert('Compare requires the dashboard server. Run: npm run dashboard')`;
             const editAction = `event.stopPropagation();openEditModal(${runIdFromRow})`;
             const deleteAction = `event.stopPropagation();deleteArchive(${runIdFromRow})`;
 

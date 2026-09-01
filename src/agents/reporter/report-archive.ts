@@ -23,7 +23,8 @@ export type QaDecision =
   'APPROVE' | 'FILE_BUG' | 'REVISE_REQUIREMENT' | 'FIX_TEST' | 'FIX_ENV' | 'MARK_BLOCKED';
 
 /** Who triggered the save. */
-export type TriggerSource = 'cli' | 'dashboard-button';
+export type TriggerSource =
+  'cli' | 'cli-auto' | 'dashboard-button' | 'mcp-tool' | 'pipeline-runner' | 'test-fixture';
 
 /** Options passed to saveLatestRun. */
 export interface SaveRunOptions {
@@ -70,55 +71,10 @@ export interface ArchiveMetadata {
   /** QA free-text notes. */
   qaNotes: string;
   /** How the save was triggered. */
-  triggeredBy: 'manual' | 'dashboard';
+  triggeredBy: 'manual' | 'dashboard' | 'pipeline';
   /** Where the save was triggered from. */
   triggerSource: TriggerSource;
-}
-
-/** Legacy archived report (backward compat for pre-refactor archives). */
-export interface ArchivedReportLegacy {
-  runId: string;
-  timestamp: string;
-  requirementPath: string;
-  appEnv: string;
-  summary: {
-    scenariosPlanned: number;
-    testsGenerated: number;
-    testsPassing: number;
-    testsFailing: number;
-    testsHealed: number;
-    testsSkipped: number;
-    passRate: number;
-  };
-  summaryByRole?: Record<string, { passing: number; failing: number; skipped: number }>;
-  summaryByModule?: Record<
-    string,
-    { features: Record<string, { passing: number; failing: number; skipped: number }> }
-  >;
-  scenarios: ArchivedScenario[];
-  unresolvedFailures: ArchivedUnresolvedFailure[];
-  qaDecision?: string;
-}
-
-export interface ArchivedScenario {
-  scenarioId: string;
-  name: string;
-  status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-generated';
-  role?: string;
-  module?: string;
-  feature?: string;
-  duration?: number;
-  failureSource?: string;
-  errorMessage?: string;
-}
-
-export interface ArchivedUnresolvedFailure {
-  scenarioId: string;
-  stage: string;
-  errorMessage: string;
-  failureSource: string;
-  tracePath?: string;
-  screenshotPath?: string;
+  files?: string[];
 }
 
 /** Result of a successful save. */
@@ -235,6 +191,17 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
   const archiveSummaryPath = path.join(runDir, 'summary.json');
   fs.writeFileSync(archiveSummaryPath, JSON.stringify(summary, null, 2), 'utf-8');
 
+  // 7b. Snapshot attachments directory if exists
+  try {
+    const srcAttachments = path.join(reportDir(), 'attachments');
+    if (fs.existsSync(srcAttachments) && fs.statSync(srcAttachments).isDirectory()) {
+      const destAttachments = path.join(runDir, 'attachments');
+      fs.cpSync(srcAttachments, destAttachments, { recursive: true });
+    }
+  } catch {
+    // Non-blocking attachment snapshot
+  }
+
   // 8. Write metadata.json
   // durationMs: prefer summary.runMeta.totalDurationMs (set by custom reporter),
   // fall back to latestRun.totalDurationMs (written by .latest-run marker).
@@ -344,66 +311,6 @@ export function loadArchivedMetadata(runId: string): ArchiveMetadata | null {
       });
     }
     return raw;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Load a legacy archived report (pre-refactor format).
- * Reads from `report.json` if `summary.json` doesn't exist.
- */
-export function loadArchivedReport(runId: string): ArchivedReportLegacy | null {
-  // Try new format first
-  const summary = loadArchivedSummary(runId);
-  if (summary) {
-    const metadata = loadArchivedMetadata(runId);
-    // Convert new format to legacy interface for backward compat
-    const tc = (summary.testCases ?? []) as Array<Record<string, unknown>>;
-    const uf = (summary.unresolvedFailures ?? []) as ArchivedUnresolvedFailure[];
-    return {
-      runId,
-      timestamp: metadata?.ranAt ?? (summary.timestamp as string) ?? '',
-      requirementPath: metadata?.requirementPath ?? '',
-      appEnv: metadata?.appEnv ?? 'local',
-      summary: {
-        scenariosPlanned: 0,
-        testsGenerated: (summary.total as number) ?? 0,
-        testsPassing: (summary.passed as number) ?? 0,
-        testsFailing: (summary.failed as number) ?? 0,
-        testsHealed: 0,
-        testsSkipped: (summary.skipped as number) ?? 0,
-        passRate: (summary.passRate as number) ?? 0,
-      },
-      summaryByRole: summary.summaryByRole as ArchivedReportLegacy['summaryByRole'],
-      summaryByModule: summary.summaryByModule as ArchivedReportLegacy['summaryByModule'],
-      scenarios: tc.map((t) => ({
-        scenarioId: (t.testId as string) ?? '',
-        name: (t.title as string) ?? '',
-        status: (['passed', 'failed', 'skipped'].includes(t.status as string)
-          ? t.status
-          : 'skipped') as ArchivedScenario['status'],
-        role: t.role as string | undefined,
-        module: t.module as string | undefined,
-        feature: t.feature as string | undefined,
-        failureSource: t.failureSource as string | undefined,
-        errorMessage: t.errorMessage as string | undefined,
-      })),
-      unresolvedFailures: uf,
-      qaDecision: metadata?.qaDecision,
-    };
-  }
-
-  // Security: reject invalid runId before legacy read
-  if (!isValidRunId(runId)) return null;
-  const ad = archiveDir();
-  const legacyResolved = path.resolve(path.join(ad, runId));
-  if (!legacyResolved.startsWith(path.resolve(ad) + path.sep)) return null;
-  // Fallback: legacy format (report.json)
-  const legacyPath = path.join(ad, runId, 'report.json');
-  if (!fs.existsSync(legacyPath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(legacyPath, 'utf-8')) as ArchivedReportLegacy;
   } catch {
     return null;
   }
@@ -612,34 +519,4 @@ export function getLatestRunInfo(): {
   } catch {
     return null;
   }
-}
-
-/**
- * [Pipeline compat] Archive a legacy report structure.
- *
- * Used by the pipeline orchestrator (report-builder.ts) which has
- * its own report format. Writes to `reports/archive/<runId>/report.json`.
- *
- * For non-pipeline saves, prefer `saveLatestRun()`.
- *
- * NOTE: Does NOT overwrite an existing archive for the same runId.
- */
-export function archiveReport(report: ArchivedReportLegacy): string {
-  const runDir = path.join(archiveDir(), report.runId);
-  if (!fs.existsSync(runDir)) {
-    fs.mkdirSync(runDir, { recursive: true });
-  }
-
-  const reportPath = path.join(runDir, 'report.json');
-
-  // Guard: do not silently overwrite an existing archive
-  if (fs.existsSync(reportPath)) {
-    console.warn(
-      `[archiveReport] Archive already exists for runId ${report.runId}. Skipping overwrite.`,
-    );
-    return reportPath;
-  }
-
-  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf-8');
-  return reportPath;
 }

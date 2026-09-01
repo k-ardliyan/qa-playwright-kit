@@ -106,7 +106,7 @@ Playwright Test Run
 #### **Attachments**
 
 - Reporter menyalin screenshot/video/trace ke `reports/attachments/{screenshots,videos,traces}/` bila file sumber ada, lalu rewrite path relatif ke dashboard.
-- `test-summary.json` + `custom-dashboard.html` ditulis oleh custom reporter saat test run. Serve tanpa run ulang: `npm run dashboard:serve`.
+- `test-summary.json` + `custom-dashboard.html` ditulis oleh custom reporter saat test run. Serve tanpa run ulang: `npm run dashboard`.
 
 ---
 
@@ -383,7 +383,7 @@ Atau via Orchestrator:
   - Filter attrs: `src/support/custom-dashboard/filter-attrs.ts`
   - SOURCE decision: `src/support/custom-dashboard/failure-source.ts`
 
-Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard) atau `npm run dashboard:serve` (lalu **Ctrl+F5**).
+Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard) atau `npm run dashboard` (lalu **Ctrl+F5**).
 
 ### Q: Kenapa tidak ada Create JIRA / density picker / donut chart?
 
@@ -399,7 +399,7 @@ Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard
 
 ### Q: Dashboard serve-mode punya halaman apa saja?
 
-**A:** `npm run dashboard:serve` (src/cli/dashboard-server.ts) menyajikan dashboard interaktif dengan beberapa halaman: **Dashboard** (overview + triage), **History** (daftar run tersimpan), **Compare** (perbandingan run), dan **ReportDetail** (inspeksi mendalam per test). Mode statis (buka `custom-dashboard.html` langsung) hanya menampilkan halaman Dashboard. Tombol Save/Delete/Compare aktif di serve-mode via REST API + SSE auto-refresh.
+**A:** `npm run dashboard` (src/cli/dashboard-server.ts) menyajikan dashboard interaktif dengan beberapa halaman: **Dashboard** (overview + triage), **History** (daftar run tersimpan), **Compare** (perbandingan run), dan **ReportDetail** (inspeksi mendalam per test). Mode statis (buka `custom-dashboard.html` langsung) hanya menampilkan halaman Dashboard. Tombol Save/Delete/Compare aktif di serve-mode via REST API + SSE auto-refresh.
 
 ---
 

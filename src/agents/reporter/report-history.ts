@@ -8,10 +8,9 @@
  */
 
 import {
-  listArchivedRunIds,
   loadArchivedSummary,
   loadArchivedMetadata,
-  loadArchivedReport,
+  listArchivedRunIds,
   type QaDecision,
 } from './report-archive';
 import { deriveDisplayName, deriveTestSeriesId } from '../../support/custom-dashboard/domain/run';
@@ -105,19 +104,8 @@ export function listReportHistory(query?: ReportHistoryQuery): ReportHistoryEntr
     const metadata = loadArchivedMetadata(runId);
     const summary = loadArchivedSummary(runId);
 
-    // Build entry from new format
     if (summary) {
       const entry = buildEntry(runId, summary, metadata);
-      if (matchesFilter(entry, query)) {
-        entries.push(entry);
-      }
-      continue;
-    }
-
-    // Fallback: legacy format
-    const legacy = loadArchivedReport(runId);
-    if (legacy) {
-      const entry = buildLegacyEntry(runId, legacy);
       if (matchesFilter(entry, query)) {
         entries.push(entry);
       }
@@ -213,47 +201,6 @@ function buildEntry(
     rolesInScope: summary.rolesInScope as string[] | undefined,
     summaryByRole: summary.summaryByRole as ReportHistoryEntry['summaryByRole'],
     summaryByModule: summary.summaryByModule as ReportHistoryEntry['summaryByModule'],
-  };
-}
-
-function buildLegacyEntry(
-  runId: string,
-  legacy: import('./report-archive').ArchivedReportLegacy,
-): ReportHistoryEntry {
-  const passRate = legacy.summary.passRate;
-  const failed = legacy.summary.testsFailing;
-  const skipped = legacy.summary.testsSkipped;
-
-  const displayName = deriveDisplayName({
-    requirementPath: legacy.requirementPath,
-    appEnv: legacy.appEnv,
-    ranAt: legacy.timestamp,
-  });
-
-  const testSeriesId = deriveTestSeriesId({
-    requirementPath: legacy.requirementPath,
-  });
-
-  return {
-    runId,
-    displayName,
-    testSeriesId,
-    ranAt: legacy.timestamp,
-    savedAt: legacy.timestamp, // No separate savedAt in legacy
-    qaDecision: (legacy.qaDecision as QaDecision) ?? '',
-    qaNotes: '',
-    triggerSource: 'cli',
-    appEnv: legacy.appEnv,
-    requirementPath: legacy.requirementPath,
-    passRate,
-    totalTests: legacy.summary.testsGenerated,
-    passed: legacy.summary.testsPassing,
-    failed: legacy.summary.testsFailing,
-    skipped: legacy.summary.testsSkipped,
-    reportMode: 'general',
-    status: deriveStatus(passRate, failed, skipped),
-    summaryByRole: legacy.summaryByRole,
-    summaryByModule: legacy.summaryByModule,
   };
 }
 

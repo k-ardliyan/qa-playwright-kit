@@ -17,15 +17,16 @@
 
 import * as path from 'node:path';
 import * as readline from 'node:readline';
+import { applyArtifactRetention } from '../shared/evidence/retention';
 import {
   saveLatestRun,
   listArchivedRunIds,
   loadArchivedSummary,
   loadArchivedMetadata,
-  loadArchivedReport,
   deleteArchivedReport,
   getLatestRunInfo,
   isLatestRunArchived,
+  getArchiveDir,
   type QaDecision,
 } from '../agents/reporter/report-archive';
 
@@ -238,9 +239,8 @@ async function viewCommand(args: Record<string, string | boolean>): Promise<void
   // Detail mode
   const summary = loadArchivedSummary(runId);
   const metadata = loadArchivedMetadata(runId);
-  const report = loadArchivedReport(runId);
 
-  if (!summary && !report) {
+  if (!summary && !metadata) {
     console.error(`❌ Run not found: ${runId}`);
     process.exit(1);
   }
@@ -279,37 +279,46 @@ async function viewCommand(args: Record<string, string | boolean>): Promise<void
     if (summary.rolesInScope) {
       console.log(`    Roles: ${(summary.rolesInScope as string[]).join(', ')}`);
     }
-  }
 
-  if (report?.summaryByRole && Object.keys(report.summaryByRole).length > 0) {
-    console.log('\n  By Role:');
-    for (const [role, data] of Object.entries(report.summaryByRole)) {
-      console.log(`    ${role}: ${data.passing}✅ ${data.failing}❌ ${data.skipped}⏭️`);
+    const summaryByRole = summary.summaryByRole as
+      Record<string, { passing: number; failing: number; skipped: number }> | undefined;
+    if (summaryByRole && Object.keys(summaryByRole).length > 0) {
+      console.log('\n  By Role:');
+      for (const [role, data] of Object.entries(summaryByRole)) {
+        console.log(`    ${role}: ${data.passing}✅ ${data.failing}❌ ${data.skipped}⏭️`);
+      }
     }
-  }
 
-  if (report?.summaryByModule && Object.keys(report.summaryByModule).length > 0) {
-    console.log('\n  By Module:');
-    for (const [mod, data] of Object.entries(report.summaryByModule)) {
-      const features = Object.entries(data.features);
-      if (features.length > 0) {
-        console.log(`    ${mod}:`);
-        for (const [feat, fdata] of features) {
-          console.log(`      ${feat}: ${fdata.passing}✅ ${fdata.failing}❌`);
+    const summaryByModule = summary.summaryByModule as
+      | Record<string, { features: Record<string, { passing: number; failing: number }> }>
+      | undefined;
+    if (summaryByModule && Object.keys(summaryByModule).length > 0) {
+      console.log('\n  By Module:');
+      for (const [mod, data] of Object.entries(summaryByModule)) {
+        const features = Object.entries(data.features);
+        if (features.length > 0) {
+          console.log(`    ${mod}:`);
+          for (const [feat, fdata] of features) {
+            console.log(`      ${feat}: ${fdata.passing}✅ ${fdata.failing}❌`);
+          }
         }
       }
     }
   }
 
   // Test cases (verbose mode)
-  if (verbose && report?.scenarios) {
+  const testCases = Array.isArray(summary?.testCases)
+    ? (summary?.testCases as Array<Record<string, unknown>>)
+    : [];
+  if (verbose && testCases.length > 0) {
     console.log('\n  Test Cases:');
-    for (const sc of report.scenarios) {
-      const icon = sc.status === 'passed' ? '✅' : sc.status === 'failed' ? '❌' : '⏭️';
-      const roleStr = sc.role ? ` ${sc.role} /` : '';
-      const modStr = sc.module ? ` ${sc.module} /` : '';
-      const featStr = sc.feature ? ` ${sc.feature}` : '';
-      console.log(`    ${icon} ${sc.scenarioId || sc.name} ${roleStr}${modStr}${featStr}`);
+    for (const sc of testCases) {
+      const status = (sc.status as string) || 'skipped';
+      const icon = status === 'passed' ? '✅' : status === 'failed' ? '❌' : '⏭️';
+      const duration = sc.duration ? ` (${sc.duration}ms)` : '';
+      const scId = (sc.testId as string) || (sc.scenarioId as string) || '-';
+      const title = (sc.title as string) || (sc.name as string) || '';
+      console.log(`    ${icon} ${scId} — ${title}${duration}`);
       if (sc.errorMessage) {
         console.log(`       Error: ${sc.errorMessage}`);
       }
@@ -317,16 +326,19 @@ async function viewCommand(args: Record<string, string | boolean>): Promise<void
   }
 
   // Unresolved failures
-  if (report?.unresolvedFailures && report.unresolvedFailures.length > 0) {
+  const unresolved = Array.isArray(summary?.unresolvedFailures)
+    ? (summary?.unresolvedFailures as Array<Record<string, unknown>>)
+    : [];
+  if (unresolved.length > 0) {
     console.log('\n  Unresolved Failures:');
-    for (const f of report.unresolvedFailures) {
-      console.log(`    ❌ ${f.scenarioId} (${f.failureSource})`);
-      console.log(`       ${f.errorMessage}`);
-      if (f.screenshotPath) {
-        console.log(`       Screenshot: ${f.screenshotPath}`);
+    for (const f of unresolved) {
+      console.log(`    ❌ ${f['scenarioId'] || '-'} (${f['failureSource'] || 'unknown'})`);
+      console.log(`       ${f['errorMessage'] || ''}`);
+      if (f['screenshotPath']) {
+        console.log(`       Screenshot: ${f['screenshotPath']}`);
       }
-      if (f.tracePath) {
-        console.log(`       Trace: ${f.tracePath}`);
+      if (f['tracePath']) {
+        console.log(`       Trace: ${f['tracePath']}`);
       }
     }
   }
@@ -397,6 +409,26 @@ async function compareCommand(args: Record<string, string | boolean>): Promise<v
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 // Only dispatch when executed directly (not when imported by tests).
+async function cleanCommand(args: Record<string, string | boolean>): Promise<void> {
+  const daysStr = (args['days'] as string) ?? (args['max-age-days'] as string) ?? '30';
+  const days = parseInt(daysStr, 10);
+  if (isNaN(days) || days < 1) {
+    console.error('❌ Invalid --days argument. Must be a positive integer.');
+    process.exit(1);
+  }
+
+  const archiveDirectory = getArchiveDir();
+  console.log(`\n🧹 Cleaning archives older than ${days} days in: ${archiveDirectory}`);
+
+  const result = applyArtifactRetention(archiveDirectory, { maxAgeDays: days });
+  const freedMb = (result.freedBytes / (1024 * 1024)).toFixed(2);
+
+  console.log(`✅ Cleanup completed:`);
+  console.log(`   - Deleted files/directories: ${result.deletedFiles.length}`);
+  console.log(`   - Retained items: ${result.retainedCount}`);
+  console.log(`   - Freed disk space: ${freedMb} MB\n`);
+}
+
 // tsx runs this as CJS (package.json has no "type":"module"), so the
 // require.main check works; avoid import.meta (breaks CJS test transpile).
 const isMain = typeof require !== 'undefined' && require.main === module;
@@ -429,9 +461,15 @@ if (isMain) {
         process.exit(1);
       });
       break;
+    case 'clean':
+      cleanCommand(args).catch((err) => {
+        console.error(err);
+        process.exit(1);
+      });
+      break;
     default:
       console.log(`
-archive-cli — Save, view, compare, and delete archived test runs
+archive-cli — Save, view, compare, clean, and delete archived test runs
 
 Usage:
   npm run archive:save                                # Interactive save
@@ -442,6 +480,7 @@ Usage:
   npm run archive:view -- --run=<runId>               # View run detail
   npm run archive:view -- --run=<runId> --verbose     # Full test cases
   npm run archive:delete -- --run=<runId>             # Delete archive
+  npm run archive:clean -- --days=30                  # Prune archives older than N days
   npm run archive:compare                             # Latest vs previous
   npm run archive:compare -- --baseline=<id> --current=<id>  # Explicit runs
 

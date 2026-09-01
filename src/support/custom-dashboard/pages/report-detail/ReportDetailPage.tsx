@@ -164,7 +164,7 @@ export function ReportDetailPage({
                 aria-labelledby="tab-accordion"
                 aria-hidden="true"
               >
-                <AccordionView collectedTests={tests} />
+                <AccordionView collectedTests={tests} runId={runId} />
               </div>
               <div
                 id="view-table"
@@ -182,7 +182,7 @@ export function ReportDetailPage({
           Total {tests.length} results
         </p>
 
-        <ArtifactsStrip collectedTests={tests} />
+        <ArtifactsStrip collectedTests={tests} runId={runId} />
       </div>
 
       {safeHistoryJs}

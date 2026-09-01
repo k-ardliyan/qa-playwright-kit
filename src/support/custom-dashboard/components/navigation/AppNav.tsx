@@ -71,17 +71,20 @@ export function AppNav({ activeTab = 'dashboard', hasLatestRun, latestRunArchive
       </nav>
 
       <div class="app-header__actions">
-        {hasLatestRun && !latestRunArchived && (
-          <button
-            class="btn-save-sm"
-            type="button"
-            onclick="openSaveModal && openSaveModal()"
-            title="Save latest run to archive"
-          >
-            <IconSave size={14} />
-            <span>Save Run</span>
-          </button>
-        )}
+        {hasLatestRun &&
+          !latestRunArchived &&
+          activeTab !== 'history' &&
+          activeTab !== 'compare' && (
+            <button
+              class="btn-save-sm"
+              type="button"
+              onclick="openSaveModal && openSaveModal()"
+              title="Save latest run to archive"
+            >
+              <IconSave size={14} />
+              <span>Save Run</span>
+            </button>
+          )}
         <button
           class="theme-toggle btn-icon"
           id="theme-toggle-btn"

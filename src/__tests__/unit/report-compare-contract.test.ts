@@ -19,13 +19,12 @@ process.env['QA_REPORT_DIR'] = path.join(TMP_ARCHIVE_ROOT, 'reports');
 // Now import modules that depend on ARCHIVE_DIR — they will pick up the env var.
 import { test, expect } from '@playwright/test';
 import { compareReports, classifyChange } from '../../agents/reporter/report-compare';
-import type { ArchivedScenario } from '../../agents/reporter/report-archive';
 
-function scenario(status: string, errorMessage?: string): ArchivedScenario {
+function scenario(status: string, errorMessage?: string) {
   return {
     scenarioId: 'SC-01',
     name: 'sample scenario',
-    status: status as ArchivedScenario['status'],
+    status,
     errorMessage,
   };
 }

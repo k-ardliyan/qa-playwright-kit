@@ -13,7 +13,7 @@ import {
   generateComparisonSummary,
   type ReportComparison,
 } from './report-compare';
-import { loadArchivedReport } from './report-archive';
+import { loadArchivedSummary } from './report-archive';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -191,13 +191,21 @@ function handleLastPassQuery(query: AIReportQuery): AIReportAnswer {
   const relevantReports: string[] = [];
 
   for (const entry of entries) {
-    const report = loadArchivedReport(entry.runId);
-    if (!report) continue;
+    const summary = loadArchivedSummary(entry.runId);
+    if (!summary) continue;
 
-    const scenario = report.scenarios.find(
+    const testCases = Array.isArray(summary.testCases)
+      ? (summary.testCases as Array<Record<string, unknown>>)
+      : [];
+
+    const scenario = testCases.find(
       (s) =>
         s.status === 'passed' &&
-        (scenarioName ? s.name.toLowerCase().includes(scenarioName.toLowerCase()) : true),
+        (scenarioName
+          ? String(s.title || s.testId || '')
+              .toLowerCase()
+              .includes(scenarioName.toLowerCase())
+          : true),
     );
 
     if (scenario) {
@@ -290,9 +298,9 @@ function handleModuleFailureQuery(query: AIReportQuery): AIReportAnswer {
     };
   }
 
-  // Aggregate failures by module from latest report
-  const latest = loadArchivedReport(entries[0].runId);
-  if (!latest) {
+  // Aggregate failures by module from latest summary
+  const latestSummary = loadArchivedSummary(entries[0].runId);
+  if (!latestSummary) {
     return {
       answer: 'Failed to load latest report.',
       data: { runsAnalyzed: 0, timeRange: 'N/A', relevantReports: [] },
@@ -300,10 +308,14 @@ function handleModuleFailureQuery(query: AIReportQuery): AIReportAnswer {
     };
   }
 
+  const testCases = Array.isArray(latestSummary.testCases)
+    ? (latestSummary.testCases as Array<Record<string, unknown>>)
+    : [];
+
   const moduleFailures = new Map<string, number>();
-  for (const scenario of latest.scenarios) {
+  for (const scenario of testCases) {
     if (scenario.status === 'failed') {
-      const mod = scenario.module || 'unknown';
+      const mod = (scenario.module as string) || 'unknown';
       moduleFailures.set(mod, (moduleFailures.get(mod) ?? 0) + 1);
     }
   }
@@ -323,8 +335,8 @@ function handleModuleFailureQuery(query: AIReportQuery): AIReportAnswer {
     answer: lines.join('\n'),
     data: {
       runsAnalyzed: 1,
-      timeRange: latest.timestamp,
-      relevantReports: [latest.runId],
+      timeRange: (latestSummary.timestamp as string) || entries[0].ranAt,
+      relevantReports: [entries[0].runId],
     },
     suggestions:
       sorted.length > 0

@@ -22,6 +22,10 @@
   .artifacts-card__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .artifacts-card__links-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1040px) {
@@ -62,12 +66,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .artifacts-card__links {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .artifacts-card__links-label {
-    grid-column: 1 / -1;
+  .artifacts-card__links-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .comparison-hero {
@@ -89,30 +89,32 @@
 
   /* App Navigation Header */
   .app-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 12px 14px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
   }
 
   .app-header__brand {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .app-header__nav {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
-    justify-content: flex-start;
-    gap: 4px;
+    flex: 0 0 auto;
   }
 
   .app-header__actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .app-header__nav {
+    order: 3;
     width: 100%;
-    justify-content: flex-end;
-    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    justify-content: flex-start;
+    gap: 6px;
   }
 
   /* Breadcrumb */
@@ -180,6 +182,10 @@
   }
 
   /* Compare Picker */
+  .compare-picker-panel {
+    padding: 14px;
+  }
+
   .compare-picker-form {
     flex-direction: column;
     align-items: stretch;
@@ -189,19 +195,29 @@
   .picker-group {
     width: 100%;
     min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .picker-group--series {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
   }
 
   .picker-swap-wrap {
     align-self: center;
     transform: rotate(90deg);
     margin: -4px 0;
+    height: 38px;
   }
 
   .picker-actions {
     width: 100%;
+    height: auto;
   }
 
-  .picker-actions button {
+  .picker-actions button,
+  .picker-actions .btn {
     width: 100%;
     justify-content: center;
   }
@@ -279,9 +295,21 @@
   }
 
   .section-head--toolbar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
+  }
+
+  .section-head--toolbar > div {
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+
+  .section-head--toolbar .view-toggle {
+    flex: 0 0 auto;
+    margin-left: auto;
   }
 
   .top-action-bar {
@@ -369,15 +397,32 @@
 
   .alert {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    align-items: stretch;
+    gap: 12px;
+    height: auto;
+  }
+
+  .alert__body {
+    width: 100%;
   }
 
   .alert__actions {
     width: 100%;
-    justify-content: flex-start;
+    display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .alert__actions .btn {
+    flex: 1 1 auto;
+    min-width: 130px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .results-comparison {
+    grid-template-columns: 1fr;
   }
 
   .run-details__grid {
@@ -388,7 +433,7 @@
     grid-template-columns: 1fr;
   }
 
-  .artifacts-card__links {
+  .artifacts-card__links-grid {
     grid-template-columns: 1fr;
   }
 

@@ -63,6 +63,9 @@ Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<fe
 | Auth / multi-role testing                                   | [auth-and-roles.md](references/auth-and-roles.md)                                                |
 | Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md)                                |
 | Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                  |
+| Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                         |
+| Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                     |
+| SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                         |
 | Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                              |
 | QA vs maintainer boundary                                   | [qa-vs-maintainer.md](references/qa-vs-maintainer.md)                                            |
 

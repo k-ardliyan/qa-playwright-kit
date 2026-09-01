@@ -236,7 +236,7 @@ npx playwright install --with-deps chromium
 npm run test:demo
 
 # Atau serve dashboard dari test-summary.json terakhir tanpa full e2e
-npm run dashboard:serve
+npm run dashboard
 
 # Buka dashboard (Ctrl+F5 setelah regenerate)
 start reports/custom-dashboard.html

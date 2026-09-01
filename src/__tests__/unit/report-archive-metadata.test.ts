@@ -106,42 +106,24 @@ test.describe('getComparisonCompatibility', () => {
       timestamp: '2026-08-20T10:00:00.000Z',
       appEnv: 'staging',
       requirementPath: 'requirements/auth.md',
+      passRate: 100,
+      totalTests: 2,
       scenarios: [
         { scenarioId: 'SC-01', name: 'Login 1', status: 'passed' as const },
         { scenarioId: 'SC-02', name: 'Login 2', status: 'passed' as const },
       ],
-      summary: {
-        scenariosPlanned: 2,
-        passRate: 100,
-        testsGenerated: 2,
-        testsPassing: 2,
-        testsFailing: 0,
-        testsHealed: 0,
-        testsSkipped: 0,
-      },
-      healingResults: [],
-      unresolvedFailures: [],
     };
     const cand = {
       runId: 'run-2',
       timestamp: '2026-08-20T11:00:00.000Z',
       appEnv: 'staging',
       requirementPath: 'requirements/auth.md',
+      passRate: 100,
+      totalTests: 2,
       scenarios: [
         { scenarioId: 'SC-01', name: 'Login 1', status: 'passed' as const },
         { scenarioId: 'SC-02', name: 'Login 2', status: 'passed' as const },
       ],
-      summary: {
-        scenariosPlanned: 2,
-        passRate: 100,
-        testsGenerated: 2,
-        testsPassing: 2,
-        testsFailing: 0,
-        testsHealed: 0,
-        testsSkipped: 0,
-      },
-      healingResults: [],
-      unresolvedFailures: [],
     };
     const meta1: ArchiveMetadata = {
       runId: 'run-1',
@@ -179,36 +161,18 @@ test.describe('getComparisonCompatibility', () => {
       timestamp: '2026-08-20T10:00:00.000Z',
       appEnv: 'staging',
       requirementPath: 'requirements/auth.md',
+      passRate: 100,
+      totalTests: 1,
       scenarios: [{ scenarioId: 'SC-01', name: 'Login 1', status: 'passed' as const }],
-      summary: {
-        scenariosPlanned: 1,
-        passRate: 100,
-        testsGenerated: 1,
-        testsPassing: 1,
-        testsFailing: 0,
-        testsHealed: 0,
-        testsSkipped: 0,
-      },
-      healingResults: [],
-      unresolvedFailures: [],
     };
     const cand = {
       runId: 'run-2',
       timestamp: '2026-08-20T11:00:00.000Z',
       appEnv: 'production',
       requirementPath: 'requirements/billing.md',
+      passRate: 100,
+      totalTests: 1,
       scenarios: [{ scenarioId: 'SC-99', name: 'Invoice 1', status: 'passed' as const }],
-      summary: {
-        scenariosPlanned: 1,
-        passRate: 100,
-        testsGenerated: 1,
-        testsPassing: 1,
-        testsFailing: 0,
-        testsHealed: 0,
-        testsSkipped: 0,
-      },
-      healingResults: [],
-      unresolvedFailures: [],
     };
 
     const compat = getComparisonCompatibility(base, cand, null, null);

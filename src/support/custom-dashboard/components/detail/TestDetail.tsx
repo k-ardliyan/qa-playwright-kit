@@ -1,6 +1,7 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedError, CollectedTestData } from '../../types';
 import { decisionHintFor, decisionHintTooltipFor, explainFailure } from '../../failure-source';
+import { generateErrorFingerprint } from '../../../classifier/fingerprint';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { StatusPill } from '../shared/StatusPill';
 import { Attachments } from './Attachments';
@@ -9,6 +10,7 @@ import { StepsTimeline } from './StepsTimeline';
 export interface TestDetailProps {
   testData: CollectedTestData;
   index: number;
+  runId?: string;
 }
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
@@ -79,7 +81,7 @@ function buildFailurePacket(testData: CollectedTestData): string {
     ``,
     `- File: ${testData.filePath}`,
     `- Trace: ${
-      testData.attachments.find((a) => a.kind === 'trace')?.relativePath ||
+      (testData.attachments ?? []).find((a) => a.kind === 'trace')?.relativePath ||
       (testData.hasTrace ? '(available in test results)' : 'none')
     }`,
   ].join('\n');
@@ -109,7 +111,7 @@ function ErrorsSection({ errors }: { errors: CollectedError[] }) {
 }
 
 function TraceLink({ testData }: { testData: CollectedTestData }) {
-  const trace = testData.attachments.find((a) => a.kind === 'trace');
+  const trace = (testData.attachments ?? []).find((a) => a.kind === 'trace');
   if (!trace) {
     return <span class="muted">No trace</span>;
   }
@@ -120,20 +122,23 @@ function TraceLink({ testData }: { testData: CollectedTestData }) {
   );
 }
 
-export function TestDetail({ testData, index }: TestDetailProps) {
+export function TestDetail({ testData, index, runId }: TestDetailProps) {
   const status = String(testData.status);
   const unhealthy = isUnhealthyStatus(status);
   const packet = buildFailurePacket(testData);
-  const attachmentCount = testData.attachments.length;
-  const errorCount = testData.errors.length;
-  const stepCount = testData.steps.length;
+  const attachments = testData.attachments ?? [];
+  const attachmentCount = attachments.length;
+  const errorCount = (testData.errors ?? []).length;
+  const stepCount = (testData.steps ?? []).length;
   const rowKey = `${testData.testId || 'row'}-${index}`;
 
-  const hasTrace =
-    (testData.hasTrace ?? testData.attachments.some((a) => a.kind === 'trace')) ? '1' : '0';
-  const hasScreenshot = testData.attachments.some((a) => a.kind === 'screenshot') ? '1' : '0';
-  const hasVideo = testData.attachments.some((a) => a.kind === 'video') ? '1' : '0';
+  const hasTrace = (testData.hasTrace ?? attachments.some((a) => a.kind === 'trace')) ? '1' : '0';
+  const hasScreenshot = attachments.some((a) => a.kind === 'screenshot') ? '1' : '0';
+  const hasVideo = attachments.some((a) => a.kind === 'video') ? '1' : '0';
   const layers = (testData.affectedLayer || []).join(',');
+  const fingerprint = testData.errorMessage
+    ? generateErrorFingerprint(testData.errorMessage)
+    : undefined;
   const search = [
     testData.testId,
     testData.title,
@@ -208,6 +213,11 @@ export function TestDetail({ testData, index }: TestDetailProps) {
                 safe
               >
                 {testData.failureSource.toUpperCase()}
+              </span>
+            ) : null}
+            {fingerprint ? (
+              <span class="badge badge--local" title={fingerprint.normalizedMessage} safe>
+                {fingerprint.fingerprintId}
               </span>
             ) : null}
             <StatusPill status={status} />
@@ -352,7 +362,7 @@ export function TestDetail({ testData, index }: TestDetailProps) {
             Attachments <span class="chip-count">{attachmentCount}</span>
           </summary>
           <div class="chip-body">
-            <Attachments attachments={testData.attachments} />
+            <Attachments attachments={testData.attachments} runId={runId} />
           </div>
         </details>
 

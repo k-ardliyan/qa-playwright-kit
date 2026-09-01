@@ -83,7 +83,7 @@ export function buildHistorySection(
       const runIdFromRow = "this.closest('[data-run-id]').getAttribute('data-run-id')";
       const viewAction = `showArchiveDetail(${runIdFromRow})`;
       const compareAction = isStatic
-        ? `alert('Compare requires the dashboard server. Run npm run dashboard:serve.')`
+        ? `alert('Compare requires the dashboard server. Run npm run dashboard.')`
         : `window.location.hash='#/compare?current='+encodeURIComponent(${runIdFromRow})`;
       return `
         <tr class="history-row" data-run-id="${escapeHtml(entry.runId)}" onclick="${viewAction}">
@@ -346,11 +346,27 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '',
     '// Heartbeat + SSE (serve mode only)',
     'if(window.__SERVE_MODE__){',
-    '  setInterval(function(){fetch("/heartbeat",{method:"POST"}).catch(function(){});},5000);',
-    '  var sse=new EventSource("/events");',
-    '  sse.addEventListener("archive-saved",function(){ refreshCurrentView(); });',
-    '  sse.addEventListener("archive-deleted",function(){ refreshCurrentView(); });',
-    '  sse.onerror=function(){sse.close();};',
+    '  // Anti-stack: never fire a new heartbeat while one is still in flight.',
+    '  var hbBusy=false;',
+    '  setInterval(function(){',
+    '    if(hbBusy){return;}',
+    '    hbBusy=true;',
+    '    fetch("/heartbeat",{method:"POST"}).catch(function(){}).then(function(){hbBusy=false;},function(){hbBusy=false;});',
+    '  },5000);',
+    '  // SSE with bounded reconnect: onerror closes and retries after 5s.',
+    '  var sse=null;',
+    '  function connectSse(){',
+    '    if(sse){try{sse.close();}catch(e){}}',
+    '    sse=new EventSource("/events");',
+    '    sse.addEventListener("archive-saved",function(){ refreshCurrentView(); });',
+    '    sse.addEventListener("archive-deleted",function(){ refreshCurrentView(); });',
+    '    sse.onerror=function(){',
+    '      try{sse.close();}catch(e){}',
+    '      sse=null;',
+    '      setTimeout(connectSse,5000);',
+    '    };',
+    '  }',
+    '  connectSse();',
     '}',
     '',
     '// Selective view refresh — no full page reload',
@@ -444,7 +460,7 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '    return;',
     '  }',
     '  // Static (file://) mode: full detail view is only available in serve mode.',
-    '  alert("Detail view requires the dashboard server.\\n\\nRun: npm run dashboard:serve");',
+    '  alert("Detail view requires the dashboard server.\\n\\nRun: npm run dashboard");',
     '}',
     'function escapeHtml(s){',
     '  return String(s==null?"":s).replace(/[&<>"\']/g,function(c){',

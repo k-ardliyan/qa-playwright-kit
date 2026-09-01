@@ -3,6 +3,7 @@ import type { CollectedTestData } from '../../types';
 
 export interface ArtifactsStripProps {
   collectedTests: CollectedTestData[];
+  runId?: string;
 }
 
 const ARTIFACTS_LIST_LIMIT = 5;
@@ -116,7 +117,7 @@ function ArtifactFileList({
   );
 }
 
-export function ArtifactsStrip({ collectedTests }: ArtifactsStripProps) {
+export function ArtifactsStrip({ collectedTests, runId }: ArtifactsStripProps) {
   const retried = collectRetriedTests(collectedTests);
   const traces = collectAttachmentsByKind(collectedTests, 'trace');
   const screenshots = collectAttachmentsByKind(collectedTests, 'screenshot');
@@ -127,6 +128,23 @@ export function ArtifactsStrip({ collectedTests }: ArtifactsStripProps) {
     totalEvidence === 0 && retried.length === 0
       ? 'No retries or attachments in this run'
       : `${retried.length} retried · ${traces.length} trace · ${screenshots.length} ss · ${videos.length} video`;
+
+  const isArchivedRun = Boolean(runId && /^run-[\d-]+$/.test(runId));
+
+  const summaryHref = isArchivedRun ? `/api/archive/${runId}/summary.json` : '/test-summary.json';
+  const summaryPath = isArchivedRun
+    ? `artifacts/reports/archive/${runId}/summary.json`
+    : 'artifacts/reports/test-summary.json';
+
+  const metadataHref = isArchivedRun ? `/api/archive/${runId}/metadata.json` : null;
+  const metadataPath = isArchivedRun ? `artifacts/reports/archive/${runId}/metadata.json` : null;
+
+  const pipelineHref = !isArchivedRun ? '/pipeline-state.json' : null;
+
+  const attachmentsHref = isArchivedRun ? `/api/archive/${runId}/attachments/` : '/attachments/';
+  const attachmentsPath = isArchivedRun
+    ? `artifacts/reports/archive/${runId}/attachments/`
+    : 'artifacts/reports/attachments/';
 
   const buckets = [
     {
@@ -197,46 +215,70 @@ export function ArtifactsStrip({ collectedTests }: ArtifactsStripProps) {
 
           <div class="artifacts-card__links" id="deep-links">
             <span class="artifacts-card__links-label">Related</span>
-            <a
-              class="artifacts-link"
-              href="html/index.html"
-              data-deep-link="html"
-              target="_blank"
-              rel="noopener"
-            >
-              <span class="artifacts-link__title">Playwright HTML</span>
-              <span class="artifacts-link__path">reports/html/index.html</span>
-            </a>
-            <a
-              class="artifacts-link"
-              href="test-summary.json"
-              data-deep-link="summary"
-              target="_blank"
-              rel="noopener"
-            >
-              <span class="artifacts-link__title">Summary JSON</span>
-              <span class="artifacts-link__path">reports/test-summary.json</span>
-            </a>
-            <a
-              class="artifacts-link"
-              href="pipeline-report.json"
-              data-deep-link="pipeline"
-              target="_blank"
-              rel="noopener"
-            >
-              <span class="artifacts-link__title">Pipeline JSON</span>
-              <span class="artifacts-link__path">reports/pipeline-report.json</span>
-            </a>
-            <a
-              class="artifacts-link"
-              href="attachments/"
-              data-deep-link="attachments"
-              target="_blank"
-              rel="noopener"
-            >
-              <span class="artifacts-link__title">Attachments folder</span>
-              <span class="artifacts-link__path">reports/attachments/</span>
-            </a>
+            <div class="artifacts-card__links-grid">
+              {!isArchivedRun && (
+                <a
+                  class="artifacts-link"
+                  href="/html/index.html"
+                  data-deep-link="html"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span class="artifacts-link__title">Playwright HTML</span>
+                  <span class="artifacts-link__path">artifacts/reports/html/index.html</span>
+                </a>
+              )}
+              <a
+                class="artifacts-link"
+                href={summaryHref}
+                data-deep-link="summary"
+                target="_blank"
+                rel="noopener"
+              >
+                <span class="artifacts-link__title">Summary JSON</span>
+                <span class="artifacts-link__path" safe>
+                  {summaryPath}
+                </span>
+              </a>
+              {metadataHref ? (
+                <a
+                  class="artifacts-link"
+                  href={metadataHref}
+                  data-deep-link="metadata"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span class="artifacts-link__title">Metadata JSON</span>
+                  <span class="artifacts-link__path" safe>
+                    {metadataPath || ''}
+                  </span>
+                </a>
+              ) : null}
+              {pipelineHref ? (
+                <a
+                  class="artifacts-link"
+                  href={pipelineHref}
+                  data-deep-link="pipeline"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span class="artifacts-link__title">Pipeline State</span>
+                  <span class="artifacts-link__path">artifacts/reports/pipeline-state.json</span>
+                </a>
+              ) : null}
+              <a
+                class="artifacts-link"
+                href={attachmentsHref}
+                data-deep-link="attachments"
+                target="_blank"
+                rel="noopener"
+              >
+                <span class="artifacts-link__title">Attachments folder</span>
+                <span class="artifacts-link__path" safe>
+                  {attachmentsPath}
+                </span>
+              </a>
+            </div>
           </div>
         </div>
       </details>

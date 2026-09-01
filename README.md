@@ -299,20 +299,20 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 
 <br/>
 
-| Saya ingin...                    | Buka                                                               |
-| -------------------------------- | ------------------------------------------------------------------ |
-| Panduan QA & setup               | [docs/GUIDE.md](docs/GUIDE.md)                                     |
-| Menulis requirement valid        | [docs/WRITING-REQUIREMENTS.md](docs/WRITING-REQUIREMENTS.md)       |
-| Auth per role + OTP/CAPTCHA      | [docs/AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) |
-| Kredensial & multi-role          | [docs/CREDENTIALS.md](docs/CREDENTIALS.md)                         |
-| Dashboard triage guide & report  | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
-| Skenario `(@manual)`             | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
-| Command cheat sheet              | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
-| Troubleshooting                  | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
-| Arsitektur & Folder Map          | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                       |
-| Domain glossary & roles          | [docs/CONTEXT.md](docs/CONTEXT.md)                                 |
-| Riwayat perubahan                | [docs/CHANGELOG.md](docs/CHANGELOG.md)                             |
-| Pipeline agent contract          | [AGENTS.md](AGENTS.md)                                             |
+| Saya ingin...                   | Buka                                                               |
+| ------------------------------- | ------------------------------------------------------------------ |
+| Panduan QA & setup              | [docs/GUIDE.md](docs/GUIDE.md)                                     |
+| Menulis requirement valid       | [docs/WRITING-REQUIREMENTS.md](docs/WRITING-REQUIREMENTS.md)       |
+| Auth per role + OTP/CAPTCHA     | [docs/AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md) |
+| Kredensial & multi-role         | [docs/CREDENTIALS.md](docs/CREDENTIALS.md)                         |
+| Dashboard triage guide & report | [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)                       |
+| Skenario `(@manual)`            | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
+| Command cheat sheet             | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
+| Troubleshooting                 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
+| Arsitektur & Folder Map         | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                       |
+| Domain glossary & roles         | [docs/CONTEXT.md](docs/CONTEXT.md)                                 |
+| Riwayat perubahan               | [docs/CHANGELOG.md](docs/CHANGELOG.md)                             |
+| Pipeline agent contract         | [AGENTS.md](AGENTS.md)                                             |
 
 </details>
 

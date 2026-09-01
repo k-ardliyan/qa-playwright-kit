@@ -428,9 +428,9 @@ html[data-sticky-left='off'] .qa-report-table .col-sticky-0 {
 
 .qa-report-table .col-sticky-1,
 .qa-report-table .col-sticky-2 {
-  position: static !important;
-  left: auto !important;
-  box-shadow: none !important;
+  position: static;
+  left: auto;
+  box-shadow: none;
 }
 
 .qa-report-table th[data-col-hidden='1'],
@@ -440,7 +440,7 @@ html[data-sticky-left='off'] .qa-report-table .col-sticky-0 {
 
 .qa-report-table .col-secondary,
 .qa-report-table .col-tertiary {
-  display: table-cell !important;
+  display: table-cell;
 }
 
 .steps-flat,
@@ -743,7 +743,7 @@ html[data-theme='dark'] .role-section-header {
 }
 
 .detail-expand-row td {
-  padding: 0 !important;
+  padding: 0;
   background: var(--bg-accent);
   border-left: 3px solid var(--accent);
 }

@@ -11,7 +11,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { archiveReport, type ArchivedReportLegacy as ArchivedReport } from './report-archive';
 
 /**
  * Coverage status for a single requirement scenario.
@@ -207,39 +206,59 @@ export function writeReportMarkdown(report: PipelineReport): string {
   const passRate =
     totalTests > 0 ? Math.round((report.summary.testsPassing / totalTests) * 100) : 0;
 
-  const archived: ArchivedReport = {
-    runId: report.runId,
-    timestamp: report.timestamp,
-    requirementPath: report.requirementPath ?? '',
-    appEnv: process.env.APP_ENV ?? 'local',
-    summary: {
-      scenariosPlanned: report.summary.scenariosPlanned,
-      testsGenerated: report.summary.testsGenerated,
-      testsPassing: report.summary.testsPassing,
-      testsFailing: report.summary.testsFailing,
-      testsHealed: report.summary.testsHealed,
-      testsSkipped: report.summary.testsSkipped,
-      passRate,
-    },
-    scenarios: report.coverage.map((c) => ({
-      scenarioId: c.scenarioId,
-      name: c.scenarioName,
-      status: c.status,
-    })),
-    unresolvedFailures: report.unresolvedFailures.map((f) => ({
-      scenarioId: '',
-      stage: f.stage,
-      errorMessage: f.errorMessage,
-      failureSource:
-        f.stage === 'healer' ? 'test' : f.stage === 'planner' ? 'requirement' : 'unknown',
-      tracePath: f.tracePath,
-      screenshotPath: f.screenshotPath,
-    })),
-  };
-
   try {
-    const archivePath = archiveReport(archived);
-    console.log(`Report archived: ${archivePath}`);
+    const runDir = path.join(path.resolve('artifacts', 'reports', 'archive'), report.runId);
+    fs.mkdirSync(runDir, { recursive: true });
+
+    // Write summary.json matching canonical TestSummary
+    const summaryPayload = {
+      total: report.summary.testsGenerated,
+      passed: report.summary.testsPassing,
+      failed: report.summary.testsFailing,
+      skipped: report.summary.testsSkipped,
+      passRate,
+      timestamp: report.timestamp,
+      requirementPath: report.requirementPath ?? '',
+      testCases: (report.coverage || []).map((c) => ({
+        testId: c.scenarioId,
+        scenarioId: c.scenarioId,
+        title: c.scenarioName,
+        status: c.status,
+        role: '',
+        module: '',
+        feature: '',
+        priority: 'medium',
+      })),
+      unresolvedFailures: report.unresolvedFailures,
+    };
+    fs.writeFileSync(
+      path.join(runDir, 'summary.json'),
+      JSON.stringify(summaryPayload, null, 2),
+      'utf-8',
+    );
+
+    // Write metadata.json
+    const metadataPayload = {
+      schemaVersion: 2,
+      runId: report.runId,
+      displayName: `Pipeline Run ${report.runId}`,
+      testSeriesId: report.requirementPath ?? 'pipeline',
+      requirementPath: report.requirementPath ?? '',
+      savedAt: new Date().toISOString(),
+      ranAt: report.timestamp,
+      appEnv: process.env.APP_ENV ?? 'local',
+      qaDecision: 'APPROVE',
+      qaNotes: 'Archived automatically by pipeline report-builder.',
+      triggeredBy: 'pipeline',
+      triggerSource: 'pipeline-runner',
+    };
+    fs.writeFileSync(
+      path.join(runDir, 'metadata.json'),
+      JSON.stringify(metadataPayload, null, 2),
+      'utf-8',
+    );
+
+    console.log(`Report archived: ${runDir}`);
   } catch (err) {
     // Non-blocking — archive failure should not fail the report
     console.warn('Failed to archive report:', err instanceof Error ? err.message : err);

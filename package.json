@@ -31,6 +31,8 @@
     "test:demo": "npx playwright test --project=demo --workers=1",
     "test:smoke": "npx playwright test --grep @smoke",
     "test:property": "tsx tools/scripts/run-property-tests.ts",
+    "test:smart-shard": "tsx tools/scripts/smart-shard.ts",
+    "test:failed-only": "tsx tools/scripts/failed-only.ts",
     "test:file-content": "tsx src/support/pw/__tests__/file-content-core.test.ts",
     "test:network-assert": "tsx src/support/pw/__tests__/network-assert-core.test.ts",
     "test:unit": "npx playwright test -c config/playwright/unit.ts",
@@ -71,7 +73,9 @@
     "archive:save": "tsx src/cli/archive-cli.ts save",
     "archive:view": "tsx src/cli/archive-cli.ts view",
     "archive:delete": "tsx src/cli/archive-cli.ts delete",
+    "archive:clean": "tsx src/cli/archive-cli.ts clean",
     "archive:compare": "tsx src/cli/archive-cli.ts compare",
+    "dashboard": "tsx src/cli/dashboard-server.ts --no-idle",
     "dashboard:serve": "tsx src/cli/dashboard-server.ts --no-idle"
   },
   "devDependencies": {

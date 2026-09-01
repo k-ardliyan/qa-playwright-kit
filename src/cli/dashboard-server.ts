@@ -9,8 +9,8 @@
  * - Zero external dependencies — uses Node.js built-in http/fs/url
  *
  * Usage:
- *   npm run dashboard:serve
- *   npm run dashboard:serve -- --port=4567 --no-open
+ *   npm run dashboard
+ *   npm run dashboard -- --port=4567 --no-open
  *
  * @module src/cli/dashboard-server
  */
@@ -36,14 +36,12 @@ import {
 } from '../agents/reporter/report-archive';
 import { compareLatestVsPrevious, compareReports } from '../agents/reporter/report-compare';
 import type { ReportComparison } from '../agents/reporter/report-compare';
-import { buildLocalHtml } from '../support/custom-dashboard/build-local-html';
 import {
   buildComparePage,
   buildHistoryPage,
   buildDetailPage,
 } from '../support/custom-dashboard/build-fragments';
 import { escapeHtml } from '../support/custom-dashboard/shared';
-import type { DashboardOptions } from '../support/custom-dashboard/build-dashboard-html';
 import type { QaDecision } from '../agents/reporter/report-archive';
 
 import { buildDashboardOverview } from '../support/custom-dashboard/domain/dashboard-overview';
@@ -409,64 +407,6 @@ function renderArchivedDetailPage(runId: string): string | null {
   );
 }
 
-// ─── Dashboard HTML builder (Legacy & Direct) ──────────────────────────────────
-
-export function buildDashboard(): string {
-  let summary: object | undefined;
-  let collectedTests: object[] = [];
-
-  try {
-    const summaryPath = getSummaryPath();
-    if (fs.existsSync(summaryPath)) {
-      const raw = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
-      summary = raw;
-      collectedTests = Array.isArray(raw.testCases) ? normalizeTestCases(raw.testCases) : [];
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return buildErrorPage(
-      'test-summary.json is unreadable',
-      `The file exists but could not be parsed:\n\n${message}\n\nDelete the corrupt file and re-run tests.`,
-    );
-  }
-
-  if (!summary) {
-    const latestRun = getLatestRunInfo();
-    if (latestRun) {
-      return buildOrphanRunPage(latestRun);
-    }
-    return buildErrorPage(
-      'No test run found yet.',
-      'Run tests first, then refresh this page.',
-      'npx playwright test',
-    );
-  }
-
-  const rawSummary = summary as Record<string, unknown>;
-  if (
-    typeof rawSummary['total'] === 'undefined' &&
-    typeof rawSummary['testCases'] === 'undefined'
-  ) {
-    return buildErrorPage(
-      'test-summary.json has unexpected format',
-      'The file exists but is missing required fields (total / testCases).\n\nDelete the file and re-run tests to regenerate it.',
-    );
-  }
-
-  const history = listReportHistory({ sort: 'newest', limit: 20 });
-  const latestRun = getLatestRunInfo();
-  const latestRunArchived = isLatestRunArchived();
-
-  const options: DashboardOptions = {
-    hasLatestRun: latestRun !== null,
-    latestRunArchived,
-    serveMode: true,
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return buildLocalHtml(summary as any, collectedTests as any[], history, options);
-}
-
 // ─── JSON helpers ─────────────────────────────────────────────────────────────
 
 function readBody(req: http.IncomingMessage): Promise<unknown> {
@@ -511,6 +451,100 @@ function htmlResponse(res: http.ServerResponse, status: number, html: string) {
   res.end(html);
 }
 
+// ─── Static File Handler for Artifacts & Reports ─────────────────────────────
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webm': 'video/webm',
+  '.mp4': 'video/mp4',
+  '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.zip': 'application/zip',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.svg': 'image/svg+xml',
+};
+
+function serveStaticFile(
+  res: http.ServerResponse,
+  filePath: string,
+  contentType?: string,
+): boolean {
+  try {
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+      return false;
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = contentType || MIME_TYPES[ext] || 'application/octet-stream';
+    const data = fs.readFileSync(filePath);
+    res.writeHead(200, {
+      'Content-Type': mime,
+      'Content-Length': Buffer.byteLength(data),
+      'Cache-Control': 'no-cache',
+    });
+    res.end(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveReportFile(relPath: string): string | null {
+  const cleanRel = relPath.replace(/^\/+/, '');
+  const candidates = [
+    path.resolve(process.cwd(), 'artifacts', 'reports', cleanRel),
+    path.resolve(process.cwd(), 'reports', cleanRel),
+    path.resolve(process.cwd(), 'artifacts', 'test-results', cleanRel),
+    path.resolve(process.cwd(), 'artifacts', cleanRel),
+    path.resolve(process.cwd(), cleanRel),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
+function serveAttachmentsDirectory(res: http.ServerResponse, dirPath: string) {
+  try {
+    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+      htmlResponse(
+        res,
+        404,
+        buildErrorPage('Attachments Not Found', 'No attachments folder found for this run.'),
+      );
+      return;
+    }
+    const entries = fs.readdirSync(dirPath, { recursive: true, withFileTypes: true });
+    const files = entries
+      .filter((e) => e.isFile())
+      .map((e) => {
+        // Build relative path inside attachments directory
+        const full = path.join((e as { parentPath?: string }).parentPath || dirPath, e.name);
+        return path.relative(dirPath, full).replace(/\\/g, '/');
+      });
+
+    const isArchive = dirPath.includes('archive');
+    const baseHref = isArchive
+      ? dirPath.match(/(run-[\d-]+)/)?.[1]
+        ? `/api/archive/${dirPath.match(/(run-[\d-]+)/)?.[1]}/attachments/`
+        : '/attachments/'
+      : '/attachments/';
+
+    const fileListHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Attachments</title><style>body{font-family:sans-serif;padding:24px;background:#0d1117;color:#c9d1d9;}a{color:#58a6ff;text-decoration:none;display:inline-block;padding:4px 0;}a:hover{text-decoration:underline;}ul{list-style:none;padding:0;}li{margin:8px 0;border-bottom:1px solid #30363d;padding-bottom:6px;}</style></head><body><h2>Attachments Directory</h2><p style="color:#8b949e">Showing ${files.length} file(s) in: ${escapeHtml(dirPath)}</p><ul>${files.length > 0 ? files.map((f) => `<li><a href="${baseHref}${f}" target="_blank">${f}</a></li>`).join('') : '<li>No files recorded</li>'}</ul></body></html>`;
+    htmlResponse(res, 200, fileListHtml);
+  } catch (err) {
+    htmlResponse(res, 500, buildErrorPage('Error', String(err)));
+  }
+}
+
 // ─── Request router ───────────────────────────────────────────────────────────
 
 export async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -534,7 +568,11 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     });
+    // Tell the browser how long to wait before reconnecting after a drop, and
+    // send an immediate comment so the stream is flushed as open.
+    res.write('retry: 5000\n\n');
     res.write(':connected\n\n');
     sseClients.add(res);
     req.on('close', () => sseClients.delete(res));
@@ -542,7 +580,9 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
   }
 
   // ── Heartbeat ─────────────────────────────────────────────────────────────
-  if (pathname === '/heartbeat' && method === 'POST') {
+  // Accept GET as well as POST: some clients/probes send GET; a fast 200 keeps
+  // the idle watchdog fed and avoids stacked pending requests.
+  if (pathname === '/heartbeat' && (method === 'POST' || method === 'GET')) {
     resetHeartbeat();
     jsonResponse(res, 200, { ok: true });
     return;
@@ -581,7 +621,40 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
 
   // ── Page Route: GET /history/:runId ──────────────────────────────────────
   if (pathname.startsWith('/history/') && method === 'GET') {
-    const runId = pathname.replace('/history/', '').split('/')[0];
+    const subPath = pathname.replace('/history/', '');
+    const parts = subPath.split('/');
+    const runId = parts[0];
+
+    // If sub-path requests a static report file inside history (e.g. /history/run-xxx/html/index.html or /history/html/index.html)
+    if (runId === 'html' || parts.length > 1) {
+      const targetRel =
+        runId === 'html'
+          ? `html/${parts.slice(1).join('/')}`
+          : `archive/${runId}/${parts.slice(1).join('/')}`;
+      const resolved = resolveReportFile(targetRel);
+      if (resolved && serveStaticFile(res, resolved)) {
+        return;
+      }
+    }
+
+    if (runId && runId.startsWith('run-') && parts.length === 1) {
+      const html = renderArchivedDetailPage(runId);
+      if (!html) {
+        htmlResponse(
+          res,
+          404,
+          buildErrorPage(
+            'Archived Run Not Found',
+            `No archived run with ID "${escapeHtml(runId)}" exists.`,
+            'npm run archive:view',
+          ),
+        );
+        return;
+      }
+      htmlResponse(res, 200, html);
+      return;
+    }
+
     if (!runId || !isValidRunId(runId)) {
       htmlResponse(
         res,
@@ -841,6 +914,48 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     pathname !== '/api/archive/save' &&
     pathname !== '/api/runs/latest'
   ) {
+    // If sub-path requests attachments folder inside archive (e.g. /api/archive/run-xxx/attachments/ or /api/archive/run-xxx/attachments)
+    if (pathname.startsWith('/api/archive/') && pathname.includes('/attachments')) {
+      const rest = pathname.replace('/api/archive/', '');
+      const parts = rest.split('/');
+      const rId = parts[0];
+      const sub = parts.slice(1).join('/');
+      if (sub === 'attachments' || sub === 'attachments/') {
+        const targetDir = resolveReportFile(`archive/${rId}/attachments`);
+        if (targetDir) {
+          serveAttachmentsDirectory(res, targetDir);
+          return;
+        }
+        // Folder is absent for this run (or runId is invalid) — give an honest
+        // 404 instead of falling through to the misleading "Invalid runId" 400.
+        if (isValidRunId(rId)) {
+          htmlResponse(
+            res,
+            404,
+            buildErrorPage(
+              'Attachments Not Found',
+              `No attachments folder found for run "${rId}". The run had no attachments to snapshot.`,
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    // If sub-path requests a static file inside archive (e.g. /api/archive/run-xxx/summary.json or /api/archive/run-xxx/attachments/xxx.png)
+    if (pathname.startsWith('/api/archive/') && pathname.includes('/', '/api/archive/'.length)) {
+      const rest = pathname.replace('/api/archive/', '');
+      const slashIdx = rest.indexOf('/');
+      if (slashIdx !== -1) {
+        const rId = rest.substring(0, slashIdx);
+        const fileSub = rest.substring(slashIdx + 1);
+        const resolved = resolveReportFile(`archive/${rId}/${fileSub}`);
+        if (resolved && serveStaticFile(res, resolved)) {
+          return;
+        }
+      }
+    }
+
     const runId = pathname.replace(/^\/api\/(archive|runs)\//, '');
     if (!runId || /[/\\.]/.test(runId) || runId.includes('..')) {
       jsonResponse(res, 400, { error: 'Invalid runId' });
@@ -981,6 +1096,32 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     return;
   }
 
+  // ── Static Report Files & Artifacts (HTML report, summary JSON, pipeline JSON, attachments) ──
+  if (method === 'GET') {
+    const cleanPath = pathname.replace(/^\/+/, '');
+
+    // List directory for attachments folder link
+    if (cleanPath === 'attachments' || cleanPath === 'attachments/') {
+      const attachmentsDir = resolveReportFile('attachments');
+      if (
+        attachmentsDir &&
+        fs.existsSync(attachmentsDir) &&
+        fs.statSync(attachmentsDir).isDirectory()
+      ) {
+        serveAttachmentsDirectory(res, attachmentsDir);
+        return;
+      }
+    }
+
+    // Direct files: html/index.html, test-summary.json, pipeline-report.json, custom-dashboard.html, attachments/*, etc.
+    const resolvedFile = resolveReportFile(cleanPath);
+    if (resolvedFile && fs.statSync(resolvedFile).isFile()) {
+      if (serveStaticFile(res, resolvedFile)) {
+        return;
+      }
+    }
+  }
+
   // ── 404 ───────────────────────────────────────────────────────────────────
   jsonResponse(res, 404, { error: `Not found: ${pathname}` });
 }
@@ -992,6 +1133,18 @@ async function main() {
   idleEnabled = idle;
 
   const server = http.createServer((req, res) => {
+    const startedAt = Date.now();
+    // Per-request render log: shows which page is being rendered and how long
+    // it took, so a wedged/slow render is visible in the console.
+    res.on('finish', () => {
+      const ms = Date.now() - startedAt;
+      const line = `[dashboard-server] ${req.method ?? 'GET'} ${req.url ?? '/'} → ${res.statusCode} (${ms}ms)`;
+      if (ms >= 500) {
+        console.log(`⚠️  ${line} — slow render`);
+      } else {
+        console.log(line);
+      }
+    });
     handleRequest(req, res).catch((err) => {
       console.error('[dashboard-server] Unhandled error:', err);
       try {
@@ -1035,9 +1188,7 @@ async function main() {
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(
-        `\n❌ Port ${port} already in use. Try: npm run dashboard:serve -- --port=4568`,
-      );
+      console.error(`\n❌ Port ${port} already in use. Try: npm run dashboard -- --port=4568`);
     } else {
       console.error('\n❌ Server error:', err.message);
     }

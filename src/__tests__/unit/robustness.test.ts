@@ -383,7 +383,7 @@ test.describe('showArchiveDetail static mode', () => {
   test('static mode path shows alert directing user to serve mode', () => {
     const js = buildHistoryJs({ serveMode: false });
     // Should contain an alert or visible message about serve mode
-    expect(js).toContain('npm run dashboard:serve');
+    expect(js).toContain('npm run dashboard');
   });
 
   test('serve mode path navigates to hash route (not alert)', () => {

@@ -16,6 +16,23 @@ export interface DashboardOptions {
 }
 
 /**
+ * Normalize optional runtime fields that may be absent when raw
+ * `test-summary.json` payloads are rendered (server mode normalizes via
+ * `normalizeTestCases`, but CLI/preview/static paths do not). Defaulting here
+ * — once, at the entry point — protects every component from `undefined`.
+ */
+function normalizeCollectedTests(tests: CollectedTestData[]): CollectedTestData[] {
+  return (tests ?? []).map((t) => ({
+    ...t,
+    attachments: t.attachments ?? [],
+    errors: t.errors ?? [],
+    steps: t.steps ?? [],
+    affectedLayer: t.affectedLayer ?? [],
+    retry: t.retry ?? 0,
+  }));
+}
+
+/**
  * Shared dashboard HTML builder used by both buildCiHtml and buildLocalHtml.
  * Powered by KitaJS TSX component tree.
  */
@@ -30,7 +47,7 @@ export function buildDashboardHtml(
     Dashboard({
       mode,
       summary,
-      collectedTests,
+      collectedTests: normalizeCollectedTests(collectedTests),
       history,
       options,
     }),

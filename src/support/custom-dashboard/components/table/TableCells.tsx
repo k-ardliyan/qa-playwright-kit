@@ -1,5 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedTestData, FailureSource } from '../../types';
+import { generateErrorFingerprint } from '../../../classifier/fingerprint';
 import {
   decisionHintFor,
   decisionHintTooltipFor,
@@ -58,6 +59,7 @@ export function FailureSourceCell({
   const hint = decisionHintFor(src);
   const tip = decisionHintTooltipFor(src, test.errorMessage ?? '');
   const blurb = decisionHintBlurbFor(src, test.errorMessage ?? '');
+  const fp = test.errorMessage ? generateErrorFingerprint(test.errorMessage) : undefined;
 
   return (
     <div class="src-cell" title={tip}>
@@ -67,6 +69,14 @@ export function FailureSourceCell({
           {src.toUpperCase()}
         </span>
       </div>
+      {fp ? (
+        <div class="src-cell__row">
+          <span class="src-cell__k">Hash</span>
+          <span class="badge badge--local" title={fp.normalizedMessage} safe>
+            {fp.fingerprintId}
+          </span>
+        </div>
+      ) : null}
       <div class="src-cell__row">
         <span class="src-cell__k">Do</span>
         <span class="decision-hint" safe>

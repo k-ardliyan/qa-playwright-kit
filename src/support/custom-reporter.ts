@@ -28,6 +28,7 @@ import type {
 } from './custom-dashboard/types';
 import { resolveFailureSource } from './custom-dashboard/failure-source';
 import { toReportRelativePath } from './custom-dashboard/shared';
+import { streamTelemetryEvent } from './streaming/live-telemetry';
 import { logger } from '@/utils/logger';
 
 const REPORT_DIR = path.resolve(process.cwd(), 'reports');
@@ -403,10 +404,39 @@ export default class CustomReporter implements Reporter {
 
   onBegin(_config: FullConfig, suite: Suite): void {
     this.totalTests = suite.allTests().length;
+    streamTelemetryEvent({ type: 'RUN_START', status: 'started' });
     logger.info('Custom reporter started.', { totalTests: this.totalTests });
   }
 
+  onStepBegin(test: TestCase, _result: TestResult, step: TestStep): void {
+    streamTelemetryEvent({
+      type: 'STEP_START',
+      testId: test.id,
+      testTitle: test.title,
+      stepTitle: step.title,
+    });
+  }
+
+  onStepEnd(test: TestCase, _result: TestResult, step: TestStep): void {
+    streamTelemetryEvent({
+      type: 'STEP_END',
+      testId: test.id,
+      testTitle: test.title,
+      stepTitle: step.title,
+      durationMs: step.duration,
+      error: step.error?.message,
+    });
+  }
+
   onTestEnd(test: TestCase, result: TestResult): void {
+    streamTelemetryEvent({
+      type: 'TEST_END',
+      testId: test.id,
+      testTitle: test.title,
+      status: result.status,
+      durationMs: result.duration,
+      error: result.error?.message,
+    });
     if (result.status === 'passed') {
       this.passedTests += 1;
     } else if (result.status === 'skipped') {
@@ -607,7 +637,7 @@ export default class CustomReporter implements Reporter {
       console.log(
         `  📊 Run complete: ${summary.passed}✅ ${summary.failed}❌ ${summary.skipped}⏭️  (${summary.passRate}%)`,
       );
-      console.log('  🌐 View & save via dashboard:  npm run dashboard:serve');
+      console.log('  🌐 View & save via dashboard:  npm run dashboard');
       console.log('  💾 Save via CLI:               npm run archive:save');
       console.log('  📋 View history:               npm run archive:view');
       console.log('────────────────────────────────────────────────────────');

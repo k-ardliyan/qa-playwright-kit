@@ -21,10 +21,8 @@ export {
 } from './report-builder';
 
 export {
-  archiveReport,
   saveLatestRun,
   updateArchivedMetadata,
-  loadArchivedReport,
   loadArchivedSummary,
   loadArchivedMetadata,
   deleteArchivedReport,
@@ -33,11 +31,8 @@ export {
   generateRunId,
   isLatestRunArchived,
   getLatestRunInfo,
-  type ArchivedReportLegacy,
   type ArchiveMetadata,
   type ArchiveSaveResult,
-  type ArchivedScenario,
-  type ArchivedUnresolvedFailure,
   type QaDecision,
   type TriggerSource,
 } from './report-archive';
