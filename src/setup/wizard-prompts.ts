@@ -484,34 +484,46 @@ export async function promptRoleCredentials(
 
 /**
  * Prompt for which roles to configure.
- * Always includes 'user' (default role).
+ * Accepts user-specified roles (e.g. "admin,guru,murid" or "user").
+ * Defaults to 'user' when nothing is specified.
  */
 export async function promptRoles(lang: WizardLang, existingRoles?: string[]): Promise<string[]> {
+  const defaultRoles = existingRoles && existingRoles.length > 0 ? existingRoles.join(',') : 'user';
   const { input } = await prompts(
     {
       type: 'list',
       name: 'input',
       message: t(
         lang,
-        'Roles yang dikonfigurasi (pisahkan koma, mis. "user,finance,super-admin")',
-        'Roles to configure (comma-separated, e.g. "user,finance,super-admin")',
+        'Roles yang dikonfigurasi (pisahkan koma, mis. "admin,guru,murid" atau "user")',
+        'Roles to configure (comma-separated, e.g. "admin,guru,murid" or "user")',
       ),
-      initial: existingRoles?.join(',') ?? 'user',
+      initial: defaultRoles,
       separator: ',',
     },
     { onCancel },
   );
 
-  const roles = (input as string[])
+  const rawList = Array.isArray(input) ? (input as string[]) : [String(input ?? '')];
+  const roles = rawList
     .map((r: string) => r.trim().toLowerCase())
     .filter((r: string) => r.length > 0);
 
-  // Ensure 'user' is always present
-  if (!roles.includes('user')) {
-    roles.unshift('user');
+  // Fallback to 'user' only if list is completely empty
+  if (roles.length === 0) {
+    return ['user'];
   }
 
-  return roles;
+  // De-duplicate while preserving order, mapping legacy aliases
+  const uniqueRoles: string[] = [];
+  for (const r of roles) {
+    const canonical = r === 'default' || r === 'general' ? 'user' : r;
+    if (!uniqueRoles.includes(canonical)) {
+      uniqueRoles.push(canonical);
+    }
+  }
+
+  return uniqueRoles;
 }
 
 /**

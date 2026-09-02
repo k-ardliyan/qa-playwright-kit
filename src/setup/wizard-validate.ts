@@ -103,57 +103,38 @@ export async function validateSetup(
     }
   }
 
-  // 3. Role credentials
+  // 3. Role credentials (dinamis — temukan semua role yang ada di env keys)
   const rolesReady: string[] = [];
   const rolesIncomplete: string[] = [];
   const rolesEncrypted: string[] = [];
 
-  // Check 'user' role (TEST_USER_*)
-  const userKeys = roleCredentialKeys('user');
-  const userHasEncrypted =
-    isEncryptedValue(envMap[userKeys.passwordKey]) ||
-    isEncryptedValue(envMap[userKeys.emailKey]) ||
-    isEncryptedValue(envMap[userKeys.usernameKey]) ||
-    isEncryptedValue(envMap[userKeys.phoneKey]);
-  if (userHasEncrypted) {
-    rolesEncrypted.push('user');
-  } else if (isRoleLoginReady(envMap, userKeys)) {
-    rolesReady.push('user');
-  } else {
-    // Check if it's template or just missing
-    const hasAny =
-      envMap[userKeys.passwordKey] || envMap[userKeys.emailKey] || envMap[userKeys.usernameKey];
-    if (hasAny && isPlaceholderCredential(envMap[userKeys.passwordKey] ?? '')) {
-      warnings.push(
-        t(
-          lang,
-          'Role "user" masih kredensial template — update sebelum menjalankan test',
-          'Role "user" has template credentials — update before running tests',
-        ),
-      );
-    }
-    rolesIncomplete.push('user');
-  }
-
-  // Discover other roles from env keys
-  const seenPrefixes = new Set<string>();
+  const discoveredRoles = new Set<string>();
   for (const key of Object.keys(envMap)) {
     const m = /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD)$/.exec(key);
     if (!m) continue;
     const prefix = m[1];
-    if (prefix === 'TEST_USER' || prefix === 'DOTENV') continue;
+    if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
     if (prefix.endsWith('_LOGIN_ID')) continue;
-    if (seenPrefixes.has(prefix)) continue;
-    seenPrefixes.add(prefix);
+    if (prefix === 'TEST_USER') {
+      discoveredRoles.add('user');
+    } else {
+      discoveredRoles.add(prefix.toLowerCase().replace(/_/g, '-'));
+    }
+  }
 
-    // Convert prefix to role name
-    const roleName = prefix.toLowerCase().replace(/_/g, '-');
+  // Jika env sama sekali belum punya role key, laporkan role default 'user' incomplete
+  if (discoveredRoles.size === 0) {
+    discoveredRoles.add('user');
+  }
+
+  for (const roleName of discoveredRoles) {
     const roleKeys = roleCredentialKeys(roleName);
     const roleHasEncrypted =
       isEncryptedValue(envMap[roleKeys.passwordKey]) ||
       isEncryptedValue(envMap[roleKeys.emailKey]) ||
       isEncryptedValue(envMap[roleKeys.usernameKey]) ||
       isEncryptedValue(envMap[roleKeys.phoneKey]);
+
     if (roleHasEncrypted) {
       rolesEncrypted.push(roleName);
     } else if (isRoleLoginReady(envMap, roleKeys)) {
@@ -214,13 +195,34 @@ export function isSetupReady(envMap: Record<string, string> | null): boolean {
   const raw = envMap['BASE_URL'] ?? '';
   if (!raw || isEncryptedValue(raw)) return false;
 
-  // At least one role must be login-ready
-  const userKeys = roleCredentialKeys('user');
-  const userHasEncrypted =
-    isEncryptedValue(envMap[userKeys.passwordKey]) ||
-    isEncryptedValue(envMap[userKeys.emailKey]) ||
-    isEncryptedValue(envMap[userKeys.usernameKey]) ||
-    isEncryptedValue(envMap[userKeys.phoneKey]);
-  if (userHasEncrypted) return false;
-  return isRoleLoginReady(envMap, userKeys);
+  const roles = new Set<string>();
+  for (const key of Object.keys(envMap)) {
+    const m = /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD)$/.exec(key);
+    if (!m) continue;
+    const prefix = m[1];
+    if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
+    if (prefix.endsWith('_LOGIN_ID')) continue;
+    if (prefix === 'TEST_USER') {
+      roles.add('user');
+    } else {
+      roles.add(prefix.toLowerCase().replace(/_/g, '-'));
+    }
+  }
+
+  if (roles.size === 0) return false;
+
+  // At least one role must be login-ready (and not encrypted in plaintext probe)
+  for (const roleName of roles) {
+    const roleKeys = roleCredentialKeys(roleName);
+    const hasEncrypted =
+      isEncryptedValue(envMap[roleKeys.passwordKey]) ||
+      isEncryptedValue(envMap[roleKeys.emailKey]) ||
+      isEncryptedValue(envMap[roleKeys.usernameKey]) ||
+      isEncryptedValue(envMap[roleKeys.phoneKey]);
+    if (!hasEncrypted && isRoleLoginReady(envMap, roleKeys)) {
+      return true;
+    }
+  }
+
+  return false;
 }

@@ -507,15 +507,18 @@ function printPreview(opts: {
 
 function detectExistingRoles(envMap: Record<string, string>): string[] {
   const roles = new Set<string>();
-  roles.add('user'); // always present
 
   for (const key of Object.keys(envMap)) {
     const m = /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD)$/.exec(key);
     if (!m) continue;
     const prefix = m[1];
-    if (prefix === 'TEST_USER' || prefix === 'DOTENV') continue;
+    if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
     if (prefix.endsWith('_LOGIN_ID')) continue;
-    roles.add(prefix.toLowerCase().replace(/_/g, '-'));
+    if (prefix === 'TEST_USER') {
+      roles.add('user');
+    } else {
+      roles.add(prefix.toLowerCase().replace(/_/g, '-'));
+    }
   }
 
   return [...roles].sort();

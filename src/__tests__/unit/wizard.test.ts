@@ -246,6 +246,30 @@ test.describe('buildTerminalCommand', () => {
   });
 });
 
+test.describe('buildEnvFileContent with custom multi-roles', () => {
+  test('generates env for admin, guru, murid without injecting user', () => {
+    const built = buildEnvFileContent({
+      appEnv: 'dev',
+      baseUrl: 'http://localhost:3000',
+      roles: [
+        { name: 'admin', fields: { username: 'admin1', password: 'secret-admin' } },
+        { name: 'guru', fields: { username: 'guru1', password: 'secret-guru' } },
+        { name: 'murid', fields: { username: 'murid1', password: 'secret-murid' } },
+      ],
+      challengeMode: 'none',
+    });
+
+    expect(built.content).toContain('ADMIN_USERNAME=admin1');
+    expect(built.content).toContain('ADMIN_PASSWORD=secret-admin');
+    expect(built.content).toContain('GURU_USERNAME=guru1');
+    expect(built.content).toContain('GURU_PASSWORD=secret-guru');
+    expect(built.content).toContain('MURID_USERNAME=murid1');
+    expect(built.content).toContain('MURID_PASSWORD=secret-murid');
+    // Must not contain TEST_USER keys when user is not in roles
+    expect(built.content).not.toContain('TEST_USER_');
+  });
+});
+
 test.describe('validateSetup with encrypted values', () => {
   test('encrypted BASE_URL → warning, not fake reachable', async () => {
     const env = {
