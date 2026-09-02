@@ -29,6 +29,7 @@ import {
   promptLanguage,
   promptAppEnv,
   promptBaseUrl,
+  promptLoginPaths,
   promptRoleCredentials,
   promptRoles,
   promptChallengeMode,
@@ -39,6 +40,7 @@ import {
 import { type WizardLang, t, DEFAULT_LANG } from './i18n';
 import prompts from 'prompts';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   writeEnvFile,
   readExistingEnv,
@@ -50,6 +52,7 @@ import {
 import { validateSetup, type ValidationResult } from './wizard-validate';
 import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
+import { openTerminalFor } from './terminal';
 import { verifySetupArtifacts, type SetupCheck } from './verify-setup';
 import { printBanner, printChecklist, printSection, printStep, stepLine } from './ui';
 import {
@@ -57,6 +60,7 @@ import {
   loginStateFromWizard,
   writeLoginRequirementFile,
 } from '../../tools/scripts/wizard-login-template';
+import { writeAuthSetup } from '../../tools/scripts/wizard-auth-template';
 import { buildAgentPrompt } from '../../tools/scripts/qa-run-prompt';
 
 // ─── Public types ────────────────────────────────────────────────────────────
@@ -167,11 +171,22 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   // ─── Step 4: Playwright browser availability (install runs in parallel) ─
   await ensureBrowsers(lang);
 
-  // ─── Step 3: Prompt BASE_URL ────────────────────────────────────────────
-  printStep(3, TOTAL_STEPS, lang, 'URL aplikasi', 'Application URL');
+  // ─── Step 3: Prompt BASE_URL + login/redirect paths ─────────────────────
+  printStep(3, TOTAL_STEPS, lang, 'URL aplikasi & halaman login', 'App URL & login pages');
   const existingUrl =
     existing && !isEncryptedValue(existing['BASE_URL']) ? existing['BASE_URL'] : undefined;
   const baseUrl = await promptBaseUrl(lang, existingUrl);
+
+  const loginPaths = await promptLoginPaths(lang, {
+    loginUrlPath:
+      existing && !isEncryptedValue(existing['AUTH_LOGIN_URL_PATH'])
+        ? existing['AUTH_LOGIN_URL_PATH'] || undefined
+        : undefined,
+    successUrlPath:
+      existing && !isEncryptedValue(existing['AUTH_SUCCESS_URL_PATH'])
+        ? existing['AUTH_SUCCESS_URL_PATH'] || undefined
+        : undefined,
+  });
 
   // ─── Step 4: Prompt roles ───────────────────────────────────────────────
   printStep(4, TOTAL_STEPS, lang, 'Kredensial role', 'Role credentials');
@@ -196,7 +211,14 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
 
   // ─── Step 6: Preview (masked) + confirm before write ────────────────────
   printStep(6, TOTAL_STEPS, lang, 'Konfirmasi & verifikasi', 'Confirm & verify');
-  printPreview({ lang, appEnv, baseUrl, roles: roleInputs, challengeMode });
+  printPreview({
+    lang,
+    appEnv,
+    baseUrl,
+    loginPaths,
+    roles: roleInputs,
+    challengeMode,
+  });
   const { ok } = await prompts(
     {
       type: 'confirm',
@@ -220,6 +242,8 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     baseUrl,
     roles: roleInputs,
     challengeMode,
+    loginUrlPath: loginPaths.loginUrlPath,
+    successUrlPath: loginPaths.successUrlPath,
   });
 
   stepLine(
@@ -257,14 +281,8 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     roles: roleNames,
     challengeMode,
     loginIdPref: roleInputs[0]?.fields.loginIdPref,
-    loginUrl:
-      existing && !isEncryptedValue(existing['AUTH_LOGIN_URL_PATH'])
-        ? existing['AUTH_LOGIN_URL_PATH']
-        : undefined,
-    successUrlPath:
-      existing && !isEncryptedValue(existing['AUTH_SUCCESS_URL_PATH'])
-        ? existing['AUTH_SUCCESS_URL_PATH']
-        : undefined,
+    loginUrl: loginPaths.loginUrlPath,
+    successUrlPath: loginPaths.successUrlPath,
   });
   const loginFile = writeLoginRequirementFile(process.cwd(), loginState);
   const loginMarkdown = loginFile.skipped
@@ -279,6 +297,28 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
       loginFile.skipped
         ? `✓ ${loginFile.relativePath} already exists (not auto-generated) — left intact`
         : `✓ Login requirement written: ${loginFile.relativePath} (mode ${challengeMode})`,
+    ),
+  );
+
+  // ─── Regenerate src/support/auth.setup.ts with real login/success paths ──
+  const authSetupOut = path.join(process.cwd(), 'src', 'support', 'auth.setup.ts');
+  const authRoles = roleNames.map((name) => ({
+    name,
+    authFile: `.auth/${appEnv}/${name}.json`,
+  }));
+  writeAuthSetup(
+    {
+      roles: authRoles,
+      loginUrl: loginPaths.loginUrlPath,
+      successUrlPath: loginPaths.successUrlPath,
+    },
+    authSetupOut,
+  );
+  stepLine(
+    t(
+      lang,
+      `✓ Setup autentikasi di-update: src/support/auth.setup.ts (login: ${loginPaths.loginUrlPath}, redirect: ${loginPaths.successUrlPath})`,
+      `✓ Auth setup updated: src/support/auth.setup.ts (login: ${loginPaths.loginUrlPath}, redirect: ${loginPaths.successUrlPath})`,
     ),
   );
 
@@ -328,6 +368,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     lang,
     appEnv,
     baseUrl,
+    loginPaths,
     roles: roleNames,
     challengeMode,
     writeResult,
@@ -336,6 +377,41 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     loginRequirementPath: loginFile.relativePath,
     loginMarkdown,
   });
+
+  // ─── Offer to run auth:setup in a parallel terminal ─────────────────────
+  if (roleNames.length > 0 && validation.reachable) {
+    const authCmd = challengeMode === 'none' ? 'npm run auth:setup' : 'npm run auth:setup:headed';
+    const { runAuth } = await prompts(
+      {
+        type: 'confirm',
+        name: 'runAuth',
+        message: t(
+          lang,
+          `Buka terminal baru untuk membuat session login (${authCmd})?`,
+          `Open a new terminal to materialize login sessions (${authCmd})?`,
+        ),
+        initial: true,
+      },
+      {
+        onCancel(): boolean {
+          return false;
+        },
+      },
+    );
+
+    if (runAuth) {
+      const ok = openTerminalFor(process.cwd(), authCmd);
+      if (ok) {
+        stepLine(
+          t(
+            lang,
+            `✓ Terminal baru dibuka menjalankan ${authCmd}. Session tersimpan ke .auth/${appEnv}/.`,
+            `✓ New terminal opened running ${authCmd}. Sessions saved to .auth/${appEnv}/.`,
+          ),
+        );
+      }
+    }
+  }
 
   return {
     envFilePath: writeResult.envFilePath,
@@ -400,13 +476,18 @@ function printPreview(opts: {
   lang: WizardLang;
   appEnv: AppEnv;
   baseUrl: string;
+  loginPaths: { loginUrlPath: string; successUrlPath: string };
   roles: WizardRoleInput[];
   challengeMode: ChallengeMode;
 }): void {
-  const { lang, appEnv, baseUrl, roles, challengeMode } = opts;
+  const { lang, appEnv, baseUrl, loginPaths, roles, challengeMode } = opts;
   printSection(lang, 'Pratinjau (disamarkan)', 'Preview (masked)');
   stepLine(`  APP_ENV      ${appEnv}`);
   stepLine(`  BASE_URL     ${baseUrl}`);
+  stepLine(`  LOGIN PATH   ${loginPaths.loginUrlPath}`);
+  stepLine(
+    `  REDIRECT     ${loginPaths.successUrlPath} (${t(lang, 'setelah login sukses', 'after successful login')})`,
+  );
   stepLine(
     `  HEADLESS     ${
       challengeMode === 'otp-browser' ||
@@ -526,6 +607,7 @@ function printSummary(data: {
   lang: WizardLang;
   appEnv: AppEnv;
   baseUrl: string;
+  loginPaths?: { loginUrlPath: string; successUrlPath: string };
   roles: string[];
   challengeMode: ChallengeMode;
   writeResult: EnvWriteResult;
@@ -542,6 +624,10 @@ function printSummary(data: {
   console.log(line);
   stepLine(`  APP_ENV      : ${data.appEnv}`);
   stepLine(`  BASE_URL     : ${data.baseUrl}`);
+  if (data.loginPaths) {
+    stepLine(`  LOGIN PATH   : ${data.loginPaths.loginUrlPath}`);
+    stepLine(`  REDIRECT     : ${data.loginPaths.successUrlPath}`);
+  }
   stepLine(`  ${t(lang, 'Roles', 'Roles')}        : ${data.roles.join(', ')}`);
   stepLine(`  ${t(lang, 'Challenge', 'Challenge')}    : ${data.challengeMode}`);
   stepLine(`  ${t(lang, 'Env file', 'Env file')}    : config/environments/${data.appEnv}.env`);

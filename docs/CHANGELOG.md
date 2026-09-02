@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Login & success redirect paths, one-shot Hermes prompt & setup overhaul — 2026-09-02
+- **Prompt login & redirect di wizard (Opsi C):** Step 3 wizard kini menanyakan path halaman login (`AUTH_LOGIN_URL_PATH`, default `/login`) dan path redirect setelah login sukses (`AUTH_SUCCESS_URL_PATH`, default `/dashboard`) dengan prefill, validasi leading-slash, dan normalisasi URL-ke-pathname (`normalizeAppPath`). Nilai masuk ke env bersih section "URL Aplikasi", `src/support/auth.setup.ts`, `requirements/login.md`, pratinjau, dan summary.
+- **Menu env:edit:** `npm run env:edit` menu "Edit BASE_URL / browser / OTP-CAPTCHA" kini menyertakan field `AUTH_LOGIN_URL_PATH` dan `AUTH_SUCCESS_URL_PATH`; tabel kredensial menampilkan keduanya.
+- **Terminal terpisah untuk auth:setup:** setelah summary, jika target reachable, wizard menawarkan membuka terminal baru untuk menjalankan `npm run auth:setup` (atau `:headed`) via `src/setup/terminal.ts` — session `.auth/{APP_ENV}/` bisa langsung dibuat tanpa keluar wizard.
+- **One-shot Hermes prompt:** prompt akhir kini dirancang selesai dalam satu instruksi — mulai dari `health_check` (stop jika fail), snapshot locator, Plan → Generate → Execute → Heal, penutup summary lengkap, QA exit decision, dan instruksi penutup menjalankan `npm run dashboard`.
+- **Cleanup:** artefak `src/support/auth.setup.ts.bak` dihapus dari repo; `auth.setup.ts` di-regenerate membaca login/redirect path nyata.
+
 ### Wizard UX, real verification & robust auth scenarios — 2026-09-02
 - **Wizard end-to-end UX:** banner pembuka + ringkasan `6 langkah`, header `[n/6]` per fase (Bahasa → Environment → URL → Kredensial → Challenge → Konfirmasi), section `Menulis file` / `Verifikasi artefak` yang konsisten, pratinjau per-role yang lebih kompak, dan deteksi config existing kini menampilkan state saat ini (BASE_URL, roles + status terenkripsi, challenge) sebelum prompt update/keep.
 - **Verifikasi artefak nyata** (`src/setup/verify-setup.ts`): setelah menulis, wizard mengecek **bukan sekadar asumsi** — node_modules, config Playwright, Chromium, file env + BASE_URL, secret ciphertext di disk, keberadaan file kunci dotenvx, **decrypt roundtrip asli** via dotenvx CLI, requirements/login.md, agent skills, MCP configs (.cursor/.kiro/.codex/claude), dan file sesi `.auth/{APP_ENV}/<role>.json`. Check kritis gagal → `npm run setup` exit non-zero.

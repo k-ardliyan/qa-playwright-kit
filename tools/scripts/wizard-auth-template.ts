@@ -64,6 +64,33 @@ setup('authenticate:${name}', async ({ page }) => {
     username ||
     phone;
 
+  const idKind =
+    pref === 'email' || pref === 'username' || pref === 'phone'
+      ? pref
+      : email
+        ? 'email'
+        : username
+          ? 'username'
+          : phone
+            ? 'phone'
+            : 'email';
+
+  setTestMetadata({
+    testId: 'TC-AUTH-SETUP-${name.toUpperCase().replace(/-/g, '_')}',
+    priority: 'HIGH',
+    role: '${name}',
+    module: 'auth',
+    feature: 'session-bootstrap',
+    affectedLayer: ['FE', 'BE'],
+    inputData: {
+      identifier: \`credential:\${'${name}'}.\${idKind}\`,
+      password: \`credential:\${'${name}'}.password\`,
+      loginUrl: '${loginUrl}',
+      successUrl: '${successUrlPath}',
+    },
+    expectedResult: 'Sesi login aktif tersimpan di ' + authFile,
+  });
+
   if (!loginId || !password) {
     fs.writeFileSync(authFile, JSON.stringify({ cookies: [], origins: [] }, null, 2));
     console.log(
@@ -72,34 +99,45 @@ setup('authenticate:${name}', async ({ page }) => {
     return;
   }
 
-  // Cek session masih valid
-  if (fs.existsSync(authFile)) {
+  const forceLogin = process.env.AUTH_FORCE_LOGIN === 'true';
+
+  // 1. Cek apakah session yang ada masih valid (skip jika AUTH_FORCE_LOGIN=true)
+  if (!forceLogin && fs.existsSync(authFile)) {
     try {
-      await page.goto(process.env.BASE_URL! + '${successUrlPath}');
+      await test.step('Verifikasi session tersimpan masih valid', async () => {
+        await page.goto(process.env.BASE_URL! + '${successUrlPath}');
+      });
       if (!page.url().includes('${loginUrl}')) {
-        console.log('✔ [Auth] Session ${name} masih valid, skip login.');
+        console.log('✔ [Auth] Session ${name} masih valid, reuse session.');
         await page.context().storageState({ path: authFile });
+        captureActualResult('Session ${name} masih valid (reused), tersimpan di ' + authFile);
         return;
       }
+      console.log('ℹ [Auth] Session ${name} kedaluwarsa, melakukan login fresh...');
     } catch {
-      console.log('⚠ [Auth] Gagal cek session ${name}, login ulang...');
+      console.log('⚠ [Auth] Gagal verifikasi session ${name}, melakukan login fresh...');
     }
   }
 
-  await page.goto(process.env.BASE_URL! + '${loginUrl}');
+  // 2. Fresh Login Flow
+  await test.step('Buka halaman login', async () => {
+    await page.goto(process.env.BASE_URL! + '${loginUrl}');
+  });
 
-  // Satu field identity (email | username | phone) + password
-  await page.fill(
-    'input[type="email"], input[name="email"], input[name="username"], input[name="phone"], input[id*="email" i], input[id*="user" i], input[id*="phone" i]',
-    loginId,
-  );
-  await page.fill(
-    'input[type="password"], input[name="password"], input[id*="pass" i]',
-    password,
-  );
-  await page.click(
-    'button[type="submit"], input[type="submit"], button:has-text("Login"), button:has-text("Masuk"), button:has-text("Sign in"), button:has-text("Log in")',
-  );
+  await test.step('Isi kredensial dan submit form login', async () => {
+    // Satu field identity (email | username | phone) + password
+    await page.fill(
+      'input[type="email"], input[name="email"], input[name="username"], input[name="phone"], input[id*="email" i], input[id*="user" i], input[id*="phone" i]',
+      loginId,
+    );
+    await page.fill(
+      'input[type="password"], input[name="password"], input[id*="pass" i]',
+      password,
+    );
+    await page.click(
+      'button[type="submit"], input[type="submit"], button:has-text("Login"), button:has-text("Masuk"), button:has-text("Sign in"), button:has-text("Log in")',
+    );
+  });
 
   const challengeMode = resolveChallengeMode();
   const successTimeout = isInteractiveChallengeMode(challengeMode)
@@ -110,9 +148,12 @@ setup('authenticate:${name}', async ({ page }) => {
     if (detected !== 'none') {
       console.log('ℹ [Auth] ${name}: post-login challenge handled (' + detected + ')');
     }
-    await page.waitForURL('**${successUrlPath}**', { timeout: successTimeout });
-    await page.context().storageState({ path: authFile });
-    console.log('✔ [Auth] Session ${name} tersimpan di', authFile);
+    await test.step('Tunggu redirect sukses dan simpan session baru', async () => {
+      await page.waitForURL('**${successUrlPath}**', { timeout: successTimeout });
+      await page.context().storageState({ path: authFile });
+    });
+    console.log('✔ [Auth] Session baru ${name} tersimpan di', authFile);
+    captureActualResult('Sesi baru ${name} berhasil dibuat dan disimpan di ' + authFile);
   } catch (error) {
     if (isInteractiveChallengeMode(challengeMode)) {
       console.error(
@@ -128,9 +169,10 @@ setup('authenticate:${name}', async ({ page }) => {
     })
     .join('\n');
 
-  return `import { test as setup } from '@playwright/test';
+  return `import { test as setup, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { setTestMetadata, captureActualResult } from './test-metadata';
 import {
   handlePostLoginChallenge,
   resolveChallengeMode,

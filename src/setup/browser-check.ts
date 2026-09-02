@@ -58,16 +58,13 @@ export function hasChromiumInstalled(dir: string = browsersDir()): boolean {
 export function buildInstallCommand(
   repoRoot: string,
   platform: NodeJS.Platform = process.platform,
-): { command: string; args: string[] } {
+): { command: string; args: string[]; windowsVerbatimArguments?: boolean } {
   if (platform === 'win32') {
-    // Double-quote escaping for cmd /k ("..." → ""..."" inside the argument).
-    const esc = repoRoot.replace(/"/g, '""');
+    const fullCmd = `start "" cmd /k "cd /d "${repoRoot}" && npx playwright install chromium"`;
     return {
       command: 'cmd.exe',
-      args: [
-        '/c',
-        `start "PW Installer" cmd /k "cd /d ""${esc}"" && npx playwright install chromium"`,
-      ],
+      args: ['/c', fullCmd],
+      windowsVerbatimArguments: true,
     };
   }
   if (platform === 'darwin') {
@@ -85,9 +82,19 @@ export function buildInstallCommand(
   };
 }
 
-function spawnDetached(command: string, args: string[], cwd: string): boolean {
+function spawnDetached(
+  command: string,
+  args: string[],
+  cwd: string,
+  windowsVerbatim = false,
+): boolean {
   try {
-    const child = spawn(command, args, { cwd, detached: true, stdio: 'ignore' });
+    const child = spawn(command, args, {
+      cwd,
+      detached: true,
+      stdio: 'ignore',
+      windowsVerbatimArguments: windowsVerbatim,
+    });
     child.unref();
     return true;
   } catch {
@@ -123,7 +130,7 @@ export function openInstallerTerminal(
   platform: NodeJS.Platform = process.platform,
 ): boolean {
   const cmd = buildInstallCommand(repoRoot, platform);
-  if (spawnDetached(cmd.command, cmd.args, repoRoot)) return true;
+  if (spawnDetached(cmd.command, cmd.args, repoRoot, cmd.windowsVerbatimArguments)) return true;
 
   if (platform === 'linux') {
     for (const alt of linuxAlternatives(repoRoot)) {

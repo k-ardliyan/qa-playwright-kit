@@ -99,15 +99,15 @@ Completion: `validate_plan` passes with no blocking errors.
 
 Load `.github/agents/generator.agent.md`. Follow [generator-step-titles.md](references/generator-step-titles.md):
 
-1. Wrap every requirement step in `test.step('<step text verbatim>')`.
-2. Put Input Data only in `setTestMetadata({ inputData })`.
+1. Wrap every requirement step in `test.step('<step text verbatim>')`. Step titles are **UI actions only** (e.g. `Buka halaman login`, `Isi field login dan password`).
+2. **STRICT DATA ISOLATION:** Put all input data/credentials strictly in `setTestMetadata({ inputData })`. Never write email, username, phone, passwords, OTP, tokens, or record IDs into `test.step` titles.
 3. `expectedResult` = verbatim expected-result text from the requirement.
 4. After the last successful assertion, call `captureActualResult(<same expectedResult string>)`.
-5. Never use a Playwright API call as a top-level step title.
+5. Never use a Playwright API call (`fill`, `click`, `getByRole`) as a top-level step title.
 
 Run `qa-playwright-kit:validate_generated_tests`.
 
-Completion: no ephemeral refs; every test has `setTestMetadata` plus `test.step` titles in business language.
+Completion: no ephemeral refs; no credential leakage in step titles; every test has `setTestMetadata` plus `test.step` titles in business language.
 
 ### 6. Execute → Heal → Report
 

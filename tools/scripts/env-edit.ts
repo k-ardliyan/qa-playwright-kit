@@ -232,6 +232,8 @@ function printRoleTable(map: Record<string, string>): void {
 
   process.stdout.write('  Config lain:\n');
   process.stdout.write(`    BASE_URL  = ${maskSecret(map.BASE_URL)}\n`);
+  process.stdout.write(`    LOGIN_PATH = ${map.AUTH_LOGIN_URL_PATH ?? '/login'}\n`);
+  process.stdout.write(`    SUCCESS_PATH = ${map.AUTH_SUCCESS_URL_PATH ?? '/dashboard'}\n`);
   if (map.PLAYWRIGHT_CONFIG) {
     process.stdout.write(`    PLAYWRIGHT_CONFIG = ${map.PLAYWRIGHT_CONFIG}\n`);
   }
@@ -278,6 +280,18 @@ async function actionEditBase(content: string, map: Record<string, string>): Pro
       name: 'baseUrl',
       message: 'BASE_URL:',
       initial: map.BASE_URL || 'http://localhost:3000',
+    },
+    {
+      type: 'text',
+      name: 'loginUrlPath',
+      message: 'Path halaman login (mis. /login):',
+      initial: map.AUTH_LOGIN_URL_PATH || '/login',
+    },
+    {
+      type: 'text',
+      name: 'successUrlPath',
+      message: 'Path setelah login sukses (mis. /dashboard):',
+      initial: map.AUTH_SUCCESS_URL_PATH || '/dashboard',
     },
     {
       type: 'select',
@@ -336,8 +350,19 @@ async function actionEditBase(content: string, map: Record<string, string>): Pro
   const headless = fromMode.HEADLESS ?? userHeadless;
   const slowMo = fromMode.SLOW_MO ?? userSlow;
 
+  const normPath = (p: string, def: string): string => {
+    const s = p.trim().split('?')[0]!.split('#')[0]!;
+    if (!s) return def;
+    return s.startsWith('/') ? s.replace(/\/+$/, '') || '/' : `/${s.replace(/\/+$/, '')}`;
+  };
+
+  const loginPath = normPath(String(ans.loginUrlPath ?? ''), '/login');
+  const successPath = normPath(String(ans.successUrlPath ?? ''), '/dashboard');
+
   return upsertEnvContent(content, {
     BASE_URL: String(ans.baseUrl).trim().replace(/\/$/, ''),
+    AUTH_LOGIN_URL_PATH: loginPath,
+    AUTH_SUCCESS_URL_PATH: successPath,
     HEADLESS: headless,
     SLOW_MO: slowMo,
     AUTH_CHALLENGE_MODE: mode,

@@ -249,6 +249,94 @@ export async function promptBaseUrl(lang: WizardLang, existing?: string): Promis
 }
 
 /**
+ * Normalize an app-path answer (login page / post-login redirect).
+ * Accepts pasted full URLs (→ pathname only), adds the leading slash,
+ * strips query/hash/trailing slash; empty → fallback default.
+ */
+export function normalizeAppPath(raw: string, fallback: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return fallback;
+  let candidate = trimmed;
+  if (/^https?:\/\//i.test(candidate)) {
+    try {
+      const parsed = new URL(candidate);
+      candidate = parsed.pathname || '/';
+    } catch {
+      return fallback;
+    }
+  }
+  candidate = candidate.split('?')[0]!.split('#')[0]!.trim();
+  if (!candidate) return fallback;
+  // Collapse duplicate slashes and ensure a single leading slash
+  candidate = '/' + candidate.replace(/^\/+/, '').replace(/\/+/g, '/').replace(/\/+$/, '');
+  return candidate.length > 1 ? candidate : fallback;
+}
+
+/** Prompt validator for path inputs: empty (default) or a path / full URL. */
+export function isValidAppPathInput(v: string): boolean {
+  const t = v.trim();
+  if (!t) return true;
+  if (/^https?:\/\//i.test(t)) return true;
+  return !/\s/.test(t) && !t.includes('?') && !t.includes('#');
+}
+
+export interface LoginPathAnswers {
+  /** AUTH_LOGIN_URL_PATH — page where the login form lives. */
+  loginUrlPath: string;
+  /** AUTH_SUCCESS_URL_PATH — where the app redirects after a successful login. */
+  successUrlPath: string;
+}
+
+/**
+ * Prompt for the project's login page path and post-login redirect path.
+ * Both accept Enter-for-default and pasted full URLs; values land in the env
+ * (AUTH_LOGIN_URL_PATH / AUTH_SUCCESS_URL_PATH) and drive the generated
+ * login requirement, auth.setup, and the final Hermes prompt.
+ */
+export async function promptLoginPaths(
+  lang: WizardLang,
+  existing?: { loginUrlPath?: string; successUrlPath?: string },
+): Promise<LoginPathAnswers> {
+  const loginDefault = existing?.loginUrlPath || '/login';
+  const successDefault = existing?.successUrlPath || '/dashboard';
+
+  const { loginPath } = await prompts(
+    {
+      type: 'text',
+      name: 'loginPath',
+      message: t(
+        lang,
+        'Path halaman login (Enter = default, boleh paste URL lengkap)',
+        'Login page path (Enter = default, full URL is accepted)',
+      ),
+      initial: loginDefault,
+      validate: isValidAppPathInput,
+    },
+    { onCancel },
+  );
+
+  const { successPath } = await prompts(
+    {
+      type: 'text',
+      name: 'successPath',
+      message: t(
+        lang,
+        'Setelah login sukses, halaman diarahkan ke path apa? (Enter = default)',
+        'After a successful login, where is the user redirected? (Enter = default)',
+      ),
+      initial: successDefault,
+      validate: isValidAppPathInput,
+    },
+    { onCancel },
+  );
+
+  return {
+    loginUrlPath: normalizeAppPath(String(loginPath ?? ''), loginDefault),
+    successUrlPath: normalizeAppPath(String(successPath ?? ''), successDefault),
+  };
+}
+
+/**
  * Prompt for credentials of a single role.
  * Simpler path for non-technical users: pick one login identifier (email/username/phone),
  * fill it, then password (+ confirm). Pre-fills existing value when provided.

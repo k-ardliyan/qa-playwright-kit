@@ -155,8 +155,8 @@ export function buildAgentPrompt(reqRelPath: string, markdown: string, lang: Wiz
     ),
     t(
       lang,
-      'Kembalikan summary, unresolvedFailures, path katalog (jika ada), serta path dashboard/report.',
-      'Return summary, unresolvedFailures, catalog path (if any), and dashboard/report path.',
+      'Tutup respon akhir dengan: summary pass/fail, daftar file spec/plan/report yang dibuat, QA decision, dan instruksi "Jalankan `npm run dashboard` untuk melihat laporan interaktif".',
+      'End your final response with: pass/fail summary, list of generated spec/plan/report files, QA decision, and instruction "Run `npm run dashboard` to open the interactive dashboard".',
     ),
   );
 

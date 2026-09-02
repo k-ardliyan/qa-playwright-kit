@@ -391,6 +391,7 @@ export function validateSpecFile(filePath: string, relativePath?: string): Valid
   violations.push(...validateCapabilityPowerRules(content, filePath, rel));
   violations.push(...validateNoEphemeralRefs(content, filePath, rel));
   violations.push(...validateNoHardcodedWaits(content, filePath, rel));
+  violations.push(...validateNoDataInStepTitles(content, filePath, rel));
   violations.push(...validateMetadataRule(content, filePath, rel));
 
   return violations;
@@ -470,6 +471,67 @@ export function validateNoHardcodedWaits(
       ruleName: `Hardcoded wait rule: avoid hardcoded timeout/sleep ("${match[0]}"). Use observable assertions/states instead.`,
       severity: 'warning',
     });
+  }
+
+  return violations;
+}
+
+/**
+ * Flag raw data literals leaking into test.step titles.
+ * Step titles must be UI actions only (e.g. "Isi field email"); test values
+ * belong in `setTestMetadata({ inputData })`.
+ */
+export function validateNoDataInStepTitles(
+  content: string,
+  filePath: string,
+  relativePath: string,
+): ValidationViolation[] {
+  if (isTraceabilityExempt(relativePath)) {
+    return [];
+  }
+
+  const violations: ValidationViolation[] = [];
+  const stepPattern = /test\.step\s*\(\s*(['"`])(.*?)\1/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = stepPattern.exec(content)) !== null) {
+    const title = match[2];
+    if (!title) continue;
+
+    // Pattern 1: Raw email address in title
+    if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(title)) {
+      violations.push({
+        filePath,
+        lineNumber: getLineNumberFromIndex(content, match.index),
+        ruleName: `Step title rule: email address detected in test.step title ("${title}"). Move data value to setTestMetadata({ inputData }) and use action text only.`,
+        severity: 'warning',
+      });
+      continue;
+    }
+
+    // Pattern 2: Raw password phrase or credential leaks in title
+    if (
+      /\b(?:password|pass|secret)\s*[:=]\s*\S+/i.test(title) ||
+      /\b(?:Pass\*\w+|s3cret\w*)\b/.test(title)
+    ) {
+      violations.push({
+        filePath,
+        lineNumber: getLineNumberFromIndex(content, match.index),
+        ruleName: `Step title rule: credential/secret value detected in test.step title ("${title}"). Move data value to setTestMetadata({ inputData }) and use action text only.`,
+        severity: 'warning',
+      });
+      continue;
+    }
+
+    // Pattern 3: Explicit 'with value "..."' or 'with data "..."' pattern leaking into step
+    if (/\bwith\s+(?:value|data|input)\s+['"`][^'"`]+['"`]/i.test(title)) {
+      violations.push({
+        filePath,
+        lineNumber: getLineNumberFromIndex(content, match.index),
+        ruleName: `Step title rule: data literal syntax detected in test.step title ("${title}"). Step titles must be UI actions only (verbatim from requirement); place test data in setTestMetadata({ inputData }).`,
+        severity: 'warning',
+      });
+    }
   }
 
   return violations;

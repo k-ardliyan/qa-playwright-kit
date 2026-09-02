@@ -6,8 +6,9 @@ import * as os from 'node:os';
 import { isEncryptedValue, buildEnvFileContent } from '@/setup/wizard-writer';
 import { isSecretEnvKey, secretKeysFromEnvText } from '@/utils/env-secrets';
 import { validateSetup, isSetupReady } from '@/setup/wizard-validate';
-import { parseNumberedChoice } from '@/setup/wizard-prompts';
+import { parseNumberedChoice, normalizeAppPath, isValidAppPathInput } from '@/setup/wizard-prompts';
 import { browsersDir, hasChromiumInstalled, buildInstallCommand } from '@/setup/browser-check';
+import { buildTerminalCommand } from '@/setup/terminal';
 import {
   buildAgentPrompt,
   parseRequirementPromptHints,
@@ -193,6 +194,55 @@ test.describe('parseNumberedChoice (type-then-Enter numbered picker)', () => {
     expect(parseNumberedChoice('', 4, 'en')).toBe('Enter a number 1-4');
     expect(parseNumberedChoice('9', 4, 'en')).toBe('Enter a number 1-4');
     expect(parseNumberedChoice('2', 4, 'en')).toBe(2);
+  });
+});
+
+test.describe('normalizeAppPath (pasted URL / path handling)', () => {
+  test('adds leading slash, collapses duplicates, and strips trailing slash', () => {
+    expect(normalizeAppPath('dashboard', '/dashboard')).toBe('/dashboard');
+    expect(normalizeAppPath('/dashboard/', '/dashboard')).toBe('/dashboard');
+    expect(normalizeAppPath('//nested//path//', '/dashboard')).toBe('/nested/path');
+  });
+
+  test('extracts pathname from pasted full URLs', () => {
+    expect(normalizeAppPath('https://erp.example.com/app/overview', '/dashboard')).toBe(
+      '/app/overview',
+    );
+    expect(normalizeAppPath('http://localhost:3000/login', '/login')).toBe('/login');
+    expect(normalizeAppPath('http://localhost:3000/', '/dashboard')).toBe('/dashboard');
+  });
+
+  test('strips query and hash fragments', () => {
+    expect(normalizeAppPath('/login?redirect=%2Fdashboard', '/login')).toBe('/login');
+    expect(normalizeAppPath('/app/home#tab=orders', '/dashboard')).toBe('/app/home');
+  });
+
+  test('empty string falls back to default', () => {
+    expect(normalizeAppPath('', '/dashboard')).toBe('/dashboard');
+    expect(normalizeAppPath('   ', '/login')).toBe('/login');
+  });
+
+  test('isValidAppPathInput rejects spaces in raw paths', () => {
+    expect(isValidAppPathInput('')).toBe(true);
+    expect(isValidAppPathInput('/login')).toBe(true);
+    expect(isValidAppPathInput('https://x.com/login')).toBe(true);
+    expect(isValidAppPathInput('/bad path')).toBe(false);
+  });
+});
+
+test.describe('buildTerminalCommand', () => {
+  test('builds OS-aware command for background auth:setup or browser install', () => {
+    const win = buildTerminalCommand('C:/repo', 'npm run auth:setup', 'win32');
+    expect(win.command).toBe('cmd.exe');
+    expect(win.args[1]).toContain('npm run auth:setup');
+
+    const mac = buildTerminalCommand('/Users/x/repo', 'npm run auth:setup', 'darwin');
+    expect(mac.command).toBe('osascript');
+    expect(mac.args.join(' ')).toContain('npm run auth:setup');
+
+    const lin = buildTerminalCommand('/home/x/repo', 'npm run auth:setup', 'linux');
+    expect(lin.command).toBe('gnome-terminal');
+    expect(lin.args.join(' ')).toContain('npm run auth:setup');
   });
 });
 

@@ -28,6 +28,10 @@ export interface EnvWriteOptions {
   baseUrl: string;
   roles: WizardRoleInput[];
   challengeMode: ChallengeMode;
+  /** AUTH_LOGIN_URL_PATH — login page path (default /login). */
+  loginUrlPath?: string;
+  /** AUTH_SUCCESS_URL_PATH — post-login redirect path (default /dashboard). */
+  successUrlPath?: string;
 }
 
 export interface EnvWriteResult {
@@ -93,6 +97,12 @@ export function buildEnvFileContent(options: EnvWriteOptions): BuiltEnvFile {
   put('BASE_URL', baseUrl);
   put('AUTH_CHALLENGE_MODE', challengeMode);
   put('HEADLESS', challengeHeadless(challengeMode));
+  if (options.loginUrlPath) {
+    put('AUTH_LOGIN_URL_PATH', options.loginUrlPath);
+  }
+  if (options.successUrlPath) {
+    put('AUTH_SUCCESS_URL_PATH', options.successUrlPath);
+  }
 
   const { envUpserts, warnings } = normalizeWizardRoles(roles);
   for (const [key, value] of Object.entries(envUpserts)) {
