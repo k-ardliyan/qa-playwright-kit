@@ -92,6 +92,7 @@ export interface CollectedTestCase {
   errorMessage?: string;
   errors?: CollectedError[];
   steps?: CollectedStep[];
+  attachments?: CollectedAttachment[];
 }
 
 /**

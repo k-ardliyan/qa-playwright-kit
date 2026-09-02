@@ -24,9 +24,18 @@ export const ENV_FILE_DEFAULTS: Record<string, string> = {
 };
 
 /** Role credential suffixes, in the order they appear in a role section. */
-const ROLE_SUFFIX_ORDER = ['EMAIL', 'USERNAME', 'PHONE', 'PASSWORD', 'LOGIN_ID_PREF'];
+const ROLE_SUFFIX_ORDER = [
+  'EMAIL',
+  'USERNAME',
+  'PHONE',
+  'PASSWORD',
+  'LOGIN_ID_PREF',
+  'LOGIN_URL_PATH',
+  'SUCCESS_URL_PATH',
+];
 
-const ROLE_KEY_RE = /^([A-Z0-9_]+)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF)$/;
+const ROLE_KEY_RE =
+  /^([A-Z0-9_]+)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF|LOGIN_URL_PATH|SUCCESS_URL_PATH)$/;
 
 /** Keys shown under "URL Aplikasi". */
 const URL_KEYS = ['BASE_URL', 'AUTH_LOGIN_URL_PATH', 'AUTH_SUCCESS_URL_PATH'];

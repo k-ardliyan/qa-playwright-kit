@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Per-role login & redirect paths — 2026-09-02
+- **Per-Role Login & Redirect Flow:** `promptRoleCredentials` di wizard kini menyatukan input kredensial, path halaman login (`{ROLE}_LOGIN_URL_PATH`, default `/login`), dan path redirect sukses (`{ROLE}_SUCCESS_URL_PATH`, default `/dashboard`) dalam satu konteks per-role. `BASE_URL` terpisah murni sebagai host server.
+- **Dynamic Multi-Role Setup:** Setup wizard menerima daftar role kustom apa pun (`admin,guru,murid`, `buyer,seller`, dll.) tanpa menyisipkan role `user` siluman jika tidak didefinisikan.
+- **Auth Setup Per-Role:** `src/support/auth.setup.ts` men-generate blok otentikasi per-role yang membaca path login & redirect milik masing-masing role secara terisolasi (`process.env.${envPrefix}_LOGIN_URL_PATH` dan `process.env.${envPrefix}_SUCCESS_URL_PATH`).
+- **`env:edit` Per-Role Paths:** Aksi edit role dan tambah role di `npm run env:edit` kini menyertakan input path login & redirect per role.
+
 ### Login & success redirect paths, one-shot Hermes prompt & setup overhaul — 2026-09-02
 - **Prompt login & redirect di wizard (Opsi C):** Step 3 wizard kini menanyakan path halaman login (`AUTH_LOGIN_URL_PATH`, default `/login`) dan path redirect setelah login sukses (`AUTH_SUCCESS_URL_PATH`, default `/dashboard`) dengan prefill, validasi leading-slash, dan normalisasi URL-ke-pathname (`normalizeAppPath`). Nilai masuk ke env bersih section "URL Aplikasi", `src/support/auth.setup.ts`, `requirements/login.md`, pratinjau, dan summary.
 - **Menu env:edit:** `npm run env:edit` menu "Edit BASE_URL / browser / OTP-CAPTCHA" kini menyertakan field `AUTH_LOGIN_URL_PATH` dan `AUTH_SUCCESS_URL_PATH`; tabel kredensial menampilkan keduanya.

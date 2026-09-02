@@ -427,8 +427,21 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
       ],
       initial: 0,
     },
+    {
+      type: 'text',
+      name: 'loginUrlPath',
+      message: `Path halaman login ${roleName} (Enter = ${map[ref.loginUrlPathKey] || '/login'}):`,
+      initial: map[ref.loginUrlPathKey] || '',
+    },
+    {
+      type: 'text',
+      name: 'successUrlPath',
+      message: `Path redirect sukses ${roleName} (Enter = ${map[ref.successUrlPathKey] || '/dashboard'}):`,
+      initial: map[ref.successUrlPathKey] || '',
+    },
   ]);
-  if (ans.email === undefined && ans.username === undefined) return content;
+  if (ans.email === undefined && ans.username === undefined && ans.password === undefined)
+    return content;
 
   const password =
     ans.password && String(ans.password).length > 0
@@ -437,6 +450,8 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
   const email = String(ans.email ?? '').trim();
   const username = String(ans.username ?? '').trim();
   const phone = String(ans.phone ?? '').trim();
+  const loginUrlPath = String(ans.loginUrlPath ?? '').trim();
+  const successUrlPath = String(ans.successUrlPath ?? '').trim();
   if (!password) {
     printWarn('Password wajib untuk role yang login.');
     return content;
@@ -454,6 +469,12 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
   if (phone) values[ref.phoneKey] = phone;
   const pref = String(ans.loginIdPref ?? 'auto');
   if (pref && pref !== 'auto') values[ref.loginIdPrefKey] = pref;
+  if (loginUrlPath)
+    values[ref.loginUrlPathKey] = loginUrlPath.startsWith('/') ? loginUrlPath : `/${loginUrlPath}`;
+  if (successUrlPath)
+    values[ref.successUrlPathKey] = successUrlPath.startsWith('/')
+      ? successUrlPath
+      : `/${successUrlPath}`;
 
   const trial = { ...map, ...values };
   // Cleared fields must not linger from previous map
@@ -518,12 +539,26 @@ async function actionAddRole(content: string, map: Record<string, string>): Prom
       ],
       initial: 0,
     },
+    {
+      type: 'text',
+      name: 'loginUrlPath',
+      message: 'Path halaman login (Enter = /login):',
+      initial: '/login',
+    },
+    {
+      type: 'text',
+      name: 'successUrlPath',
+      message: 'Path redirect sukses (Enter = /dashboard):',
+      initial: '/dashboard',
+    },
   ]);
   if (!ans.roleName || !ans.password) return content;
 
   const email = String(ans.email ?? '').trim();
   const username = String(ans.username ?? '').trim();
   const phone = String(ans.phone ?? '').trim();
+  const loginUrlPath = String(ans.loginUrlPath ?? '').trim();
+  const successUrlPath = String(ans.successUrlPath ?? '').trim();
   if (!email && !username && !phone) {
     printWarn('Isi minimal satu identitas: email, username, atau telepon.');
     return content;
@@ -538,6 +573,14 @@ async function actionAddRole(content: string, map: Record<string, string>): Prom
   if (phone) values[ref.phoneKey] = phone;
   const pref = String(ans.loginIdPref ?? 'auto');
   if (pref && pref !== 'auto') values[ref.loginIdPrefKey] = pref;
+  if (loginUrlPath && loginUrlPath !== '/login') {
+    values[ref.loginUrlPathKey] = loginUrlPath.startsWith('/') ? loginUrlPath : `/${loginUrlPath}`;
+  }
+  if (successUrlPath && successUrlPath !== '/dashboard') {
+    values[ref.successUrlPathKey] = successUrlPath.startsWith('/')
+      ? successUrlPath
+      : `/${successUrlPath}`;
+  }
 
   const next = upsertEnvContent(content, values, 'Kredensial per role');
   printOk(`Role ${ref.name} ditambahkan`);
@@ -639,7 +682,12 @@ function regenAuthSetup(map: Record<string, string>): void {
 
   writeAuthSetup(
     {
-      roles: roles.map((r) => ({ name: r.name, authFile: r.authFile })),
+      roles: roles.map((r) => ({
+        name: r.name,
+        authFile: r.authFile,
+        loginUrl: map[r.loginUrlPathKey] || loginUrl,
+        successUrlPath: map[r.successUrlPathKey] || successUrlPath,
+      })),
       loginUrl,
       successUrlPath,
     },

@@ -94,6 +94,67 @@ Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Do not mark a scenario `(@manu
 
 ---
 
+---
+
+## Complex Login Flow Recipes (`src/support/auth.setup.ts`)
+
+`auth.setup.ts` is modular and designed to be customized when an app has extra login interactions beyond simple username + password. Add custom steps directly in `src/support/auth.setup.ts` (add `// CUSTOM_AUTH_FLOW` at the top to protect from wizard overwrite).
+
+### Recipe 1: Post-Login Profile / Tenant / Branch Selector
+When submitting credentials keeps the user on the same page to pick a user profile, account, or branch before redirecting:
+
+```typescript
+await test.step('Isi kredensial dan submit form login', async () => {
+  await page.fill('input[name="username"]', cred.loginId);
+  await page.fill('input[name="password"]', cred.password);
+  await page.click('button[type="submit"]');
+});
+
+await test.step('Pilih profil pengguna setelah login', async () => {
+  // Wait for the re-rendered profile card/button
+  const profileItem = page.getByRole('button', { name: new RegExp(cred.loginId, 'i') }).first();
+  await expect(profileItem).toBeVisible({ timeout: 10_000 });
+  await profileItem.click();
+
+  // If there is a confirmation button:
+  const continueBtn = page.getByRole('button', { name: /lanjutkan|pilih|masuk/i }).first();
+  if (await continueBtn.isVisible().catch(() => false)) {
+    await continueBtn.click();
+  }
+});
+```
+
+### Recipe 2: 2-Step Login (Identifier -> Next -> Password)
+When the application asks for email/username on screen 1, clicks "Next", then shows the password input on screen 2:
+
+```typescript
+await test.step('Isi identifier dan klik Lanjutkan', async () => {
+  await page.fill('input[name="email"], input[name="username"]', cred.loginId);
+  await page.click('button:has-text("Next"), button:has-text("Lanjutkan")');
+});
+
+await test.step('Isi password dan submit', async () => {
+  const pwdInput = page.locator('input[type="password"]');
+  await expect(pwdInput).toBeVisible({ timeout: 10_000 });
+  await pwdInput.fill(cred.password);
+  await page.click('button[type="submit"], button:has-text("Login")');
+});
+```
+
+### Recipe 3: Post-Login Terms / Disclaimer Modal
+When a modal dialog appears after password verification requiring acceptance before reaching the dashboard:
+
+```typescript
+await test.step('Konfirmasi disclaimer/persetujuan setelah login', async () => {
+  const acceptBtn = page.getByRole('button', { name: /saya setuju|agree|accept|lanjutkan/i }).first();
+  if (await acceptBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await acceptBtn.click();
+  }
+});
+```
+
+---
+
 ## Pitfalls
 
 - `general` is a pipeline mode (non-role-aware), NEVER a role name. The sole default role is `user` (with `TEST_USER_*` credentials and `.auth/{APP_ENV}/user.json`). Never output `Role: general` or `role: 'general'`.

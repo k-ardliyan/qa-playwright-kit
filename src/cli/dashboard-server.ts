@@ -144,10 +144,18 @@ function normalizeTestCases(
       errorMessage: (t['errorMessage'] as string) || '',
       errors: (t['errors'] as import('../support/custom-dashboard/types').CollectedError[]) || [],
       steps: (t['steps'] as import('../support/custom-dashboard/types').CollectedStep[]) || [],
-      attachments: [],
+      attachments:
+        (t['attachments'] as import('../support/custom-dashboard/types').CollectedAttachment[]) ||
+        [],
       retry: 0,
-      attachmentCount: (t['attachmentCount'] as number) ?? 0,
-      hasTrace: (t['hasTrace'] as boolean) ?? false,
+      attachmentCount:
+        (t['attachmentCount'] as number) ??
+        (Array.isArray(t['attachments']) ? (t['attachments'] as unknown[]).length : 0),
+      hasTrace:
+        (t['hasTrace'] as boolean) ??
+        (Array.isArray(t['attachments'])
+          ? (t['attachments'] as Array<{ kind?: string }>).some((a) => a.kind === 'trace')
+          : false),
     };
   });
 }

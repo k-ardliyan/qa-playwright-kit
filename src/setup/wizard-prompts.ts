@@ -21,6 +21,8 @@ export interface RoleFields {
   phone?: string;
   password: string;
   loginIdPref?: 'email' | 'username' | 'phone';
+  loginUrlPath?: string;
+  successUrlPath?: string;
 }
 
 /** Sentinel returned when the user picks "back" on a numbered choice. */
@@ -280,62 +282,6 @@ export function isValidAppPathInput(v: string): boolean {
   return !/\s/.test(t) && !t.includes('?') && !t.includes('#');
 }
 
-export interface LoginPathAnswers {
-  /** AUTH_LOGIN_URL_PATH — page where the login form lives. */
-  loginUrlPath: string;
-  /** AUTH_SUCCESS_URL_PATH — where the app redirects after a successful login. */
-  successUrlPath: string;
-}
-
-/**
- * Prompt for the project's login page path and post-login redirect path.
- * Both accept Enter-for-default and pasted full URLs; values land in the env
- * (AUTH_LOGIN_URL_PATH / AUTH_SUCCESS_URL_PATH) and drive the generated
- * login requirement, auth.setup, and the final Hermes prompt.
- */
-export async function promptLoginPaths(
-  lang: WizardLang,
-  existing?: { loginUrlPath?: string; successUrlPath?: string },
-): Promise<LoginPathAnswers> {
-  const loginDefault = existing?.loginUrlPath || '/login';
-  const successDefault = existing?.successUrlPath || '/dashboard';
-
-  const { loginPath } = await prompts(
-    {
-      type: 'text',
-      name: 'loginPath',
-      message: t(
-        lang,
-        'Path halaman login (Enter = default, boleh paste URL lengkap)',
-        'Login page path (Enter = default, full URL is accepted)',
-      ),
-      initial: loginDefault,
-      validate: isValidAppPathInput,
-    },
-    { onCancel },
-  );
-
-  const { successPath } = await prompts(
-    {
-      type: 'text',
-      name: 'successPath',
-      message: t(
-        lang,
-        'Setelah login sukses, halaman diarahkan ke path apa? (Enter = default)',
-        'After a successful login, where is the user redirected? (Enter = default)',
-      ),
-      initial: successDefault,
-      validate: isValidAppPathInput,
-    },
-    { onCancel },
-  );
-
-  return {
-    loginUrlPath: normalizeAppPath(String(loginPath ?? ''), loginDefault),
-    successUrlPath: normalizeAppPath(String(successPath ?? ''), successDefault),
-  };
-}
-
 /**
  * Prompt for credentials of a single role.
  * Simpler path for non-technical users: pick one login identifier (email/username/phone),
@@ -402,11 +348,19 @@ export async function promptRoleCredentials(
     return true;
   };
 
-  // Simple step loop: 0 = picker, 1 = identifier value, 2 = password, 3 = confirm.
-  let step: 0 | 1 | 2 | 3 = 0;
+  // 6-step loop:
+  // 0 = method picker (email/username/phone)
+  // 1 = identifier value
+  // 2 = password
+  // 3 = password confirm
+  // 4 = loginUrlPath (e.g. /login or /admin/login)
+  // 5 = successUrlPath (e.g. /dashboard or /guru/kelas)
+  let step: 0 | 1 | 2 | 3 | 4 | 5 = 0;
   let id: 'email' | 'username' | 'phone' = pickId;
   let identValue = '';
   let password = '';
+  let loginPath = '';
+  let successPath: string;
 
   for (;;) {
     if (step === 0) {
@@ -456,29 +410,80 @@ export async function promptRoleCredentials(
       continue;
     }
 
-    // step === 3: confirm — mismatch re-prompts, 0 goes back to password.
-    const confirm = await promptTextWithBack({
-      lang,
-      isSecret: true,
-      message: t(lang, `Konfirmasi password untuk ${role}`, `Confirm password for ${role}`),
-    });
-    if (confirm === BACK) {
-      step = 2;
+    if (step === 3) {
+      // step === 3: confirm — mismatch re-prompts, 0 goes back to password.
+      const confirm = await promptTextWithBack({
+        lang,
+        isSecret: true,
+        message: t(lang, `Konfirmasi password untuk ${role}`, `Confirm password for ${role}`),
+      });
+      if (confirm === BACK) {
+        step = 2;
+        continue;
+      }
+      if (confirm === password) {
+        step = 4;
+        continue;
+      }
+      console.log(
+        t(
+          lang,
+          `⚠ Password tidak cocok untuk role "${role}" — coba lagi`,
+          `⚠ Passwords do not match for role "${role}" — try again`,
+        ),
+      );
       continue;
     }
-    if (confirm === password) {
-      const fields: RoleFields = { password };
-      fields[id] = identValue;
-      fields.loginIdPref = id;
-      return fields;
-    }
-    console.log(
-      t(
+
+    if (step === 4) {
+      const defaultLogin = existing?.loginUrlPath || '/login';
+      const value = await promptTextWithBack({
         lang,
-        `⚠ Password tidak cocok untuk role "${role}" — coba lagi`,
-        `⚠ Passwords do not match for role "${role}" — try again`,
+        message: t(
+          lang,
+          `Path halaman login untuk ${role} (Enter = ${defaultLogin})`,
+          `Login page path for ${role} (Enter = ${defaultLogin})`,
+        ),
+        initial: defaultLogin,
+        validate: (v: string) =>
+          isValidAppPathInput(v) || t(lang, 'Format path tidak valid', 'Invalid path format'),
+      });
+      if (value === BACK) {
+        step = 3;
+        continue;
+      }
+      loginPath = normalizeAppPath(value, defaultLogin);
+      step = 5;
+      continue;
+    }
+
+    // step === 5: success redirect path
+    const defaultSuccess = existing?.successUrlPath || '/dashboard';
+    const value = await promptTextWithBack({
+      lang,
+      message: t(
+        lang,
+        `Path redirect sukses untuk ${role} (Enter = ${defaultSuccess})`,
+        `Success redirect path for ${role} (Enter = ${defaultSuccess})`,
       ),
-    );
+      initial: defaultSuccess,
+      validate: (v: string) =>
+        isValidAppPathInput(v) || t(lang, 'Format path tidak valid', 'Invalid path format'),
+    });
+    if (value === BACK) {
+      step = 4;
+      continue;
+    }
+    successPath = normalizeAppPath(value, defaultSuccess);
+
+    const fields: RoleFields = {
+      password,
+      loginUrlPath: loginPath,
+      successUrlPath: successPath,
+    };
+    fields[id] = identValue;
+    fields.loginIdPref = id;
+    return fields;
   }
 }
 

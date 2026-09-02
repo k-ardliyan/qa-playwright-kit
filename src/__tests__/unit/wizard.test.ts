@@ -247,26 +247,80 @@ test.describe('buildTerminalCommand', () => {
 });
 
 test.describe('buildEnvFileContent with custom multi-roles', () => {
-  test('generates env for admin, guru, murid without injecting user', () => {
-    const built = buildEnvFileContent({
-      appEnv: 'dev',
-      baseUrl: 'http://localhost:3000',
-      roles: [
-        { name: 'admin', fields: { username: 'admin1', password: 'secret-admin' } },
-        { name: 'guru', fields: { username: 'guru1', password: 'secret-guru' } },
-        { name: 'murid', fields: { username: 'murid1', password: 'secret-murid' } },
-      ],
-      challengeMode: 'none',
-    });
+  function withIsolatedRepo(): (cleanup?: boolean) => void {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wizard-multi-role-'));
+    const originalCwd = process.cwd();
+    fs.writeFileSync(
+      path.join(tmp, 'package.json'),
+      JSON.stringify({ name: 'wizard-multi-fixture' }),
+    );
+    const envDir = path.join(tmp, 'config', 'environments');
+    fs.mkdirSync(envDir, { recursive: true });
+    process.chdir(tmp);
+    return () => {
+      process.chdir(originalCwd);
+      fs.rmSync(tmp, { recursive: true, force: true });
+    };
+  }
 
-    expect(built.content).toContain('ADMIN_USERNAME=admin1');
-    expect(built.content).toContain('ADMIN_PASSWORD=secret-admin');
-    expect(built.content).toContain('GURU_USERNAME=guru1');
-    expect(built.content).toContain('GURU_PASSWORD=secret-guru');
-    expect(built.content).toContain('MURID_USERNAME=murid1');
-    expect(built.content).toContain('MURID_PASSWORD=secret-murid');
-    // Must not contain TEST_USER keys when user is not in roles
-    expect(built.content).not.toContain('TEST_USER_');
+  test('generates env for admin, guru, murid with per-role login/redirect paths', () => {
+    const cleanup = withIsolatedRepo();
+    try {
+      const built = buildEnvFileContent({
+        appEnv: 'dev',
+        baseUrl: 'http://localhost:3000',
+        roles: [
+          {
+            name: 'admin',
+            fields: {
+              username: 'admin1',
+              password: 'secret-admin',
+              loginUrlPath: '/admin/login',
+              successUrlPath: '/admin/dashboard',
+            },
+          },
+          {
+            name: 'guru',
+            fields: {
+              username: 'guru1',
+              password: 'secret-guru',
+              loginUrlPath: '/portal/guru',
+              successUrlPath: '/guru/kelas',
+            },
+          },
+          {
+            name: 'murid',
+            fields: {
+              username: 'murid1',
+              password: 'secret-murid',
+              loginUrlPath: '/login',
+              successUrlPath: '/student/home',
+            },
+          },
+        ],
+        challengeMode: 'none',
+      });
+
+      expect(built.content).toContain('ADMIN_USERNAME=admin1');
+      expect(built.content).toContain('ADMIN_PASSWORD=secret-admin');
+      expect(built.content).toContain('ADMIN_LOGIN_URL_PATH=/admin/login');
+      expect(built.content).toContain('ADMIN_SUCCESS_URL_PATH=/admin/dashboard');
+
+      expect(built.content).toContain('GURU_USERNAME=guru1');
+      expect(built.content).toContain('GURU_PASSWORD=secret-guru');
+      expect(built.content).toContain('GURU_LOGIN_URL_PATH=/portal/guru');
+      expect(built.content).toContain('GURU_SUCCESS_URL_PATH=/guru/kelas');
+
+      expect(built.content).toContain('MURID_USERNAME=murid1');
+      expect(built.content).toContain('MURID_PASSWORD=secret-murid');
+      expect(built.content).toContain('MURID_LOGIN_URL_PATH=/login');
+      expect(built.content).toContain('MURID_SUCCESS_URL_PATH=/student/home');
+
+      // Must not contain TEST_USER keys when user is not in roles
+      expect(built.content).not.toContain('TEST_USER_');
+    } finally {
+      cleanup();
+    }
   });
 });
 

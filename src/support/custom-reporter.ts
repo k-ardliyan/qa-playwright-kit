@@ -29,7 +29,7 @@ import type {
 import { resolveFailureSource } from './custom-dashboard/failure-source';
 import { toReportRelativePath } from './custom-dashboard/shared';
 import { streamTelemetryEvent } from './streaming/live-telemetry';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 
 const REPORT_DIR = path.resolve(process.cwd(), 'reports');
 const DASHBOARD_PATH = path.join(REPORT_DIR, 'custom-dashboard.html');
@@ -276,6 +276,127 @@ function resolveFeatureFromPath(annotationValue: string, filePath: string): stri
   return '-';
 }
 
+function findDeepestFailingStep(steps: TestStep[]): { title: string; message?: string } | null {
+  for (const step of steps) {
+    if (step.error) {
+      if (step.steps && step.steps.length > 0) {
+        const deeper = findDeepestFailingStep(step.steps);
+        if (deeper) return deeper;
+      }
+      return { title: step.title, message: step.error.message };
+    }
+  }
+  return null;
+}
+
+/**
+ * Format a rich, readable failure reason for the ACTUAL RESULT column.
+ * Strips ANSI codes, surfaces the specific failing step, and extracts
+ * the root cause (locator timeout, network failure, expectation mismatch, etc.)
+ * rather than a bare "Test timeout of 30000ms exceeded".
+ */
+export function deriveActualFailureMessage(result: TestResult, annotationActual?: string): string {
+  if (annotationActual) {
+    return stripAnsi(annotationActual).trim();
+  }
+
+  const rawMessages: string[] = [];
+  if (result.error?.message) rawMessages.push(result.error.message);
+  for (const err of result.errors ?? []) {
+    if (err.message && !rawMessages.includes(err.message)) {
+      rawMessages.push(err.message);
+    }
+    if (err.stack && !rawMessages.includes(err.stack)) {
+      rawMessages.push(err.stack);
+    }
+  }
+
+  const fullText = stripAnsi(rawMessages.join('\n'));
+  const failingStep = findDeepestFailingStep(result.steps ?? []);
+
+  const parts: string[] = [];
+
+  if (
+    failingStep &&
+    !failingStep.title.startsWith('Worker Cleanup') &&
+    !failingStep.title.startsWith('Before Hooks') &&
+    !failingStep.title.startsWith('After Hooks')
+  ) {
+    parts.push(`Gagal pada langkah: "${failingStep.title}"`);
+  }
+
+  // 1. Check for Network / Connection errors (e.g. net::ERR_CONNECTION_REFUSED)
+  const netMatch = fullText.match(/net::ERR_[A-Z_]+(?:\s+at\s+\S+)?/i);
+  if (netMatch) {
+    parts.push(`Koneksi gagal: ${netMatch[0].trim()}`);
+    return parts.join('\n');
+  }
+
+  // 2. Check for Assertion Mismatch (Expected vs Received)
+  const expectMatch = fullText.match(
+    /Expected (?:string|value|pattern)?:\s*([^\n]+)\s*\n\s*Received (?:string|value)?:\s*([^\n]+)/i,
+  );
+  if (expectMatch) {
+    const exp = expectMatch[1].trim();
+    const rec = expectMatch[2].trim();
+    parts.push(`Nilai tidak sesuai — Diharapkan: ${exp}, Diterima: ${rec}`);
+    return parts.join('\n');
+  }
+
+  // 3. Check for Locator wait / Actionability failures
+  const locatorMatch = fullText.match(
+    /(?:waiting for|Locator:)\s*(?:locator|element|getBy\w+|selector)?\s*\(?((?:locator|getBy\w+|['"][^'"]+['"]|[^)\n\r]+)+)\)?(?:\s+to be\s+\w+)?/i,
+  );
+  // 4. Check for Navigation / waitForURL failures
+  const urlMatch = fullText.match(
+    /waiting for (?:navigation|URL)\s*(?:to\s*)?["']?([^"'\n\r]+)["']?/i,
+  );
+  // 5. Check for Click Interception / Not Clickable
+  const interceptMatch = fullText.match(
+    /element is not visible|is disabled|another element \S+ obscures it|intercepts pointer events/i,
+  );
+
+  if (interceptMatch) {
+    parts.push(`Interaksi terhalang: ${interceptMatch[0].trim()}`);
+  } else if (locatorMatch && !locatorMatch[0].toLowerCase().includes('navigation')) {
+    parts.push(
+      `Elemen tidak ditemukan / belum siap: ${locatorMatch[0].trim().replace(/^Locator:\s*/i, '')}`,
+    );
+  } else if (urlMatch) {
+    parts.push(`Menunggu halaman: ${urlMatch[0].trim()}`);
+  } else if (/timeout (?:of \d+ms )?exceeded/i.test(fullText)) {
+    const timeMatch = fullText.match(/timeout of (\d+)ms exceeded/i);
+    const ms = timeMatch ? `${parseInt(timeMatch[1], 10) / 1000}s` : '30s';
+    parts.push(`Timeout (${ms}): Operasi melebihi batas waktu tunggu`);
+  }
+
+  // If structured reasons were extracted, return them
+  if (parts.length > 0) {
+    const firstLine = fullText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l.length > 0 && !l.startsWith('Error:') && !l.startsWith('Call log:'));
+    if (
+      firstLine &&
+      !parts.some((p) => p.toLowerCase().includes(firstLine.toLowerCase())) &&
+      firstLine.length < 100 &&
+      !firstLine.includes('timeout')
+    ) {
+      parts.push(firstLine);
+    }
+    return parts.join('\n');
+  }
+
+  // Fallback: clean first 2-3 lines of raw error message
+  const lines = fullText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith('Call log:'))
+    .slice(0, 3);
+
+  return lines.length > 0 ? lines.join('\n') : '-';
+}
+
 function formatErrorMessage(errors: CollectedError[]): string {
   const seen = new Set<string>();
   return errors
@@ -465,7 +586,7 @@ export default class CustomReporter implements Reporter {
     const actualResult =
       result.status === 'passed'
         ? actualResultAnnotation || 'Sesuai dengan expected result'
-        : actualResultAnnotation || result.error?.message || result.errors?.[0]?.message || '-';
+        : deriveActualFailureMessage(result, actualResultAnnotation);
 
     const failureSource = resolveFailureSource({
       status: result.status,
@@ -536,6 +657,7 @@ export default class CustomReporter implements Reporter {
         errorMessage: t.errorMessage,
         errors: t.errors,
         steps: t.steps,
+        attachments: t.attachments,
       }));
 
       const runMeta = buildRunMeta(this.collectedTests);

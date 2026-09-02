@@ -21,6 +21,10 @@ export interface RoleCredentialRef {
   phoneKey: string;
   passwordKey: string;
   loginIdPrefKey: string;
+  /** Key for role-specific login page path (e.g. ADMIN_LOGIN_URL_PATH). */
+  loginUrlPathKey: string;
+  /** Key for role-specific post-login redirect path (e.g. ADMIN_SUCCESS_URL_PATH). */
+  successUrlPathKey: string;
 }
 
 export interface ResolvedLoginId {
@@ -34,13 +38,15 @@ export type ResolveLoginIdResult = ResolvedLoginId | { error: string };
 
 export interface WizardRoleInput {
   name: string;
-  /** Plain field bag: email?, username?, phone?, password, loginIdPref? */
+  /** Plain field bag: email?, username?, phone?, password, loginIdPref?, loginUrlPath?, successUrlPath? */
   fields: {
     email?: string;
     username?: string;
     phone?: string;
     password: string;
     loginIdPref?: string;
+    loginUrlPath?: string;
+    successUrlPath?: string;
   };
 }
 
@@ -101,6 +107,8 @@ export function roleCredentialKeys(roleName: string, appEnv?: string): RoleCrede
     phoneKey: `${prefix}_PHONE`,
     passwordKey: `${prefix}_PASSWORD`,
     loginIdPrefKey: `${prefix}_LOGIN_ID_PREF`,
+    loginUrlPathKey: `${prefix}_LOGIN_URL_PATH`,
+    successUrlPathKey: `${prefix}_SUCCESS_URL_PATH`,
   };
 }
 
@@ -220,6 +228,12 @@ export function roleFieldsToEnvUpserts(
   const pref = (fields.loginIdPref ?? '').trim().toLowerCase();
   if (pref && pref !== 'auto' && (pref === 'email' || pref === 'username' || pref === 'phone')) {
     out[ref.loginIdPrefKey] = pref;
+  }
+  if (fields.loginUrlPath?.trim()) {
+    out[ref.loginUrlPathKey] = fields.loginUrlPath.trim();
+  }
+  if (fields.successUrlPath?.trim()) {
+    out[ref.successUrlPathKey] = fields.successUrlPath.trim();
   }
   return out;
 }
@@ -347,10 +361,13 @@ export function parseRolesFromEnvMap(map: Record<string, string>): RoleCredentia
   consider('user');
 
   for (const key of Object.keys(map)) {
-    const m = /^([A-Z0-9_]+)_(EMAIL|USERNAME|PHONE|PASSWORD)$/.exec(key);
+    const m =
+      /^([A-Z0-9_]+)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF|LOGIN_URL_PATH|SUCCESS_URL_PATH)$/.exec(
+        key,
+      );
     if (!m) continue;
     const prefix = m[1];
-    if (prefix === 'TEST_USER' || prefix === 'DOTENV_PUBLIC_KEY') continue;
+    if (prefix === 'TEST_USER' || prefix === 'DOTENV_PUBLIC_KEY' || prefix === 'DOTENV') continue;
     if (prefix.endsWith('_LOGIN_ID')) continue;
     consider(envPrefixToRole(prefix));
   }

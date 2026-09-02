@@ -29,7 +29,6 @@ import {
   promptLanguage,
   promptAppEnv,
   promptBaseUrl,
-  promptLoginPaths,
   promptRoleCredentials,
   promptRoles,
   promptChallengeMode,
@@ -171,25 +170,14 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   // ─── Step 4: Playwright browser availability (install runs in parallel) ─
   await ensureBrowsers(lang);
 
-  // ─── Step 3: Prompt BASE_URL + login/redirect paths ─────────────────────
-  printStep(3, TOTAL_STEPS, lang, 'URL aplikasi & halaman login', 'App URL & login pages');
+  // ─── Step 3: Prompt BASE_URL ────────────────────────────────────────────
+  printStep(3, TOTAL_STEPS, lang, 'URL aplikasi (BASE_URL)', 'Application BASE_URL');
   const existingUrl =
     existing && !isEncryptedValue(existing['BASE_URL']) ? existing['BASE_URL'] : undefined;
   const baseUrl = await promptBaseUrl(lang, existingUrl);
 
-  const loginPaths = await promptLoginPaths(lang, {
-    loginUrlPath:
-      existing && !isEncryptedValue(existing['AUTH_LOGIN_URL_PATH'])
-        ? existing['AUTH_LOGIN_URL_PATH'] || undefined
-        : undefined,
-    successUrlPath:
-      existing && !isEncryptedValue(existing['AUTH_SUCCESS_URL_PATH'])
-        ? existing['AUTH_SUCCESS_URL_PATH'] || undefined
-        : undefined,
-  });
-
-  // ─── Step 4: Prompt roles ───────────────────────────────────────────────
-  printStep(4, TOTAL_STEPS, lang, 'Kredensial role', 'Role credentials');
+  // ─── Step 4: Prompt roles (credentials + login/redirect paths) ──────────
+  printStep(4, TOTAL_STEPS, lang, 'Kredensial & halaman role', 'Role credentials & pages');
   const existingRoles = existing ? detectExistingRoles(existing) : [];
   const roleNames = await promptRoles(lang, existingRoles.length > 0 ? existingRoles : undefined);
 
@@ -215,7 +203,6 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     lang,
     appEnv,
     baseUrl,
-    loginPaths,
     roles: roleInputs,
     challengeMode,
   });
@@ -242,8 +229,6 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     baseUrl,
     roles: roleInputs,
     challengeMode,
-    loginUrlPath: loginPaths.loginUrlPath,
-    successUrlPath: loginPaths.successUrlPath,
   });
 
   stepLine(
@@ -275,14 +260,15 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     stepLine(`⚠ ${w}`);
   }
   // ─── Write requirements/login.md from this env + challenge ──────────────
+  const primaryRole = roleInputs[0];
   const loginState = loginStateFromWizard({
     baseUrl,
     appEnv,
     roles: roleNames,
     challengeMode,
-    loginIdPref: roleInputs[0]?.fields.loginIdPref,
-    loginUrl: loginPaths.loginUrlPath,
-    successUrlPath: loginPaths.successUrlPath,
+    loginIdPref: primaryRole?.fields.loginIdPref,
+    loginUrl: primaryRole?.fields.loginUrlPath || '/login',
+    successUrlPath: primaryRole?.fields.successUrlPath || '/dashboard',
   });
   const loginFile = writeLoginRequirementFile(process.cwd(), loginState);
   const loginMarkdown = loginFile.skipped
@@ -300,25 +286,31 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     ),
   );
 
-  // ─── Regenerate src/support/auth.setup.ts with real login/success paths ──
+  // ─── Regenerate src/support/auth.setup.ts with real per-role paths ───────
   const authSetupOut = path.join(process.cwd(), 'src', 'support', 'auth.setup.ts');
-  const authRoles = roleNames.map((name) => ({
-    name,
-    authFile: `.auth/${appEnv}/${name}.json`,
+  const authRoles = roleInputs.map((r) => ({
+    name: r.name,
+    authFile: `.auth/${appEnv}/${r.name}.json`,
+    loginUrl: r.fields.loginUrlPath || '/login',
+    successUrlPath: r.fields.successUrlPath || '/dashboard',
   }));
-  writeAuthSetup(
+  const authWrite = writeAuthSetup(
     {
       roles: authRoles,
-      loginUrl: loginPaths.loginUrlPath,
-      successUrlPath: loginPaths.successUrlPath,
+      loginUrl: primaryRole?.fields.loginUrlPath || '/login',
+      successUrlPath: primaryRole?.fields.successUrlPath || '/dashboard',
     },
     authSetupOut,
   );
   stepLine(
     t(
       lang,
-      `✓ Setup autentikasi di-update: src/support/auth.setup.ts (login: ${loginPaths.loginUrlPath}, redirect: ${loginPaths.successUrlPath})`,
-      `✓ Auth setup updated: src/support/auth.setup.ts (login: ${loginPaths.loginUrlPath}, redirect: ${loginPaths.successUrlPath})`,
+      authWrite.skipped
+        ? `✓ Setup autentikasi: src/support/auth.setup.ts memiliki kustomisasi QA (// CUSTOM_AUTH_FLOW) — tidak ditimpa`
+        : `✓ Setup autentikasi di-update: src/support/auth.setup.ts (${roleNames.length} role)`,
+      authWrite.skipped
+        ? `✓ Auth setup: src/support/auth.setup.ts has custom QA flow (// CUSTOM_AUTH_FLOW) — left intact`
+        : `✓ Auth setup updated: src/support/auth.setup.ts (${roleNames.length} role)`,
     ),
   );
 
@@ -368,8 +360,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     lang,
     appEnv,
     baseUrl,
-    loginPaths,
-    roles: roleNames,
+    roles: roleInputs,
     challengeMode,
     writeResult,
     validation,
@@ -476,18 +467,13 @@ function printPreview(opts: {
   lang: WizardLang;
   appEnv: AppEnv;
   baseUrl: string;
-  loginPaths: { loginUrlPath: string; successUrlPath: string };
   roles: WizardRoleInput[];
   challengeMode: ChallengeMode;
 }): void {
-  const { lang, appEnv, baseUrl, loginPaths, roles, challengeMode } = opts;
+  const { lang, appEnv, baseUrl, roles, challengeMode } = opts;
   printSection(lang, 'Pratinjau (disamarkan)', 'Preview (masked)');
   stepLine(`  APP_ENV      ${appEnv}`);
   stepLine(`  BASE_URL     ${baseUrl}`);
-  stepLine(`  LOGIN PATH   ${loginPaths.loginUrlPath}`);
-  stepLine(
-    `  REDIRECT     ${loginPaths.successUrlPath} (${t(lang, 'setelah login sukses', 'after successful login')})`,
-  );
   stepLine(
     `  HEADLESS     ${
       challengeMode === 'otp-browser' ||
@@ -501,7 +487,11 @@ function printPreview(opts: {
   for (const r of roles) {
     const prefix = r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_');
     const id = r.fields.email ?? r.fields.username ?? r.fields.phone ?? '-';
-    stepLine(`  ${prefix.padEnd(13)}${id} / ${maskPassword(r.fields.password)}`);
+    const login = r.fields.loginUrlPath || '/login';
+    const redir = r.fields.successUrlPath || '/dashboard';
+    stepLine(
+      `  ${prefix.padEnd(13)}${id} / ${maskPassword(r.fields.password)}  [${login} → ${redir}]`,
+    );
   }
 }
 
@@ -509,7 +499,10 @@ function detectExistingRoles(envMap: Record<string, string>): string[] {
   const roles = new Set<string>();
 
   for (const key of Object.keys(envMap)) {
-    const m = /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD)$/.exec(key);
+    const m =
+      /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF|LOGIN_URL_PATH|SUCCESS_URL_PATH)$/.exec(
+        key,
+      );
     if (!m) continue;
     const prefix = m[1];
     if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
@@ -543,6 +536,16 @@ function getExistingRoleFields(
   const pref = envMap[`${prefix}_LOGIN_ID_PREF`];
   if (pref === 'email' || pref === 'username' || pref === 'phone') {
     fields.loginIdPref = pref;
+  }
+
+  const roleLogin = envMap[`${prefix}_LOGIN_URL_PATH`];
+  if (roleLogin && !isEncryptedValue(roleLogin)) {
+    fields.loginUrlPath = roleLogin;
+  }
+
+  const roleSuccess = envMap[`${prefix}_SUCCESS_URL_PATH`];
+  if (roleSuccess && !isEncryptedValue(roleSuccess)) {
+    fields.successUrlPath = roleSuccess;
   }
 
   return Object.keys(fields).length > 0 ? fields : undefined;
@@ -610,8 +613,7 @@ function printSummary(data: {
   lang: WizardLang;
   appEnv: AppEnv;
   baseUrl: string;
-  loginPaths?: { loginUrlPath: string; successUrlPath: string };
-  roles: string[];
+  roles: WizardRoleInput[];
   challengeMode: ChallengeMode;
   writeResult: EnvWriteResult;
   validation: ValidationResult;
@@ -627,11 +629,12 @@ function printSummary(data: {
   console.log(line);
   stepLine(`  APP_ENV      : ${data.appEnv}`);
   stepLine(`  BASE_URL     : ${data.baseUrl}`);
-  if (data.loginPaths) {
-    stepLine(`  LOGIN PATH   : ${data.loginPaths.loginUrlPath}`);
-    stepLine(`  REDIRECT     : ${data.loginPaths.successUrlPath}`);
+  stepLine(`  ${t(lang, 'Roles', 'Roles')}        : ${data.roles.map((r) => r.name).join(', ')}`);
+  for (const r of data.roles) {
+    const login = r.fields.loginUrlPath || '/login';
+    const redir = r.fields.successUrlPath || '/dashboard';
+    stepLine(`    • ${r.name.padEnd(12)}: login ${login} → redirect ${redir}`);
   }
-  stepLine(`  ${t(lang, 'Roles', 'Roles')}        : ${data.roles.join(', ')}`);
   stepLine(`  ${t(lang, 'Challenge', 'Challenge')}    : ${data.challengeMode}`);
   stepLine(`  ${t(lang, 'Env file', 'Env file')}    : config/environments/${data.appEnv}.env`);
   stepLine(
