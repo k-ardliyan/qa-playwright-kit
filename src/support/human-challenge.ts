@@ -14,13 +14,13 @@
 import type { Page } from '@playwright/test';
 import prompts from 'prompts';
 
-export type ChallengeMode = 'none' | 'auto' | 'otp-browser' | 'otp-stdin' | 'captcha-browser';
+export type ChallengeMode = 'auto' | 'none' | 'otp-browser' | 'otp-stdin' | 'captcha-browser';
 
 export type DetectedChallenge = 'none' | 'otp' | 'captcha' | 'unknown';
 
 export const CHALLENGE_MODES: readonly ChallengeMode[] = [
-  'none',
   'auto',
+  'none',
   'otp-browser',
   'otp-stdin',
   'captcha-browser',

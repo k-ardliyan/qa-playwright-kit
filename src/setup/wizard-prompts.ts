@@ -541,21 +541,21 @@ export async function promptChallengeMode(
   return promptNumberedChoice<ChallengeMode>({
     lang,
     message: t(lang, 'Mode challenge autentikasi', 'Auth challenge mode'),
-    existing: existing ?? 'none',
+    existing: existing ?? 'auto',
     choices: CHALLENGE_MODES.map((m) => ({
       title: m,
       value: m as ChallengeMode,
       description:
-        m === 'none'
-          ? t(lang, 'Tanpa challenge (default)', 'No challenge (default)')
-          : m === 'otp-browser'
-            ? t(lang, 'OTP via browser (disarankan)', 'OTP via browser (recommended)')
-            : m === 'otp-stdin'
-              ? t(lang, 'OTP via terminal', 'OTP via terminal')
-              : m === 'captcha-browser'
-                ? t(lang, 'CAPTCHA via browser', 'CAPTCHA via browser')
-                : m === 'auto'
-                  ? t(lang, 'Otomatis deteksi', 'Auto detect')
+        m === 'auto'
+          ? t(lang, 'Otomatis deteksi (disarankan)', 'Auto detect (recommended)')
+          : m === 'none'
+            ? t(lang, 'Tanpa challenge', 'No challenge')
+            : m === 'otp-browser'
+              ? t(lang, 'OTP via browser', 'OTP via browser')
+              : m === 'otp-stdin'
+                ? t(lang, 'OTP via terminal', 'OTP via terminal')
+                : m === 'captcha-browser'
+                  ? t(lang, 'CAPTCHA via browser', 'CAPTCHA via browser')
                   : undefined,
     })),
   });

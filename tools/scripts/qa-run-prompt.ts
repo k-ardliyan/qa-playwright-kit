@@ -83,6 +83,11 @@ export function buildAgentPrompt(reqRelPath: string, markdown: string, lang: Wiz
         'Gunakan locator dari selector-catalog (Path A, tanpa POM); live-verify karena setiap website berbeda.',
         'Use selector-catalog locators (Path A, no POM); live-verify — every website differs.',
       ),
+      t(
+        lang,
+        'Jika form/input belum ketemu atau namanya berbeda di DOM (mis. id/placeholder kustom), lakukan live debug & inspection via snapshot_page (MCP qa-playwright-kit) atau browser_snapshot / browser_generate_locator (MCP playwright) untuk mendapatkan selector yang tepat.',
+        'If form inputs are not found or have unexpected names in the DOM (e.g. custom id/placeholder), perform live debug & inspection via snapshot_page (qa-playwright-kit MCP) or browser_snapshot / browser_generate_locator (playwright MCP) to discover accurate selectors.',
+      ),
     );
     if (hints.challengeMode && hints.challengeMode !== 'none') {
       lines.push(
