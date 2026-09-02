@@ -86,9 +86,8 @@ Semua helper di atas diimpor dari `@/support/pw` (lihat `src/support/pw/files.ts
 - Upload **selalu** fixture-first dari `tests/data/` — **bukan** `@manual`, **bukan** headed OS picker pause.
 - Needle PDF / header Excel **milik skenario** (Hasil yang Diharapkan / Input Data) — jangan hardcode skema domain (judul/kode/nama tetap).
 - MCP inspect-time: `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `list_test_fixtures`. Test committed tetap assert lewat helper, bukan memanggil MCP di runtime.
-- Recipe: [file-upload-download.md](recipes/file-upload-download.md) · [pdf-excel-content-assert.md](recipes/pdf-excel-content-assert.md) · [network-assert.md](recipes/network-assert.md).
-- Demo: `npx playwright test tests/demo/demo-file-capabilities.spec.ts --project=demo`
-- Demo network: `npx playwright test tests/demo/demo-network-assert.spec.ts --project=demo`
+- Demo file capabilities: `tests/demo/demo-file-capabilities.spec.ts` (`npx playwright test tests/demo/demo-file-capabilities.spec.ts --project=demo`)
+- Demo network assert: `tests/demo/demo-network-assert.spec.ts` (`npx playwright test tests/demo/demo-network-assert.spec.ts --project=demo`)
 
 **Validator capability:** `npm run validate` gagal jika file memakai tag `@network`/`@network-assert`/`@hybrid`/`@aria`/`@visual`/`@download`/`@upload`/`@file-content` tanpa API terkait.
 

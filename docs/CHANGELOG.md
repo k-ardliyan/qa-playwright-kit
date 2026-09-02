@@ -205,7 +205,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Known limitations (alpha)
 
-See [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
+See [GUIDE.md](GUIDE.md).
 
 [Unreleased]: https://github.com/k-ardliyan/qa-playwright-kit/compare/v0.2.0-alpha.1...HEAD
 [0.2.0-alpha.1]: https://github.com/k-ardliyan/qa-playwright-kit/releases/tag/v0.2.0-alpha.1

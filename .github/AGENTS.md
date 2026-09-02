@@ -73,7 +73,7 @@ Coordinates the full pipeline:
 
 ### Example Prompt
 
-- "Run pipeline for `requirements/auth/sample-login-empty-fields.md` and include unresolved failures."
+- "Run pipeline for `requirements/auth/login-none.md` and include unresolved failures."
 
 ---
 
@@ -105,7 +105,7 @@ Includes Application Overview, per-scenario `### SC-XX` sections, **Seed:** `tes
 - `Auth Context`
 - `Type`
 
-Golden sample: [`specs/sample-login-empty-fields-test-plan.md`](../specs/sample-login-empty-fields-test-plan.md).
+Golden sample: [`specs/_GOOD_EXAMPLE.md`](../specs/_GOOD_EXAMPLE.md).
 
 ### MCP Tools Consumed
 
@@ -115,7 +115,7 @@ Golden sample: [`specs/sample-login-empty-fields-test-plan.md`](../specs/sample-
 
 ### Example Prompt
 
-- "Plan tests from `requirements/auth/sample-login-empty-fields.md` and write `specs/sample-login-empty-fields-test-plan.md`."
+- "Plan tests from `requirements/auth/login-none.md` and write `specs/login-none-test-plan.md`."
 
 ---
 
@@ -156,7 +156,7 @@ See [`.github/agents/generator.agent.md`](agents/generator.agent.md) for `metada
 
 ### Example Prompt
 
-- "Generate tests from `specs/sample-login-empty-fields-test-plan.md` into `tests/login-empty-fields.spec.ts`."
+- "Generate tests from `specs/login-test-plan.md` into `tests/login.spec.ts`."
 
 ---
 

@@ -16,8 +16,8 @@ You analyze requirement documents and convert them into structured, testable sce
 
 Read these before planning — the pair defines canonical input→output shape:
 
-- Requirement: `requirements/auth/sample-login-empty-fields.md`
-- Expected plan output: `specs/sample-login-empty-fields-test-plan.md`
+- Requirement: `requirements/_GOOD_EXAMPLE.md` (or `requirements/auth/login-none.md`)
+- Expected plan output: `specs/_GOOD_EXAMPLE.md`
 
 ## Input Format
 
@@ -30,8 +30,8 @@ Read these before planning — the pair defines canonical input→output shape:
 ## Format Reference
 
 Read [`requirements/_TEMPLATE.md`](../../requirements/_TEMPLATE.md) as the canonical format.
-Example: [`requirements/auth/sample-login-empty-fields.md`](../../requirements/auth/sample-login-empty-fields.md).
-Golden test plan: [`specs/sample-login-empty-fields-test-plan.md`](../../specs/sample-login-empty-fields-test-plan.md).
+Example: [`requirements/_GOOD_EXAMPLE.md`](../../requirements/_GOOD_EXAMPLE.md) (or [`requirements/auth/login-none.md`](../../requirements/auth/login-none.md)).
+Golden test plan: [`specs/_GOOD_EXAMPLE.md`](../../specs/_GOOD_EXAMPLE.md).
 
 > **Table View fields:** Each scenario in a requirement now carries `testId`, `priority`,
 > `inputData`, `expectedResultFormatted`, and `affectedLayer` parsed by
@@ -252,8 +252,6 @@ If there are no manual scenarios, write: `No manual scenarios.`
 
 ## Example Prompt
 
-- "Plan test scenarios from `requirements/auth/sample-login-empty-fields.md` and save to `specs/sample-login-empty-fields-test-plan.md`."
+- "Plan test scenarios from `requirements/auth/login-none.md` and save to `specs/login-none-test-plan.md`."
 - "Plan role-aware scenarios from `requirements/finance-approve-invoice.md` — roles: super-admin, finance, hrd."
-- "Plan capability scenarios from `requirements/sample-network-hybrid.md` including @network @hybrid @aria."
-- "Plan live network-assert scenarios from `requirements/auth/sample-network-assert.md` — @network-assert with method/url/keys in Input Data."
 - "Plan file scenarios with @download @upload @file-content; copy expected PDF/Excel tokens from Hasil into Input Data / Expected Result."

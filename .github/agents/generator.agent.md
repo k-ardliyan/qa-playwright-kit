@@ -17,8 +17,8 @@ You convert a Planner scenario table into Playwright TypeScript test files.
 
 Read these before generating — they are the canonical output shape:
 
-- Requirement: `requirements/auth/sample-login-empty-fields.md`
-- Test plan: `specs/sample-login-empty-fields-test-plan.md`
+- Requirement: `requirements/_GOOD_EXAMPLE.md` (or `requirements/auth/login-none.md`)
+- Test plan: `specs/_GOOD_EXAMPLE.md` (or `specs/login-test-plan.md`)
 - Inline locator pattern: `tests/demo/demo-pw-power.spec.ts`
 
 ## Input Format
@@ -354,7 +354,7 @@ import {
 | `(@aria)` or `#aria`                     | Structural a11y / landmark regression                     | If `selector-catalog/<feature>/<page>.aria.yml` exists → `expectAriaMatchesCatalog(page.getByRole('main'), 'selector-catalog/...')`; else `expectAriaSnapshot` with a small inline YAML baseline                                            |
 | `(@visual)` or `#visual`                 | Layout/CSS regression                                     | After UI stabilizes: `await expectVisual(locator, { name: '<name>.png' })` or `toHaveScreenshot` (scope to a stable region)                                                                                                                 |
 | `(@download)` or `#download`             | Scenario triggers file download / export                  | `downloadAndSave(page, () => click…)` or `page.waitForEvent('download')` **before** the trigger; then envelope/content asserts as needed                                                                                                    |
-| `(@upload)` or `#upload`                 | Scenario uploads file(s)                                  | Fixture-first: `uploadFixture(locator, 'test-fixtures/…')` or `uploadViaChooser(page, open, 'test-fixtures/…')` or `setInputFiles` — **never** `page.pause()` for OS file pick                                                              |
+| `(@upload)` or `#upload`                 | Scenario uploads file(s)                                  | Fixture-first: `uploadFixture(locator, 'tests/data/…')` or `uploadViaChooser(page, open, 'tests/data/…')` or `setInputFiles` — **never** `page.pause()` for OS file pick                                                              |
 | `(@file-content)` or `#file-content`     | Assert PDF/Excel/CSV content or file envelope             | `assertPdfContains` / `extractPdfText` / `assertExcelHeaders` / `readExcelSummary` / `assertDownloadedEnvelope` / `assertFileMagic` — **needles/headers from THIS scenario only**                                                           |
 | Multi-field `(@failure)` validation      | Several fields show errors at once                        | Prefer `expect.soft(...)` or `expectSoftFieldErrors([...])` so one test reports all field failures                                                                                                                                          |
 | Time-sensitive UI                        | Date picker / countdown / "expires at"                    | `freezeTime` / `advanceTime` from `@/support/pw` (`page.clock`)                                                                                                                                                                             |
@@ -395,7 +395,7 @@ await test.step('Submit + assert network', async () => {
         request: { requiredKeys: [/* from Input Data */] },
         response: { matchObject: {/* from Input Data / Hasil */} },
       },
-      // contract: 'test-fixtures/network/contracts/…' // only if path given in Input Data
+      // contract: 'tests/data/network/contracts/…' // only if path given in Input Data
     },
     async () => {
       await page.getByRole('button', { name: '…' }).click();
@@ -457,10 +457,10 @@ Register `waitForEvent('download')` **before** the click that starts the downloa
 
 ```typescript
 await test.step('Upload fixture', async () => {
-  // Path from plan Input Data — under test-fixtures/
-  await uploadFixture(page.locator('input[type="file"]'), 'test-fixtures/pdf/sample-text.pdf');
+  // Path from plan Input Data — under tests/data/
+  await uploadFixture(page.locator('input[type="file"]'), 'tests/data/pdf/sample-text.pdf');
   // Or when UI opens a chooser after click:
-  // await uploadViaChooser(page, () => page.getByRole('button', { name: 'Pilih File' }).click(), 'test-fixtures/…');
+  // await uploadViaChooser(page, () => page.getByRole('button', { name: 'Pilih File' }).click(), 'tests/data/…');
 });
 ```
 
@@ -501,7 +501,7 @@ Return:
 
 ## Example Prompts
 
-- "Generate tests from `specs/sample-login-empty-fields-test-plan.md` into `tests/login-empty-fields.spec.ts`."
+- "Generate tests from `specs/login-test-plan.md` into `tests/login.spec.ts`."
 - "Generate role-aware tests from `specs/finance-approve-invoice-test-plan.md` — create one file per role: `tests/invoice-finance.spec.ts` and `tests/invoice-super-admin.spec.ts`."
 - "Generate access-restriction test from SC-03 in `specs/finance-approve-invoice-test-plan.md` for role hrd."
 - "Generate `@network` failure test that mocks `**/api/invoices/**` 500 using `@/support/pw` helpers."
