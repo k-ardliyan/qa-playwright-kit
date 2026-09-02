@@ -38,8 +38,8 @@ Also read per-scenario fields:
 - `Input Data` — key: value pairs from requirement (used for `setTestMetadata`)
 - `Expected Result` — observable outcome (used for `setTestMetadata`)
 - `Layer` — affected layers FE / BE / DB / API (used for `setTestMetadata`)
-- `Role` — which **business** role this scenario runs as, or `"general"` for **pipeline mode general** (non-role-aware).  
-  **Auth for `"general"`:** use default account **`user`** (`.auth/{APP_ENV}/user.json` / `TEST_USER_*`). Never invent a credential role named `general`.
+- `Role` — which **business** role this scenario runs as (`user` for default/general mode, or specific role like `finance`, `super-admin`).  
+  **Auth for default mode:** use default account **`user`** (`.auth/{APP_ENV}/user.json` / `TEST_USER_*`). **NEVER** set `role: 'general'` in `setTestMetadata()` or look for `.auth/.../general.json` — always use `'user'`.
 - `Auth Context` — storage state path (e.g. `.auth/{APP_ENV}/finance.json` or `authStatePath('finance')`) or `unauthenticated`
 - `Seed` — always `tests/seed.spec.ts`
 
@@ -104,15 +104,15 @@ Before committing generated test code:
 
 ## Metadata → Code Mapping
 
-| Source (requirement / test plan)              | Generated code                                                                                                                                   |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `metadata.tags` or `#tags`                    | `test.describe('...', { tag: ['@auth', '@ui'] }, () => {`                                                                                        |
-| `metadata.authState: unauthenticated`         | `test.use({ storageState: { cookies: [], origins: [] } })`                                                                                       |
-| `metadata.authState: authenticated` (general) | `test.use({ storageState: \`.auth/\${process.env.APP_ENV \|\| 'local'}/user.json\` })`— mode general → role **user**, never invent role`general` |
-| `Role: super-admin`                           | `test.use({ storageState: \`.auth/\${process.env.APP_ENV \|\| 'local'}/super-admin.json\` })`                                                    |
-| `Role: finance`                               | `test.use({ storageState: \`.auth/\${process.env.APP_ENV \|\| 'local'}/finance.json\` })`                                                        |
+| Source (requirement / test plan)                  | Generated code                                                                                 |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `metadata.tags` or `#tags`                        | `test.describe('...', { tag: ['@auth', '@ui'] }, () => {`                                      |
+| `metadata.authState: unauthenticated`             | `test.use({ storageState: { cookies: [], origins: [] } })`                                     |
+| `metadata.authState: authenticated` (single-role) | `test.use({ storageState: authStatePath('<active-role>') })` — dynamically use the active role |
+| `Role: super-admin` (role-aware)                  | `test.use({ storageState: authStatePath('super-admin') })`                                     |
+| `Role: finance` (role-aware)                      | `test.use({ storageState: authStatePath('finance') })`                                         |
 
-- `Role` — which role this scenario runs as, or "general"
+- `Role` — which role this scenario runs as (active role name, e.g. `admin`, `user`, `finance` — NEVER `"general"`)
 - `Auth Context` — `.auth/{APP_ENV}/<role>.json` or `unauthenticated`
 - `Seed` — always `tests/seed.spec.ts`
 - `Capabilities` — capability tokens derived from tags (`network`, `network-assert`, `hybrid`, `aria`, `visual`, `download`, `upload`, `file-content`)

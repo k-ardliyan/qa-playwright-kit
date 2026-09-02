@@ -73,19 +73,19 @@ For public sites without authentication, prefer **`discover_pages`** over manual
 - **Role-aware tests** land in `tests/<name>-<role>.spec.ts`, one file per role.
 - **Generated tests** always land in `tests/<name>.spec.ts` importing from `./fixtures`.
 
-## Role-Aware Planning
+## Role Discovery & Mode Planning
 
-When the requirement has `Role scope` in metadata:
+1. **Role-Aware Mode (Multi-Role RBAC)**:
+   - Trigger: Requirement memiliki `- **Role scope:** role1, role2, ...` di Metadata.
+   - Action: Buat grup skenario per-role untuk tiap role bisnis di `Role scope`.
+   - Access restriction: Untuk role yang ditolak di `Access expectation`, buat skenario `(@access-restriction)`.
+   - File output Generator nanti: `tests/<feature>-<role>.spec.ts` (satu file per role).
 
-1. **Detect mode** — if `Role scope` is present, switch to role-aware planning.
-2. **Per-role scenarios** — generate scenario groups for each role listed in `Role scope`.
-3. **Access restriction scenarios** — for roles listed in `Access expectation` as restricted, generate `(@access-restriction)` scenarios.
-4. **Auth context** — note which `.auth/{APP_ENV}/<role>.json` (or `authStatePath('<role>')`) each scenario group requires.
-5. **Coverage gaps** — if `Access expectation` names a role but no scenario covers that role, flag it as a gap.
-
-If `Role scope` is **not** present, plan in **general mode** — single auth context, no per-role split.
-
-**Vocabulary:** `Mode: general` means non-role-aware (no Role scope). Auth storage for authenticated general scenarios is the default credential role **`user`** (`.auth/{APP_ENV}/user.json` / `TEST_USER_*`). Never invent an env role named `general`.
+2. **Single-Role Mode (Non-RBAC / Default)**:
+   - Trigger: Requirement **tidak memiliki** `Role scope` multi-role.
+   - Action: Gunakan **role tunggal yang terdefinisi** di requirement (`- **Role:** <name>`), atau role aktif di environment (misal: `admin`, `operator`, `staff`, `user`).
+   - File output Generator nanti: `tests/<feature>.spec.ts` (satu file tunggal).
+   - **STRICT RULE:** **NEVER** invent a role named `"general"`. `general` is a pipeline mode label, NOT a user/role name. The `Role` column must always hold the real active role name (e.g. `admin`, `staff`, or `user`).
 
 ## Output Format
 
@@ -97,8 +97,8 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 ## Metadata
 
 - **Requirement:** `requirements/<feature-name>.md`
-- **Mode:** general | role-aware
-- **Roles in Scope:** <comma-separated list, or "none (general)">
+- **Mode:** general (single-role) | role-aware (multi-role)
+- **Roles in Scope:** <active role name, e.g. "admin", or comma-separated list e.g. "finance, super-admin">
 - **Generated At:** <YYYY-MM-DD HH:mm:ss>
 - **Seed Test:** `tests/seed.spec.ts`
 
@@ -110,7 +110,7 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 
 ### SC-01: <scenario title> (@success | @failure | @access-restriction | @manual | @network | @network-assert | @hybrid | @aria | @visual | @download | @upload | @file-content)
 
-**Role:** <role name, or "general">
+**Role:** <active role name, e.g. admin / user / finance — NEVER "general">
 **Auth Context:** `.auth/{APP_ENV}/<role>.json` | `unauthenticated` | `storageState: undefined`
 **Seed:** `tests/seed.spec.ts`
 **Browser Intent:** `network: <boolean>, storage: <boolean>, vision: <boolean>, devtools: <boolean>, dialog: <boolean>, multiTab: <boolean>, fileUpload: <boolean>`
@@ -120,7 +120,7 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 | --- | --- | --- | --- | --- |
 | SC-01: ...    | ...   | ...             | storage: true  | network, soft-assert |
 
-For **general mode**, the table per scenario is:
+For **single-role mode**, the table per scenario is:
 
 | Test ID    | Scenario Name | Priority | Steps          | Input Data | Expected Result    | Layer |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -130,7 +130,7 @@ For **role-aware mode**, group rows under `## Role: <role>` header and use the s
 
 ### SC-02: <scenario title> (@failure)
 
-**Role:** <role name, or "general">
+**Role:** <active role name>
 **Auth Context:** `.auth/{APP_ENV}/<role>.json` | `unauthenticated`
 **Seed:** `tests/seed.spec.ts`
 
@@ -147,13 +147,13 @@ For **role-aware mode**, group rows under `## Role: <role>` header and use the s
 - `Steps` — numbered or semicolon-separated, explicit and executable
 - `Input Data` — key: value pairs, or `-` if none
 - `Expected Result` — observable and assertable
-- `Role` — which role this scenario runs as, or "general"
-- `Auth Context` — exact storage state path or `unauthenticated`
+- `Role` — which role this scenario runs as (active role name from requirement/env, e.g. `admin`, `user`, `finance` — NEVER `"general"`)
+- `Auth Context` — exact storage state path (`.auth/{APP_ENV}/<role>.json`) or `unauthenticated`
 - `Layer` — affected layers: FE / BE / DB / API, or `-` if none
 
 ### Required per-scenario fields
 
-- `Role` — which role this scenario runs as, or "general"
+- `Role` — which role this scenario runs as (active role name — NEVER `"general"`)
 - `Auth Context` — exact storage state path or `unauthenticated`
 - `Seed` — always `tests/seed.spec.ts` for Generator traceability
 

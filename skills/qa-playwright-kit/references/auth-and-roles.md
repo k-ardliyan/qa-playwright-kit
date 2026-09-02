@@ -96,7 +96,7 @@ Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Do not mark a scenario `(@manu
 
 ## Pitfalls
 
-- `general` is a pipeline mode, not a role name. Create a `user` role for the default account.
+- `general` is a pipeline mode (non-role-aware), NEVER a role name. The sole default role is `user` (with `TEST_USER_*` credentials and `.auth/{APP_ENV}/user.json`). Never output `Role: general` or `role: 'general'`.
 - Single role that is not `user` → wizard offers to mirror to `TEST_USER` — answer Yes to keep the general pipeline mode working.
 - Auth file valid but redirects to `/login` → the app stores session in localStorage, not cookies. Check that `origins[0].localStorage` is non-empty in `.auth/{APP_ENV}/user.json`.
 - Do not share one account across multiple QA members on a shared environment — create isolated accounts per team member.
