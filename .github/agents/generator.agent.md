@@ -299,18 +299,18 @@ Mark skeletons with `// SKELETON` so they're easy to find and complete later.
 
 ## Code Generation Rules
 
-1. Always import `test` from `@/fixtures/base.fixture`.
-2. Use POM fixtures (do not place raw brittle locators in test logic unless strictly necessary).
-3. Wrap meaningful actions/assertions inside `test.step()`.
-4. Use factory/data helpers from `@/shared/utils/factories` when dynamic data is needed.
-5. Include relevant test tags (`@smoke`, `@regression`, `@ui`, `@api`, `@role-<rolename>` for role-specific tests).
-6. Use `test.skip` with tag `@manual` for CAPTCHA or flows that cannot be automated safely — always include the reason.
-7. For `(@access-restriction)` scenarios, assert the denial explicitly: check redirect URL, visible error message, or absence of restricted element.
-8. For role-specific files, always include `test.use({ storageState: authStatePath('<role>') })` or `.auth/${process.env.APP_ENV||'local'}/<role>.json` at the describe level.
-9. After all scenarios are processed, call `validate_generated_tests` (all specs or per `filePath`).
-10. If a scenario is blocked (auth missing, unclear steps), generate skeleton — do not silently skip.
-11. Prefer **web-first assertions** (`toBeVisible`, `toHaveURL`, `toHaveText`). Never use `page.$`, `page.$$`, or fixed `waitForTimeout` sleeps.
-12. Locator priority: `getByRole` → `getByLabel` → `getByText` → `getByTestId` → CSS last resort.
+1. **Clean Imports**: Always import `test, expect` from `./fixtures` or `@/fixtures/base.fixture`. Never import via relative directory traversal `../src/...`.
+2. **Strict Typing (Zero `any`)**: NEVER use `any` type (e.g. `page: any`, `err: any`). Always use explicit types `Page`, `Locator` imported from `@playwright/test`.
+3. **No Loose Helper Functions**: Do not declare ad-hoc loose helper functions outside `test.describe()` with `any` types. Keep locators inline using Playwright semantic locators (`page.getByRole`, `page.getByLabel`, `page.getByPlaceholder`) or via Page Object Model (POM).
+4. **No Conditionals in Test Assertions**: Avoid `if (...)` statements or `.catch(() => false)` inside assertions (violates `playwright/no-conditional-in-test`). Test assertions must be deterministic (`await expect(...).toBeVisible()`).
+5. **Metadata First**: Call `setTestMetadata({ testId, priority, module, feature, inputData, expectedResult })` as the very first statement inside each test body.
+6. **Verbatim UI Action Steps**: Wrap every action in `test.step('<verbatim step text>')`. Titles are UI actions only; keep credentials and test data strictly inside `setTestMetadata.inputData`.
+7. **Verbatim Actual Result**: Call `captureActualResult(<exact expectedResult string>)` once after the last assertion succeeds.
+8. **Web-First Assertions**: Prefer `toBeVisible`, `toHaveURL`, `toHaveText`. Never use `page.$`, `page.$$`, or fixed `waitForTimeout` sleeps.
+9. **Locator Priority**: `getByRole` → `getByLabel` → `getByText` → `getByTestId` → CSS last resort.
+10. **Linter & Typecheck Compliance**: Generated test files MUST pass `npx eslint <specPath>` and `npx tsc --noEmit` cleanly without errors or warnings.
+11. For role-specific files, always include `test.use({ storageState: authStatePath('<role>') })` or `.auth/${process.env.APP_ENV||'local'}/<role>.json` at the describe level.
+12. Use `test.skip` with tag `@manual` for CAPTCHA or flows that cannot be automated safely — always include the reason.
 
 ## Playwright Power Features (official APIs)
 

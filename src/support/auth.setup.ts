@@ -133,11 +133,11 @@ setup('authenticate:user', async ({ page }) => {
       await page.context().storageState({ path: authFile });
     });
     console.log('✔ [Auth] Session baru user tersimpan di', authFile);
-    captureActualResult('Sesi baru user berhasil dibuat dan disimpan di ' + authFile);
+    captureActualResult(`Sesi baru ${'user'} berhasil dibuat dan disimpan di ` + authFile);
   } catch (error) {
     if (isInteractiveChallengeMode(challengeMode)) {
       console.error(
-        '✖ [Auth] user: assisted login failed (AUTH_CHALLENGE_MODE=' + challengeMode + ').',
+        `✖ [Auth] ${'user'}: assisted login failed (AUTH_CHALLENGE_MODE=${challengeMode}).`,
         error instanceof Error ? error.message : error,
       );
     }
