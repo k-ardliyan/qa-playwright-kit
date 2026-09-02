@@ -903,9 +903,8 @@ function footer(state: LoginTemplateState, challengeMode: ChallengeMode): string
     `- Path A (default): inline locator dari catalog — **tanpa POM**\n` +
     `- Path B (opsional nanti): \`generate_page_object\` + register fixture\n\n` +
     `**2) Role, env, challenge**\n\n` +
-    `- Akun kredensial default: role **\`user\`** (\`TEST_USER_*\`) — dipakai mode pipeline **general**\n` +
     `- Role aktif di requirement ini: \`${roleName}\` (roles: ${roleList})\n` +
-    `- Multi-role: tambah via \`npm run env:edit\` + metadata Role scope (jangan buat role bernama \`general\`)\n` +
+    `- Multi-role: tambah via \`npm run env:edit\` + metadata Role scope\n` +
     `- Auth file: \`.auth/{APP_ENV}/<role>.json\` (helper: \`authStatePath('<role>')\`)\n` +
     `- Kredensial hanya dari env (\`TEST_USER_*\` / \`{ROLE}_*\`) — jangan hardcode secret\n` +
     `- Selector environment: **APP_ENV** saja (\`npm run env:status\` / \`env:use\`)\n` +

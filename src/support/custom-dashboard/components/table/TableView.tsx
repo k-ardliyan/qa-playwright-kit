@@ -19,7 +19,7 @@ export interface TableViewProps {
 function buildRoleGroups(tests: CollectedTestData[]): RoleGroup[] {
   const roleMap = new Map<string, CollectedTestData[]>();
   for (const test of tests) {
-    const role = test.role || 'general';
+    const role = (test.role || 'user').trim();
     if (!roleMap.has(role)) roleMap.set(role, []);
     roleMap.get(role)!.push(test);
   }
@@ -88,8 +88,8 @@ function GeneralTable({ tests }: { tests: CollectedTestData[] }) {
 }
 
 function RoleSection({ group }: { group: RoleGroup }) {
-  const roleSlug = (group.role || 'general').toLowerCase().replace(/[^a-z0-9]/g, '_');
-  const roleLabel = group.role === 'general' ? 'General' : group.role;
+  const roleSlug = (group.role || 'user').toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const roleLabel = group.role;
 
   return (
     <div class="role-section">

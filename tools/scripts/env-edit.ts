@@ -420,9 +420,9 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
       name: 'loginIdPref',
       message: 'Preferensi login id:',
       choices: [
-        { title: 'Auto (email → username → phone)', value: 'auto' },
-        { title: 'Email', value: 'email' },
+        { title: 'Auto (username → email → phone)', value: 'auto' },
         { title: 'Username', value: 'username' },
+        { title: 'Email', value: 'email' },
         { title: 'Phone', value: 'phone' },
       ],
       initial: 0,
@@ -532,9 +532,9 @@ async function actionAddRole(content: string, map: Record<string, string>): Prom
       name: 'loginIdPref',
       message: 'Preferensi login id:',
       choices: [
-        { title: 'Auto (email → username → phone)', value: 'auto' },
-        { title: 'Email', value: 'email' },
+        { title: 'Auto (username → email → phone)', value: 'auto' },
         { title: 'Username', value: 'username' },
+        { title: 'Email', value: 'email' },
         { title: 'Phone', value: 'phone' },
       ],
       initial: 0,

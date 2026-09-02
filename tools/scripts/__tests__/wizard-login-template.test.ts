@@ -162,10 +162,8 @@ test('form: auth path uses APP_ENV scope vocabulary', () => {
     'scoped auth path missing',
   );
   assert.ok(
-    md.includes('role **`user`**') ||
-      md.includes('role **user**') ||
-      md.includes('Akun kredensial default'),
-    'user vocabulary missing',
+    md.includes('Role aktif di requirement ini: `user`') || md.includes('roles: user'),
+    'user role presence missing',
   );
   assert.ok(
     !md.includes("role 'default'") && !md.includes('role `default`'),

@@ -306,19 +306,19 @@ export async function promptRoleCredentials(
     ),
   );
 
-  // Existing value (if any) is pre-selected: loginIdPref → email → username → phone.
+  // Existing value (if any) is pre-selected: loginIdPref → username → email → phone.
   const pickId =
     (existing?.loginIdPref &&
-      ((['email', 'username', 'phone'] as const).includes(existing.loginIdPref)
+      ((['username', 'email', 'phone'] as const).includes(existing.loginIdPref)
         ? existing.loginIdPref
         : undefined)) ||
-    (existing?.email
-      ? 'email'
-      : existing?.username
-        ? 'username'
+    (existing?.username
+      ? 'username'
+      : existing?.email
+        ? 'email'
         : existing?.phone
           ? 'phone'
-          : 'email');
+          : 'username');
 
   const validateIdent = (id: 'email' | 'username' | 'phone') => (v: string) => {
     if (!v.trim()) return t(lang, `${id} tidak boleh kosong`, `${id} cannot be empty`);
@@ -349,7 +349,7 @@ export async function promptRoleCredentials(
   };
 
   // 6-step loop:
-  // 0 = method picker (email/username/phone)
+  // 0 = method picker (username/email/phone)
   // 1 = identifier value
   // 2 = password
   // 3 = password confirm
@@ -364,12 +364,12 @@ export async function promptRoleCredentials(
 
   for (;;) {
     if (step === 0) {
-      id = await promptNumberedChoice<'email' | 'username' | 'phone'>({
+      id = await promptNumberedChoice<'username' | 'email' | 'phone'>({
         lang,
         message: t(lang, `Metode login untuk role "${role}"`, `Login method for role "${role}"`),
         choices: [
-          { title: 'Email', value: 'email' },
           { title: 'Username', value: 'username' },
+          { title: 'Email', value: 'email' },
           { title: 'Phone', value: 'phone' },
         ],
         existing: pickId,

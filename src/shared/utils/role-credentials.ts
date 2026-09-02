@@ -170,7 +170,7 @@ export function isRoleLoginReady(map: Record<string, string>, role: RoleCredenti
 
 /**
  * Resolve which identifier to type into a single login field.
- * PREF wins when that field is non-empty; else email → username → phone.
+ * PREF wins when that field is non-empty; else username → email → phone.
  */
 export function resolveLoginIdentifier(
   map: Record<string, string>,
@@ -187,7 +187,7 @@ export function resolveLoginIdentifier(
   }
   if (!email && !username && !phone) {
     return {
-      error: `Role "${role.name}" needs at least one of EMAIL / USERNAME / PHONE`,
+      error: `Role "${role.name}" needs at least one of USERNAME / EMAIL / PHONE`,
     };
   }
 
@@ -198,18 +198,18 @@ export function resolveLoginIdentifier(
     warned?: string,
   ): ResolvedLoginId => ({ kind, value, source, warned });
 
-  if (prefRaw === 'email' || prefRaw === 'username' || prefRaw === 'phone') {
-    const v = prefRaw === 'email' ? email : prefRaw === 'username' ? username : phone;
+  if (prefRaw === 'username' || prefRaw === 'email' || prefRaw === 'phone') {
+    const v = prefRaw === 'username' ? username : prefRaw === 'email' ? email : phone;
     if (v) return pick(prefRaw, v, 'pref');
     // fall through
     const warned = `${role.loginIdPrefKey}=${prefRaw} but field empty — using default order`;
-    if (email) return pick('email', email, 'email', warned);
     if (username) return pick('username', username, 'username', warned);
+    if (email) return pick('email', email, 'email', warned);
     return pick('phone', phone, 'phone', warned);
   }
 
-  if (email) return pick('email', email, 'email');
   if (username) return pick('username', username, 'username');
+  if (email) return pick('email', email, 'email');
   return pick('phone', phone, 'phone');
 }
 

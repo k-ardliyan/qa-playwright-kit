@@ -102,7 +102,7 @@ test('every role has email/username/phone/password/pref keys', () => {
   assert.equal(fin.loginIdPrefKey, 'FINANCE_LOGIN_ID_PREF');
 });
 
-test('resolveLoginIdentifier: email preferred by default', () => {
+test('resolveLoginIdentifier: username preferred by default', () => {
   const role = roleCredentialKeys('finance');
   const r = resolveLoginIdentifier(
     {
@@ -115,8 +115,8 @@ test('resolveLoginIdentifier: email preferred by default', () => {
   );
   assert.ok(!('error' in r));
   if (!('error' in r)) {
-    assert.equal(r.kind, 'email');
-    assert.equal(r.value, 'a@b.com');
+    assert.equal(r.kind, 'username');
+    assert.equal(r.value, 'fin');
   }
 });
 

@@ -630,9 +630,8 @@ Setiap app punya form/label berbeda. Jangan hardcode selector generik.
 
 **2) Role, env, challenge**
 
-- Akun kredensial default: role **`user`** (`TEST_USER_*`) — dipakai mode pipeline **general**
 - Role aktif di requirement ini: `user` (roles: user)
-- Multi-role: tambah via `npm run env:edit` + metadata Role scope (jangan buat role bernama `general`)
+- Multi-role: tambah via `npm run env:edit` + metadata Role scope
 - Auth file: `.auth/{APP_ENV}/<role>.json` (helper: `authStatePath('<role>')`)
 - Kredensial hanya dari env (`TEST_USER_*` / `{ROLE}_*`) — jangan hardcode secret
 - Selector environment: **APP_ENV** saja (`npm run env:status` / `env:use`)
