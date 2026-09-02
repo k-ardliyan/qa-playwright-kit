@@ -99,12 +99,25 @@ export function buildEnvFileContent(options: EnvWriteOptions): BuiltEnvFile {
     put(key, value);
   }
 
+  const ROLE_ATTR_RE =
+    /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF|LOGIN_URL_PATH|SUCCESS_URL_PATH)$/;
+  const configuredPrefixes = new Set(
+    roles.map((r) => (r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_'))),
+  );
+
   let keysPreserved = 0;
   for (const [key, value] of Object.entries(existing)) {
     if (wizardKeys.has(key)) continue;
     if (key.startsWith('DOTENV_')) continue;
     if (isEncryptedValue(value)) continue;
     if (value.trim() === '') continue;
+
+    // Do NOT preserve credential/path keys of removed roles (e.g. stale TEST_USER_* when switching to admin,guru,murid)
+    const m = ROLE_ATTR_RE.exec(key);
+    if (m && !configuredPrefixes.has(m[1])) {
+      continue;
+    }
+
     values[key] = value;
     keysPreserved += 1;
   }

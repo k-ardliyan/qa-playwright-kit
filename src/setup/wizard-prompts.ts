@@ -496,7 +496,7 @@ export async function promptRoles(lang: WizardLang, existingRoles?: string[]): P
   const defaultRoles = existingRoles && existingRoles.length > 0 ? existingRoles.join(',') : 'user';
   const { input } = await prompts(
     {
-      type: 'list',
+      type: 'text',
       name: 'input',
       message: t(
         lang,
@@ -504,12 +504,12 @@ export async function promptRoles(lang: WizardLang, existingRoles?: string[]): P
         'Roles to configure (comma-separated, e.g. "admin,guru,murid" or "user")',
       ),
       initial: defaultRoles,
-      separator: ',',
     },
     { onCancel },
   );
 
-  const rawList = Array.isArray(input) ? (input as string[]) : [String(input ?? '')];
+  const raw = String(input ?? '').trim();
+  const rawList = raw.includes(',') ? raw.split(',') : [raw];
   const roles = rawList
     .map((r: string) => r.trim().toLowerCase())
     .filter((r: string) => r.length > 0);

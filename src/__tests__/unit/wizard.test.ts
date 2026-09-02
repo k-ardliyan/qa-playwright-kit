@@ -322,6 +322,46 @@ test.describe('buildEnvFileContent with custom multi-roles', () => {
       cleanup();
     }
   });
+
+  test('clears stale TEST_USER_* credentials from old env when switching to new roles', () => {
+    const cleanup = withIsolatedRepo();
+    try {
+      // Seed existing env with old user role + some non-role key (e.g. SLOW_MO, CUSTOM_VAR)
+      const envDir = path.join(process.cwd(), 'config', 'environments');
+      fs.writeFileSync(
+        path.join(envDir, 'dev.env'),
+        [
+          'BASE_URL=http://old.example',
+          'TEST_USER_USERNAME=olduser',
+          'TEST_USER_EMAIL=old@example.com',
+          'CUSTOM_GLOBAL_FLAG=enabled',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+
+      const built = buildEnvFileContent({
+        appEnv: 'dev',
+        baseUrl: 'http://new.example',
+        roles: [
+          { name: 'admin', fields: { username: 'admin1', password: 'secret-admin' } },
+          { name: 'guru', fields: { username: 'guru1', password: 'secret-guru' } },
+          { name: 'murid', fields: { username: 'murid1', password: 'secret-murid' } },
+        ],
+        challengeMode: 'none',
+      });
+
+      expect(built.content).toContain('ADMIN_USERNAME=admin1');
+      expect(built.content).toContain('GURU_USERNAME=guru1');
+      expect(built.content).toContain('MURID_USERNAME=murid1');
+      expect(built.content).toContain('CUSTOM_GLOBAL_FLAG=enabled');
+      // Stale TEST_USER_* must NOT be carried over
+      expect(built.content).not.toContain('TEST_USER_');
+      expect(built.content).not.toContain('olduser');
+    } finally {
+      cleanup();
+    }
+  });
 });
 
 test.describe('validateSetup with encrypted values', () => {
