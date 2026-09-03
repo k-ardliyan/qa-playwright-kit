@@ -79,6 +79,7 @@ List every tool explicitly by server:
 
 - **qa-playwright-kit**
   - `health_check` (run first)
+  - `pipeline_status` (one-call orientation: pipeline phase, resume safety — requirement staleness + missing artifacts —, last run pass/fail, ready auth roles; call when resuming an interrupted run or before deciding fresh vs resume)
   - `compile_requirement` (preferred: compile requirement into typed `RequirementContractV1`)
   - `compile_test_plan` (compile Markdown test plan into canonical `TestPlanContractV1`)
   - `validate_plan` (validate test plan contract against requirement contract)
@@ -260,6 +261,7 @@ If `roleFilter` is provided, skip scenarios for roles not in the filter — but 
 The pipeline persists execution state to `artifacts/reports/pipeline-state.json` after each phase completion:
 
 - **Fields:** `runId`, `status`, `currentPhase`, `completedPhases`, `artifacts`, `timestamp`, `rolesInScope`
+- **Status check:** Call `pipeline_status` first — it reports the current phase, whether the requirement is stale, missing artifacts, last run result, and ready auth roles in one response.
 - **Resume:** If a run is interrupted, send a `resume` request with the `runId` to continue from the last completed phase.
 - **Artifact validation:** On resume, artifact file paths are verified. If any are missing, affected phases are invalidated and re-run.
 - **Archive:** Completed runs are archived to `artifacts/reports/archive/<runId>/` via `archive_report`.

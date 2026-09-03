@@ -70,6 +70,7 @@ npm run qa:run    # TTY picker → select file → copy printed prompt → paste
 
 Prompt qa:run menyertakan `[ENV CONTEXT]` dan `[FALLBACK MCP]`. Jika tool MCP `qa-playwright-kit` belum aktif di Hermes, agent otomatis menggunakan CLI fallback (`validate-requirement.ts`, `compile-requirement.ts`, atau MCP playwright).
 Hasil eksekusi disimpan di `artifacts/reports/pipeline-state.json` dan `artifacts/reports/custom-dashboard.html`.
+Cek posisi pipeline kapan pun via `qa-playwright-kit:pipeline_status` — satu panggilan: fase berjalan, keamanan resume, hasil run terakhir, dan sesi auth yang siap.
 Buka dashboard: `npm run dashboard` (atau buka file `artifacts/reports/custom-dashboard.html` langsung).
 
 ---

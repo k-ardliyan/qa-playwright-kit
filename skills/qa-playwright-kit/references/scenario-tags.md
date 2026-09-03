@@ -13,7 +13,7 @@ Load when writing a new scenario and unsure which tag to use, or when deciding w
 | `(@access-restriction)` | Role not authorised, access denied            | Test asserting denial or redirect         |
 | `(@manual)`             | Cannot be automated                           | `test.skip(true, 'Manual: <reason>')`     |
 
-Without a type tag the parser defaults to `(@success)`.
+Without a type tag the parser classifies the scenario as `general` (not `success`). Always tag the type explicitly — `general` scenarios are not counted as happy-path success coverage.
 
 ---
 

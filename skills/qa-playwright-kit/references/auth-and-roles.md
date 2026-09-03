@@ -94,8 +94,6 @@ Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Do not mark a scenario `(@manu
 
 ---
 
----
-
 ## Complex Login Flow Recipes (`src/support/auth.setup.ts`)
 
 `auth.setup.ts` is modular and designed to be customized when an app has extra login interactions beyond simple username + password. Add custom steps directly in `src/support/auth.setup.ts` (add `// CUSTOM_AUTH_FLOW` at the top to protect from wizard overwrite).

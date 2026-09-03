@@ -7,6 +7,11 @@ const DEFAULT_MCP_SERVER_PORT = 3100;
 const rawPort = process.env.MCP_SERVER_PORT ?? String(DEFAULT_MCP_SERVER_PORT);
 const MCP_SERVER_PORT = Number(rawPort);
 
+// Loopback by default — the HTTP surface is a local development convenience and
+// has no auth. Opt out only for container/VM setups via MCP_SERVER_HOST=0.0.0.0.
+const MCP_SERVER_HOST = process.env.MCP_SERVER_HOST?.trim() || '127.0.0.1';
+const MAX_HTTP_BODY_BYTES = 1_048_576;
+
 if (!Number.isInteger(MCP_SERVER_PORT) || MCP_SERVER_PORT < 0 || MCP_SERVER_PORT > 65535) {
   throw new Error(
     `[mcp-server] Invalid port configuration: MCP_SERVER_PORT='${rawPort}'. ` +
@@ -26,11 +31,22 @@ function sendJson(res: http.ServerResponse, statusCode: number, payload: unknown
   res.end(JSON.stringify(payload));
 }
 
-async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
+async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown> | null> {
+  const declaredLength = Number(req.headers['content-length'] ?? 0);
+  if (declaredLength > MAX_HTTP_BODY_BYTES) {
+    return null;
+  }
+
   const chunks: Buffer[] = [];
+  let total = 0;
 
   for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buf.length;
+    if (total > MAX_HTTP_BODY_BYTES) {
+      return null;
+    }
+    chunks.push(buf);
   }
 
   if (chunks.length === 0) {
@@ -59,6 +75,16 @@ const server = http.createServer(async (req: http.IncomingMessage, res: http.Ser
       const toolName = TOOL_ROUTES[url];
       if (toolName) {
         const body = await readJsonBody(req);
+        if (body === null) {
+          sendJson(res, 413, {
+            status: 'error',
+            error: {
+              code: 'PAYLOAD_TOO_LARGE',
+              message: `Request body exceeds ${MAX_HTTP_BODY_BYTES} bytes.`,
+            },
+          });
+          return;
+        }
         const result = await dispatchTool(toolName, body);
         const statusCode =
           result.isError && (result.payload as { status?: string }).status === 'error' ? 400 : 200;
@@ -88,8 +114,11 @@ const server = http.createServer(async (req: http.IncomingMessage, res: http.Ser
   }
 });
 
-server.listen(MCP_SERVER_PORT, () => {
-  logger.info('Custom MCP server listening.', { port: MCP_SERVER_PORT });
+server.listen(MCP_SERVER_PORT, MCP_SERVER_HOST, () => {
+  logger.info('Custom MCP server listening.', {
+    host: MCP_SERVER_HOST,
+    port: MCP_SERVER_PORT,
+  });
 });
 
 export default server;

@@ -9,7 +9,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getRepoRoot, createToolError, type ToolError } from '../utils/safety';
+import { getRepoRoot, createToolError, resolveAllowedPath, type ToolError } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
 import type { SemanticCatalog } from '../contracts/semantic-catalog';
 import type { CatalogIndex } from './_internal/snapshot-core';
@@ -297,15 +297,27 @@ ${backlogList.join('\n')}
 `;
 
   const rawOutput = readString(args.outputPath, 'outputPath');
-  const outputAbs = rawOutput
-    ? path.isAbsolute(rawOutput)
-      ? rawOutput
-      : path.join(getRepoRoot(), rawOutput)
-    : path.join(
-        getRepoRoot(),
-        'requirements',
-        `${featureName.toLowerCase().replace(/[^a-z0-9-_]+/g, '-')}.md`,
-      );
+  // outputPath must land inside requirements/ as a feature file — same rules as
+  // the rest of the pipeline (blocks traversal, _TEMPLATE/README, outside-repo paths).
+  let resolvedAbs: string | null = null;
+  if (rawOutput) {
+    const resolvedOutput = resolveAllowedPath(rawOutput, 'requirements', { mustExist: false });
+    if (!resolvedOutput.ok) {
+      return {
+        status: 'error',
+        message: resolvedOutput.error.message,
+        error: resolvedOutput.error,
+      };
+    }
+    resolvedAbs = resolvedOutput.absolutePath;
+  }
+  const outputAbs =
+    resolvedAbs ??
+    path.join(
+      getRepoRoot(),
+      'requirements',
+      `${featureName.toLowerCase().replace(/[^a-z0-9-_]+/g, '-')}.md`,
+    );
   const outputRel = path.relative(getRepoRoot(), outputAbs).replace(/\\/g, '/');
 
   fs.mkdirSync(path.dirname(outputAbs), { recursive: true });

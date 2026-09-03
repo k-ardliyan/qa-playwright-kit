@@ -1,6 +1,6 @@
 # Polling & Async Waiting Patterns (Anti-Flaky)
 
-Gunakan pola ini untuk mengatasi UI asinkron tanpa menggunakan `page.waitForTimeout` (hardcoded sleep dilarang oleh ARCH-013).
+Gunakan pola ini untuk mengatasi UI asinkron tanpa menggunakan `page.waitForTimeout` (hardcoded sleep membuat test flaky dan lambat — selalu ganti dengan auto-waiting, `expect.poll`, atau web-first assertions).
 
 ## 1. Polling Assertion State (`expect.poll`)
 

@@ -25,20 +25,30 @@ test.describe('normalizeSubRoutePattern', () => {
 });
 
 test.describe('synthesizeRequirement', () => {
+  // Hardening (resolveAllowedPath 'requirements') requires output inside the
+  // real repo requirements/ — write with a unique test-prefixed filename and
+  // always clean up in afterEach.
+  let outPath: string;
   let tempDir: string;
 
   test.beforeEach(() => {
+    outPath = path.resolve(
+      'requirements',
+      `zz-test-synth-${Date.now()}-${Math.floor(Math.random() * 1e6)}.md`,
+    );
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'synth-req-test-'));
   });
 
   test.afterEach(() => {
+    if (fs.existsSync(outPath)) {
+      fs.rmSync(outPath, { force: true });
+    }
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   test('synthesizes valid requirement markdown when no catalog exists (baseline)', async () => {
-    const outPath = path.join(tempDir, 'requirements', 'sample-synth.md');
     const res = await synthesizeRequirement({
       featureName: 'sample-synth',
       moduleName: 'invoice',
@@ -61,6 +71,8 @@ test.describe('synthesizeRequirement', () => {
   });
 
   test('synthesizes rich scenarios from mocked semantic catalog', async () => {
+    // catalogDirOverride is still read-only (no guard) — an isolated tmp dir is
+    // fine here; only outputPath is hardened to requirements/.
     const catalogDir = path.join(tempDir, 'artifacts', 'selector-catalog', 'invoice-feature');
     fs.mkdirSync(catalogDir, { recursive: true });
 
@@ -124,8 +136,7 @@ test.describe('synthesizeRequirement', () => {
 
     fs.writeFileSync(path.join(catalogDir, 'list.json'), JSON.stringify(mockCatalog), 'utf8');
 
-    // Run synthesis with mock output path
-    const outPath = path.join(tempDir, 'requirements', 'invoice-feature.md');
+    // Run synthesis with mock output path (inside repo requirements/ per hardening)
     const res = await synthesizeRequirement({
       featureName: 'invoice-feature',
       moduleName: 'invoice',

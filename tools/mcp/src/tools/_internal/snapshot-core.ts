@@ -439,16 +439,23 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
     // Auth injection if role provided
     if (options.role) {
       const appEnv = (process.env.APP_ENV ?? 'local').trim() || 'local';
+      const rawRole = options.role.trim().toLowerCase();
       const roleName =
-        options.role.trim().toLowerCase() === 'general'
+        rawRole === 'general'
           ? 'user'
-          : options.role.trim().toLowerCase();
-      const scopedAuth = path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`);
-      const legacyAuth = path.join(getRepoRoot(), '.auth', `${roleName}.json`);
+          : // slug-ify: same charset as featureName — blocks path tricks via role
+            rawRole
+              .replace(/[^a-z0-9-_]+/g, '-')
+              .replace(/^-+|-+$/g, '')
+              .slice(0, 64);
+      const scopedAuth = roleName
+        ? path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`)
+        : null;
+      const legacyAuth = roleName ? path.join(getRepoRoot(), '.auth', `${roleName}.json`) : null;
 
-      if (fs.existsSync(scopedAuth)) {
+      if (scopedAuth && fs.existsSync(scopedAuth)) {
         contextOptions.storageState = scopedAuth;
-      } else if (appEnv === 'local' && fs.existsSync(legacyAuth)) {
+      } else if (appEnv === 'local' && legacyAuth && fs.existsSync(legacyAuth)) {
         contextOptions.storageState = legacyAuth;
       } else {
         logger.warn(

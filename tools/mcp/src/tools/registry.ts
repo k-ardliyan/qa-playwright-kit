@@ -28,6 +28,7 @@ import { compileTestPlan } from './compile-test-plan';
 import { validatePlan } from './validate-plan';
 import { traceRequirement } from './trace-requirement';
 import { synthesizeRequirement } from './synthesize-requirement';
+import { pipelineStatus } from './pipeline-status';
 import { resolveAllowedPath } from '../utils/safety';
 
 export interface JsonSchemaObject {
@@ -161,6 +162,16 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     readOnly: true,
     profiles: ['admin', 'all'],
     handler: () => healthCheck(),
+  },
+  {
+    name: 'pipeline_status',
+    description:
+      'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.',
+    inputSchema: { type: 'object', properties: {} },
+    stability: 'stable',
+    readOnly: true,
+    profiles: ['admin', 'planner', 'reporter', 'author', 'all'],
+    handler: () => pipelineStatus(),
   },
   {
     name: 'get_test_failures',

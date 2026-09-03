@@ -37,6 +37,7 @@ Don't use for: protected zones (`src/**`, `tools/**`, `config/**`, `.github/agen
 - Env file `config/environments/{APP_ENV}.env` — run `npm run setup` or `npm run setup:local`
 - MCP server `qa-playwright-kit` healthy — call `qa-playwright-kit:health_check` before Plan
 - Auth sessions at `.auth/{APP_ENV}/{role}.json` — run `npm run auth:setup` when `Auth state: authenticated`
+- Resuming an interrupted run? Call `qa-playwright-kit:pipeline_status` first — one call reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles.
 
 ## How to Run
 

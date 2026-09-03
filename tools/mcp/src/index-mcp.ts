@@ -9,7 +9,7 @@ import { logger } from './utils/logger';
 const server = new Server(
   {
     name: 'qa-playwright-kit-mcp-server',
-    version: '2.1.0',
+    version: '2.0.0',
   },
   {
     capabilities: {

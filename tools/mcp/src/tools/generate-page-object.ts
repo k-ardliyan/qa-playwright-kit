@@ -131,16 +131,9 @@ export async function generatePageObject(
   }
 
   const repoRoot = getRepoRoot();
-  const catalogPath = path.join(mcpWorkspace.selectorCatalogDir, featureName, `${pageName}.json`);
 
-  if (!fs.existsSync(catalogPath)) {
-    const err = createToolError(
-      'CATALOG_NOT_FOUND',
-      `Catalog not found at ${catalogPath}. Run snapshot_page first.`,
-    );
-    return { status: 'error', message: err.error.message, error: err.error };
-  }
-
+  // Validate outputPath BEFORE touching the catalog — a hostile outputPath must
+  // be rejected regardless of catalog existence, and never read then discarded.
   const outputPathArg = readString(args.outputPath);
   const defaultOutputPath = path.join(mcpWorkspace.pagesDir, `${className}.ts`);
   const outputPath = outputPathArg
@@ -152,12 +145,30 @@ export async function generatePageObject(
         if (rel.startsWith('..') || path.isAbsolute(rel)) {
           return null; // path escape attempt
         }
+        // Lock scaffold writes to tests/pages/ — never overwrite framework or spec files
+        const relNorm = rel.replace(/\\/g, '/');
+        if (relNorm !== mcpWorkspace.pagesRel && !relNorm.startsWith(`${mcpWorkspace.pagesRel}/`)) {
+          return null;
+        }
         return abs;
       })()
     : defaultOutputPath;
 
   if (!outputPath) {
-    const err = createToolError('INVALID_PATH', 'outputPath must be inside the repository root.');
+    const err = createToolError(
+      'INVALID_PATH',
+      `outputPath must be inside the repository root under '${mcpWorkspace.pagesRel}/'.`,
+    );
+    return { status: 'error', message: err.error.message, error: err.error };
+  }
+
+  const catalogPath = path.join(mcpWorkspace.selectorCatalogDir, featureName, `${pageName}.json`);
+
+  if (!fs.existsSync(catalogPath)) {
+    const err = createToolError(
+      'CATALOG_NOT_FOUND',
+      `Catalog not found at ${catalogPath}. Run snapshot_page first.`,
+    );
     return { status: 'error', message: err.error.message, error: err.error };
   }
 

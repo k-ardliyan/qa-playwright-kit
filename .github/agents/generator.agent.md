@@ -18,7 +18,7 @@ You convert a Planner scenario table into Playwright TypeScript test files.
 Read these before generating — they are the canonical output shape:
 
 - Requirement: `requirements/_GOOD_EXAMPLE.md` (or `requirements/auth/login-none.md`)
-- Test plan: `specs/_GOOD_EXAMPLE.md` (or `specs/login-test-plan.md`)
+- Test plan: `specs/_GOOD_EXAMPLE.md` (or `specs/_TEMPLATE.md`)
 - Inline locator pattern: `tests/demo/demo-pw-power.spec.ts`
 
 ## Input Format

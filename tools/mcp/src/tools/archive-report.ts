@@ -39,9 +39,15 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
   const repoRoot = getRepoRoot();
   const archiveDir = path.join(mcpWorkspace.reportsDir, 'archive', runId);
 
-  // Resolve and validate report path — must be inside repo
+  // Resolve and validate report path — must be inside repo (relative-based so a
+  // sibling directory named `qa-playwright-kit-evil` cannot pass startsWith()).
+  const insideRepo = (candidate: string): boolean => {
+    const rel = path.relative(repoRoot, candidate);
+    return !rel.startsWith('..') && !path.isAbsolute(rel);
+  };
+
   const absoluteReportPath = path.resolve(repoRoot, reportPath);
-  if (!absoluteReportPath.startsWith(repoRoot)) {
+  if (!insideRepo(absoluteReportPath)) {
     return {
       status: 'error',
       message: `reportPath "${reportPath}" must be inside the repository root.`,
@@ -71,7 +77,7 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
 
     if (jsonReportPath) {
       const candidate = path.resolve(repoRoot, jsonReportPath);
-      if (candidate.startsWith(repoRoot) && fs.existsSync(candidate)) {
+      if (insideRepo(candidate) && fs.existsSync(candidate)) {
         resolvedJsonPath = candidate;
       }
     }
