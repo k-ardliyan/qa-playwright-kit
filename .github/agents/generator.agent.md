@@ -38,8 +38,12 @@ Also read per-scenario fields:
 - `Input Data` — key: value pairs from requirement (used for `setTestMetadata`)
 - `Expected Result` — observable outcome (used for `setTestMetadata`)
 - `Layer` — affected layers FE / BE / DB / API (used for `setTestMetadata`)
-- `Role` — which **business** role this scenario runs as (`user` for default/general mode, or specific role like `finance`, `super-admin`).  
-  **Auth for default mode:** use default account **`user`** (`.auth/{APP_ENV}/user.json` / `TEST_USER_*`). **NEVER** set `role: 'general'` in `setTestMetadata()` or look for `.auth/.../general.json` — always use `'user'`.
+- `Role` — which **business** role this scenario runs as.
+  - **Role-aware requirement** (has `Role scope` field, e.g. `admin`, `guru`, `murid`): use the **exact roles listed**. **NEVER inject role `user` if it is not explicitly in the requirement's `Role scope`.**
+  - **General/non-role-aware requirement** (no `Role scope` field): use default account **`user`** (`.auth/{APP_ENV}/user.json` / `TEST_USER_*`). Only in this case.
+  - **NEVER** set `role: 'general'` in `setTestMetadata()` or look for `.auth/.../general.json` — if general mode is needed, always use `'user'`.
+  - **NEVER** silently add `authenticate:user` setup block when the project's active roles are a named set (e.g. `admin`, `guru`, `murid`) — those roles have their own credentials and auth files.
+
 - `Auth Context` — storage state path (e.g. `.auth/{APP_ENV}/finance.json` or `authStatePath('finance')`) or `unauthenticated`
 - `Seed` — always `tests/seed.spec.ts`
 
@@ -213,7 +217,10 @@ These files are created by `src/support/auth.setup.ts` (discovers all login-read
 If a role file does not exist yet, generate the test with a comment  
 `// AUTH SETUP REQUIRED: run npm run auth:setup`.
 
-**Vocabulary:** plan column `Role: general` = non-role-aware mode → storage **`user`**. Never create `.auth/.../general.json`.
+**Vocabulary:**
+- Plan column `Role: general` = non-role-aware requirement (no `Role scope`) → storage **`user`**. Never create `.auth/.../general.json`.
+- If the requirement has a `Role scope` (e.g. `admin`, `guru`, `murid`): generate auth and spec files **only for those named roles**. Do NOT add `user` unless it is listed.
+- A project can be **fully role-aware** with no `user` account at all — in that case skip any reference to `user`/`TEST_USER_*`.
 
 See `docs/AUTH-CONTEXT-CONVENTION.md` and `docs/CREDENTIALS.md`.
 

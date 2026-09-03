@@ -513,4 +513,17 @@ test.describe('Hermes prompt builder (mode-aware)', () => {
     expect(prompt).toContain('Run the pipeline in automatic mode');
     expect(prompt).not.toContain('Jalankan pipeline');
   });
+
+  test('prompt accepts baseUrl and appEnv options and formats categories with double newlines', () => {
+    const prompt = buildAgentPrompt('requirements/login.md', loginMarkdown('none'), 'id', {
+      baseUrl: 'http://localhost:8000',
+      appEnv: 'local',
+    });
+    expect(prompt).toContain('http://localhost:8000/login');
+    expect(prompt).toContain('featureName: "auth"');
+    expect(prompt).toContain('artifacts/reports/pipeline-state.json');
+    expect(prompt).toContain('[ARAHAN EKSEKUSI]');
+    expect(prompt).toContain('[KUALITAS KODE]');
+    expect(prompt).toContain('\n\n');
+  });
 });

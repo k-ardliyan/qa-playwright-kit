@@ -4,15 +4,15 @@
  * Interactive CLI wizard that guides users through:
  * 1. Language selection (Indonesian default, English opt-in)
  * 2. APP_ENV selection (final target resolved once)
- * 3. Existing-config update/keep for that env (with current-state summary)
- * 4. Playwright Chromium availability (offer install if missing)
- * 5. BASE_URL configuration
- * 6. Role credential entry (re-try on mismatch; back navigation)
- * 7. Auth challenge mode
- * 8. Preview + generate clean env file, upsert values, encrypt secret keys
- * 9. Write requirements/login.md + sync agent skills/MCP
- * 10. REAL artifact verification (deps, decrypt roundtrip, browser, artifacts)
- * 11. Summary + Hermes prompt
+ * 3. Application BASE_URL configuration
+ * 4. Role credential entry (re-try on mismatch; back navigation)
+ * 5. Auth challenge mode (OTP/CAPTCHA)
+ * 6. Confirmation, clean env generation, encryption & artifact verification
+ *
+ * Post-confirmation automated phases:
+ * - Write requirements/login.md & sync agent skills/MCP
+ * - REAL artifact verification (deps, decrypt roundtrip, browser, artifacts)
+ * - Summary & agent paste prompt
  *
  * Secret keys (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`) are encrypted automatically
  * after write. URLs, flags, identifiers stay plaintext.
@@ -141,7 +141,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   const defaultAppEnv = resolveAppEnv({ repoRoot: process.cwd() }).appEnv;
   const appEnv: AppEnv = opts.appEnv ?? (await promptAppEnv(lang, defaultAppEnv));
 
-  // ─── Step 3: Existing config for the FINAL env ──────────────────────────
+  // ─── Existing config check for the FINAL env ────────────────────────────
   const existing = readExistingEnv(appEnv);
   const envPath = resolveEnvPath(appEnv);
 
@@ -167,7 +167,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     }
   }
 
-  // ─── Step 4: Playwright browser availability (install runs in parallel) ─
+  // ─── Playwright browser availability (install runs in parallel) ─────────
   await ensureBrowsers(lang);
 
   // ─── Step 3: Prompt BASE_URL ────────────────────────────────────────────
@@ -694,7 +694,10 @@ function printSummary(data: {
   }
 
   if (data.loginRequirementPath && data.loginMarkdown) {
-    const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown, lang);
+    const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown, lang, {
+      baseUrl: data.baseUrl,
+      appEnv: data.appEnv,
+    });
     console.log('');
     console.log('  ' + '─'.repeat(52));
     stepLine(

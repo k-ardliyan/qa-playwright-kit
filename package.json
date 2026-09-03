@@ -61,7 +61,7 @@
     "env:use:dev": "tsx tools/scripts/env-use.ts dev",
     "env:use:staging": "tsx tools/scripts/env-use.ts staging",
     "env:use:production": "tsx tools/scripts/env-use.ts production --i-know",
-    "auth:setup": "npx playwright test tests/auth.setup.ts --project=setup --workers=1",
+    "auth:setup": "npx playwright test tests/auth.setup.ts --project=setup",
     "auth:setup:headed": "npx playwright test tests/auth.setup.ts --project=setup --workers=1 --headed",
     "qa:run": "tsx tools/scripts/qa-run.ts",
     "manual:check": "tsx tools/scripts/manual-check.ts",

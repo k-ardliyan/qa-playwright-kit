@@ -47,7 +47,7 @@ test.describe('qa:run prompt builder', () => {
     expect(prompt).toContain('authenticated');
     expect(prompt).not.toMatch(/This is a LOGIN \/ first-auth requirement/);
     expect(prompt).toContain('requirementPath matches this file');
-    expect(prompt).toContain('[[ HARD RULE ]]');
+    expect(prompt).toContain('[HARD RULE]');
   });
 
   test('login requirement keeps login snapshot guidance', () => {
@@ -62,7 +62,7 @@ test.describe('qa:run prompt builder', () => {
     expect(prompt).toContain('/login');
     expect(prompt).toContain('snapshot_page');
     expect(prompt).toContain('Test Step = Langkah verbatim');
-    expect(prompt).toContain('[[ HARD RULE ]]');
+    expect(prompt).toContain('[HARD RULE]');
     expect(prompt).toContain('credential values into test.step');
   });
 
@@ -77,9 +77,36 @@ test.describe('qa:run prompt builder', () => {
     const enPrompt = buildAgentPrompt('requirements/login.md', md, 'en');
 
     expect(idPrompt).toContain('Jalankan pipeline dalam mode otomatis');
-    expect(idPrompt).toContain('[[ CEK KETAT ]]');
+    expect(idPrompt).toContain('[CEK KETAT]');
+    expect(idPrompt).toContain('[ARAHAN EKSEKUSI]');
+    expect(idPrompt).toContain('[KUALITAS KODE]');
     expect(enPrompt).toContain('Run the pipeline in automatic mode');
-    expect(enPrompt).toContain('[[ HARD RULE ]]');
+    expect(enPrompt).toContain('[HARD RULE]');
+    expect(enPrompt).toContain('[EXECUTION GUIDANCE]');
+    expect(enPrompt).toContain('[CODE QUALITY]');
+  });
+
+  test('interpolates baseUrl, appEnv, Phase 0.5, and artifacts/reports state path with double newlines', () => {
+    const md = `
+# REQ-AUTH-01: Login form
+## Metadata
+- **Auth state:** unauthenticated
+- **Halaman awal:** /login
+AUTH_CHALLENGE_MODE=otp-browser
+`;
+    const prompt = buildAgentPrompt('requirements/login.md', md, 'id', {
+      baseUrl: 'https://staging.example.com',
+      appEnv: 'staging',
+    });
+
+    expect(prompt).toContain('https://staging.example.com/login');
+    expect(prompt).toContain('featureName: "auth"');
+    expect(prompt).toContain('pageName: "login"');
+    expect(prompt).toContain('.auth/staging');
+    expect(prompt).toContain('artifacts/reports/pipeline-state.json');
+    expect(prompt).toContain('Phase 0.5');
+    expect(prompt).not.toContain('BASE_URL + path login');
+    expect(prompt).toContain('\n\n');
   });
 });
 

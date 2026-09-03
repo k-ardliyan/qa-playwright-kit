@@ -1,5 +1,5 @@
 /**
- * Unit tests for wizard-auth-template backup behavior
+ * Unit tests for wizard-auth-template backup behavior and output shape
  * Run: npx tsx scripts/__tests__/wizard-auth-template.test.ts
  */
 import assert from 'node:assert/strict';
@@ -11,10 +11,10 @@ import { writeAuthSetup } from '../wizard-auth-template';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-setup-'));
 const out = path.join(tmp, 'auth.setup.ts');
 
-// first write
+// first write — single role
 writeAuthSetup(
   {
-    roles: [{ name: 'user', authFile: '.auth/user.json' }],
+    roles: [{ name: 'user', authFile: '.auth/local/user.json' }],
     loginUrl: '/login',
     successUrlPath: '/dashboard',
   },
@@ -22,16 +22,27 @@ writeAuthSetup(
 );
 assert.ok(fs.existsSync(out));
 const v1 = fs.readFileSync(out, 'utf-8');
-assert.ok(v1.includes('authenticate:user'));
-assert.ok(v1.includes('LOGIN_ID_PREF') || v1.includes('loginId') || v1.includes('USERNAME'));
+// shared helper present
+assert.ok(v1.includes('async function loginRole('), 'shared loginRole helper missing');
+// thin setup wrapper present
+assert.ok(v1.includes("setup('authenticate:user'"), 'setup block for user missing');
+// authFile uses cred.authFile — NOT a hardcoded string
+assert.ok(v1.includes('cred.authFile'), 'authFile must use cred.authFile, not hardcoded string');
+assert.ok(!v1.includes("'.auth/"), "authFile must NOT be hardcoded literal '.auth/...' in setup");
+// imports present
+assert.ok(v1.includes('resolveRoleCredentials'), 'resolveRoleCredentials import missing');
+assert.ok(
+  v1.includes('human-challenge') || v1.includes('handlePostLoginChallenge'),
+  'human-challenge import missing',
+);
 assert.equal(fs.existsSync(out + '.bak'), false);
 
-// second write should create .bak
+// second write — multi role — should create .bak and include both roles
 writeAuthSetup(
   {
     roles: [
-      { name: 'user', authFile: '.auth/user.json' },
-      { name: 'finance', authFile: '.auth/finance.json' },
+      { name: 'user', authFile: '.auth/local/user.json' },
+      { name: 'finance', authFile: '.auth/local/finance.json' },
     ],
     loginUrl: '/login',
     successUrlPath: '/home',
@@ -42,10 +53,14 @@ assert.ok(fs.existsSync(out + '.bak'));
 const bak = fs.readFileSync(out + '.bak', 'utf-8');
 assert.equal(bak, v1);
 const v2 = fs.readFileSync(out, 'utf-8');
-assert.ok(v2.includes('authenticate:finance'));
-assert.ok(v2.includes('/home'));
-assert.ok(v2.includes('human-challenge') || v2.includes('handlePostLoginChallenge'));
-assert.ok(v2.includes('AUTH_CHALLENGE_MODE') || v2.includes('resolveChallengeMode'));
+assert.ok(v2.includes("setup('authenticate:finance'"), 'setup block for finance missing');
+assert.ok(v2.includes("setup('authenticate:user'"), 'setup block for user still missing');
+assert.ok(v2.includes('cred.authFile'), 'v2 authFile must use cred.authFile');
+assert.ok(v2.includes('async function loginRole('), 'v2 shared loginRole helper missing');
+assert.ok(
+  v2.includes('AUTH_CHALLENGE_MODE') || v2.includes('resolveChallengeMode'),
+  'challenge mode missing',
+);
 
 fs.rmSync(tmp, { recursive: true, force: true });
 process.stdout.write('wizard-auth-template backup tests passed\n');

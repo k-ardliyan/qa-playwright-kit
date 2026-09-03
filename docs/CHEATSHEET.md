@@ -48,8 +48,8 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 | `npm run qa:run`                | Preflight + pilih requirement + prompt Hermes + dashboard |
 | `npm run validate:requirement`  | Cek requirement saja (TTY pilih file)                     |
 | `npm run env:edit`              | Ganti password / role / browser / OTP-CAPTCHA             |
-| `npm run auth:setup`            | Refresh session (workers=1)                               |
-| `npm run auth:setup:headed`     | Session + OTP/CAPTCHA di browser                          |
+| `npm run auth:setup`            | Refresh session (mode paralel)                            |
+| `npm run auth:setup:headed`     | Session + OTP/CAPTCHA di browser (workers=1)              |
 | `npm run manual:check`          | List semua skenario `(@manual)`                           |
 | `list_requirement_status` (MCP) | Peta: requirement → plan → tests → manual                 |
 | `npm test`                      | Jalankan semua test                                       |

@@ -496,7 +496,7 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
       inputLines: ['password: literal:MySecretPassword123!'],
       steps: [
         'Buka halaman login',
-        'Isi field password dengan `MySecretPassword123!`',
+        'Isi field password dengan nilai dari Input Data',
         'Periksa tipe input password sebelum toggle',
         'Klik icon atau tombol show password',
         'Periksa tipe input password setelah toggle aktif',
@@ -528,7 +528,7 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
       ],
       steps: [
         'Buka halaman login',
-        'Isi field login dengan email yang memiliki karakter spasi di awal dan akhir (`  test.user@example.com  `)',
+        'Isi field login dengan nilai email ber-spasi dari Input Data',
         'Isi field password dengan password valid',
         `Klik tombol submit (${submitButtons})`,
       ],
@@ -605,7 +605,7 @@ function formScenarios(state: LoginTemplateState, challengeMode: ChallengeMode):
       ],
       steps: [
         'Buka halaman login',
-        'Isi field login dengan email berhuruf kapital penuh (`TEST.USER@EXAMPLE.COM`)',
+        'Isi field login dengan nilai email kapital dari Input Data',
         'Isi field password dengan password valid',
         `Klik tombol submit (${submitButtons})`,
       ],

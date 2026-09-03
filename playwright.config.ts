@@ -6,6 +6,10 @@ loadEnvironment();
 
 const includeBlob = process.env.CI === 'true' && process.env.PW_BLOB === '1';
 
+const challengeMode = (process.env.AUTH_CHALLENGE_MODE ?? 'none').trim().toLowerCase();
+const hasInteractiveChallenge = challengeMode !== 'none';
+const isInteractiveUi = process.argv.includes('--headed') || process.argv.includes('--debug');
+
 export default defineConfig({
   ...buildPlaywrightSharedDefaults(),
   testDir: './tests',
@@ -23,8 +27,11 @@ export default defineConfig({
       name: 'setup',
       testDir: './tests',
       testMatch: /auth\.setup\.ts/,
-      // Multi-role auth must not race (OTP stdin / browser pause).
-      fullyParallel: false,
+      // Smart concurrency:
+      // - Mode normal (AUTH_CHALLENGE_MODE=none) di headless: PARALEL penuh agar cepat.
+      // - Mode interaktif (OTP/CAPTCHA atau --headed): SERIAL (fullyParallel: false)
+      //   agar input terminal stdin dan browser window tidak bertabrakan.
+      fullyParallel: !hasInteractiveChallenge && !isInteractiveUi,
     },
     {
       name: 'chromium',

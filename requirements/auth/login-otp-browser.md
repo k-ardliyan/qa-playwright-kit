@@ -274,7 +274,7 @@
 **Langkah:**
 
 1. Buka halaman login
-2. Isi field password dengan `MySecretPassword123!`
+2. Isi field password dengan nilai dari Input Data
 3. Periksa tipe input password sebelum toggle
 4. Klik icon atau tombol show password
 5. Periksa tipe input password setelah toggle aktif
@@ -308,7 +308,7 @@
 **Langkah:**
 
 1. Buka halaman login
-2. Isi field login dengan email yang memiliki karakter spasi di awal dan akhir (`  test.user@example.com  `)
+2. Isi field login dengan nilai email ber-spasi dari Input Data
 3. Isi field password dengan password valid
 4. Klik tombol submit (`Masuk`, `Login`, `Sign in`, atau `Log in`)
 
@@ -400,7 +400,7 @@
 **Langkah:**
 
 1. Buka halaman login
-2. Isi field login dengan email berhuruf kapital penuh (`TEST.USER@EXAMPLE.COM`)
+2. Isi field login dengan nilai email kapital dari Input Data
 3. Isi field password dengan password valid
 4. Klik tombol submit (`Masuk`, `Login`, `Sign in`, atau `Log in`)
 
