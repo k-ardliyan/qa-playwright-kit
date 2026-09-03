@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### MCP hardening, `pipeline_status` tool & docs sinkronisasi — 2026-09-03
+- **Tool baru `pipeline_status`:** orientasi satu panggilan — fase pipeline saat ini, resume safety, staleness requirement (via `computeSourceHash`), missing artifacts, dan hasil run terakhir. Terdaftar read-only, diekspos ke profil `planner`/`reporter`/`all`.
+- **Hardening write path MCP:** `synthesize_requirement` kini memvalidasi `outputPath` via `resolveAllowedPath('requirements')` dan `generate_page_object` ke `tests/pages/` — blokir path traversal, `_TEMPLATE`/README, dan path di luar repo. HTTP server dibatasi bind loopback + body size limit.
+- **Report dir resolver konsisten:** `report-builder.ts` tidak lagi hardcode `reports/` — memakai kontrak resolver yang sama dengan `state.ts` (`QA_REPORT_DIR` → `artifacts/reports/`). Markdown pipeline report kini selalu mendarat di lokasi yang dijanjikan `qa:run` dan wizard (`artifacts/reports/pipeline-report-<runId>.md`).
+- **Dokumentasi:** README 21→23 MCP tools, AGENTS.md melengkapi `generate_page_object`, CHEATSHEET & GUIDE menambah `pipeline_status`, reporter.agent.md & docs arsip memakai path canonical `artifacts/reports/`.
+- **Unit tests baru** (`mcp-hardening.test.ts`): registry profile, parsing state, dan penolakan out-of-bounds output; test synthesize disesuaikan menulis di dalam repo sesuai guard baru.
+
 ### Per-role login & redirect paths — 2026-09-02
 - **Per-Role Login & Redirect Flow:** `promptRoleCredentials` di wizard kini menyatukan input kredensial, path halaman login (`{ROLE}_LOGIN_URL_PATH`, default `/login`), dan path redirect sukses (`{ROLE}_SUCCESS_URL_PATH`, default `/dashboard`) dalam satu konteks per-role. `BASE_URL` terpisah murni sebagai host server.
 - **Dynamic Multi-Role Setup:** Setup wizard menerima daftar role kustom apa pun (`admin,guru,murid`, `buyer,seller`, dll.) tanpa menyisipkan role `user` siluman jika tidak didefinisikan.

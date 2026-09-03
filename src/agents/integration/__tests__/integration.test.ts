@@ -64,7 +64,7 @@ const STATE_FILES = [
   path.resolve('artifacts/reports/pipeline-state.json'),
   path.resolve('reports/pipeline-state.json'),
 ];
-const EVENTS_FILE = path.resolve('reports/pipeline-events.jsonl');
+const EVENTS_FILE = path.resolve('artifacts', 'reports', 'pipeline-events.jsonl');
 
 function backupStateFile(): Record<string, string> {
   const backups: Record<string, string> = {};
@@ -395,7 +395,7 @@ test.describe('Agent Validation', () => {
     const results = validateAgents({
       agentDir: '.github/agents/',
       mcpConfigPath: '.mcp.json',
-      registryPath: 'mcp-server/src/tools/registry.ts',
+      registryPath: 'tools/mcp/src/tools/registry.ts',
       fix: false,
     });
 
@@ -419,7 +419,7 @@ test.describe('Agent Validation', () => {
     const results = validateAgents({
       agentDir: '.github/agents/',
       mcpConfigPath: '.mcp.json',
-      registryPath: 'mcp-server/src/tools/registry.ts',
+      registryPath: 'tools/mcp/src/tools/registry.ts',
       fix: false,
     });
 

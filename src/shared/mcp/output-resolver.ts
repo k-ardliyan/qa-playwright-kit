@@ -14,7 +14,7 @@ export interface ResolveOutputDirOptions {
 export function resolveMcpOutputDir(options: ResolveOutputDirOptions = {}): string {
   const root = options.repoRoot ?? findRepoRoot();
   const runId = options.runId ?? `mcp-${Date.now()}`;
-  const outDir = path.join(root, 'test-results', 'mcp', runId);
+  const outDir = path.join(root, 'artifacts', 'test-results', 'mcp', runId);
 
   if (options.ensureExists !== false && !fs.existsSync(outDir)) {
     try {

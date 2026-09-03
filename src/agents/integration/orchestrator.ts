@@ -9,6 +9,9 @@
  */
 
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import { computeSourceHash } from '@/contracts';
 import { PipelinePhase, ProtocolError, PhaseResult } from './types';
 import { HookRegistry, PipelineEvent, EventType } from './hooks';
 import { PipelineState, saveState } from './state';
@@ -21,6 +24,23 @@ export type { PhaseResult } from './types';
  * Ordered sequence of pipeline phases for automatic execution.
  */
 const PHASE_SEQUENCE: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 'report'];
+
+/**
+ * Stamp the source requirement hash at run start so resume staleness checks
+ * work from the first resume (resumeState() only compares when a hash exists).
+ * Missing/unreadable requirement files leave the hash unset — staleness stays
+ * undetectable, matching the previous lenient behavior.
+ */
+function stampRequirementHash(requirementPath: string | undefined): string | undefined {
+  if (!requirementPath) return undefined;
+  const reqAbs = path.resolve(requirementPath);
+  if (!fs.existsSync(reqAbs)) return undefined;
+  try {
+    return computeSourceHash(fs.readFileSync(reqAbs, 'utf-8'));
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Configuration for the orchestrator engine.
@@ -56,22 +76,31 @@ export class Orchestrator {
     private config: OrchestratorConfig,
     private executor: PhaseExecutor,
     private hooks: HookRegistry,
+    initialState?: PipelineState,
   ) {
-    const runId = config.runId || randomUUID();
+    const runId = config.runId || initialState?.runId || randomUUID();
     const now = new Date().toISOString();
 
-    this.state = {
-      runId,
-      status: 'running',
-      currentPhase: null,
-      completedPhases: [],
-      artifacts: { plan: [], generate: [], execute: [], heal: [], report: [] },
-      timestamp: now,
-      startedAt: now,
-      requirementPath: config.requirementPath,
-      orchestrationMode: config.orchestrationMode,
-      errors: [],
-    };
+    this.state = initialState
+      ? {
+          ...initialState,
+          status: 'running',
+          timestamp: now,
+          errors: [...(initialState.errors || [])],
+        }
+      : {
+          runId,
+          status: 'running',
+          currentPhase: null,
+          completedPhases: [],
+          artifacts: { plan: [], generate: [], execute: [], heal: [], report: [] },
+          timestamp: now,
+          startedAt: now,
+          requirementPath: config.requirementPath,
+          requirementHash: stampRequirementHash(config.requirementPath),
+          orchestrationMode: config.orchestrationMode,
+          errors: [],
+        };
   }
 
   /**
@@ -90,6 +119,10 @@ export class Orchestrator {
     let lastResult: PhaseResult | undefined;
 
     for (const phase of PHASE_SEQUENCE) {
+      if (this.state.completedPhases.includes(phase)) {
+        continue;
+      }
+
       const input = this.getPhaseInput(phase, lastResult);
 
       // Emit phase:start event

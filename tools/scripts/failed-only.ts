@@ -14,14 +14,12 @@ const DEFAULT_SUMMARY_PATH = path.resolve(
   'reports',
   'test-summary.json',
 );
-const ROOT_SUMMARY_PATH = path.resolve(process.cwd(), 'reports', 'test-summary.json');
 
 /**
  * Extracts failed or unhealthy test titles from the latest test-summary.json.
  */
 export function extractFailedTestTitles(summaryPath?: string): string[] {
-  const targetPath =
-    summaryPath || (fs.existsSync(DEFAULT_SUMMARY_PATH) ? DEFAULT_SUMMARY_PATH : ROOT_SUMMARY_PATH);
+  const targetPath = summaryPath || DEFAULT_SUMMARY_PATH;
   if (!fs.existsSync(targetPath)) return [];
 
   try {

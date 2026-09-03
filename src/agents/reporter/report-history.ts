@@ -2,7 +2,7 @@
  * Report History Browser — reads QA-validated archives.
  *
  * Only returns runs that have been explicitly saved by QA.
- * Legacy archives (pre-refactor) are supported via fallback.
+ * Legacy archives are not read; only canonical QA-saved archives are supported.
  *
  * @module src/agents/reporter/report-history
  */

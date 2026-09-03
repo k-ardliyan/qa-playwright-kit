@@ -89,7 +89,7 @@ interface ScenarioTracker {
  */
 const defaultGenerator: ScenarioGenerator = async (scenario: TestScenario) => ({
   success: true,
-  filePath: `src/tests/${scenario.id}.spec.ts`,
+  filePath: `tests/${scenario.id}.spec.ts`,
   verified: true,
   verificationMethod: 'none' as const,
 });
@@ -154,7 +154,7 @@ export async function generatePartial(
         tracker.status = 'generated';
         generated.push({
           scenarioId: scenario.id,
-          filePath: result.filePath ?? `src/tests/${scenario.id}.spec.ts`,
+          filePath: result.filePath ?? `tests/${scenario.id}.spec.ts`,
           verified: result.verified ?? false,
           verificationMethod: result.verificationMethod ?? 'none',
         });

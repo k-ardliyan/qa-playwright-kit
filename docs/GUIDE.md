@@ -77,7 +77,7 @@ Helper tipis di `src/support/pw/` membungkus API resmi (bukan abstraksi berat):
 | PDF teks / Excel header       | `(@file-content)` / `#file-content`     | `assertPdfContains`, `extractPdfText`, `assertExcelHeaders`, `readExcelSummary`                                   |
 | Multi-field validation        | `(@failure)` multi-error                | `expect.soft` / `expectSoftFieldErrors`                                                                           |
 | Time-sensitive UI             | date/countdown                          | `freezeTime` / `advanceTime` → `page.clock`                                                                       |
-| Multi-role projects           | Role scope                              | `buildRoleProjects` + recipe `playwright.role-projects.recipe.ts`                                                 |
+| Multi-role projects           | Role scope                              | `buildRoleProjects` (`src/support/pw/role-projects.ts`)                                                           |
 
 Semua helper di atas diimpor dari `@/support/pw` (lihat `src/support/pw/files.ts` + `file-content-core.ts` untuk file).
 
@@ -172,7 +172,7 @@ npm run setup
 # lalu print prompt Hermes siap-paste
 
 npm run qa:run
-# atau paste prompt yang sudah dicetak wizard
+# qa:run hanya preflight + prompt; Hermes menjalankan pipeline setelah prompt ditempel
 ```
 
 OTP/CAPTCHA: `npm run auth:setup` / `auth:setup:headed` dulu, baru pipeline.
@@ -310,6 +310,7 @@ Buat POM scaffold dari halaman https://staging.app/login:
 | Daftarkan POM               | `tests/fixtures.ts` / `src/fixtures/project.fixture.ts` |
 | Server QA custom            | `qa-playwright-kit`                                     |
 | Cek kesehatan               | tool `health_check`                                     |
+| Status & resume pipeline    | tool `pipeline_status`                                  |
 | Validasi format             | `validate_requirement` / `npm run validate:requirement` |
 | Validasi kode tes           | `npm run validate`                                      |
 | Arsip laporan               | `archive_report` / `artifacts/reports/archive/<runId>/` |

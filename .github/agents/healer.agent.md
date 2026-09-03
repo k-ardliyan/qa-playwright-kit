@@ -73,7 +73,7 @@ The Healer uses a learning system (`src/agents/healer/`) that stores and retriev
 
 ### Initialization
 
-On first use (or when `reports/heal-patterns.json` is missing), the system automatically creates an empty database:
+On first use (or when `artifacts/reports/heal-patterns.json` is missing), the system automatically creates an empty database:
 
 ```typescript
 import { loadDatabase, saveDatabase, storePattern, ensurePowerSeedPatterns } from '@/agents/healer';

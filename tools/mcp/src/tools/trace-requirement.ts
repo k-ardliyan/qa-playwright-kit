@@ -86,11 +86,7 @@ export function buildTraceabilityMatrix(
   const repoRoot = mcpWorkspace.rootDir;
   const diagnostics: Diagnostic[] = [];
 
-  const summaryPath =
-    summaryFilePath ||
-    (fs.existsSync(path.join(mcpWorkspace.reportsDir, 'test-summary.json'))
-      ? path.join(mcpWorkspace.reportsDir, 'test-summary.json')
-      : path.join(repoRoot, 'reports', 'test-summary.json'));
+  const summaryPath = summaryFilePath || path.join(mcpWorkspace.reportsDir, 'test-summary.json');
 
   const testCaseMap = loadSummaryTestCases(summaryPath);
   const allTests = listFilesRecursive(mcpWorkspace.testsDir, '.spec.ts');
@@ -387,7 +383,13 @@ export function traceRequirement(args: TraceRequirementArgs | undefined): TraceR
     }
   }
 
-  const summaryPath = typeof args.summaryPath === 'string' ? args.summaryPath : undefined;
+  let summaryPath = typeof args.summaryPath === 'string' ? args.summaryPath : undefined;
+  if (!summaryPath && typeof args.resultsDir === 'string') {
+    const candidateSummary = path.join(args.resultsDir, 'test-summary.json');
+    if (fs.existsSync(candidateSummary)) {
+      summaryPath = candidateSummary;
+    }
+  }
   const matrix = buildTraceabilityMatrix(text, reqPath || 'requirements/unknown.md', summaryPath);
 
   return successResult(matrix, {

@@ -20,7 +20,8 @@ export class McpVideoWorkflow {
     customOutDir?: string,
   ): VideoSession {
     const root = findRepoRoot();
-    const dir = customOutDir ?? path.join(root, 'test-results', 'mcp', runId, 'videos');
+    const dir =
+      customOutDir ?? path.join(root, 'artifacts', 'test-results', 'mcp', runId, 'videos');
     const safeTestId = testId.replace(/[^a-zA-Z0-9_-]/g, '_');
     const videoPath = path.join(dir, `${safeTestId}-reproduction.webm`);
 

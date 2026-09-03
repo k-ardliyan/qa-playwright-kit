@@ -1,16 +1,12 @@
-import * as fs from 'node:fs';
 import path from 'node:path';
 import { getDashboardStyles } from './styles';
 import { buildClientBootstrapJs } from './client';
 import type { CollectedAttachment, CollectedStep, CollectedTestData, TestSummary } from './types';
 
 function resolveReportDir(): string {
-  if (process.env['QA_REPORT_DIR']) return path.resolve(process.env['QA_REPORT_DIR']);
-  const artifactsReport = path.resolve(process.cwd(), 'artifacts', 'reports');
-  if (fs.existsSync(artifactsReport) || fs.existsSync(path.resolve(process.cwd(), 'artifacts'))) {
-    return artifactsReport;
-  }
-  return path.resolve(process.cwd(), 'reports');
+  const override = process.env['QA_REPORT_DIR'];
+  if (override) return path.resolve(override);
+  return path.resolve('artifacts', 'reports');
 }
 
 export const REPORT_DIR = resolveReportDir();

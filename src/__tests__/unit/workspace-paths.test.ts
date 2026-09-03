@@ -6,6 +6,7 @@ import {
   findRepoRoot,
 } from '@/shared/workspace-paths';
 import { mcpWorkspace } from '../../../tools/mcp/src/utils/workspace-paths';
+import { McpWorkspacePathRegistry } from '../../../tools/mcp/src/utils/workspace-paths';
 
 test.describe('Workspace Path Closure & Cross-Platform Resolver Contract (Phase 1)', () => {
   test('findRepoRoot resolves a valid directory containing workspace manifest', () => {
@@ -74,5 +75,13 @@ test.describe('Workspace Path Closure & Cross-Platform Resolver Contract (Phase 
     expect(customRegistry.manifest.schemaVersion).toBe(DEFAULT_WORKSPACE_MANIFEST.schemaVersion);
     expect(customRegistry.pagesRel).toBe('tests/pages');
     expect(customRegistry.selectorCatalogRel).toBe('artifacts/selector-catalog');
+  });
+
+  test('MCP registry is strict by default and only compat mode falls back', () => {
+    const missing = path.join('/non/existent/path/for/testing', 'child');
+    expect(() => new McpWorkspacePathRegistry(missing).manifest).toThrow(
+      /WORKSPACE_MANIFEST_MISSING/,
+    );
+    expect(new McpWorkspacePathRegistry(missing, 'compat').reportsRel).toBe('artifacts/reports');
   });
 });

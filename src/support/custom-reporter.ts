@@ -32,12 +32,9 @@ import { streamTelemetryEvent } from './streaming/live-telemetry';
 import { logger } from '../utils/logger';
 
 function resolveReportDir(): string {
-  if (process.env['QA_REPORT_DIR']) return path.resolve(process.env['QA_REPORT_DIR']);
-  const artifactsReport = path.resolve(process.cwd(), 'artifacts', 'reports');
-  if (fs.existsSync(artifactsReport) || fs.existsSync(path.resolve(process.cwd(), 'artifacts'))) {
-    return artifactsReport;
-  }
-  return path.resolve(process.cwd(), 'reports');
+  const override = process.env['QA_REPORT_DIR'];
+  if (override) return path.resolve(override);
+  return path.resolve(process.cwd(), 'artifacts', 'reports');
 }
 
 const REPORT_DIR = resolveReportDir();
@@ -57,7 +54,7 @@ function safeFilePrefix(test: CollectedTestData): string {
 }
 
 /**
- * Copy screenshot / video / trace into reports/attachments/* and rewrite relativePath
+ * Copy screenshot / video / trace into artifacts/reports/attachments/* and rewrite relativePath
  * so standalone custom-dashboard.html can open evidence next to the report.
  */
 function resolveAttachmentSourcePath(relativeOrAbs: string): string | null {
@@ -72,7 +69,6 @@ function resolveAttachmentSourcePath(relativeOrAbs: string): string | null {
     candidates.push(
       path.resolve(process.cwd(), 'artifacts', 'test-results', path.basename(normalized)),
     );
-    candidates.push(path.resolve(process.cwd(), 'test-results', path.basename(normalized)));
     // Already-materialized path re-run safety
     if (normalized.startsWith('attachments/')) {
       candidates.push(path.resolve(REPORT_DIR, normalized));
@@ -244,15 +240,15 @@ function stripAnsi(str: string): string {
  * Resolve module from annotation value or spec file path.
  * Priority:
  *   1. Explicit annotation value (set by generator from requirement metadata)
- *   2. Subfolder of src/tests/: src/tests/auth/foo.spec.ts → 'auth'
+ *   2. Subfolder of tests/: tests/auth/foo.spec.ts → 'auth'
  *   3. 'general' fallback
  */
 function resolveModuleFromPath(annotationValue: string, filePath: string): string {
   const val = (annotationValue || '').trim().toLowerCase();
   if (val.length > 0) return val;
-  // src/tests/<subfolder>/... or src\tests\<subfolder>\...
+  // tests/<subfolder>/... or tests\\<subfolder>\\...
   const normalized = filePath.replace(/\\/g, '/');
-  const match = normalized.match(/src\/tests\/([^/]+)\/.+\.spec\.ts$/i);
+  const match = normalized.match(/tests\/([^/]+)\/.+\.spec\.ts$/i);
   if (match) {
     const folder = match[1].toLowerCase();
     if (!folder.startsWith('_') && folder !== 'demo') return folder;

@@ -1,7 +1,7 @@
 /**
  * Playwright file download/upload helpers + content asserts.
  *
- * Upload is fixture-first (test-fixtures/). Content needles/headers come from
+ * Upload is fixture-first (tests/data/). Content needles/headers come from
  * the scenario — never a patented business field list.
  */
 
@@ -41,7 +41,7 @@ function ensureDir(dir: string): void {
 
 /**
  * Resolve a fixture path for upload.
- * Accepts: absolute path, `test-fixtures/...`, or relative under test-fixtures (e.g. `pdf/sample.pdf`).
+ * Accepts: absolute path, `tests/data/...`, or relative under tests/data (e.g. `pdf/sample.pdf`).
  */
 export function resolveUploadFixturePath(relativeOrAbsolute: string): string {
   const raw = relativeOrAbsolute.trim();
@@ -52,7 +52,7 @@ export function resolveUploadFixturePath(relativeOrAbsolute: string): string {
     return raw;
   }
   const normalized = raw.replace(/\\/g, '/');
-  if (normalized === 'test-fixtures' || normalized.startsWith('test-fixtures/')) {
+  if (normalized === 'tests/data' || normalized.startsWith('tests/data/')) {
     return path.join(findRepoRoot(), ...normalized.split('/').filter(Boolean));
   }
   return fixturePath(...normalized.split('/').filter(Boolean));
@@ -71,7 +71,7 @@ export async function downloadAndSave(
   await trigger();
   const download = await downloadPromise;
   const suggestedFilename = path.basename(download.suggestedFilename() || 'download.bin');
-  const dir = options?.dir ?? path.join(findRepoRoot(), 'test-results', 'downloads');
+  const dir = options?.dir ?? path.join(findRepoRoot(), 'artifacts', 'test-results', 'downloads');
   ensureDir(dir);
   const target = path.join(dir, suggestedFilename);
   await download.saveAs(target);
@@ -79,7 +79,7 @@ export async function downloadAndSave(
   return { path: target, suggestedFilename, size };
 }
 
-/** Upload a file from `test-fixtures/` (or absolute path). */
+/** Upload a file from `tests/data/` (or absolute path). */
 export async function uploadFixture(locator: Locator, relativeFixturePath: string): Promise<void> {
   const absolute = resolveUploadFixturePath(relativeFixturePath);
   if (!fs.existsSync(absolute)) {

@@ -6,12 +6,12 @@ Load when the pipeline has finished and QA needs to read the report and choose a
 
 ## Expected artefacts
 
-| Artefact                                       | Required | How to open                                                     |
-| ---------------------------------------------- | -------- | --------------------------------------------------------------- |
+| Artefact                                       | Required | How to open                                                                                                             |
+| ---------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `artifacts/reports/custom-dashboard.html`      | ✅        | Open manually in a browser, or run `npm run dashboard`. Auto-open via `qa:run --open-dashboard` is opt-in (default OFF) |
-| `specs/{feature}-test-plan.md`                 | ✅        | Text editor / VS Code                                           |
-| `tests/{feature}*.spec.ts`                     | ✅        | Text editor / VS Code                                           |
-| `artifacts/reports/pipeline-report-{runId}.md` | ✅        | Text editor / VS Code                                           |
+| `specs/{feature}-test-plan.md`                 | ✅        | Text editor / VS Code                                                                                                   |
+| `tests/{feature}*.spec.ts`                     | ✅        | Text editor / VS Code                                                                                                   |
+| `artifacts/reports/pipeline-report-{runId}.md` | ✅        | Text editor / VS Code                                                                                                   |
 
 If the dashboard does not open automatically: locate `artifacts/reports/custom-dashboard.html` and open it in a browser, or run `npm run dashboard`.
 

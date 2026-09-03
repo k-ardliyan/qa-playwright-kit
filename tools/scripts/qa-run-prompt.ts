@@ -87,13 +87,13 @@ export function buildAgentPrompt(
     `[FALLBACK MCP]\n` +
       `Jika tool MCP qa-playwright-kit tidak tersedia di sesi ini (health_check gagal / tool tidak terdaftar):\n` +
       `- Validasi requirement : npx tsx tools/validators/validate-requirement.ts ${reqRelPath}\n` +
-      `- Kompilasi requirement : npx tsx tools/mcp/src/tools/compile-requirement.ts ${reqRelPath} (atau lewat qa-run preflight)\n` +
+      `- Kompilasi requirement : jalankan via qa-run preflight (npm run qa:run ${reqRelPath} --dry-run)\n` +
       `- Inspeksi UI          : gunakan MCP playwright (browser_navigate + browser_snapshot) sebagai pengganti snapshot_page\n` +
       `- Jangan berhenti; lanjutkan pipeline dengan CLI dan catat deviasi di laporan.`,
     `[MCP FALLBACK]\n` +
       `If qa-playwright-kit MCP tools are not available in this session (health_check fails / tools not registered):\n` +
       `- Validate requirement: npx tsx tools/validators/validate-requirement.ts ${reqRelPath}\n` +
-      `- Compile requirement : npx tsx tools/mcp/src/tools/compile-requirement.ts ${reqRelPath} (or via qa-run preflight)\n` +
+      `- Compile requirement : run via qa-run preflight (npm run qa:run ${reqRelPath} --dry-run)\n` +
       `- UI inspection       : use playwright MCP (browser_navigate + browser_snapshot) instead of snapshot_page\n` +
       `- Do not abort; proceed with the pipeline via CLI and record deviations in the report.`,
   );

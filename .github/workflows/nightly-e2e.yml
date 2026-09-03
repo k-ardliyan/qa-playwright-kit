@@ -118,8 +118,7 @@ jobs:
             # CI uses plaintext secrets — never encrypt this ephemeral file
             printf 'AUTH_CHALLENGE_MODE=none\n'
           } > "config/environments/${TARGET_ENV}.env"
-          mkdir -p environments
-          cp "config/environments/${TARGET_ENV}.env" "environments/${TARGET_ENV}.env"
+          # CI uses the canonical environment path only.
           echo "APP_ENV=${TARGET_ENV}" >> "$GITHUB_ENV"
           echo "Materialized config/environments/${TARGET_ENV}.env (plaintext CI profile)"
 
@@ -167,8 +166,6 @@ jobs:
           name: playwright-report-shard-${{ matrix.shardIndex }}
           path: |
             artifacts/reports/html/
-            reports/html/
-            playwright-report/
           retention-days: 30
 
       - name: Upload test results
@@ -179,8 +176,6 @@ jobs:
           path: |
             artifacts/test-results/
             artifacts/reports/
-            test-results/
-            reports/
           retention-days: 30
 
   e2e-skipped:
@@ -220,13 +215,13 @@ jobs:
 
       - name: Merge blob reports into HTML
         run: |
+          mkdir -p artifacts/reports/html-merged
           if [ -d all-blob-reports ] && [ "$(ls -A all-blob-reports 2>/dev/null)" ]; then
             npx playwright merge-reports --reporter html ./all-blob-reports
-            echo "Merged HTML written (default playwright-report/ from merge-reports)"
-            mkdir -p reports/html-merged
             if [ -d playwright-report ]; then
-              cp -r playwright-report/* reports/html-merged/ || true
+              cp -r playwright-report/* artifacts/reports/html-merged/ || true
             fi
+            echo "Merged HTML written to artifacts/reports/html-merged/"
           else
             echo "No blob reports found — skip merge"
           fi
@@ -237,8 +232,7 @@ jobs:
         with:
           name: playwright-report-merged
           path: |
-            playwright-report/
-            reports/html-merged/
+            artifacts/reports/html-merged/
           retention-days: 30
 
   cross-browser:
@@ -299,8 +293,7 @@ jobs:
             printf 'AUTH_SUCCESS_TEXT=Berhasil Login\n'
             printf 'AUTH_CHALLENGE_MODE=none\n'
           } > "config/environments/${TARGET_ENV}.env"
-          mkdir -p environments
-          cp "config/environments/${TARGET_ENV}.env" "environments/${TARGET_ENV}.env"
+          # CI uses the canonical environment path only.
           echo "APP_ENV=${TARGET_ENV}" >> "$GITHUB_ENV"
           echo "Materialized config/environments/${TARGET_ENV}.env (plaintext CI profile)"
 
@@ -323,8 +316,6 @@ jobs:
           path: |
             artifacts/test-results/cross-browser/
             artifacts/reports/
-            test-results/cross-browser/
-            reports/html-cross-browser/
           retention-days: 14
 
   publish-reports:
@@ -497,7 +488,7 @@ jobs:
         uses: actions/deploy-pages@v4
         continue-on-error: true
 
-      - name: Fallback - Upload reports as workflow artifacts
+      - name: Upload reports as workflow artifacts
         if: steps.deployment.outcome == 'failure' || steps.upload-pages.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:

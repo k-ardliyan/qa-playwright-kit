@@ -93,6 +93,7 @@ List every tool explicitly by server:
   - `list_artifacts`
   - `list_requirement_status` (coverage map: plan/tests/manual/lastStatus per requirement)
   - `archive_report` (call after Reporter produces the final report)
+  - `generate_page_object` (generate TypeScript POM scaffold from selector catalog)
   - `snapshot_page` (capture ARIA + selector catalog with session auth to `artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}`)
   - `discover_pages` (BFS auto-crawl with role session auth, writes per-page catalog + `page-map.json`)
   - `synthesize_requirement` (synthesize compliant requirement markdown from semantic selector-catalog)
@@ -209,7 +210,7 @@ List every tool explicitly by server:
 - Reporter produces:
   - Structured JSON `PipelineReport` with summary metrics, per-scenario coverage, `summaryByRole`, `summaryByModule` (with nested `features` per module), `failureSource` per unresolved failure, and QA Decision section.
   - Markdown report written to `artifacts/reports/pipeline-report-<runId>.md`.
-- Call `archive_report` with `runId` and `reportPath` after Reporter completes.
+- After QA chooses a decision, call `archive_report` with `runId`, `reportPath`, and explicit `qaDecision` (plus optional `qaNotes`). Archiving never implies APPROVE and never overwrites an existing archive.
 - In `automatic` mode: Reporter runs immediately after Heal without prompting.
 - In `manual` mode: Reporter waits for explicit invocation.
 
@@ -309,8 +310,8 @@ For each stage (`planner`, `generator`, `healer`, `reporter`):
       "stage": "planner | generator | healer",
       "errorMessage": "...",
       "failureSource": "app | test | requirement | env | ai_generation",
-      "tracePath": "test-results/.../trace.zip",
-      "screenshotPath": "test-results/.../screenshot.png"
+      "tracePath": "artifacts/test-results/.../trace.zip",
+      "screenshotPath": "artifacts/test-results/.../screenshot.png"
     }
   ],
   "qaDecision": null

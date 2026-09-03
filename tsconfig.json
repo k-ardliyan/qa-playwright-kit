@@ -29,5 +29,5 @@
     "examples/**/*.ts",
     "examples/**/*.tsx"
   ],
-  "exclude": ["node_modules", "artifacts", "tools/mcp/dist"]
+  "exclude": ["node_modules", "artifacts", "tools/mcp"]
 }

@@ -8,7 +8,7 @@
 
 Markdown requirement → test plan → Playwright test → self-heal → dashboard triage.
 
-Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 21 MCP tools · quality-gated CI
+Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 23 MCP tools · quality-gated CI
 
 [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
@@ -35,7 +35,7 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 21 MC
 |                   | Sebelum (manual)                  | Sesudah (QA Playwright Kit)                            |
 | ----------------- | --------------------------------- | ------------------------------------------------------ |
 | **Menulis test**  | Playwright spec dari nol          | Tulis requirement Markdown, AI generate spec           |
-| **Menjalankan**   | Klik Run, lihat terminal          | `npm run qa:run` — satu perintah                       |
+| **Menjalankan**   | Klik Run, lihat terminal          | `npm run qa:run` — preflight + prompt Hermes           |
 | **Test gagal**    | Debug manual, cek locator         | Self-heal: AI fix locator → re-snapshot → rerun        |
 | **Melihat hasil** | Scroll terminal, tebak yang merah | Dashboard triage: filter by role/module/priority       |
 | **Multi-role**    | Copy test, ganti storageState     | Requirement metadata → test terpisah otomatis per role |
@@ -51,7 +51,7 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 21 MC
 | **Self-healing**      | Test gagal → AI fix → re-snapshot → rerun               | Locator berubah? Framework memperbaiki sendiri     |
 | **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                |
 | **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi            |
-| **21 MCP tools**      | Validate, compile, snapshot, POM, health check          | Terintegrasi penuh dengan AI agent                 |
+| **23 MCP tools**      | Validate, compile, snapshot, POM, health check          | Terintegrasi penuh dengan AI agent                 |
 | **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                 |
 | **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                     |
 | **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                   |
@@ -181,13 +181,13 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 
 ### Daily Flow
 
-| Command                        | Fungsi                                                    |
-| ------------------------------ | --------------------------------------------------------- |
-| `npm run qa:run`               | Preflight + pilih requirement + prompt Hermes + dashboard |
-| `npm run validate:requirement` | Validasi format (TTY pilih file)                          |
-| `npm run auth:setup`           | Refresh session login                                     |
-| `npm run auth:setup:headed`    | Session + OTP/CAPTCHA di browser                          |
-| `npm run env:edit`             | Ganti password / role / OTP mode                          |
+| Command                        | Fungsi                                                               |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `npm run qa:run`               | Preflight + pilih requirement + prompt Hermes (bukan executor lokal) |
+| `npm run validate:requirement` | Validasi format (TTY pilih file)                                     |
+| `npm run auth:setup`           | Refresh session login                                                |
+| `npm run auth:setup:headed`    | Session + OTP/CAPTCHA di browser                                     |
+| `npm run env:edit`             | Ganti password / role / OTP mode                                     |
 
 ### Discovery & Setup
 

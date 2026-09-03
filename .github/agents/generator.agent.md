@@ -152,8 +152,8 @@ Spec path **mirrors the requirement path domain**. Strip `requirements/` prefix,
 
 **Rule:** derive the spec path directly from the requirement path — no separate decision needed.
 
-- Flat requirement → flat spec (existing files stay flat, no migration needed)
-- Nested requirement → nested spec (create subdirectory automatically)
+- Standard canonical convention is flat: `tests/<feature>[-<role>].spec.ts` (e.g. `tests/login.spec.ts`, `tests/login-finance.spec.ts`)
+- Subdirectory mapping (e.g. `tests/auth/login.spec.ts`) is supported, and candidate specs are resolved via stem matching by `trace-requirement`
 - Role suffix appended after feature slug, before `.spec.ts`
 - Multiple roles → one file per role
 
@@ -361,7 +361,7 @@ import {
 | `(@aria)` or `#aria`                     | Structural a11y / landmark regression                     | If `selector-catalog/<feature>/<page>.aria.yml` exists → `expectAriaMatchesCatalog(page.getByRole('main'), 'selector-catalog/...')`; else `expectAriaSnapshot` with a small inline YAML baseline                                            |
 | `(@visual)` or `#visual`                 | Layout/CSS regression                                     | After UI stabilizes: `await expectVisual(locator, { name: '<name>.png' })` or `toHaveScreenshot` (scope to a stable region)                                                                                                                 |
 | `(@download)` or `#download`             | Scenario triggers file download / export                  | `downloadAndSave(page, () => click…)` or `page.waitForEvent('download')` **before** the trigger; then envelope/content asserts as needed                                                                                                    |
-| `(@upload)` or `#upload`                 | Scenario uploads file(s)                                  | Fixture-first: `uploadFixture(locator, 'tests/data/…')` or `uploadViaChooser(page, open, 'tests/data/…')` or `setInputFiles` — **never** `page.pause()` for OS file pick                                                              |
+| `(@upload)` or `#upload`                 | Scenario uploads file(s)                                  | Fixture-first: `uploadFixture(locator, 'tests/data/…')` or `uploadViaChooser(page, open, 'tests/data/…')` or `setInputFiles` — **never** `page.pause()` for OS file pick                                                                    |
 | `(@file-content)` or `#file-content`     | Assert PDF/Excel/CSV content or file envelope             | `assertPdfContains` / `extractPdfText` / `assertExcelHeaders` / `readExcelSummary` / `assertDownloadedEnvelope` / `assertFileMagic` — **needles/headers from THIS scenario only**                                                           |
 | Multi-field `(@failure)` validation      | Several fields show errors at once                        | Prefer `expect.soft(...)` or `expectSoftFieldErrors([...])` so one test reports all field failures                                                                                                                                          |
 | Time-sensitive UI                        | Date picker / countdown / "expires at"                    | `freezeTime` / `advanceTime` from `@/support/pw` (`page.clock`)                                                                                                                                                                             |

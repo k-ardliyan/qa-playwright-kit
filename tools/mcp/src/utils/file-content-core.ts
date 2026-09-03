@@ -15,7 +15,7 @@ import * as path from 'node:path';
 
 export type FileKind = 'pdf' | 'xlsx' | 'zip' | 'png' | 'jpg' | 'gif' | 'csv' | 'txt' | 'unknown';
 
-const REPO_MARKERS = ['config/qa-kit.workspace.json', 'tools/mcp', 'mcp-server'];
+const REPO_MARKERS = ['config/qa-kit.workspace.json', 'tools/mcp'];
 const MAX_HOPS = 12;
 
 /** Resolve repository root. */

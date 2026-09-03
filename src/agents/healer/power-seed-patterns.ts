@@ -89,13 +89,13 @@ const SEEDS: SeedDef[] = [
   {
     signature: {
       errorType: 'data_state',
-      errorPattern: 'Upload fixture not found|ENOENT.*test-fixtures|setInputFiles',
+      errorPattern: 'Upload fixture not found|ENOENT.*tests/data|setInputFiles',
     },
     fix: {
       strategy: 'replace_locator',
       beforePattern: 'setInputFiles',
       afterTemplate:
-        "await uploadFixture(page.locator('input[type=file]'), 'images/sample.png');\n// or path from scenario Input Data under test-fixtures/\n",
+        "await uploadFixture(page.locator('input[type=file]'), 'images/sample.png');\n// or path from scenario Input Data under tests/data/\n",
       requiredImports: ["import { uploadFixture } from '@/support/pw';"],
     },
     tags: ['upload', 'file', 'power'],

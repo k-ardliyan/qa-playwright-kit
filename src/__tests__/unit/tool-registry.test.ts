@@ -7,6 +7,7 @@ import {
   getToolsForProfile,
   validateProfileRegistry,
   CRITICAL_PROFILES,
+  isToolAllowedForProfile,
 } from '../../../tools/mcp/src/tools/registry';
 
 test.describe('MCP Tool Registry & Backward Compatibility (Phase 8)', () => {
@@ -45,11 +46,26 @@ test.describe('MCP Tool Registry & Backward Compatibility (Phase 8)', () => {
     expect(archiveRep?.name).toBe('archive_report');
   });
 
-  test('registry contains at least 19 tools without duplicates', () => {
-    expect(TOOL_REGISTRY.length).toBeGreaterThanOrEqual(19);
-    const names = TOOL_REGISTRY.map((t) => t.name);
-    const unique = new Set(names);
-    expect(unique.size).toBe(names.length);
+  test('registry is the canonical 23-tool surface with one route per tool', () => {
+    expect(TOOL_REGISTRY).toHaveLength(23);
+    expect(new Set(TOOL_REGISTRY.map((tool) => tool.name)).size).toBe(23);
+    const registryContract = JSON.parse(
+      fs.readFileSync(
+        path.resolve(__dirname, '../../../tools/mcp/src/__tests__/fixtures/registry-contract.json'),
+        'utf-8',
+      ),
+    );
+    expect(registryContract.map((tool: { name: string }) => tool.name)).toEqual(
+      TOOL_REGISTRY.map((tool) => tool.name),
+    );
+    for (const tool of TOOL_REGISTRY) {
+      expect(tool.name).toBeTruthy();
+    }
+  });
+
+  test('planner can call mandatory health preflight', () => {
+    expect(getToolsForProfile('planner').map((tool) => tool.name)).toContain('health_check');
+    expect(isToolAllowedForProfile('health_check', 'planner')).toBe(true);
   });
 
   test('validates profile registry integrity and critical agent profiles (CC-1109)', () => {

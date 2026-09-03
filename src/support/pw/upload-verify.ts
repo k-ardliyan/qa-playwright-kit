@@ -127,7 +127,7 @@ export async function uploadAndVerify(
   options: {
     /** File input locator */
     trigger: Locator;
-    /** Fixture path under test-fixtures/ or absolute */
+    /** Fixture path under tests/data/ or absolute */
     fixturePath: string;
     /** List/gallery to verify file appears */
     listLocator?: Locator;

@@ -48,28 +48,17 @@ export interface PipelineStatusOutput {
 
 const PHASE_ORDER = ['plan', 'generate', 'execute', 'heal', 'report'];
 
-/** Report dir honoring QA_REPORT_DIR — same override contract as agents/integration/state.ts. */
+/** Report dir uses the test-only QA_REPORT_DIR override or canonical workspace path. */
 function resolveReportsDir(repoRoot: string): string {
   const override = process.env['QA_REPORT_DIR'];
-  if (override) return path.resolve(override);
-  const preferred = path.join(repoRoot, mcpWorkspace.reportsRel);
-  const legacy = path.join(repoRoot, 'reports');
-  if (fs.existsSync(legacy) && !fs.existsSync(preferred)) return legacy;
-  return preferred;
+  return override ? path.resolve(override) : path.join(repoRoot, mcpWorkspace.reportsRel);
 }
 
 function readState(repoRoot: string, reportsDir: string): { data: Record<string, unknown> } | null {
-  for (const candidate of [
-    path.join(reportsDir, 'pipeline-state.json'),
-    path.join(repoRoot, 'reports', 'pipeline-state.json'),
-  ]) {
-    if (fs.existsSync(candidate)) {
-      const parsed = safeJsonParse<Record<string, unknown>>(readTextFile(candidate));
-      if (parsed.ok) return { data: parsed.data };
-      return null;
-    }
-  }
-  return null;
+  const candidate = path.join(reportsDir, 'pipeline-state.json');
+  if (!fs.existsSync(candidate)) return null;
+  const parsed = safeJsonParse<Record<string, unknown>>(readTextFile(candidate));
+  return parsed.ok ? { data: parsed.data } : null;
 }
 
 function checkArtifacts(repoRoot: string, state: Record<string, unknown>): string[] {

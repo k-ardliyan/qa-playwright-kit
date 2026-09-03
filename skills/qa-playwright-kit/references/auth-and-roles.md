@@ -90,7 +90,7 @@ If the app requires OTP or CAPTCHA during login:
 npm run auth:setup:headed   # opens browser → log in manually → session saved
 ```
 
-Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Do not mark a scenario `(@manual)` just because there is OTP — auth is handled at the setup level, not inside tests.
+Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Skenario fitur biasa yang membutuhkan auth tidak perlu ditandai `(@manual)` karena auth ditangani di level setup via session state. Namun, skenario login itu sendiri yang secara spesifik memverifikasi interaksi OTP/CAPTCHA tetap ditandai `(@manual)` di requirement (lihat `requirements/_TEMPLATE.md`).
 
 ---
 

@@ -284,9 +284,8 @@ export function matchNetworkHit(
 /**
  * Resolve contract path:
  * - absolute path → as-is
- * - starts with test-fixtures/ → under repo root
- * - network/... → fixturePath(...)
- * - otherwise resolve from cwd, then try fixturePath
+ * - tests/data/... → under the workspace test-data root
+ * - otherwise resolve from cwd, then workspace test-data root
  */
 export function resolveNetworkContractPath(relativeOrAbsolute: string): string {
   if (path.isAbsolute(relativeOrAbsolute)) {
@@ -294,18 +293,6 @@ export function resolveNetworkContractPath(relativeOrAbsolute: string): string {
   }
   const normalized = relativeOrAbsolute.replace(/\\/g, '/');
   if (normalized.startsWith('tests/data/')) {
-    return path.join(findRepoRoot(), ...normalized.split('/'));
-  }
-  if (normalized.startsWith('test-fixtures/')) {
-    const dataCandidate = path.join(
-      findRepoRoot(),
-      'tests',
-      'data',
-      ...normalized.replace(/^test-fixtures\//, '').split('/'),
-    );
-    if (fs.existsSync(dataCandidate)) {
-      return dataCandidate;
-    }
     return path.join(findRepoRoot(), ...normalized.split('/'));
   }
   if (normalized.startsWith('network/')) {

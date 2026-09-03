@@ -1,6 +1,6 @@
 /**
  * Shared path resolution for file-inspect MCP tools.
- * Allowed roots: test-fixtures/, test-results/ (read-only).
+ * Allowed roots: tests/data/ and artifacts/test-results/ (read-only).
  */
 
 import * as fs from 'node:fs';
@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { createToolError, getRepoRoot, type ToolError } from '../../utils/safety';
 import { mcpWorkspace } from '../../utils/workspace-paths';
 
-export type FileInspectKind = 'test-fixtures' | 'test-results' | 'test-data';
+export type FileInspectKind = 'test-data' | 'test-results';
 
 export function resolveFileInspectPath(
   inputPath: string,
@@ -41,19 +41,9 @@ export function resolveFileInspectPath(
   const testDataRel = mcpWorkspace.testDataRel;
   const testResultsRel = mcpWorkspace.testResultsRel;
 
-  if (
-    relative === testDataRel ||
-    relative.startsWith(`${testDataRel}/`) ||
-    relative === 'test-fixtures' ||
-    relative.startsWith('test-fixtures/')
-  ) {
-    kind = 'test-fixtures';
-  } else if (
-    relative === testResultsRel ||
-    relative.startsWith(`${testResultsRel}/`) ||
-    relative === 'test-results' ||
-    relative.startsWith('test-results/')
-  ) {
+  if (relative === testDataRel || relative.startsWith(`${testDataRel}/`)) {
+    kind = 'test-data';
+  } else if (relative === testResultsRel || relative.startsWith(`${testResultsRel}/`)) {
     kind = 'test-results';
   }
 

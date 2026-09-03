@@ -7,6 +7,9 @@ export interface ArchiveReportInput {
   runId: string;
   reportPath: string;
   jsonReportPath?: string;
+  qaDecision:
+    'APPROVE' | 'FILE_BUG' | 'REVISE_REQUIREMENT' | 'FIX_TEST' | 'FIX_ENV' | 'MARK_BLOCKED';
+  qaNotes?: string;
 }
 
 export interface ArchiveReportOutput {
@@ -19,10 +22,14 @@ export interface ArchiveReportOutput {
 /**
  * Archive a pipeline report (Markdown + JSON summary + metadata + attachments) to artifacts/reports/archive/<runId>/.
  * Uses canonical schema (metadata.json + summary.json) matching custom-dashboard standards.
- * Safe to call multiple times — overwrites if already exists.
+ * Requires an explicit QA decision and never overwrites an existing archive.
  */
 export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
-  const { runId, reportPath, jsonReportPath } = input;
+  const { runId, reportPath, jsonReportPath, qaDecision, qaNotes = '' } = input;
+
+  if (!qaDecision) {
+    return { status: 'error', message: 'qaDecision is required; archiving never implies APPROVE.' };
+  }
 
   if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
     return { status: 'error', message: 'runId is required and must be a non-empty string.' };
@@ -38,6 +45,12 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
 
   const repoRoot = getRepoRoot();
   const archiveDir = path.join(mcpWorkspace.reportsDir, 'archive', runId);
+  if (fs.existsSync(archiveDir)) {
+    return {
+      status: 'error',
+      message: `Archive for run ${runId} already exists. Will not overwrite.`,
+    };
+  }
 
   // Resolve and validate report path — must be inside repo (relative-based so a
   // sibling directory named `qa-playwright-kit-evil` cannot pass startsWith()).
@@ -116,8 +129,8 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
       baseUrl: process.env.BASE_URL,
       requirementPath: (summaryData.requirementPath as string) || reportPath,
       reportMode: (summaryData.reportMode as string) || 'general',
-      qaDecision: 'APPROVE',
-      qaNotes: 'Archived automatically by pipeline Reporter agent.',
+      qaDecision,
+      qaNotes,
       triggeredBy: 'pipeline',
       triggerSource: 'mcp-tool',
       files: archivedFiles,

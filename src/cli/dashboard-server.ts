@@ -57,11 +57,7 @@ const DEFAULT_PORT = 4567;
 const HEARTBEAT_TIMEOUT_MS = 20_000; // server shuts down if no heartbeat for 20s
 
 function getSummaryPath(): string {
-  const artifactsSummary = path.resolve(process.cwd(), 'artifacts', 'reports', 'test-summary.json');
-  if (fs.existsSync(artifactsSummary)) return artifactsSummary;
-  const legacySummary = path.resolve(process.cwd(), 'reports', 'test-summary.json');
-  if (fs.existsSync(legacySummary)) return legacySummary;
-  return artifactsSummary;
+  return path.resolve(process.cwd(), 'artifacts', 'reports', 'test-summary.json');
 }
 
 // ─── Arg parsing ─────────────────────────────────────────────────────────────
@@ -198,7 +194,7 @@ function buildOrphanRunPage(latestRun: {
     `The latest run marker (.latest-run) shows the run completed, but the summary ` +
       `file is gone. Without test-summary.json the dashboard cannot render test details.\n\n` +
       `Quick fix — re-run the tests to regenerate the summary, OR view the archived ` +
-      `history (saved runs are still safe in reports/archive/).`,
+      `history (saved runs are still safe in artifacts/reports/archive/).`,
   );
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>QA Dashboard</title>
 <style>body{font-family:system-ui;background:#1a1a1a;color:#e0d6c8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;gap:14px;padding:24px;text-align:left;max-width:680px;margin:0 auto}
@@ -503,21 +499,14 @@ function serveStaticFile(
 
 function resolveReportFile(relPath: string): string | null {
   const cleanRel = relPath.replace(/^\/+/, '');
-  const candidates = [
-    path.resolve(process.cwd(), 'artifacts', 'reports', cleanRel),
-    path.resolve(process.cwd(), 'reports', cleanRel),
-    path.resolve(process.cwd(), 'artifacts', 'test-results', cleanRel),
-    path.resolve(process.cwd(), 'artifacts', cleanRel),
-    path.resolve(process.cwd(), cleanRel),
-  ];
-  for (const c of candidates) {
-    try {
-      if (fs.existsSync(c)) return c;
-    } catch {
-      // ignore
-    }
+  const candidate = path.resolve(process.cwd(), 'artifacts', 'reports', cleanRel);
+  const root = path.resolve(process.cwd(), 'artifacts', 'reports');
+  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) return null;
+  try {
+    return fs.existsSync(candidate) && fs.statSync(candidate).isFile() ? candidate : null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 function serveAttachmentsDirectory(res: http.ServerResponse, dirPath: string) {

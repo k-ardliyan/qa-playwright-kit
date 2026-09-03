@@ -85,13 +85,7 @@ interface ValidationResult {
  * Spawn detached so we never block qa:run's exit.
  */
 function openCustomDashboard(repoRoot: string): void {
-  const primaryDashboard = path.join(repoRoot, 'artifacts', 'reports', 'custom-dashboard.html');
-  const legacyDashboard = path.join(repoRoot, 'reports', 'custom-dashboard.html');
-  const dashboardAbs = fs.existsSync(primaryDashboard)
-    ? primaryDashboard
-    : fs.existsSync(legacyDashboard)
-      ? legacyDashboard
-      : primaryDashboard;
+  const dashboardAbs = path.join(repoRoot, 'artifacts', 'reports', 'custom-dashboard.html');
 
   if (!fs.existsSync(dashboardAbs)) {
     process.stdout.write(

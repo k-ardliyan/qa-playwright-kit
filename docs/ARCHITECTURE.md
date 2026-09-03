@@ -38,14 +38,14 @@ import { test, expect } from './fixtures';
 import { authStatePath } from './fixtures';
 test.use({ storageState: authStatePath('finance') });
 
-// ✅ Contracts layer — typed AST & diagnostics
-import { compileRequirement, validatePlan, traceRequirement } from '@/public/contracts';
+// ✅ Contracts layer — typed schemas & diagnostics
+import { REQUIREMENT_SCHEMA_V1, TEST_PLAN_SCHEMA_V1, TRACEABILITY_SCHEMA_V1 } from '@/public/contracts';
 
-// ✅ Shared types barrel
-import type { PipelineReport } from '@/shared/types';
+// ✅ Pipeline reporting types
+import type { PipelineReport } from '@/agents/reporter';
 
 // ✅ PW helpers barrel
-import { networkMock, waitAndAssertApi } from '@/support/pw';
+import { mockJson, waitAndAssertApi } from '@/support/pw';
 ```
 
 - `APP_ENV` is the sole environment selector — never `NODE_ENV` for target switching

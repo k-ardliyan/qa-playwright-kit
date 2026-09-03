@@ -3,14 +3,21 @@
     "name": "health_check",
     "description": "Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline.",
     "stability": "stable",
-    "profiles": ["admin", "all"],
+    "profiles": ["admin", "planner", "all"],
+    "readOnly": true
+  },
+  {
+    "name": "pipeline_status",
+    "description": "One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.",
+    "stability": "stable",
+    "profiles": ["admin", "planner", "reporter", "author", "all"],
     "readOnly": true
   },
   {
     "name": "get_test_failures",
     "description": "Get Playwright test failures from the caller's resultsDir (or artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
     "stability": "stable",
-    "profiles": ["healer", "debug", "all"],
+    "profiles": ["healer", "reporter", "debug", "all"],
     "readOnly": true
   },
   {
@@ -24,7 +31,7 @@
     "name": "list_artifacts",
     "description": "List requirement, spec, and generated test files under allowed project paths.",
     "stability": "stable",
-    "profiles": ["reporter", "debug", "author", "all"],
+    "profiles": ["reporter", "author", "debug", "all"],
     "readOnly": true
   },
   {
@@ -38,14 +45,13 @@
     "name": "compile_requirement",
     "description": "Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix.",
     "stability": "stable",
-    "profiles": ["planner", "author", "all"],
+    "profiles": ["planner", "generator", "author", "all"],
     "readOnly": true
   },
   {
     "name": "normalize_requirements",
     "description": "Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios.",
     "stability": "compat",
-    "replacement": "compile_requirement",
     "profiles": ["planner", "author", "all"],
     "readOnly": true
   },
@@ -53,7 +59,6 @@
     "name": "parse_requirement_scenarios",
     "description": "Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English).",
     "stability": "compat",
-    "replacement": "compile_requirement",
     "profiles": ["planner", "author", "all"],
     "readOnly": true
   },
@@ -68,7 +73,6 @@
     "name": "validate_requirement",
     "description": "Validate requirement markdown structure before Planner runs. Checks title, scenarios, observable results, and @manual conventions.",
     "stability": "compat",
-    "replacement": "compile_requirement",
     "profiles": ["planner", "author", "all"],
     "readOnly": true
   },
@@ -95,9 +99,16 @@
   },
   {
     "name": "snapshot_page",
-    "description": "Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash) for AI agents — read the JSON file for selector details.",
+    "description": "Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash, semanticSummary) for AI agents — read the JSON file for selector details.",
     "stability": "stable",
-    "profiles": ["discovery", "planner", "author", "visual", "all"],
+    "profiles": ["discovery", "planner", "generator", "healer", "author", "visual", "all"],
+    "readOnly": false
+  },
+  {
+    "name": "synthesize_requirement",
+    "description": "Synthesize a compliant requirement markdown file from selector-catalog semantic extractions (tables, forms, stat cards, modals) with active test scenarios and backlog suggestions.",
+    "stability": "stable",
+    "profiles": ["discovery", "planner", "author", "all"],
     "readOnly": false
   },
   {
@@ -109,7 +120,7 @@
   },
   {
     "name": "archive_report",
-    "description": "Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Safe to call multiple times — overwrites if already exists. Call this after the Reporter produces the final pipeline report.",
+    "description": "Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Requires an explicit QA decision and never overwrites an existing archive. Call this after the Reporter produces the final pipeline report and QA decides.",
     "stability": "stable",
     "profiles": ["reporter", "author", "debug", "all"],
     "readOnly": false

@@ -3,8 +3,7 @@
  *
  * Persists pipeline execution progress for resume capability.
  * State is stored as plain JSON in `artifacts/reports/pipeline-state.json`
- * (or `reports/pipeline-state.json` on legacy layouts, or under QA_REPORT_DIR
- * override — see reportDir()).
+ * (or under QA_REPORT_DIR test override).
  * Completed states are archived to `<reportDir>/archive/pipeline-state-<runId>.json`.
  *
  * @module agents/integration/state
@@ -29,12 +28,7 @@ const PHASE_SEQUENCE: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 
 function reportDir(): string {
   const override = process.env['QA_REPORT_DIR'];
   if (override) return path.resolve(override);
-  const preferred = path.resolve('artifacts/reports');
-  const legacy = path.resolve('reports');
-  if (fs.existsSync(legacy) && !fs.existsSync(preferred)) {
-    return legacy;
-  }
-  return preferred;
+  return path.resolve('artifacts', 'reports');
 }
 
 function resolveStateFilePath(): string {

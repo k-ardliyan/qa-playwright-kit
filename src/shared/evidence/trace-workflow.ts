@@ -19,7 +19,8 @@ export class McpTraceWorkflow {
     customOutDir?: string,
   ): TraceSession {
     const root = findRepoRoot();
-    const dir = customOutDir ?? path.join(root, 'test-results', 'mcp', runId, 'traces');
+    const dir =
+      customOutDir ?? path.join(root, 'artifacts', 'test-results', 'mcp', runId, 'traces');
     const safeTestId = testId.replace(/[^a-zA-Z0-9_-]/g, '_');
     const tracePath = path.join(dir, `${safeTestId}-trace.zip`);
 

@@ -10,7 +10,6 @@ import {
   authStatePath,
   authStateWritePath,
   ensureAuthDirForEnv,
-  migrateLegacyAuthFiles,
   currentAppEnv,
 } from '../../../src/support/auth-paths';
 
@@ -46,30 +45,14 @@ test('authStateWritePath always scoped', () => {
   assert.equal(authStateWritePath('general'), path.join('.auth', 'dev', 'user.json'));
 });
 
-test('authStatePath falls back to legacy for local only', () => {
+test('authStatePath always uses the scoped environment path', () => {
   process.env.APP_ENV = 'local';
   fs.mkdirSync('.auth', { recursive: true });
   fs.writeFileSync(path.join('.auth', 'user.json'), '{}');
-  assert.equal(authStatePath('user'), path.join('.auth', 'user.json'));
+  assert.equal(authStatePath('user'), path.join('.auth', 'local', 'user.json'));
 
   process.env.APP_ENV = 'dev';
-  // no scoped file — returns preferred scoped path even if missing
   assert.equal(authStatePath('user'), path.join('.auth', 'dev', 'user.json'));
-});
-
-test('migrateLegacyAuthFiles copies to .auth/local', () => {
-  process.env.APP_ENV = 'local';
-  // clean scoped
-  const scopedDir = path.join('.auth', 'local');
-  if (fs.existsSync(scopedDir)) fs.rmSync(scopedDir, { recursive: true, force: true });
-  fs.mkdirSync('.auth', { recursive: true });
-  fs.writeFileSync(path.join('.auth', 'finance.json'), '{"cookies":[]}');
-  const moved = migrateLegacyAuthFiles('local');
-  assert.ok(moved.includes('finance.json'));
-  assert.ok(fs.existsSync(path.join('.auth', 'local', 'finance.json')));
-  // idempotent
-  const moved2 = migrateLegacyAuthFiles('local');
-  assert.equal(moved2.length, 0);
 });
 
 test('ensureAuthDirForEnv creates dir', () => {

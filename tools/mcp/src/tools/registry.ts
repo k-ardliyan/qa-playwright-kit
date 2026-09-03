@@ -160,7 +160,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     inputSchema: { type: 'object', properties: {} },
     stability: 'stable',
     readOnly: true,
-    profiles: ['admin', 'all'],
+    profiles: ['admin', 'planner', 'all'],
     handler: () => healthCheck(),
   },
   {
@@ -480,6 +480,10 @@ export const TOOL_REGISTRY: ToolEntry[] = [
           type: 'string',
           description: 'Primary role associated with this requirement.',
         },
+        catalogDirOverride: {
+          type: 'string',
+          description: 'Optional custom selector catalog directory path override.',
+        },
         outputPath: {
           type: 'string',
           description: 'Optional output path (defaults to requirements/<featureName>.md).',
@@ -506,6 +510,11 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         featureName: {
           type: 'string',
           description: 'Lowercase feature slug; catalog subfolder + page-map.json location.',
+        },
+        role: {
+          type: 'string',
+          description:
+            'Optional role name to use authenticated session state (.auth/{APP_ENV}/{role}.json).',
         },
         maxDepth: { type: 'number', description: 'BFS depth limit (default 2).' },
         maxPages: { type: 'number', description: 'Total pages cap (default 25).' },
@@ -541,7 +550,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'archive_report',
     description:
-      'Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Safe to call multiple times — overwrites if already exists. Call this after the Reporter produces the final pipeline report.',
+      'Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Requires an explicit QA decision and never overwrites an existing archive. Call this after the Reporter produces the final pipeline report and QA decides.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -557,14 +566,36 @@ export const TOOL_REGISTRY: ToolEntry[] = [
           type: 'string',
           description: 'Optional repo-relative path to the JSON pipeline report file.',
         },
+        qaDecision: {
+          type: 'string',
+          enum: [
+            'APPROVE',
+            'FILE_BUG',
+            'REVISE_REQUIREMENT',
+            'FIX_TEST',
+            'FIX_ENV',
+            'MARK_BLOCKED',
+          ],
+          description: 'Explicit QA decision; archiving does not imply APPROVE.',
+        },
+        qaNotes: { type: 'string', description: 'Optional QA notes.' },
       },
-      required: ['runId', 'reportPath'],
+      required: ['runId', 'reportPath', 'qaDecision'],
     },
     stability: 'stable',
     readOnly: false,
     profiles: ['reporter', 'author', 'debug', 'all'],
     handler: (args) =>
-      archiveReport(args as { runId: string; reportPath: string; jsonReportPath?: string }),
+      archiveReport(
+        args as {
+          runId: string;
+          reportPath: string;
+          jsonReportPath?: string;
+          qaDecision:
+            'APPROVE' | 'FILE_BUG' | 'REVISE_REQUIREMENT' | 'FIX_TEST' | 'FIX_ENV' | 'MARK_BLOCKED';
+          qaNotes?: string;
+        },
+      ),
   },
   {
     name: 'generate_page_object',

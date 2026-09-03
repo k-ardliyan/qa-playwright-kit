@@ -166,7 +166,7 @@ export async function retryScenario(
         success: true,
         generated: {
           scenarioId: scenario.id,
-          filePath: result.filePath ?? `src/tests/${scenario.id}.spec.ts`,
+          filePath: result.filePath ?? `tests/${scenario.id}.spec.ts`,
           verified: result.verified ?? false,
           verificationMethod: result.verificationMethod ?? 'none',
         },
@@ -222,7 +222,7 @@ export async function retryScenario(
   // Requirement 4.6: fallbackToSkeleton → generate skeleton with test.fixme()
   if (options.fallbackToSkeleton) {
     void generateSkeletonContent(scenario, lastErrorMessage);
-    const skeletonPath = `src/tests/${scenario.id}.skeleton.spec.ts`;
+    const skeletonPath = `tests/${scenario.id}.skeleton.spec.ts`;
 
     return {
       success: true,

@@ -33,9 +33,6 @@ export interface PlanValidationSummary {
 
 export type ValidatePlanOutput = McpResult<PlanValidationSummary | undefined>;
 
-/** @deprecated Use `containsEphemeralRef` from `../utils/ephemeral-guard` instead. */
-const checkForEphemeralRefs = containsEphemeralRef;
-
 export function validateTestPlan(
   plan: TestPlanContractV1,
   requirement?: RequirementContractV1,
@@ -89,7 +86,7 @@ export function validateTestPlan(
 
     // Check actions / locator intents for ephemeral refs
     for (const action of sc.actions) {
-      if (checkForEphemeralRefs(action)) {
+      if (containsEphemeralRef(action)) {
         diagnostics.push(
           createDiagnostic(
             'PLAN_EPHEMERAL_REF_DETECTED',
@@ -101,7 +98,7 @@ export function validateTestPlan(
       }
     }
     for (const loc of sc.locatorIntent) {
-      if (checkForEphemeralRefs(loc)) {
+      if (containsEphemeralRef(loc)) {
         diagnostics.push(
           createDiagnostic(
             'PLAN_EPHEMERAL_REF_DETECTED',

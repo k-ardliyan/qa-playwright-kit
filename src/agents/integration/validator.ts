@@ -51,7 +51,7 @@ const REQUIRED_SECTIONS = ['Role', 'Input Format', 'MCP Dependencies', 'Output F
 const DEFAULT_OPTIONS: ValidatorOptions = {
   agentDir: '.github/agents/',
   mcpConfigPath: '.mcp.json',
-  registryPath: 'mcp-server/src/tools/registry.ts',
+  registryPath: 'tools/mcp/src/tools/registry.ts',
   fix: false,
 };
 
@@ -254,17 +254,25 @@ function validateSingleFile(
 
   // Check MCP tool references
   const toolRefs = extractMcpToolReferences(lines);
-  for (const ref of toolRefs) {
-    if (registryTools.length > 0 && !registryTools.includes(ref.name)) {
-      const closeMatch = findCloseMatch(ref.name, registryTools);
-      errors.push({
-        type: 'invalid-mcp-tool',
-        message: closeMatch
-          ? `Invalid MCP tool reference: '${ref.name}' not found in registry (did you mean '${closeMatch}'?)`
-          : `Invalid MCP tool reference: '${ref.name}' not found in registry`,
-        line: ref.line,
-        fixable: closeMatch !== null,
-      });
+  if (toolRefs.length > 0 && registryTools.length === 0) {
+    errors.push({
+      type: 'invalid-mcp-tool',
+      message: `Cannot validate MCP tools: registry file '${opts.registryPath}' is missing or defines no tools.`,
+      fixable: false,
+    });
+  } else {
+    for (const ref of toolRefs) {
+      if (!registryTools.includes(ref.name)) {
+        const closeMatch = findCloseMatch(ref.name, registryTools);
+        errors.push({
+          type: 'invalid-mcp-tool',
+          message: closeMatch
+            ? `Invalid MCP tool reference: '${ref.name}' not found in registry (did you mean '${closeMatch}'?)`
+            : `Invalid MCP tool reference: '${ref.name}' not found in registry`,
+          line: ref.line,
+          fixable: closeMatch !== null,
+        });
+      }
     }
   }
 
@@ -411,7 +419,7 @@ function extractMcpToolReferences(lines: string[]): McpReference[] {
     if (columns.length < 2) continue;
 
     const serverMatch = columns[0].match(/`([^`]+)`/);
-    const toolMatch = columns[1].match(/`([a-z][a-z0-9_]+)`/);
+    const toolMatch = columns[1].match(/`([^`]+)`/);
     if (!serverMatch || !toolMatch) continue;
 
     // Registry under mcp-server only lists qa-playwright-kit tools

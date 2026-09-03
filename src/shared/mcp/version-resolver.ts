@@ -23,7 +23,7 @@ export function findRepoRoot(startDir = process.cwd()): string {
 
 /**
  * Safely resolve the installed `@playwright/mcp` version from node_modules.
- * Returns the version string (e.g. "0.0.79") or null if missing/malformed.
+ * Returns the version string (for example, "0.0.80") or null if missing/malformed.
  */
 export function resolveInstalledPlaywrightMcpVersionSync(customRoot?: string): string | null {
   try {

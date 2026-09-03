@@ -81,7 +81,7 @@ jobs:
         run: |
           echo "## MCP Compatibility — run #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- CLI contract: @playwright/mcp pinned 0.0.79 vs baseline manifest" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CLI contract: @playwright/mcp pinned 0.0.80 vs baseline manifest" >> "$GITHUB_STEP_SUMMARY"
           echo "- qa-playwright-kit MCP server dibangun + unit tests + property tests (npm run test:unit / test:property) dijalankan nyata" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Kegagalan apa pun pada langkah di atas mem-blok merge — tidak ada jalur hijau palsu." >> "$GITHUB_STEP_SUMMARY"

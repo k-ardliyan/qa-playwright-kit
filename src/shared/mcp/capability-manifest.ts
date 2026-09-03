@@ -3,9 +3,7 @@
  * Represents framework expectations of official MCP capabilities and tools.
  *
  * Tool names verified against the ACTUAL installed server surface
- * (@playwright/mcp 0.0.79 → playwright-core coreBundle): 79 browser_* tools.
- * Do NOT rename these back to the older names — a tool list that does not
- * match the launched server produces "unknown tool" agent errors.
+ * (`@playwright/mcp` 0.0.80): browser capability manifest.
  */
 
 export interface CapabilityManifest {
@@ -124,8 +122,8 @@ export const ALL_MCP_CAPABILITIES: readonly McpCapability[] = [
 ] as const;
 
 /**
- * Capabilities the installed @playwright/mcp CLI (0.0.79) accepts in `--caps`.
- * core/network/storage/testing/config are base/default capabilities in 0.0.79
+ * Capabilities the installed @playwright/mcp CLI (0.0.80) accepts in `--caps`.
+ * core/network/storage/testing/config are base/default capabilities in 0.0.80
  * and cannot be toggled via the CLI — they remain in the logical manifest and in
  * profile definitions, but only these additive values may be passed to --caps.
  */

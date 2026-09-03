@@ -45,14 +45,12 @@ test.describe('pipeline_status tool', () => {
   });
 
   test('reports phase, staleness, missing artifacts, and last run from disk', () => {
-    // getRepoRoot() is a singleton (real repo) — isolate only the reports dir
-    // via QA_REPORT_DIR, mirroring how agents/integration/state.ts is tested.
     const isolate = fs.mkdtempSync(path.join(os.tmpdir(), 'pwkit-pstatus-'));
     const prevReport = process.env['QA_REPORT_DIR'];
-    process.env['QA_REPORT_DIR'] = isolate;
-
+    process.env['QA_REPORT_DIR'] = path.join(isolate, 'artifacts', 'reports');
+    fs.mkdirSync(path.join(isolate, 'artifacts', 'reports'), { recursive: true });
     fs.writeFileSync(
-      path.join(isolate, 'pipeline-state.json'),
+      path.join(isolate, 'artifacts', 'reports', 'pipeline-state.json'),
       JSON.stringify({
         runId: 'run-123',
         status: 'paused',
@@ -75,7 +73,7 @@ test.describe('pipeline_status tool', () => {
       'utf-8',
     );
     fs.writeFileSync(
-      path.join(isolate, 'test-summary.json'),
+      path.join(isolate, 'artifacts', 'reports', 'test-summary.json'),
       JSON.stringify({
         total: 4,
         passed: 3,
@@ -86,13 +84,12 @@ test.describe('pipeline_status tool', () => {
       }),
       'utf-8',
     );
-
     try {
       const out = pipelineStatus();
       expect(out.status).toBe('success');
       expect(out.state!.runId).toBe('run-123');
       expect(out.state!.completedPhases).toEqual(['plan']);
-      expect(out.state!.requirementUpToDate).toBe(false); // requirement file missing
+      expect(out.state!.requirementUpToDate).toBe(false);
       expect(out.state!.missingArtifacts).toEqual(['specs/missing-plan.md']);
       expect(out.lastRun!.total).toBe(4);
       expect(out.lastRun!.failed).toBe(1);

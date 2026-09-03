@@ -114,7 +114,7 @@ async function testProperty16(): Promise<void> {
 // ─── Property 17: File logger hook persistence ────────────────────────────────
 
 async function testProperty17(): Promise<void> {
-  const eventsFilePath = path.resolve('reports/pipeline-events.jsonl');
+  const eventsFilePath = path.resolve('artifacts', 'reports', 'pipeline-events.jsonl');
   const reportsDir = path.dirname(eventsFilePath);
 
   // Ensure reports directory exists

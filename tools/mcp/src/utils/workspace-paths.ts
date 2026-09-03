@@ -82,7 +82,8 @@ export class McpWorkspacePathRegistry {
   constructor(rootDir?: string, mode?: WorkspaceManifestMode) {
     this._rootDir = rootDir ? path.resolve(rootDir) : findRepoRoot();
     const envMode = process.env.QA_WORKSPACE_MANIFEST_MODE?.toLowerCase();
-    this._mode = mode ?? (envMode === 'strict' ? 'strict' : 'compat');
+    // Repository execution is strict by default; compatibility is explicit.
+    this._mode = mode ?? (envMode === 'compat' ? 'compat' : 'strict');
   }
 
   public get rootDir(): string {

@@ -25,16 +25,13 @@ interface TestSummaryFile {
 }
 
 /**
- * Build a lookup map keyed by test title from reports/test-summary.json.
+ * Build a lookup map keyed by test title from artifacts/reports/test-summary.json.
  * Returns an empty map when the file is absent or unparseable — callers
  * treat a missing entry as "no annotation data available" and fall back to
  * leaving the optional fields undefined.
  */
 function loadSummaryAnnotationMap(repoRoot: string): Map<string, SummaryTestCase> {
-  let summaryPath = path.resolve(repoRoot, 'artifacts', 'reports', 'test-summary.json');
-  if (!fs.existsSync(summaryPath)) {
-    summaryPath = path.resolve(repoRoot, 'reports', 'test-summary.json');
-  }
+  const summaryPath = path.resolve(repoRoot, 'artifacts', 'reports', 'test-summary.json');
   if (!fs.existsSync(summaryPath)) return new Map();
 
   try {
@@ -170,12 +167,12 @@ interface ParsedSuite {
   file?: string;
 }
 
-const DEFAULT_RESULTS_DIR = path.resolve(getRepoRoot(), 'test-results');
+const DEFAULT_RESULTS_DIR = path.resolve(getRepoRoot(), 'artifacts', 'test-results');
 
 function resolveResultsFile(resultsDir: string): string | null {
   const repoRoot = getRepoRoot();
   const normalizedDir = path.resolve(resultsDir);
-  const defaultResultsDir = path.resolve(repoRoot, 'test-results');
+  const defaultResultsDir = path.resolve(repoRoot, 'artifacts', 'test-results');
 
   // Config-mapped JSON applies only when browsing the default test-results root.
   // Explicit subdirs (property fixtures, scoped Healer runs) must not pick stale global JSON.
@@ -186,15 +183,9 @@ function resolveResultsFile(resultsDir: string): string | null {
     }
   }
 
-  // Latest .json in the caller-supplied dir (default: test-results/).
+  // Latest .json in the caller-supplied directory (default: artifacts/test-results/).
   const latestInDir = getLatestJsonResultFile(resultsDir);
-  if (latestInDir) {
-    return latestInDir;
-  }
-
-  // Legacy results.json fallback.
-  const explicit = path.resolve(resultsDir, 'results.json');
-  return fs.existsSync(explicit) ? explicit : null;
+  return latestInDir ?? null;
 }
 
 function extractErrorMessage(result: ParsedResult): string {

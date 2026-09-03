@@ -12,8 +12,8 @@
  * and runs `new vm.Script(body)` on it (same V8 the browser uses).
  *
  * Usage:
- *   node scripts/check-inline-js.mjs                    # default reports/custom-dashboard.html
- *   node scripts/check-inline-js.mjs reports/preview/heavy-local.html
+ *   node scripts/check-inline-js.mjs                    # default artifacts/reports/custom-dashboard.html
+ *   node scripts/check-inline-js.mjs artifacts/reports/preview/heavy-local.html
  *
  * Exit code:
  *   0 — all script blocks parse cleanly
@@ -22,7 +22,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const target = process.argv[2] || 'reports/custom-dashboard.html';
+const target = process.argv[2] || 'artifacts/reports/custom-dashboard.html';
 
 let html;
 try {

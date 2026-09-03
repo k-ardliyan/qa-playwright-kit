@@ -15,7 +15,7 @@ export function sanitizePathSegment(value: string): string {
 export function writeEvidenceManifest(manifest: EvidenceManifest, customDir?: string): string {
   const root = findRepoRoot();
   const runId = sanitizePathSegment(manifest.runId || 'unknown-run');
-  const dir = customDir ?? path.join(root, 'test-results', 'mcp', runId);
+  const dir = customDir ?? path.join(root, 'artifacts', 'test-results', 'mcp', runId);
 
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

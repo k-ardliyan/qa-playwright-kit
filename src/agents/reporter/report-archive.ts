@@ -6,8 +6,8 @@
  *   - CLI: `npm run archive:save`
  *
  * Storage per run:
- *   reports/archive/<runId>/summary.json   — copy of test-summary.json
- *   reports/archive/<runId>/metadata.json  — QA decision, notes, timestamps
+ *   artifacts/reports/archive/<runId>/summary.json   — copy of test-summary.json
+ *   artifacts/reports/archive/<runId>/metadata.json  — QA decision, notes, timestamps
  *
  * @module src/agents/reporter/report-archive
  */
@@ -91,12 +91,9 @@ export interface ArchiveSaveResult {
 // archive path via QA_ARCHIVE_DIR / QA_REPORT_DIR without worrying about
 // module import order or caching.
 function reportDir(): string {
-  if (process.env['QA_REPORT_DIR']) return process.env['QA_REPORT_DIR'];
-  const artifactsReport = path.resolve('artifacts', 'reports');
-  if (fs.existsSync(artifactsReport) || fs.existsSync(path.resolve('artifacts'))) {
-    return artifactsReport;
-  }
-  return path.resolve('reports');
+  const override = process.env['QA_REPORT_DIR'];
+  if (override) return path.resolve(override);
+  return path.resolve('artifacts', 'reports');
 }
 function archiveDir(): string {
   if (process.env['QA_ARCHIVE_DIR']) return process.env['QA_ARCHIVE_DIR'];
@@ -126,7 +123,7 @@ export function generateRunId(isoTimestamp?: string): string {
 /**
  * Save the latest test run to the archive.
  *
- * Reads `reports/test-summary.json` + `reports/.latest-run`,
+ * Reads `artifacts/reports/test-summary.json` + `artifacts/reports/.latest-run`,
  * copies the summary, and writes enriched metadata.
  *
  * Returns the save result or throws on validation failure.
@@ -168,7 +165,7 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
       process.stderr.write(
         `[archive] Warning: .latest-run marker is corrupt or unreadable — ` +
           `reportMode and appEnv will use fallback values. ` +
-          `Delete reports/.latest-run and re-run tests to reset.\n`,
+          `Delete artifacts/reports/.latest-run and re-run tests to reset.\n`,
       );
     }
   }
@@ -370,6 +367,10 @@ export function updateArchivedMetadata(
     }
   }
 
+  if (!existingMeta?.qaDecision && updates.qaDecision === undefined) {
+    throw new Error('qaDecision is required; metadata cannot imply APPROVE.');
+  }
+
   const updatedMeta: ArchiveMetadata = {
     schemaVersion: existingMeta?.schemaVersion ?? 2,
     runId,
@@ -383,10 +384,7 @@ export function updateArchivedMetadata(
       updates.requirementTitle !== undefined
         ? updates.requirementTitle
         : existingMeta?.requirementTitle,
-    qaDecision:
-      updates.qaDecision !== undefined
-        ? updates.qaDecision
-        : (existingMeta?.qaDecision ?? 'APPROVE'),
+    qaDecision: updates.qaDecision ?? existingMeta!.qaDecision,
     qaNotes: updates.qaNotes !== undefined ? updates.qaNotes : (existingMeta?.qaNotes ?? ''),
     savedAt: existingMeta?.savedAt ?? new Date().toISOString(),
     ranAt: existingMeta?.ranAt ?? new Date().toISOString(),
@@ -404,25 +402,13 @@ export function updateArchivedMetadata(
 
   fs.writeFileSync(metadataPath, JSON.stringify(updatedMeta, null, 2), 'utf-8');
 
-  // If legacy report.json exists, also update qaDecision
-  const legacyPath = path.join(runDir, 'report.json');
-  if (fs.existsSync(legacyPath)) {
-    try {
-      const rep = JSON.parse(fs.readFileSync(legacyPath, 'utf-8'));
-      if (updates.qaDecision !== undefined) rep.qaDecision = updates.qaDecision;
-      fs.writeFileSync(legacyPath, JSON.stringify(rep, null, 2), 'utf-8');
-    } catch {
-      // Ignore legacy report.json read/write errors
-    }
-  }
-
   return updatedMeta;
 }
 
 /**
  * Validate that a runId only contains safe path characters.
- * Accepted format: run-YYYYMMDD-HHmmss-SSS (e.g. run-20260730-140422-162)
- * Also accepts legacy format: run-<digits> (e.g. run-1785387552280)
+ * Accepted format: canonical timestamp IDs and legacy numeric IDs retained for
+ * compatibility with existing archive links.
  */
 export function isValidRunId(runId: string): boolean {
   return (
@@ -446,10 +432,10 @@ export function listArchivedRunIds(): string[] {
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    // Accept directories with either summary.json or report.json
+    if (!isValidRunId(entry.name)) continue;
     const hasSummary = fs.existsSync(path.join(ad, entry.name, 'summary.json'));
-    const hasReport = fs.existsSync(path.join(ad, entry.name, 'report.json'));
-    if (!hasSummary && !hasReport) continue;
+    const hasMetadata = fs.existsSync(path.join(ad, entry.name, 'metadata.json'));
+    if (!hasSummary || !hasMetadata) continue;
 
     const stat = fs.statSync(path.join(ad, entry.name));
     runIds.push({ runId: entry.name, mtime: stat.mtimeMs });
@@ -465,7 +451,7 @@ export function listArchivedRunIds(): string[] {
     }
     const legacy = id.match(/^run-(\d+)$/);
     if (legacy) return parseInt(legacy[1], 10);
-    return 0; // unknown format: stable relative to mtime fallback below
+    return 0;
   };
   runIds.sort((a, b) => {
     const ta = parseRunIdMs(a.runId);

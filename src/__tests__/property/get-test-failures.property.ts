@@ -156,7 +156,7 @@ function runRetryRegression(): void {
 function runAbsolutePathFromMcpServerCwd(): void {
   const repoRoot = findRepoRoot(__dirname);
   const mcpServerDir = path.join(repoRoot, 'tools/mcp');
-  const resultsDir = path.join(repoRoot, 'test-results', `property-cwd-${Date.now()}`);
+  const resultsDir = path.join(repoRoot, 'artifacts', 'test-results', `property-cwd-${Date.now()}`);
   const previousCwd = process.cwd();
 
   fs.mkdirSync(resultsDir, { recursive: true });
@@ -189,7 +189,7 @@ function runAbsolutePathFromMcpServerCwd(): void {
 
 function runConfigMappedJsonPriority(): void {
   const repoRoot = findRepoRoot(__dirname);
-  const resultsDir = path.join(repoRoot, 'test-results');
+  const resultsDir = path.join(repoRoot, 'artifacts', 'test-results');
   const stalePath = path.join(resultsDir, 'results.json');
   const adapterPath = path.join(resultsDir, 'adapter-results.json');
   const previousConfig = process.env.PLAYWRIGHT_CONFIG;
@@ -225,7 +225,7 @@ function runConfigMappedJsonPriority(): void {
 
   process.env.PLAYWRIGHT_CONFIG = 'packages/my-adapter/playwright.config.ts';
   process.env.PLAYWRIGHT_ADAPTER_CONFIG = 'packages/my-adapter/playwright.config.ts';
-  process.env.PLAYWRIGHT_ADAPTER_RESULTS_JSON = 'test-results/adapter-results.json';
+  process.env.PLAYWRIGHT_ADAPTER_RESULTS_JSON = 'artifacts/test-results/adapter-results.json';
   delete process.env.PLAYWRIGHT_RESULTS_JSON;
 
   try {

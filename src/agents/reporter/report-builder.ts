@@ -25,8 +25,10 @@ export interface ScenarioCoverage {
  * Represents a failure that could not be resolved by the Healer agent.
  */
 export interface UnresolvedFailure {
+  scenarioId?: string;
   stage: string;
   errorMessage: string;
+  failureSource?: 'app' | 'test' | 'requirement' | 'env' | 'ai_generation' | 'unknown';
   tracePath?: string;
   screenshotPath?: string;
 }
@@ -40,6 +42,7 @@ export interface PipelineReport {
   timestamp: string;
   duration: number;
   requirementPath?: string; // provenance — source requirement file
+  rolesInScope?: string[];
   summary: {
     scenariosPlanned: number;
     testsGenerated: number;
@@ -48,8 +51,14 @@ export interface PipelineReport {
     testsHealed: number;
     testsSkipped: number;
   };
+  summaryByRole?: Record<string, { passing: number; failing: number; skipped: number }>;
+  summaryByModule?: Record<
+    string,
+    { features: Record<string, { passing: number; failing: number }> }
+  >;
   coverage: ScenarioCoverage[];
   unresolvedFailures: UnresolvedFailure[];
+  qaDecision?: string | null;
 }
 
 /**
@@ -77,9 +86,14 @@ export interface BuildReportInput {
 }
 
 /**
- * Default directory for report output.
+ * Resolve the report directory at call time — QA_REPORT_DIR test override
+ * or canonical artifacts/reports/.
  */
-const REPORTS_DIR = path.resolve('reports');
+function reportDir(): string {
+  const override = process.env['QA_REPORT_DIR'];
+  if (override) return path.resolve(override);
+  return path.resolve('artifacts', 'reports');
+}
 
 /**
  * Builds a structured pipeline report from test execution results.
@@ -123,7 +137,7 @@ export function buildReport(input: BuildReportInput): PipelineReport {
 /**
  * Generates a Markdown report from a PipelineReport and writes it to disk.
  *
- * Output: `reports/pipeline-report-<runId>.md`
+ * Output: `artifacts/reports/pipeline-report-<runId>.md`
  *
  * Sections:
  * - Title: `# Pipeline Report — <runId>`
@@ -182,87 +196,32 @@ export function writeReportMarkdown(report: PipelineReport): string {
   if (report.unresolvedFailures.length > 0) {
     lines.push('## Unresolved Failures');
     lines.push('');
-    lines.push('| Stage | Error |');
-    lines.push('|-------|-------|');
+    lines.push('| Scenario | Stage | Source | Error |');
+    lines.push('|----------|-------|--------|-------|');
     for (const failure of report.unresolvedFailures) {
-      lines.push(`| ${failure.stage} | ${failure.errorMessage} |`);
+      const sc = failure.scenarioId || '-';
+      const src = failure.failureSource || 'unknown';
+      lines.push(`| ${sc} | ${failure.stage} | ${src} | ${failure.errorMessage} |`);
     }
     lines.push('');
   }
 
+  // QA Decision section
+  lines.push('## QA Decision');
+  lines.push('');
+  lines.push(`**Status:** ${report.qaDecision ?? 'Pending QA Review'}`);
+  lines.push('');
+
   const markdown = lines.join('\n');
 
-  // Ensure reports directory exists
-  if (!fs.existsSync(REPORTS_DIR)) {
-    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+  // Ensure report directory exists
+  const reportsDir = reportDir();
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
   }
 
-  const reportPath = path.join(REPORTS_DIR, `pipeline-report-${report.runId}.md`);
+  const reportPath = path.join(reportsDir, `pipeline-report-${report.runId}.md`);
   fs.writeFileSync(reportPath, markdown, 'utf-8');
-
-  // Archive structured JSON alongside the markdown report
-  const totalTests =
-    report.summary.testsPassing + report.summary.testsFailing + report.summary.testsSkipped;
-  const passRate =
-    totalTests > 0 ? Math.round((report.summary.testsPassing / totalTests) * 100) : 0;
-
-  try {
-    const runDir = path.join(path.resolve('artifacts', 'reports', 'archive'), report.runId);
-    fs.mkdirSync(runDir, { recursive: true });
-
-    // Write summary.json matching canonical TestSummary
-    const summaryPayload = {
-      total: report.summary.testsGenerated,
-      passed: report.summary.testsPassing,
-      failed: report.summary.testsFailing,
-      skipped: report.summary.testsSkipped,
-      passRate,
-      timestamp: report.timestamp,
-      requirementPath: report.requirementPath ?? '',
-      testCases: (report.coverage || []).map((c) => ({
-        testId: c.scenarioId,
-        scenarioId: c.scenarioId,
-        title: c.scenarioName,
-        status: c.status,
-        role: '',
-        module: '',
-        feature: '',
-        priority: 'medium',
-      })),
-      unresolvedFailures: report.unresolvedFailures,
-    };
-    fs.writeFileSync(
-      path.join(runDir, 'summary.json'),
-      JSON.stringify(summaryPayload, null, 2),
-      'utf-8',
-    );
-
-    // Write metadata.json
-    const metadataPayload = {
-      schemaVersion: 2,
-      runId: report.runId,
-      displayName: `Pipeline Run ${report.runId}`,
-      testSeriesId: report.requirementPath ?? 'pipeline',
-      requirementPath: report.requirementPath ?? '',
-      savedAt: new Date().toISOString(),
-      ranAt: report.timestamp,
-      appEnv: process.env.APP_ENV ?? 'local',
-      qaDecision: 'APPROVE',
-      qaNotes: 'Archived automatically by pipeline report-builder.',
-      triggeredBy: 'pipeline',
-      triggerSource: 'pipeline-runner',
-    };
-    fs.writeFileSync(
-      path.join(runDir, 'metadata.json'),
-      JSON.stringify(metadataPayload, null, 2),
-      'utf-8',
-    );
-
-    console.log(`Report archived: ${runDir}`);
-  } catch (err) {
-    // Non-blocking — archive failure should not fail the report
-    console.warn('Failed to archive report:', err instanceof Error ? err.message : err);
-  }
 
   return reportPath;
 }

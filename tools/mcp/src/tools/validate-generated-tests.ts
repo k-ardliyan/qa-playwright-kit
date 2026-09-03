@@ -31,14 +31,8 @@ export interface ValidateGeneratedTestsOutput {
  * so adding a new utility spec in an exempt directory doesn't require a code
  * change here.
  */
-const TRACEABILITY_EXEMPT_PREFIXES_STATIC: ReadonlyArray<string> = [
-  'tests/demo/',
-  'src/tests/demo/',
-];
-const TRACEABILITY_EXEMPT_FILES: ReadonlyArray<string> = [
-  'tests/seed.spec.ts',
-  'src/tests/seed.spec.ts',
-];
+const TRACEABILITY_EXEMPT_PREFIXES_STATIC: ReadonlyArray<string> = ['tests/demo/'];
+const TRACEABILITY_EXEMPT_FILES: ReadonlyArray<string> = ['tests/seed.spec.ts'];
 
 function getTraceabilityExemptPrefixes(): string[] {
   return [...TRACEABILITY_EXEMPT_PREFIXES_STATIC, getAdapterTraceabilityExemptPrefix()];

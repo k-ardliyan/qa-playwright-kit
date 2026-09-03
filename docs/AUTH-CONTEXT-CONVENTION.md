@@ -4,7 +4,8 @@ Dokumen ini mendefinisikan konvensi penyimpanan auth state per role untuk framew
 
 > **Kelola kredensial (password, tambah/hapus role, encrypt):** lihat **[CREDENTIALS.md](CREDENTIALS.md)** — `npm run env:edit`.
 >
-> **Path auth setup (template core):** `tests/auth.setup.ts`  
+> **Auth setup entrypoint:** `tests/auth.setup.ts` (Playwright setup runner)  
+> **Implementasi ter-generate per role:** `src/support/auth.setup.ts` (ditulis otomatis oleh `npm run setup` / `env:edit`).  
 > (discover semua role login-ready dari env; multi-role otomatis).
 >
 > **Root Playwright wiring (official):** project `setup` → `chromium` memakai `dependencies: ['setup']`.  

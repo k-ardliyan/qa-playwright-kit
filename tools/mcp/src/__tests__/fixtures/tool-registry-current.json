@@ -2,121 +2,162 @@
   {
     "name": "health_check",
     "description": "Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline.",
-    "status": "stable",
-    "category": "core"
+    "stability": "stable",
+    "profiles": ["admin", "planner", "all"],
+    "readOnly": true
+  },
+  {
+    "name": "pipeline_status",
+    "description": "One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.",
+    "stability": "stable",
+    "profiles": ["admin", "planner", "reporter", "author", "all"],
+    "readOnly": true
   },
   {
     "name": "get_test_failures",
-    "description": "Get Playwright test failures from the caller's resultsDir (or repo test-results/ by default). Includes trace and screenshot paths when available.",
-    "status": "stable",
-    "category": "healer"
+    "description": "Get Playwright test failures from the caller's resultsDir (or artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
+    "stability": "stable",
+    "profiles": ["healer", "reporter", "debug", "all"],
+    "readOnly": true
   },
   {
     "name": "get_test_summary",
-    "description": "Read machine-readable pass/fail summary from reports/test-summary.json.",
-    "status": "stable",
-    "category": "reporter"
+    "description": "Read machine-readable pass/fail summary from artifacts/reports/test-summary.json.",
+    "stability": "stable",
+    "profiles": ["reporter", "debug", "all"],
+    "readOnly": true
   },
   {
     "name": "list_artifacts",
     "description": "List requirement, spec, and generated test files under allowed project paths.",
-    "status": "stable",
-    "category": "reporter"
+    "stability": "stable",
+    "profiles": ["reporter", "author", "debug", "all"],
+    "readOnly": true
   },
   {
     "name": "list_requirement_status",
     "description": "Coverage map: each pipeline requirement with hasPlan, hasTests, manual scenario count, and last run status from test-summary when available.",
-    "status": "stable",
-    "category": "reporter"
+    "stability": "stable",
+    "profiles": ["planner", "reporter", "author", "all"],
+    "readOnly": true
   },
   {
     "name": "compile_requirement",
     "description": "Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix.",
-    "status": "stable",
-    "category": "planner"
+    "stability": "stable",
+    "profiles": ["planner", "generator", "author", "all"],
+    "readOnly": true
   },
   {
     "name": "normalize_requirements",
     "description": "Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios.",
-    "status": "compat",
-    "category": "planner"
+    "stability": "compat",
+    "profiles": ["planner", "author", "all"],
+    "readOnly": true
   },
   {
     "name": "parse_requirement_scenarios",
     "description": "Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English).",
-    "status": "compat",
-    "category": "planner"
+    "stability": "compat",
+    "profiles": ["planner", "author", "all"],
+    "readOnly": true
   },
   {
     "name": "validate_generated_tests",
     "description": "Validate generated .spec.ts files for base.fixture import, test.describe, and test.step rules.",
-    "status": "stable",
-    "category": "generator"
+    "stability": "stable",
+    "profiles": ["generator", "healer", "author", "debug", "all"],
+    "readOnly": true
   },
   {
     "name": "validate_requirement",
     "description": "Validate requirement markdown structure before Planner runs. Checks title, scenarios, observable results, and @manual conventions.",
-    "status": "compat",
-    "category": "planner"
+    "stability": "compat",
+    "profiles": ["planner", "author", "all"],
+    "readOnly": true
   },
   {
     "name": "validate_plan",
     "description": "Validate a TestPlanContractV1 (qa.test-plan/v1) against its source requirement contract. Checks scenario coverage, AC coverage, role/auth drift, assertion provenance, and ephemeral browser references.",
-    "status": "stable",
-    "category": "planner"
+    "stability": "stable",
+    "profiles": ["planner", "author", "all"],
+    "readOnly": true
+  },
+  {
+    "name": "compile_test_plan",
+    "description": "Compile Markdown test plan (specs/*.md) into canonical TestPlanContractV1 (qa.test-plan/v1) with typed assertion provenance, scenario metadata, and coverage gaps.",
+    "stability": "stable",
+    "profiles": ["planner", "generator", "author", "all"],
+    "readOnly": true
   },
   {
     "name": "trace_requirement",
     "description": "Build end-to-end TraceabilityContractV1 (qa.traceability/v1) graph linking Requirement -> Acceptance Criteria -> Scenarios -> Test Specs -> Execution Evidence.",
-    "status": "stable",
-    "category": "reporter"
+    "stability": "stable",
+    "profiles": ["planner", "healer", "reporter", "author", "debug", "all"],
+    "readOnly": true
   },
   {
     "name": "snapshot_page",
-    "description": "Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash) for AI agents — read the JSON file for selector details.",
-    "status": "stable",
-    "category": "discovery"
+    "description": "Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash, semanticSummary) for AI agents — read the JSON file for selector details.",
+    "stability": "stable",
+    "profiles": ["discovery", "planner", "generator", "healer", "author", "visual", "all"],
+    "readOnly": false
+  },
+  {
+    "name": "synthesize_requirement",
+    "description": "Synthesize a compliant requirement markdown file from selector-catalog semantic extractions (tables, forms, stat cards, modals) with active test scenarios and backlog suggestions.",
+    "stability": "stable",
+    "profiles": ["discovery", "planner", "author", "all"],
+    "readOnly": false
   },
   {
     "name": "discover_pages",
     "description": "BFS auto-crawl a public site from a single entry point. For each unique same-origin URL: persist ARIA + selector catalog and append to page-map.json. Respects robots.txt, applies politeness delay, and supports checkpoint/resume.",
-    "status": "stable",
-    "category": "discovery"
+    "stability": "stable",
+    "profiles": ["discovery", "planner", "author", "minimal", "all"],
+    "readOnly": false
   },
   {
     "name": "archive_report",
-    "description": "Archive a pipeline report (Markdown + optional JSON) to reports/archive/<runId>/. Safe to call multiple times — overwrites if already exists. Call this after the Reporter produces the final pipeline report.",
-    "status": "stable",
-    "category": "reporter"
+    "description": "Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Requires an explicit QA decision and never overwrites an existing archive. Call this after the Reporter produces the final pipeline report and QA decides.",
+    "stability": "stable",
+    "profiles": ["reporter", "author", "debug", "all"],
+    "readOnly": false
   },
   {
     "name": "generate_page_object",
     "description": "Generate TypeScript POM scaffold from selector catalog JSON. Never overwrites existing files unless force=true. Returns scaffold with grouped locators, TODO markers for business methods, and warnings for fragile selectors.",
-    "status": "compat",
-    "category": "generator"
+    "stability": "experimental",
+    "profiles": ["generator", "author", "all"],
+    "readOnly": false
   },
   {
     "name": "inspect_file",
-    "description": "Inspect a file under test-fixtures/ or test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.",
-    "status": "stable",
-    "category": "generator"
+    "description": "Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.",
+    "stability": "stable",
+    "profiles": ["generator", "debug", "artifact", "all"],
+    "readOnly": true
   },
   {
     "name": "extract_pdf_text",
-    "description": "Extract plain text from a PDF under test-fixtures/ or test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).",
-    "status": "stable",
-    "category": "generator"
+    "description": "Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).",
+    "stability": "stable",
+    "profiles": ["debug", "artifact", "all"],
+    "readOnly": true
   },
   {
     "name": "read_excel_summary",
-    "description": "Read xlsx sheet names, header row, and sample rows under test-fixtures/ or test-results/. Structure dump only — expected headers come from the scenario, not a fixed domain schema.",
-    "status": "stable",
-    "category": "generator"
+    "description": "Read xlsx sheet names, header row, and sample rows under tests/data/ or artifacts/test-results/. Structure dump only — expected headers come from the scenario, not a fixed domain schema.",
+    "stability": "stable",
+    "profiles": ["debug", "artifact", "all"],
+    "readOnly": true
   },
   {
     "name": "list_test_fixtures",
-    "description": "List files under test-fixtures/ for upload Input Data paths (fixture-first; no headed OS file picker).",
-    "status": "stable",
-    "category": "generator"
+    "description": "List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker).",
+    "stability": "stable",
+    "profiles": ["generator", "author", "debug", "all"],
+    "readOnly": true
   }
 ]

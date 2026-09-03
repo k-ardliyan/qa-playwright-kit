@@ -126,21 +126,10 @@ function main(): void {
   process.stdout.write(`  HEADLESS  = ${process.env.HEADLESS ?? '(unset)'}\n`);
 
   const authDir = path.join(ROOT, '.auth', resolved.appEnv);
-  const legacyAuth = path.join(ROOT, '.auth');
   let authNote = `.auth/${resolved.appEnv}/`;
   if (fs.existsSync(authDir)) {
     const files = fs.readdirSync(authDir).filter((f) => f.endsWith('.json'));
     authNote += ` (${files.length} file(s))`;
-  } else if (resolved.appEnv === 'local' && fs.existsSync(legacyAuth)) {
-    const files = fs
-      .readdirSync(legacyAuth, { withFileTypes: true })
-      .filter((d) => d.isFile() && d.name.endsWith('.json'))
-      .map((d) => d.name);
-    if (files.length > 0) {
-      authNote = `.auth/ legacy (${files.length} file(s)) — auto-migrate on next auth setup`;
-    } else {
-      authNote += ' (empty — run auth setup)';
-    }
   } else {
     authNote += ' (empty — run auth setup)';
   }

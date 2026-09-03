@@ -53,11 +53,11 @@ export interface HookRegistry {
 function eventsFilePath(): string {
   return process.env['QA_REPORT_DIR']
     ? path.resolve(process.env['QA_REPORT_DIR'], 'pipeline-events.jsonl')
-    : path.resolve('reports/pipeline-events.jsonl');
+    : path.resolve('artifacts', 'reports', 'pipeline-events.jsonl');
 }
 
 /**
- * Built-in file logger hook that appends JSON lines to reports/pipeline-events.jsonl
+ * Built-in file logger hook that appends JSON lines to artifacts/reports/pipeline-events.jsonl
  * (or `<QA_REPORT_DIR>/pipeline-events.jsonl` when that env var is set).
  *
  * Each event is serialized as a single JSON line and appended to the file.

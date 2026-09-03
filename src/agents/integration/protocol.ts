@@ -312,7 +312,7 @@ async function handleResume(
     runId: state.runId,
   };
 
-  const orchestrator = new Orchestrator(config, executor, hooks);
+  const orchestrator = new Orchestrator(config, executor, hooks, state);
 
   // Run from the resume point
   if (config.orchestrationMode === 'automatic') {

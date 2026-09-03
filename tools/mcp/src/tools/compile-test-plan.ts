@@ -26,9 +26,6 @@ export interface CompileTestPlanArgs {
 
 export type CompileTestPlanOutput = McpResult<TestPlanContractV1 | undefined>;
 
-/** @deprecated Use `containsEphemeralRef` from `../utils/ephemeral-guard` instead. */
-const checkForEphemeralRefs = containsEphemeralRef;
-
 function parseAssertion(line: string): PlanAssertion {
   const clean = line.replace(/^\s*[-*\d.]+\s+/, '').trim();
   const tagMatch = clean.match(
@@ -296,7 +293,7 @@ export function compileTestPlanFromText(
       if (!itemClean || itemClean === 'none' || itemClean === '-') continue;
 
       // Check Ephemeral Browser Refs
-      if (checkForEphemeralRefs(itemClean)) {
+      if (containsEphemeralRef(itemClean)) {
         diagnostics.push(
           createDiagnostic(
             'PLAN_EPHEMERAL_REF',

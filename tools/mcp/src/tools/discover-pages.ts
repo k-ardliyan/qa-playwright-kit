@@ -419,12 +419,9 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
       const roleName =
         ctx.role.trim().toLowerCase() === 'general' ? 'user' : ctx.role.trim().toLowerCase();
       const scopedAuth = path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`);
-      const legacyAuth = path.join(getRepoRoot(), '.auth', `${roleName}.json`);
 
       if (fs.existsSync(scopedAuth)) {
         contextOptions.storageState = scopedAuth;
-      } else if (appEnv === 'local' && fs.existsSync(legacyAuth)) {
-        contextOptions.storageState = legacyAuth;
       }
     }
 

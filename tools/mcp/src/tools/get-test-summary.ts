@@ -91,44 +91,17 @@ export interface GetTestSummaryOutput {
   message: string;
 }
 
-function resolveSummaryPath(repoRoot: string): string {
-  const canonicalPath = path.join(mcpWorkspace.reportsDir, 'test-summary.json');
-  if (fs.existsSync(canonicalPath)) return canonicalPath;
-  const legacyPath = path.join(repoRoot, 'reports', 'test-summary.json');
-  if (fs.existsSync(legacyPath)) return legacyPath;
-  return canonicalPath;
-}
-
-function resolveResultsDir(repoRoot: string): string {
-  if (fs.existsSync(mcpWorkspace.testResultsDir)) return mcpWorkspace.testResultsDir;
-  const legacyResultsDir = path.join(repoRoot, 'test-results');
-  if (fs.existsSync(legacyResultsDir)) return legacyResultsDir;
-  return mcpWorkspace.testResultsDir;
-}
-
-/**
- * Derive role from a spec file name like "invoice-finance.spec.ts" → "finance"
- * or "login-super-admin.spec.ts" → "super-admin".
- * Returns null if no role pattern detected.
- */
-function extractRoleFromFilename(filename: string): string | null {
-  // Match pattern: <feature>-<role>.spec.ts where role is a known business role
-  const knownRoles = ['super-admin', 'finance', 'hrd', 'admin', 'user'];
-  const base = path.basename(filename, '.spec.ts');
-  for (const role of knownRoles) {
-    if (base.endsWith(`-${role}`)) return role;
-  }
-  // Also check @role-<rolename> annotation pattern via test result annotations if available
-  return null;
+function resolveSummaryPath(): string {
+  return path.join(mcpWorkspace.reportsDir, 'test-summary.json');
 }
 
 /**
  * Attempt to build byRole and byModule breakdowns from test-summary.json testCases.
  * byRole: from role field on each test case.
  * byModule: from module field on each test case (set by custom reporter via annotation).
- * Falls back to test-results/ directory scan for byRole only if testCases not present.
+ * Does not scan legacy directories when the canonical summary is unavailable.
  */
-function buildBreakdowns(repoRoot: string): {
+function buildBreakdowns(): {
   byRole: Record<string, RoleSummary>;
   byModule: Record<string, ModuleSummary>;
 } {
@@ -136,7 +109,7 @@ function buildBreakdowns(repoRoot: string): {
   const byModule: Record<string, ModuleSummary> = {};
 
   // Primary: read from test-summary.json testCases (most accurate)
-  const summaryPath = resolveSummaryPath(repoRoot);
+  const summaryPath = resolveSummaryPath();
   if (fs.existsSync(summaryPath)) {
     try {
       const raw = readTextFile(summaryPath);
@@ -178,44 +151,8 @@ function buildBreakdowns(repoRoot: string): {
         return { byRole, byModule };
       }
     } catch {
-      // Fall through to legacy scan
+      // Canonical summary is authoritative.
     }
-  }
-
-  // Legacy fallback: scan test-results/ for byRole only (no module data available)
-  const resultsDir = resolveResultsDir(repoRoot);
-  if (!fs.existsSync(resultsDir)) return { byRole, byModule };
-
-  try {
-    const entries = fs.readdirSync(resultsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const resultFile = path.join(resultsDir, entry.name, 'results.json');
-      if (!fs.existsSync(resultFile)) continue;
-
-      const raw = readTextFile(resultFile);
-      const parsed = safeJsonParse<{
-        file?: string;
-        stats?: { expected?: number; unexpected?: number; skipped?: number };
-      }>(raw);
-      if (!parsed.ok) continue;
-
-      const file = parsed.data.file ?? entry.name;
-      const stats = parsed.data.stats ?? {};
-      const passing = stats.expected ?? 0;
-      const failing = stats.unexpected ?? 0;
-      const skipped = stats.skipped ?? 0;
-
-      const role = extractRoleFromFilename(file);
-      if (role) {
-        if (!byRole[role]) byRole[role] = { passing: 0, failing: 0, skipped: 0 };
-        byRole[role].passing += passing;
-        byRole[role].failing += failing;
-        byRole[role].skipped += skipped;
-      }
-    }
-  } catch {
-    // Non-fatal — breakdowns are best-effort
   }
 
   return { byRole, byModule };
@@ -223,7 +160,7 @@ function buildBreakdowns(repoRoot: string): {
 
 export function getTestSummary(): GetTestSummaryOutput {
   const repoRoot = getRepoRoot();
-  const absolutePath = resolveSummaryPath(repoRoot);
+  const absolutePath = resolveSummaryPath();
 
   if (!fs.existsSync(absolutePath)) {
     const rel = path.relative(repoRoot, absolutePath).replace(/\\/g, '/');
@@ -262,7 +199,7 @@ export function getTestSummary(): GetTestSummaryOutput {
     }
 
     const mtime = fs.statSync(absolutePath).mtime.toISOString();
-    const { byRole, byModule } = buildBreakdowns(repoRoot);
+    const { byRole, byModule } = buildBreakdowns();
 
     const result: GetTestSummaryOutput = {
       status: 'success',

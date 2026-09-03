@@ -5,7 +5,7 @@
  *   npx playwright test -c config/playwright/cross-browser.ts --grep-invert @demo
  *
  * Nightly job may invoke this for browser-matrix coverage.
- * Auth: setup project materializes .auth/user.json; specs override storageState as needed.
+ * Auth: setup project materializes .auth/{APP_ENV}/<role>.json; specs override storageState as needed.
  */
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnvironment } from '../../src/utils/env-loader';

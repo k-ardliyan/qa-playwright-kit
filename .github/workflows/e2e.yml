@@ -122,9 +122,7 @@ jobs:
             # CI uses plaintext secrets — never encrypt this ephemeral file
             printf 'AUTH_CHALLENGE_MODE=none\n'
           } > "config/environments/${TARGET_ENV}.env"
-          # Also write fallback
-          mkdir -p environments
-          cp "config/environments/${TARGET_ENV}.env" "environments/${TARGET_ENV}.env"
+          # CI uses the canonical environment path only.
           echo "APP_ENV=${TARGET_ENV}" >> "$GITHUB_ENV"
           echo "Materialized config/environments/${TARGET_ENV}.env (plaintext CI profile)"
 
@@ -159,7 +157,6 @@ jobs:
         if: success() && steps.shard.outputs.skip != 'true'
         run: |
           SUMMARY_FILE="artifacts/reports/test-summary.json"
-          [ -f "reports/test-summary.json" ] && SUMMARY_FILE="reports/test-summary.json"
           if [ -f "$SUMMARY_FILE" ]; then
             # Real numbers from the real reporter — echoed for the log, no silent guessing.
             node -e "const s=require('./$SUMMARY_FILE'); console.log('Summary: total='+s.total, 'passed='+s.passed, 'failed='+s.failed, 'skipped='+s.skipped, 'passRate='+s.passRate+'%')"
@@ -194,8 +191,6 @@ jobs:
           name: playwright-report-shard-${{ matrix.shardIndex }}
           path: |
             artifacts/reports/html/
-            reports/html/
-            playwright-report/
           retention-days: 30
 
       - name: Upload test results
@@ -206,8 +201,6 @@ jobs:
           path: |
             artifacts/test-results/
             artifacts/reports/
-            test-results/
-            reports/
           retention-days: 30
 
   merge-blob-reports:

@@ -146,10 +146,8 @@ function countManualScenarios(markdown: string): number {
 function loadLastStatusByFile(): Map<string, string> {
   const map = new Map<string, string>();
   const canonicalPath = path.join(mcpWorkspace.reportsDir, 'test-summary.json');
-  const summaryPath = fs.existsSync(canonicalPath)
-    ? canonicalPath
-    : path.join(getRepoRoot(), 'reports', 'test-summary.json');
-  if (!fs.existsSync(summaryPath)) return map;
+  const summaryPath = fs.existsSync(canonicalPath) ? canonicalPath : null;
+  if (!summaryPath) return map;
   try {
     const raw = JSON.parse(fs.readFileSync(summaryPath, 'utf-8')) as {
       testCases?: Array<{ title?: string; status?: string; filePath?: string }>;
@@ -191,17 +189,13 @@ export function listRequirementStatus(): ListRequirementStatusOutput {
 
   const rows: RequirementStatusRow[] = allReq.map((requirementPath) => {
     const stem = requirementStem(requirementPath);
-    const planCandidates = [
-      expectedPlanPath(stem),
-      // Flat legacy: nested req may still have plan under specs/<basename>-test-plan.md
-      `specs/${path.posix.basename(stem)}-test-plan.md`,
-    ];
+    const planCandidates = [expectedPlanPath(stem)];
     const planPath = planCandidates.find((p) => allSpecs.has(p)) ?? null;
     const hasPlan = planPath !== null;
     const baseName = path.posix.basename(stem);
     const dir = path.posix.dirname(stem);
     const testPaths = allTests.filter((t) => {
-      const rel = t.replace(/^(tests|src\/tests)\//, '').replace(/\.spec\.ts$/, '');
+      const rel = t.replace(/^(tests)\//, '').replace(/\.spec\.ts$/, '');
       // Mirror: requirements/auth/foo → tests/auth/foo*.spec.ts
       if (dir === '.') {
         return rel === baseName || rel.startsWith(`${baseName}-`);

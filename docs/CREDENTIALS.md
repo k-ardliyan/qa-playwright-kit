@@ -107,9 +107,9 @@ npm run env:edit:list
 | Hapus role                        | **Hapus role**                            |
 | Ganti URL / browser / OTP-CAPTCHA | **Edit BASE_URL / browser / OTP-CAPTCHA** |
 | Simpan                            | **Simpan & encrypt**                      |
-| Regenerasi auth setup             | **Regenerasi tests/auth.setup.ts**        |
+| Regenerasi auth setup             | **Regenerasi src/support/auth.setup.ts**  |
 
-Auth session: `.auth/{APP_ENV}/<role>.json` (legacy `.auth/<role>.json` masih dibaca untuk `local`).
+Auth session: `.auth/{APP_ENV}/<role>.json`.
 
 OTP/CAPTCHA **session assist** (bukan full auto skenario): `AUTH_CHALLENGE_MODE` — lihat [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 

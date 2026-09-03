@@ -67,7 +67,7 @@ export interface UnifiedExecutorResult {
 
 /**
  * Summary format compatible with the custom reporter's TestSummary interface.
- * This can be directly written to reports/test-summary.json alongside normal runs.
+ * This can be directly written to artifacts/reports/test-summary.json alongside normal runs.
  */
 export interface ReporterCompatibleSummary {
   total: number;
@@ -89,7 +89,7 @@ export interface ReporterCompatibleSummary {
 /**
  * Converts a MergedExecutionResult into the custom reporter's TestSummary-compatible format.
  *
- * The custom reporter writes `reports/test-summary.json` with fields:
+ * The custom reporter writes `artifacts/reports/test-summary.json` with fields:
  *   { total, passed, failed, skipped, passRate, timestamp }
  *
  * This function maps the execution summary to that shape and adds

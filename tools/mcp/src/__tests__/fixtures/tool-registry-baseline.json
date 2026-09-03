@@ -6,12 +6,12 @@
   },
   {
     "name": "get_test_failures",
-    "description": "Get Playwright test failures from the caller's resultsDir (or repo test-results/ by default). Includes trace and screenshot paths when available.",
+    "description": "Get Playwright test failures from the caller's resultsDir (or artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
     "category": "healer"
   },
   {
     "name": "get_test_summary",
-    "description": "Read machine-readable pass/fail summary from reports/test-summary.json.",
+    "description": "Read machine-readable pass/fail summary from artifacts/reports/test-summary.json.",
     "category": "reporter"
   },
   {
@@ -56,7 +56,7 @@
   },
   {
     "name": "archive_report",
-    "description": "Archive a pipeline report (Markdown + optional JSON) to reports/archive/<runId>/. Safe to call multiple times — overwrites if already exists. Call this after the Reporter produces the final pipeline report.",
+    "description": "Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Requires an explicit QA decision and never overwrites an existing archive. Call this after the Reporter produces the final pipeline report and QA decides.",
     "category": "reporter"
   },
   {
@@ -66,22 +66,22 @@
   },
   {
     "name": "inspect_file",
-    "description": "Inspect a file under test-fixtures/ or test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.",
+    "description": "Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.",
     "category": "generator"
   },
   {
     "name": "extract_pdf_text",
-    "description": "Extract plain text from a PDF under test-fixtures/ or test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).",
+    "description": "Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).",
     "category": "generator"
   },
   {
     "name": "read_excel_summary",
-    "description": "Read xlsx sheet names, header row, and sample rows under test-fixtures/ or test-results/. Structure dump only — expected headers come from the scenario, not a fixed domain schema.",
+    "description": "Read xlsx sheet names, header row, and sample rows under tests/data/ or artifacts/test-results/. Structure dump only — expected headers come from the scenario, not a fixed domain schema.",
     "category": "generator"
   },
   {
     "name": "list_test_fixtures",
-    "description": "List files under test-fixtures/ for upload Input Data paths (fixture-first; no headed OS file picker).",
+    "description": "List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker).",
     "category": "generator"
   }
 ]

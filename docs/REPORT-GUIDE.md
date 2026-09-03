@@ -14,7 +14,7 @@ Playwright Test Run
 ├── artifacts/reports/html/index.html              ← Playwright built-in HTML report
 ├── artifacts/reports/custom-dashboard.html        ← Custom dashboard (local + CI; mode via CI=true)
 ├── artifacts/reports/test-summary.json            ← Structured JSON summary
-└── reports/pipeline-report-<runId>.md             ← Pipeline markdown report (saat run via orchestrator; ditulis ke `reports/`, tidak di-mirror ke `artifacts/`)
+└── artifacts/reports/pipeline-report-<runId>.md   ← Pipeline markdown report (saat run via orchestrator; ditulis ke `artifacts/reports/`)
 ```
 
 ### 1. **Playwright HTML Report** (`artifacts/reports/html/index.html`)
@@ -42,9 +42,9 @@ Playwright Test Run
 - **Isi:** Structured JSON dengan metadata test, pass/fail counts, per-role breakdown (jika role-aware), dan detail test case per item
 - **Kapan digunakan:** Automasi CI/CD, parsing programmatic, MCP tool integration
 
-### 4. **Pipeline Report Markdown** (`reports/pipeline-report-<runId>.md`)
+### 4. **Pipeline Report Markdown** (`artifacts/reports/pipeline-report-<runId>.md`)
 
-- **Sumber:** Reporter agent (`.github/agents/reporter.agent.md`)
+- **Sumber:** Reporter agent (`.github/agents/reporter.agent.md`), ditulis oleh `report-builder.ts` ke `artifacts/reports/` sesuai workspace manifest
 - **Isi:** Markdown narrative dari full pipeline run (Plan → Generate → Execute → Heal → Report)
 - **Kapan digunakan:** Review end-to-end pipeline result, audit trail, QA decision tracking
 
@@ -105,7 +105,7 @@ Playwright Test Run
 
 #### **Attachments**
 
-- Reporter menyalin screenshot/video/trace ke `reports/attachments/{screenshots,videos,traces}/` bila file sumber ada, lalu rewrite path relatif ke dashboard.
+- Reporter menyalin screenshot/video/trace ke `artifacts/reports/attachments/{screenshots,videos,traces}/` bila file sumber ada, lalu rewrite path relatif ke dashboard.
 - `test-summary.json` + `custom-dashboard.html` ditulis oleh custom reporter saat test run. Serve tanpa run ulang: `npm run dashboard`.
 
 ---
@@ -170,7 +170,7 @@ interface CollectedTestCase {
 
 ### Scenario 1: Review Harian Test Result
 
-1. Buka `reports/custom-dashboard.html`
+1. Buka `artifacts/reports/custom-dashboard.html`
 2. Lihat **Run Health Panel** di bagian atas:
    - Total tests, passed, failed, skipped
    - Pass rate (hijau ≥90%, kuning 70-89%, merah <70%)
@@ -184,7 +184,7 @@ interface CollectedTestCase {
 
 ### Scenario 2: Export Report ke External Tool (Confluence, Excel)
 
-1. Buka `reports/custom-dashboard.html`
+1. Buka `artifacts/reports/custom-dashboard.html`
 2. Toggle ke **Table View**
 3. Klik button **Export** di kanan atas tabel
 4. Pilih format:
@@ -208,7 +208,7 @@ Untuk classify failure, lihat failure source di pesan error test (`result.errors
 
 Jika `reportMode: 'role-aware'` di `test-summary.json`:
 
-1. Buka `reports/custom-dashboard.html`
+1. Buka `artifacts/reports/custom-dashboard.html`
 2. Toggle ke **Table View**
 3. Table akan grouped by **ROLE** dengan section header berwarna teal:
    ```
@@ -231,7 +231,7 @@ Jika `reportMode: 'role-aware'` di `test-summary.json`:
 
 ### Issue #2: Screenshot/video tidak muncul di kolom Notes
 
-**Status:** Mitigated — reporter materializes screenshot/video/trace to `reports/attachments/*` when source files exist. Missing files show muted “Missing” chips instead of broken empty `src`.
+**Status:** Mitigated — reporter materializes screenshot/video/trace to `artifacts/reports/attachments/*` when source files exist. Missing files show muted “Missing” chips instead of broken empty `src`.
 
 ### Issue #3: Actual Result / steps terpotong (`…`)
 
@@ -243,7 +243,7 @@ Jika `reportMode: 'role-aware'` di `test-summary.json`:
 
 ### Issue #5: Deep links 404 dari preview
 
-**Status:** Mitigated — client prefix `../` bila path mengandung `/preview/`; preview script menulis `reports/test-summary.json`.
+**Status:** Mitigated — client prefix `../` bila path mengandung `/preview/`; preview script menulis `artifacts/reports/test-summary.json`.
 
 ---
 
@@ -279,7 +279,7 @@ Jika annotation tidak ada, framework fallback ke:
 
 ## Pipeline Report — Markdown Format
 
-Saat test dijalankan via **Orchestrator pipeline** (Plan → Generate → Execute → Heal → Report), Reporter agent menghasilkan markdown report di `reports/pipeline-report-<runId>.md`.
+Saat test dijalankan via **Orchestrator pipeline** (Plan → Generate → Execute → Heal → Report), Reporter agent menghasilkan markdown report di `artifacts/reports/pipeline-report-<runId>.md`.
 
 ### Structure
 
@@ -328,8 +328,8 @@ Saat test dijalankan via **Orchestrator pipeline** (Plan → Generate → Execut
 - **Stage:** execute
 - **Failure Source:** app
 - **Error:** Expected error message "Invalid credentials" but got "Login failed"
-- **Trace:** `test-results/.../trace.zip`
-- **Screenshot:** `test-results/.../screenshot.png`
+- **Trace:** `artifacts/test-results/.../trace.zip`
+- **Screenshot:** `artifacts/test-results/.../screenshot.png`
 
 ---
 
@@ -363,7 +363,7 @@ Atau via Orchestrator:
 
 ### Q: Bagaimana cara archive report setelah QA review?
 
-**A:** Reporter agent akan otomatis memanggil MCP tool `archive_report` setelah produce final report. Report akan disimpan ke `artifacts/reports/archive/<runId>/` (reportDir memilih `artifacts/reports` bila folder `artifacts/` ada, fallback `reports/` — lihat `src/agents/reporter/report-archive.ts`).
+**A:** Setelah report selesai dan QA memilih keputusan, panggil MCP `archive_report` dengan `runId`, `reportPath`, dan `qaDecision` eksplisit (opsional `qaNotes`). Arsip disimpan ke `artifacts/reports/archive/<runId>/`; writer tidak menimpa arsip yang sudah ada.
 
 ### Q: Apa bedanya `reportMode: 'general'` vs `'role-aware'`?
 
@@ -413,7 +413,7 @@ Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard
 - ✅ Export di incident alert; rows **dan** columns follow live Filter columns
 - ✅ Accordion: all cards collapsed by default; Filter steps; Copy failure packet only
 - ✅ Evidence & reports collapsible card (file inventory + related links); no Chart.js donut
-- ✅ Preview writes `reports/test-summary.json`; deep-link `../` from preview
+- ✅ Preview writes `artifacts/reports/test-summary.json`; deep-link `../` from preview
 
 ### v0.2.0
 

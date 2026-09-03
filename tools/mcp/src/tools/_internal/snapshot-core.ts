@@ -451,12 +451,9 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
       const scopedAuth = roleName
         ? path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`)
         : null;
-      const legacyAuth = roleName ? path.join(getRepoRoot(), '.auth', `${roleName}.json`) : null;
 
       if (scopedAuth && fs.existsSync(scopedAuth)) {
         contextOptions.storageState = scopedAuth;
-      } else if (appEnv === 'local' && legacyAuth && fs.existsSync(legacyAuth)) {
-        contextOptions.storageState = legacyAuth;
       } else {
         logger.warn(
           `[snapshot_page] Auth storage state for role "${options.role}" in env "${appEnv}" not found. Running unauthenticated.`,

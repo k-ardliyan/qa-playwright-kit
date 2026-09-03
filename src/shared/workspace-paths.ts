@@ -56,7 +56,7 @@ const MAX_PARENT_HOPS = 12;
 
 /**
  * Finds the repository root by walking up directories looking for
- * config/qa-kit.workspace.json or package.json.
+ * config/qa-kit.workspace.json, playwright.config.ts, or package.json.
  */
 export function findRepoRoot(startDir: string = process.cwd()): string {
   let current = path.resolve(startDir);

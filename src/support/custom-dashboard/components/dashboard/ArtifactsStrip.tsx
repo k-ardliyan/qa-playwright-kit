@@ -194,7 +194,7 @@ export function ArtifactsStrip({ collectedTests, runId }: ArtifactsStripProps) {
         <div class="artifacts-card__body">
           <p class="artifacts-card__hint">
             Open a file or related report. Preview paths resolve one level up to{' '}
-            <code>reports/</code>.
+            <code>artifacts/reports/</code>.
           </p>
 
           <div class="artifacts-card__grid">

@@ -101,7 +101,7 @@ async function main(): Promise<void> {
   if (parsed.help) {
     process.stdout.write(`
 QA Playwright Kit — MCP Launcher
-Usage: npx tsx scripts/playwright-mcp-launch.ts [options]
+Usage: npx tsx tools/scripts/playwright-mcp-launch.ts [options]
 
 Options:
   --profile=<minimal|author|debug|auth|visual|artifact>   MCP Intent Profile (default: author)

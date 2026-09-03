@@ -30,7 +30,7 @@ export interface ImageUploadVerifyResult {
 export interface ImageUploadOptions {
   /** File input locator or click trigger */
   trigger: Locator;
-  /** Image fixture path under test-fixtures/ or absolute */
+  /** Image fixture path under tests/data/ or absolute */
   imagePath: string;
   /** Preview container locator (after upload) */
   previewLocator: Locator;

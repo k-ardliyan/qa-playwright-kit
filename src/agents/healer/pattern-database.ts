@@ -23,7 +23,7 @@ import type { HealPatternDatabase, HealPatternRecord } from '@/shared/types/heal
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_DB_PATH = path.join('reports', 'heal-patterns.json');
+const DEFAULT_DB_PATH = path.join('artifacts', 'reports', 'heal-patterns.json');
 const MAX_PATTERNS = 500;
 const EXPIRY_DAYS = 30;
 const LOW_CONFIDENCE_THRESHOLD = 0.3;

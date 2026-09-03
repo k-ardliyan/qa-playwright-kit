@@ -2,7 +2,7 @@
  * Pipeline Metrics Collector
  *
  * Records pipeline events, metric data points, and complete pipeline runs.
- * Persists run entries to reports/pipeline-metrics.json with:
+ * Persists run entries to artifacts/reports/pipeline-metrics.json with:
  * - Unique run ID and ISO timestamp
  * - Per-stage timing metrics (duration, status, retry count, items processed)
  * - Aggregates recalculated on each new run (last 7 days, last 30 days, all-time)
@@ -30,7 +30,7 @@ import * as crypto from 'node:crypto';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const METRICS_FILE = path.join('reports', 'pipeline-metrics.json');
+const METRICS_FILE = path.join('artifacts', 'reports', 'pipeline-metrics.json');
 const RETENTION_DAYS = 90;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -87,7 +87,7 @@ export function loadMetricsStore(): PipelineMetricsStore {
 
 /**
  * Saves the metrics store to disk.
- * Creates the reports/ directory if it doesn't exist.
+ * Creates the artifacts/reports/ directory if it doesn't exist.
  */
 export function saveMetricsStore(store: PipelineMetricsStore): void {
   const filePath = path.resolve(METRICS_FILE);

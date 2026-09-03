@@ -18,7 +18,7 @@ import * as path from 'node:path';
 import { EXIT } from './exit-codes';
 import { friendly, printOk, printInfo, printWarn, withFriendlyErrors } from './format-error';
 
-const REPO_MARKERS = ['config/qa-kit.workspace.json', 'tools/mcp', 'mcp-server', 'package.json'];
+const REPO_MARKERS = ['config/qa-kit.workspace.json', 'tools/mcp', 'package.json'];
 const MAX_HOPS = 12;
 
 function findRepoRoot(start: string): string {

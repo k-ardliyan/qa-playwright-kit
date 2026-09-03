@@ -25,14 +25,14 @@ const READ_ONLY_KINDS = new Set<AllowedPathKind>(['environments', 'test-results'
 
 function getAllowedPrefixes(): Record<Exclude<AllowedPathKind, 'tests'>, string[]> {
   return {
-    requirements: [mcpWorkspace.requirementsRel, 'requirements', 'tests/fixtures/requirements'],
-    specs: [mcpWorkspace.specsRel, 'specs'],
-    reports: [mcpWorkspace.reportsRel, 'reports'],
-    'test-results': [mcpWorkspace.testResultsRel, 'test-results'],
+    requirements: [mcpWorkspace.requirementsRel],
+    specs: [mcpWorkspace.specsRel],
+    reports: [mcpWorkspace.reportsRel],
+    'test-results': [mcpWorkspace.testResultsRel],
     environments: [mcpWorkspace.environmentsRel],
-    'selector-catalog': [mcpWorkspace.selectorCatalogRel, 'selector-catalog'],
-    pages: [mcpWorkspace.pagesRel, 'tests/pages'],
-    'test-data': [mcpWorkspace.testDataRel, 'tests/data', 'test-fixtures'],
+    'selector-catalog': [mcpWorkspace.selectorCatalogRel],
+    pages: [mcpWorkspace.pagesRel],
+    'test-data': [mcpWorkspace.testDataRel],
   };
 }
 
@@ -117,9 +117,11 @@ export function resolveAllowedPath(
 ): { ok: true; absolutePath: string; relativePath: string } | { ok: false; error: ToolError } {
   const repoRoot = getRepoRoot();
   const prefixes =
-    kind === 'tests'
-      ? [getTestsPrefix()]
-      : getAllowedPrefixes()[kind as Exclude<AllowedPathKind, 'tests'>] || [];
+    kind === 'selector-catalog'
+      ? [mcpWorkspace.selectorCatalogRel, 'selector-catalog']
+      : kind === 'tests'
+        ? [getTestsPrefix()]
+        : getAllowedPrefixes()[kind as Exclude<AllowedPathKind, 'tests'>] || [];
   const normalizedInput = inputPath.replace(/\\/g, '/').trim();
 
   if (!normalizedInput || normalizedInput.includes('\0')) {
