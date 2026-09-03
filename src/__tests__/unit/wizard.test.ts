@@ -494,13 +494,14 @@ test.describe('Hermes prompt builder (mode-aware)', () => {
 
   test('login requirement with challenge mode gets auth:setup reminder', () => {
     const prompt = buildAgentPrompt('requirements/login.md', loginMarkdown('otp-browser'), 'id');
-    expect(prompt).toContain('auth:setup');
+    expect(prompt).toContain('auth:setup:headed');
     expect(prompt).toContain('(@manual)');
   });
 
   test('challenge none does not add the auth:setup reminder', () => {
     const prompt = buildAgentPrompt('requirements/login.md', loginMarkdown('none'), 'id');
-    expect(prompt).not.toContain('auth:setup');
+    expect(prompt).not.toContain('auth:setup:headed');
+    expect(prompt).not.toContain('Tantangan setelah password terdeteksi');
   });
 
   test('parse hints extract the challenge mode', () => {

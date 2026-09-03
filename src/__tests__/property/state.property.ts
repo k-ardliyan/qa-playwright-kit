@@ -14,11 +14,18 @@ import type { PipelineState } from '../../agents/integration/state';
 import type { PipelinePhase } from '../../agents/integration/types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STATE_PATH = path.resolve('reports/pipeline-state.json');
 const PHASE_SEQUENCE: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 'report'];
+
+// ─── Test isolation ───────────────────────────────────────────────────────────
+// All state writes go to a temp dir via QA_REPORT_DIR; nothing touches the
+// production artifacts/reports or reports directories.
+
+const isolate = createIsolatedReportDir();
+const STATE_PATH = path.join(isolate.dir, 'pipeline-state.json');
 
 // ─── Arbitraries ──────────────────────────────────────────────────────────────
 
@@ -179,7 +186,7 @@ async function testProperty9(): Promise<void> {
 
 async function testProperty10(): Promise<void> {
   const backup = backupState();
-  const tempDir = path.resolve('reports/test-artifacts-temp');
+  const tempDir = path.join(isolate.dir, 'test-artifacts-temp');
 
   try {
     await fc.assert(
@@ -311,10 +318,14 @@ async function main(): Promise<void> {
   console.log('Pipeline State Property Tests');
   console.log('──────────────────────────────────────────');
 
-  await testProperty8();
-  await testProperty9();
-  await testProperty10();
-  await testProperty18();
+  try {
+    await testProperty8();
+    await testProperty9();
+    await testProperty10();
+    await testProperty18();
+  } finally {
+    isolate.teardown();
+  }
 
   console.log('──────────────────────────────────────────');
   console.log('✓ All pipeline state property tests passed');

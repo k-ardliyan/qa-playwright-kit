@@ -22,9 +22,11 @@ import type { OrchestratorConfig, PhaseExecutor } from '../../agents/integration
 import { PipelineHookRegistry } from '../../agents/integration/hooks';
 import type { PipelineEvent, HookCallback } from '../../agents/integration/hooks';
 import type { PipelinePhase } from '../../agents/integration/types';
+import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
 
-const STATE_PATH = path.resolve('reports/pipeline-state.json');
-const EVENTS_PATH = path.resolve('reports/pipeline-events.jsonl');
+const isolate = createIsolatedReportDir();
+const STATE_PATH = path.join(isolate.dir, 'pipeline-state.json');
+const EVENTS_PATH = path.join(isolate.dir, 'pipeline-events.jsonl');
 const PHASE_SEQUENCE: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 'report'];
 
 function createSuccessExecutor(): PhaseExecutor {
@@ -366,6 +368,7 @@ async function main(): Promise<void> {
     console.log('✓ Property 23 passed: Dry run produces no side effects');
   } finally {
     restore();
+    isolate.teardown();
   }
 }
 

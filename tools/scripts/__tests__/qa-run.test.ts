@@ -77,10 +77,14 @@ test.describe('qa:run prompt builder', () => {
     const enPrompt = buildAgentPrompt('requirements/login.md', md, 'en');
 
     expect(idPrompt).toContain('Jalankan pipeline dalam mode otomatis');
+    expect(idPrompt).toContain('[KONTEKS ENV]');
+    expect(idPrompt).toContain('[FALLBACK MCP]');
     expect(idPrompt).toContain('[CEK KETAT]');
     expect(idPrompt).toContain('[ARAHAN EKSEKUSI]');
     expect(idPrompt).toContain('[KUALITAS KODE]');
     expect(enPrompt).toContain('Run the pipeline in automatic mode');
+    expect(enPrompt).toContain('[ENV CONTEXT]');
+    expect(enPrompt).toContain('[MCP FALLBACK]');
     expect(enPrompt).toContain('[HARD RULE]');
     expect(enPrompt).toContain('[EXECUTION GUIDANCE]');
     expect(enPrompt).toContain('[CODE QUALITY]');

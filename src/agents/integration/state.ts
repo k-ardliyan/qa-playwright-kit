@@ -2,8 +2,10 @@
  * Pipeline State Manager
  *
  * Persists pipeline execution progress for resume capability.
- * State is stored as plain JSON in `reports/pipeline-state.json`.
- * Completed states are archived to `reports/archive/pipeline-state-<runId>.json`.
+ * State is stored as plain JSON in `artifacts/reports/pipeline-state.json`
+ * (or `reports/pipeline-state.json` on legacy layouts, or under QA_REPORT_DIR
+ * override — see reportDir()).
+ * Completed states are archived to `<reportDir>/archive/pipeline-state-<runId>.json`.
  *
  * @module agents/integration/state
  */
@@ -18,17 +20,30 @@ import { computeSourceHash } from '@/contracts';
  */
 const PHASE_SEQUENCE: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 'report'];
 
-function resolveStateFilePath(): string {
-  const preferred = path.resolve('artifacts/reports/pipeline-state.json');
-  const legacy = path.resolve('reports/pipeline-state.json');
+/**
+ * Resolve the report directory at call time.
+ * Honors QA_REPORT_DIR (same override contract as src/agents/reporter/report-archive.ts)
+ * so tests can isolate state writes into a temp dir instead of polluting the
+ * production artifacts/reports/pipeline-state.json.
+ */
+function reportDir(): string {
+  const override = process.env['QA_REPORT_DIR'];
+  if (override) return path.resolve(override);
+  const preferred = path.resolve('artifacts/reports');
+  const legacy = path.resolve('reports');
   if (fs.existsSync(legacy) && !fs.existsSync(preferred)) {
     return legacy;
   }
   return preferred;
 }
 
-const STATE_FILE_PATH = path.resolve('artifacts/reports/pipeline-state.json');
-const ARCHIVE_DIR = path.resolve('artifacts/reports/archive');
+function resolveStateFilePath(): string {
+  return path.join(reportDir(), 'pipeline-state.json');
+}
+
+function archiveDirPath(): string {
+  return path.join(reportDir(), 'archive');
+}
 
 /**
  * Persistent state for a pipeline run.
@@ -52,22 +67,23 @@ export interface PipelineState {
 }
 
 /**
- * Save the pipeline state to `reports/pipeline-state.json`.
+ * Save the pipeline state to `<reportDir>/pipeline-state.json`.
  *
- * Creates the `reports/` directory if it does not exist.
+ * Creates the parent directory if it does not exist.
  * Updates the `timestamp` field to the current ISO 8601 string before writing.
  */
 export function saveState(state: PipelineState): void {
-  const dir = path.dirname(STATE_FILE_PATH);
+  const stateFilePath = resolveStateFilePath();
+  const dir = path.dirname(stateFilePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
   state.timestamp = new Date().toISOString();
-  fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+  fs.writeFileSync(stateFilePath, JSON.stringify(state, null, 2), 'utf-8');
 }
 
 /**
- * Load the pipeline state from `reports/pipeline-state.json`.
+ * Load the pipeline state from `<reportDir>/pipeline-state.json`.
  *
  * Returns `null` if the state file does not exist.
  */
@@ -100,15 +116,16 @@ export function loadState(): PipelineState | null {
 }
 
 /**
- * Archive a pipeline state to `reports/archive/pipeline-state-<runId>.json`.
+ * Archive a pipeline state to `<reportDir>/archive/pipeline-state-<runId>.json`.
  *
- * Creates the `reports/archive/` directory if it does not exist.
+ * Creates the archive directory if it does not exist.
  */
 export function archiveState(state: PipelineState): void {
-  if (!fs.existsSync(ARCHIVE_DIR)) {
-    fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
+  const archDir = archiveDirPath();
+  if (!fs.existsSync(archDir)) {
+    fs.mkdirSync(archDir, { recursive: true });
   }
-  const archivePath = path.join(ARCHIVE_DIR, `pipeline-state-${state.runId}.json`);
+  const archivePath = path.join(archDir, `pipeline-state-${state.runId}.json`);
   fs.writeFileSync(archivePath, JSON.stringify(state, null, 2), 'utf-8');
 }
 
@@ -116,7 +133,7 @@ export function archiveState(state: PipelineState): void {
  * Resume a pipeline run from the last completed phase.
  *
  * Logic:
- * 1. Load state from `reports/pipeline-state.json`
+ * 1. Load state from `<reportDir>/pipeline-state.json`
  * 2. If no state file exists, return an error
  * 3. Validate source requirement staleness (hash check)
  * 4. Validate all artifact paths still exist on disk

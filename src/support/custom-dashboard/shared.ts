@@ -1,11 +1,21 @@
+import * as fs from 'node:fs';
 import path from 'node:path';
 import { getDashboardStyles } from './styles';
 import { buildClientBootstrapJs } from './client';
 import type { CollectedAttachment, CollectedStep, CollectedTestData, TestSummary } from './types';
 
-export const REPORT_DIR = path.resolve(process.cwd(), 'reports');
+function resolveReportDir(): string {
+  if (process.env['QA_REPORT_DIR']) return path.resolve(process.env['QA_REPORT_DIR']);
+  const artifactsReport = path.resolve(process.cwd(), 'artifacts', 'reports');
+  if (fs.existsSync(artifactsReport) || fs.existsSync(path.resolve(process.cwd(), 'artifacts'))) {
+    return artifactsReport;
+  }
+  return path.resolve(process.cwd(), 'reports');
+}
+
+export const REPORT_DIR = resolveReportDir();
 export function toReportRelativePath(absolutePath: string): string {
-  return path.relative(REPORT_DIR, absolutePath).replace(/\\/g, '/');
+  return path.relative(resolveReportDir(), absolutePath).replace(/\\/g, '/');
 }
 
 export function escapeHtml(raw: string): string {

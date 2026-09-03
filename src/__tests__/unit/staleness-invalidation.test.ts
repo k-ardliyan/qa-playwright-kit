@@ -3,8 +3,15 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { saveState, resumeState, type PipelineState } from '../../agents/integration/state';
 import { computeSourceHash } from '../../../tools/mcp/src/contracts/hashing';
+import { useIsolatedReportDir } from '../helpers/report-dir-isolation';
 
 test.describe('Staleness Invalidation & Resume Safety (Phase 9)', () => {
+  // Isolate state writes into a temp dir — never touch the production
+  // artifacts/reports/pipeline-state.json (previously polluted on disk).
+  const isolate = useIsolatedReportDir();
+  test.beforeAll(isolate.setup);
+  test.afterAll(isolate.teardown);
+
   const repoRoot = path.resolve(__dirname, '../../../');
   const reqPath = 'requirements/auth/login-none.md';
   const reqAbs = path.resolve(repoRoot, reqPath);
@@ -44,4 +51,29 @@ test.describe('Staleness Invalidation & Resume Safety (Phase 9)', () => {
       expect(resumeResult.state.requirementHash).toBe(realHash);
     }
   });
+
+  test('state file is written inside the isolated dir, not artifacts/reports', () => {
+    const isolated: PipelineState = {
+      runId: 'isolation-check-0000',
+      status: 'paused',
+      currentPhase: null,
+      completedPhases: [],
+      artifacts: { plan: [], generate: [], execute: [], heal: [], report: [] },
+      timestamp: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+      requirementPath: 'requirements/auth/login-none.md',
+      orchestrationMode: 'automatic',
+      errors: [],
+    };
+    saveState(isolated);
+    expect(fs.existsSync(path.join(isolateDir(), 'pipeline-state.json'))).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(repoRoot, 'artifacts', 'reports', 'pipeline-state.json')),
+    ).toBe(false);
+  });
 });
+
+/** The QA_REPORT_DIR override set by useIsolatedReportDir (read at call time). */
+function isolateDir(): string {
+  return path.resolve(process.env['QA_REPORT_DIR']!);
+}

@@ -35,6 +35,8 @@ import {
 } from './format-error';
 import { buildAgentPrompt } from './qa-run-prompt';
 import { isInteractiveStdin, pickRequirementFile } from './pick-requirement';
+import { resolveAppEnv } from '../../src/utils/app-env';
+import { parseEnvText } from '../../src/utils/env-text';
 
 const REPO_MARKERS = ['config/qa-kit.workspace.json', 'tools/mcp', 'package.json'];
 const MAX_HOPS = 12;
@@ -206,10 +208,6 @@ function preflight(repoRoot: string): PreFlightResult {
   const issues: string[] = [];
 
   // Check environment file
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { resolveAppEnv } = require('../../src/utils/app-env') as {
-    resolveAppEnv: (o: { repoRoot: string }) => { appEnv: string };
-  };
   const appEnv = resolveAppEnv({ repoRoot }).appEnv;
   const envPath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env`);
   const envExamplePath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env.example`);
@@ -449,10 +447,25 @@ async function main(): Promise<void> {
       process.stdout.write('\n📋 Paste prompt di bawah ke Hermes Agent:\n');
       process.stdout.write('─'.repeat(64) + '\n');
       const reqMarkdown = fs.readFileSync(resolvedReq, 'utf-8');
+
+      const resolvedAppEnv = resolveAppEnv({ repoRoot }).appEnv;
+      const appEnv = (process.env.APP_ENV || resolvedAppEnv).trim();
+      let envBaseUrl = '';
+      const envPath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env`);
+      if (fs.existsSync(envPath)) {
+        try {
+          const envMap = parseEnvText(fs.readFileSync(envPath, 'utf-8'));
+          envBaseUrl = envMap['BASE_URL'] || '';
+        } catch {
+          // ignore env parse errors; fallback to empty string
+        }
+      }
+      const baseUrl = (process.env.BASE_URL || envBaseUrl || '').trim();
+
       process.stdout.write(
         buildAgentPrompt(relReq, reqMarkdown, 'id', {
-          baseUrl: process.env.BASE_URL,
-          appEnv: process.env.APP_ENV,
+          baseUrl,
+          appEnv,
         }),
       );
       process.stdout.write('─'.repeat(64) + '\n\n');

@@ -31,7 +31,16 @@ import { toReportRelativePath } from './custom-dashboard/shared';
 import { streamTelemetryEvent } from './streaming/live-telemetry';
 import { logger } from '../utils/logger';
 
-const REPORT_DIR = path.resolve(process.cwd(), 'reports');
+function resolveReportDir(): string {
+  if (process.env['QA_REPORT_DIR']) return path.resolve(process.env['QA_REPORT_DIR']);
+  const artifactsReport = path.resolve(process.cwd(), 'artifacts', 'reports');
+  if (fs.existsSync(artifactsReport) || fs.existsSync(path.resolve(process.cwd(), 'artifacts'))) {
+    return artifactsReport;
+  }
+  return path.resolve(process.cwd(), 'reports');
+}
+
+const REPORT_DIR = resolveReportDir();
 const DASHBOARD_PATH = path.join(REPORT_DIR, 'custom-dashboard.html');
 const SUMMARY_PATH = path.join(REPORT_DIR, 'test-summary.json');
 const HTML_REPORT_DIR = path.join(REPORT_DIR, 'html');
@@ -705,21 +714,23 @@ export default class CustomReporter implements Reporter {
       fs.writeFileSync(DASHBOARD_PATH, html, 'utf-8');
       fs.writeFileSync(SUMMARY_PATH, JSON.stringify(summary, null, 2), 'utf-8');
 
-      // Mirror to artifacts/reports/ if artifacts directory exists
+      // Mirror to artifacts/reports/ only when REPORT_DIR is NOT already artifacts/reports
       try {
         const artifactsReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
-        if (
-          fs.existsSync(artifactsReportDir) ||
-          fs.existsSync(path.resolve(process.cwd(), 'artifacts'))
-        ) {
-          if (!fs.existsSync(artifactsReportDir))
-            fs.mkdirSync(artifactsReportDir, { recursive: true });
-          fs.writeFileSync(path.join(artifactsReportDir, 'custom-dashboard.html'), html, 'utf-8');
-          fs.writeFileSync(
-            path.join(artifactsReportDir, 'test-summary.json'),
-            JSON.stringify(summary, null, 2),
-            'utf-8',
-          );
+        if (REPORT_DIR !== artifactsReportDir) {
+          if (
+            fs.existsSync(artifactsReportDir) ||
+            fs.existsSync(path.resolve(process.cwd(), 'artifacts'))
+          ) {
+            if (!fs.existsSync(artifactsReportDir))
+              fs.mkdirSync(artifactsReportDir, { recursive: true });
+            fs.writeFileSync(path.join(artifactsReportDir, 'custom-dashboard.html'), html, 'utf-8');
+            fs.writeFileSync(
+              path.join(artifactsReportDir, 'test-summary.json'),
+              JSON.stringify(summary, null, 2),
+              'utf-8',
+            );
+          }
         }
       } catch {
         // Non-blocking mirror
@@ -744,9 +755,9 @@ export default class CustomReporter implements Reporter {
         });
         fs.writeFileSync(latestRunMarker, markerPayload, 'utf-8');
 
-        // Also mirror .latest-run into artifacts/reports if present
+        // Also mirror .latest-run into artifacts/reports only if REPORT_DIR is different
         const artifactsReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
-        if (fs.existsSync(artifactsReportDir)) {
+        if (REPORT_DIR !== artifactsReportDir && fs.existsSync(artifactsReportDir)) {
           fs.writeFileSync(path.join(artifactsReportDir, '.latest-run'), markerPayload, 'utf-8');
         }
       } catch {

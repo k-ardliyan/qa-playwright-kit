@@ -80,6 +80,7 @@ import {
   isInteractiveChallengeMode,
   resolveChallengeTimeoutMs,
 } from './human-challenge';
+import { resolveAppUrl } from './app-url';
 
 /**
  * Auth Setup — modular, customizable login runner.
@@ -144,7 +145,7 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
 
   // 2. Fresh Login Flow
   await test.step('Buka halaman login', async () => {
-    await page.goto(process.env.BASE_URL! + roleLoginUrl);
+    await page.goto(resolveAppUrl(roleLoginUrl));
   });
 
   await test.step('Isi kredensial dan submit form login', async () => {

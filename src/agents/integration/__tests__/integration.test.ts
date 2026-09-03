@@ -267,6 +267,10 @@ test.describe('Resume Workflow', () => {
         fs.unlinkSync(f);
       }
     }
+    if (process.env['QA_REPORT_DIR']) {
+      const p = path.join(process.env['QA_REPORT_DIR'], 'pipeline-state.json');
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
 
     const resumeResult = resumeState();
     expect('error' in resumeResult).toBe(true);
@@ -525,6 +529,10 @@ test.describe('Protocol Handler Routing', () => {
       if (fs.existsSync(f)) {
         fs.unlinkSync(f);
       }
+    }
+    if (process.env['QA_REPORT_DIR']) {
+      const p = path.join(process.env['QA_REPORT_DIR'], 'pipeline-state.json');
+      if (fs.existsSync(p)) fs.unlinkSync(p);
     }
 
     const executor = createMockExecutor();

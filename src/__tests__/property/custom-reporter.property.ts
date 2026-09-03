@@ -52,7 +52,16 @@ interface ReporterRunOutput {
   };
 }
 
-const REPORT_DIR = path.resolve(process.cwd(), 'reports');
+function resolveReportDir(): string {
+  if (process.env['QA_REPORT_DIR']) return path.resolve(process.env['QA_REPORT_DIR']);
+  const artifactsReport = path.resolve(process.cwd(), 'artifacts', 'reports');
+  if (fs.existsSync(artifactsReport) || fs.existsSync(path.resolve(process.cwd(), 'artifacts'))) {
+    return artifactsReport;
+  }
+  return path.resolve(process.cwd(), 'reports');
+}
+
+const REPORT_DIR = resolveReportDir();
 const DASHBOARD_PATH = path.join(REPORT_DIR, 'custom-dashboard.html');
 const SUMMARY_PATH = path.join(REPORT_DIR, 'test-summary.json');
 

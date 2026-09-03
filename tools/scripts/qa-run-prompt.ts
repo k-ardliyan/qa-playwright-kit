@@ -66,6 +66,38 @@ export function buildAgentPrompt(
   const featureName = loginLike ? 'auth' : 'default';
   const pageName = startHint.replace(/^\//, '') || (loginLike ? 'login' : 'home');
 
+  const envContext = t(
+    lang,
+    `[KONTEKS ENV]\n` +
+      `- APP_ENV aktif: ${appEnv} (pin: config/environments/.active-env)\n` +
+      `- BASE_URL: ${baseUrl || 'BELUM DI-SET'}\n` +
+      `- Requirement: ${reqRelPath}\n` +
+      `- Kredensial role: config/environments/${appEnv}.env (secret terenkripsi dotenvx — JANGAN dibaca manual; nilai dipakai otomatis oleh npm scripts)\n` +
+      `- Sesi role: .auth/${appEnv}/<role>.json (materialisasi: npm run auth:setup)`,
+    `[ENV CONTEXT]\n` +
+      `- Active APP_ENV: ${appEnv} (pin: config/environments/.active-env)\n` +
+      `- BASE_URL: ${baseUrl || 'NOT SET'}\n` +
+      `- Requirement: ${reqRelPath}\n` +
+      `- Role credentials: config/environments/${appEnv}.env (dotenvx encrypted secrets — DO NOT read manually; values used automatically by npm scripts)\n` +
+      `- Role sessions: .auth/${appEnv}/<role>.json (materialization: npm run auth:setup)`,
+  );
+
+  const fallbackMcp = t(
+    lang,
+    `[FALLBACK MCP]\n` +
+      `Jika tool MCP qa-playwright-kit tidak tersedia di sesi ini (health_check gagal / tool tidak terdaftar):\n` +
+      `- Validasi requirement : npx tsx tools/validators/validate-requirement.ts ${reqRelPath}\n` +
+      `- Kompilasi requirement : npx tsx tools/mcp/src/tools/compile-requirement.ts ${reqRelPath} (atau lewat qa-run preflight)\n` +
+      `- Inspeksi UI          : gunakan MCP playwright (browser_navigate + browser_snapshot) sebagai pengganti snapshot_page\n` +
+      `- Jangan berhenti; lanjutkan pipeline dengan CLI dan catat deviasi di laporan.`,
+    `[MCP FALLBACK]\n` +
+      `If qa-playwright-kit MCP tools are not available in this session (health_check fails / tools not registered):\n` +
+      `- Validate requirement: npx tsx tools/validators/validate-requirement.ts ${reqRelPath}\n` +
+      `- Compile requirement : npx tsx tools/mcp/src/tools/compile-requirement.ts ${reqRelPath} (or via qa-run preflight)\n` +
+      `- UI inspection       : use playwright MCP (browser_navigate + browser_snapshot) instead of snapshot_page\n` +
+      `- Do not abort; proceed with the pipeline via CLI and record deviations in the report.`,
+  );
+
   const executionGuidance = t(
     lang,
     `[ARAHAN EKSEKUSI]\n` +
@@ -199,6 +231,8 @@ export function buildAgentPrompt(
   );
 
   const sections = [
+    envContext,
+    fallbackMcp,
     executionGuidance,
     preflight,
     uiInspectionLines.join('\n'),

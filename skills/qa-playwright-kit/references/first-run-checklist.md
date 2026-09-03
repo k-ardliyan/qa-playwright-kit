@@ -68,7 +68,9 @@ Validator must exit 0 before running the pipeline.
 npm run qa:run    # TTY picker → select file → copy printed prompt → paste into Hermes Agent
 ```
 
-Dashboard opens automatically in the browser. If not: open `artifacts/reports/custom-dashboard.html` manually.
+Prompt qa:run menyertakan `[ENV CONTEXT]` dan `[FALLBACK MCP]`. Jika tool MCP `qa-playwright-kit` belum aktif di Hermes, agent otomatis menggunakan CLI fallback (`validate-requirement.ts`, `compile-requirement.ts`, atau MCP playwright).
+Hasil eksekusi disimpan di `artifacts/reports/pipeline-state.json` dan `artifacts/reports/custom-dashboard.html`.
+Buka dashboard: `npm run dashboard` (atau buka file `artifacts/reports/custom-dashboard.html` langsung).
 
 ---
 

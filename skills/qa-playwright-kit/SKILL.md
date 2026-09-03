@@ -111,7 +111,7 @@ Completion: no ephemeral refs; no credential leakage in step titles; every test 
 
 ### 6. Execute → Heal → Report
 
-Execute via `playwright-test:run_tests`. Heal max 3 cycles per file (`.github/agents/healer.agent.md`). Reporter (`.github/agents/reporter.agent.md`) writes `artifacts/reports/pipeline-report-<runId>.md` then calls `qa-playwright-kit:archive_report`.
+Execute via `playwright-test:run_tests`. Heal max 3 cycles per file (`.github/agents/healer.agent.md`). Reporter (`.github/agents/reporter.agent.md`) writes `artifacts/reports/pipeline-report-<runId>.md` then calls `qa-playwright-kit:archive_report`. State file disimpan di `artifacts/reports/pipeline-state.json` (dan marker `.latest-run` menunjuk ke path laporan yang sama).
 
 Completion: dashboard Table View matches [report-column-contract.md](references/report-column-contract.md).
 
