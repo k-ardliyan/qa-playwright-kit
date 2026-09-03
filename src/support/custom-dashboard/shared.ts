@@ -1,12 +1,11 @@
 import path from 'node:path';
+import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 import { getDashboardStyles } from './styles';
 import { buildClientBootstrapJs } from './client';
 import type { CollectedAttachment, CollectedStep, CollectedTestData, TestSummary } from './types';
 
 function resolveReportDir(): string {
-  const override = process.env['QA_REPORT_DIR'];
-  if (override) return path.resolve(override);
-  return path.resolve('artifacts', 'reports');
+  return resolveWorkspaceReportDir();
 }
 
 export const REPORT_DIR = resolveReportDir();

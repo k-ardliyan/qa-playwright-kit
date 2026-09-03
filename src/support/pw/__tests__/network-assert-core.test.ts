@@ -1,9 +1,11 @@
 /**
- * Unit tests for network-assert-core (demo fixtures only — not product schema).
+ * Standalone Node assert harness (not a Playwright test).
+ * network-assert-core (demo fixtures only — not product schema).
  * Run: npx tsx src/support/pw/__tests__/network-assert-core.test.ts
  */
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   assertNetworkContractHit,
   hasRequiredKeys,
@@ -128,6 +130,11 @@ test('resolve + load demo contract fixture', () => {
   assert.ok(fs.existsSync(p), `missing ${p}`);
   const c = loadNetworkContract('tests/data/network/contracts/demo/submit-success.json');
   assert.equal(c.id, 'demo.submit.success');
+});
+
+test('rejects absolute and traversal contract paths', () => {
+  assert.throws(() => resolveNetworkContractPath(path.resolve('secret.json')), /must be relative/);
+  assert.throws(() => resolveNetworkContractPath('../secret.json'), /stay inside/);
 });
 
 test('assertNetworkContractHit passes demo fixture', () => {

@@ -87,7 +87,7 @@ snapshot_page (qa-playwright-kit) — url, featureName, pageName
 generate_page_object (qa-playwright-kit) — featureName, pageName
 → tests/pages/<ClassName>.ts (skip jika sudah ada)
 
-# 3. Edit scaffold + register di tests/fixtures.ts
+# 3. Edit scaffold + register di src/fixtures/project.fixture.ts
 
 # 4. Pipeline berjalan normal — Generator auto-import POM
 ```
@@ -138,7 +138,7 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 | `health_check` fail          | `npm run mcp:build` lalu **restart `qa-playwright-kit`** / IDE                    |
 | Tool MCP baru tidak muncul   | `npm run mcp:build` → restart `qa-playwright-kit`                                 |
 | `validate_requirement` error | Baca hint di output → perbaiki → coba lagi                                        |
-| Test gagal semua satu role   | Cek `.auth/<role>.json` ada atau belum                                            |
+| Test gagal semua satu role   | Cek `.auth/{APP_ENV}/<role>.json` ada atau belum                                  |
 | Auth file missing            | `npm run auth:setup` / `auth:setup:headed`                                        |
 | `@network-assert` timeout    | `waitForApi` **sebelum** click; cek urlIncludes/method; `serviceWorkers: 'block'` |
 | Exit `2` (escalate)          | Hubungi Framework Maintainer                                                      |

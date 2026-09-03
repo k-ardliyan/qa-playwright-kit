@@ -52,6 +52,29 @@ test.describe('WorkspacePathRegistry', () => {
     expect(reg.toRelative(sub)).toBe('tests/sample.spec.ts');
   });
 
+  test('loads custom manifest output roots and rejects escaping values', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-playwright-kit-custom-ws-'));
+    try {
+      fs.mkdirSync(path.join(tempDir, 'config'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tempDir, 'config', 'qa-kit.workspace.json'),
+        JSON.stringify({
+          paths: {
+            reports: 'out/reports',
+            testResults: 'out/results',
+            artifacts: '../outside',
+          },
+        }),
+      );
+      const reg = new WorkspacePathRegistry(tempDir);
+      expect(reg.reportsDir).toBe(path.join(tempDir, 'out', 'reports'));
+      expect(reg.testResultsDir).toBe(path.join(tempDir, 'out', 'results'));
+      expect(reg.artifactsDir).toBe(path.join(tempDir, 'artifacts'));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test('ownership categories are loaded and populated', () => {
     const reg = new WorkspacePathRegistry();
     expect(Array.isArray(reg.ownership.qa)).toBe(true);

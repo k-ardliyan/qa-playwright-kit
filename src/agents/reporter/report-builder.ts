@@ -11,6 +11,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 
 /**
  * Coverage status for a single requirement scenario.
@@ -89,10 +90,8 @@ export interface BuildReportInput {
  * Resolve the report directory at call time — QA_REPORT_DIR test override
  * or canonical artifacts/reports/.
  */
-function reportDir(): string {
-  const override = process.env['QA_REPORT_DIR'];
-  if (override) return path.resolve(override);
-  return path.resolve('artifacts', 'reports');
+export function getReportDir(): string {
+  return resolveWorkspaceReportDir();
 }
 
 /**
@@ -215,7 +214,7 @@ export function writeReportMarkdown(report: PipelineReport): string {
   const markdown = lines.join('\n');
 
   // Ensure report directory exists
-  const reportsDir = reportDir();
+  const reportsDir = getReportDir();
   if (!fs.existsSync(reportsDir)) {
     fs.mkdirSync(reportsDir, { recursive: true });
   }

@@ -416,11 +416,19 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
     const contextOptions: Parameters<Browser['newContext']>[0] = { userAgent };
     if (ctx.role) {
       const appEnv = (process.env.APP_ENV ?? 'local').trim() || 'local';
+      const rawRole = ctx.role.trim().toLowerCase();
       const roleName =
-        ctx.role.trim().toLowerCase() === 'general' ? 'user' : ctx.role.trim().toLowerCase();
-      const scopedAuth = path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`);
+        rawRole === 'general'
+          ? 'user'
+          : rawRole
+              .replace(/[^a-z0-9-_]+/g, '-')
+              .replace(/^-+|-+$/g, '')
+              .slice(0, 64);
+      const scopedAuth = roleName
+        ? path.join(getRepoRoot(), '.auth', appEnv, `${roleName}.json`)
+        : null;
 
-      if (fs.existsSync(scopedAuth)) {
+      if (scopedAuth && fs.existsSync(scopedAuth)) {
         contextOptions.storageState = scopedAuth;
       }
     }

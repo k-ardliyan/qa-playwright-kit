@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { EvidenceManifest } from './types';
 import { redactSensitiveData } from '../utils/redaction';
-import { findRepoRoot } from '../mcp/version-resolver';
+import { workspace } from '../workspace-paths';
 
 /** Sanitize an identifier for safe use inside a single path segment. */
 export function sanitizePathSegment(value: string): string {
@@ -13,9 +13,8 @@ export function sanitizePathSegment(value: string): string {
  * Write a sanitized EvidenceManifest to disk.
  */
 export function writeEvidenceManifest(manifest: EvidenceManifest, customDir?: string): string {
-  const root = findRepoRoot();
   const runId = sanitizePathSegment(manifest.runId || 'unknown-run');
-  const dir = customDir ?? path.join(root, 'artifacts', 'test-results', 'mcp', runId);
+  const dir = customDir ?? path.join(workspace.testResultsDir, 'mcp', runId);
 
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

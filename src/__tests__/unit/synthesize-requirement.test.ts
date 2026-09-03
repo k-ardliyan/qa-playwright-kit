@@ -46,6 +46,12 @@ test.describe('synthesizeRequirement', () => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+    const catalogRoot = path.resolve('artifacts', 'selector-catalog');
+    for (const name of fs.existsSync(catalogRoot) ? fs.readdirSync(catalogRoot) : []) {
+      if (name.startsWith('zz-test-invoice-')) {
+        fs.rmSync(path.join(catalogRoot, name), { recursive: true, force: true });
+      }
+    }
   });
 
   test('synthesizes valid requirement markdown when no catalog exists (baseline)', async () => {
@@ -71,9 +77,10 @@ test.describe('synthesizeRequirement', () => {
   });
 
   test('synthesizes rich scenarios from mocked semantic catalog', async () => {
-    // catalogDirOverride is still read-only (no guard) — an isolated tmp dir is
-    // fine here; only outputPath is hardened to requirements/.
-    const catalogDir = path.join(tempDir, 'artifacts', 'selector-catalog', 'invoice-feature');
+    const catalogDir = path.join(
+      path.resolve('artifacts', 'selector-catalog'),
+      `zz-test-invoice-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+    );
     fs.mkdirSync(catalogDir, { recursive: true });
 
     const mockCatalog = {

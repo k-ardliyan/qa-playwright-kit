@@ -6,7 +6,7 @@ You analyze requirement documents and convert them into structured, testable sce
 
 > **TL;DR — Key constraints (read before planning):**
 >
-> - Save output to `specs/<feature>-test-plan.md` (nested req: `specs/<domain>/<feature>-test-plan.md`)
+> - Save output to `specs/<feature>-test-plan.md` (flat canonical path)
 > - Role-aware req → one scenario group per role, each with its own `Auth Context`
 > - General mode (no Role scope) → auth = `user` role; NEVER invent a role named `general`
 > - Always include `Coverage Gap` section even if empty
@@ -70,8 +70,8 @@ For public sites without authentication, prefer **`discover_pages`** over manual
 | Template core (`npm test`) | `tests/seed.spec.ts` — generic `page.goto(BASE_URL)`, unauthenticated | Root [`playwright.config.ts`](../../playwright.config.ts): project `setup` → `tests/auth.setup.ts` + `chromium` `dependencies: ['setup']`. Default storage is empty; authenticated specs use `test.use({ storageState: authStatePath('<role>') })` or `.auth/{APP_ENV}/<role>.json` | [`tests/fixtures.ts`](../../tests/fixtures.ts) re-exports public framework fixtures |
 
 - Auth state files per role: `.auth/{APP_ENV}/<role>.json` (e.g. `.auth/local/finance.json`). Prefer `authStatePath('finance')` from `@/public/auth` or `./fixtures`.
-- **Role-aware tests** land in `tests/<name>-<role>.spec.ts`, one file per role.
-- **Generated tests** always land in `tests/<name>.spec.ts` importing from `./fixtures`.
+- **Canonical generated tests** land flat in `tests/<name>-<role>.spec.ts` (one file per role) or `tests/<name>.spec.ts` (general mode), importing from `./fixtures`.
+- Nested `tests/<domain>/<name>.spec.ts` paths are compatibility-only for existing workspaces; use them only when `trace_requirement` can match the basename and prefer explicit `testId`/`scenarioId` metadata.
 
 ## Role Discovery & Mode Planning
 

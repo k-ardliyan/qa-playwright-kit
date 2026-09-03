@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PipelinePhase, ProtocolError } from './types';
 import { computeSourceHash } from '@/contracts';
+import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 
 /**
  * Ordered sequence of pipeline phases for resume logic.
@@ -26,9 +27,7 @@ const PHASE_SEQUENCE: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 
  * production artifacts/reports/pipeline-state.json.
  */
 function reportDir(): string {
-  const override = process.env['QA_REPORT_DIR'];
-  if (override) return path.resolve(override);
-  return path.resolve('artifacts', 'reports');
+  return resolveWorkspaceReportDir();
 }
 
 function resolveStateFilePath(): string {

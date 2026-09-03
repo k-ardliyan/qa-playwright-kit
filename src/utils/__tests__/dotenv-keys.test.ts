@@ -1,5 +1,6 @@
 /**
- * Unit tests for src/utils/dotenv-keys.ts (merge-safe key migration)
+ * Standalone Node assert harness (not a Playwright test).
+ * dotenv-keys.ts (merge-safe key migration).
  * Run: npx tsx src/utils/__tests__/dotenv-keys.test.ts
  */
 import assert from 'node:assert/strict';

@@ -4,6 +4,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { resolveAllowedPath } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
 
 function walk(dir: string, base: string, prefix: string, out: string[]): void {
@@ -34,23 +35,15 @@ export function listTestFixtures(args: Record<string, unknown> | undefined): unk
 
   const subdir =
     typeof args?.subdir === 'string' ? args.subdir.replace(/\\/g, '/').replace(/^\//, '') : '';
-  if (subdir.includes('..') || path.isAbsolute(subdir)) {
-    return {
-      status: 'error',
-      error: {
-        code: 'INVALID_PATH',
-        message: `subdir must be a relative path under ${prefix}/.`,
-      },
-    };
+  const resolved = resolveAllowedPath(subdir ? `${prefix}/${subdir}` : prefix, 'test-data', {
+    mustExist: true,
+    readOnly: true,
+  });
+  if (!resolved.ok) {
+    return { status: 'error', error: resolved.error };
   }
 
-  const start = subdir ? path.join(fixturesRoot, subdir) : fixturesRoot;
-  if (!fs.existsSync(start)) {
-    return {
-      status: 'error',
-      error: { code: 'NOT_FOUND', message: `subdir not found: ${prefix}/${subdir}` },
-    };
-  }
+  const start = resolved.absolutePath;
 
   const fixtures: string[] = [];
   walk(start, fixturesRoot, prefix, fixtures);

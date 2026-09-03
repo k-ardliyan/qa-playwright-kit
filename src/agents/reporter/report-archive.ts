@@ -15,6 +15,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { deriveDisplayName, deriveTestSeriesId } from '../../support/custom-dashboard/domain/run';
+import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -91,9 +92,7 @@ export interface ArchiveSaveResult {
 // archive path via QA_ARCHIVE_DIR / QA_REPORT_DIR without worrying about
 // module import order or caching.
 function reportDir(): string {
-  const override = process.env['QA_REPORT_DIR'];
-  if (override) return path.resolve(override);
-  return path.resolve('artifacts', 'reports');
+  return resolveWorkspaceReportDir();
 }
 function archiveDir(): string {
   if (process.env['QA_ARCHIVE_DIR']) return process.env['QA_ARCHIVE_DIR'];

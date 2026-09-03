@@ -23,7 +23,6 @@ import { classifyFailureError } from '../utils/failure-classifier';
 export interface TraceRequirementArgs {
   requirementPath?: unknown;
   requirementsText?: unknown;
-  resultsDir?: unknown;
   summaryPath?: unknown;
 }
 
@@ -352,6 +351,15 @@ export function traceRequirement(args: TraceRequirementArgs | undefined): TraceR
       createDiagnostic('INVALID_INPUT', 'error', 'Arguments must be an object.'),
     ]);
   }
+  if (Object.prototype.hasOwnProperty.call(args, 'resultsDir')) {
+    return failureResult([
+      createDiagnostic(
+        'INVALID_INPUT',
+        'error',
+        '`resultsDir` is not supported by trace_requirement; provide `summaryPath` under the configured reports directory instead.',
+      ),
+    ]);
+  }
 
   let text = typeof args.requirementsText === 'string' ? args.requirementsText : '';
   let reqPath = typeof args.requirementPath === 'string' ? args.requirementPath : '';
@@ -383,12 +391,27 @@ export function traceRequirement(args: TraceRequirementArgs | undefined): TraceR
     }
   }
 
-  let summaryPath = typeof args.summaryPath === 'string' ? args.summaryPath : undefined;
-  if (!summaryPath && typeof args.resultsDir === 'string') {
-    const candidateSummary = path.join(args.resultsDir, 'test-summary.json');
-    if (fs.existsSync(candidateSummary)) {
-      summaryPath = candidateSummary;
+  let summaryPath: string | undefined;
+  if (typeof args.summaryPath === 'string' && args.summaryPath.trim().length > 0) {
+    const resolvedSummary = resolveAllowedPath(args.summaryPath, 'reports', { mustExist: true });
+    if (!resolvedSummary.ok) {
+      return failureResult([
+        createDiagnostic(resolvedSummary.error.code, 'error', resolvedSummary.error.message, {
+          path: args.summaryPath,
+        }),
+      ]);
     }
+    if (path.basename(resolvedSummary.absolutePath) !== 'test-summary.json') {
+      return failureResult([
+        createDiagnostic(
+          'INVALID_INPUT',
+          'error',
+          '`summaryPath` must point to test-summary.json under the configured reports directory.',
+          { path: args.summaryPath },
+        ),
+      ]);
+    }
+    summaryPath = resolvedSummary.absolutePath;
   }
   const matrix = buildTraceabilityMatrix(text, reqPath || 'requirements/unknown.md', summaryPath);
 

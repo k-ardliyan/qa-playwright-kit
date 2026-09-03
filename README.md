@@ -68,7 +68,7 @@ requirements/*.md          QA tulis requirement
    AI Planner  ──────►  specs/*-test-plan.md
        │
        ▼
-   AI Generator ──────►  tests/*.spec.ts
+   AI Generator ──────►  tests/<feature>[-<role>].spec.ts
        │
        ▼
    Execute ──►  Healer  ──►  Reporter
@@ -270,7 +270,7 @@ Tambahkan metadata role di requirement:
   - hrd: tidak bisa membuka halaman finance
 ```
 
-Generator otomatis membuat file test terpisah per role (`<feature>-<role>.spec.ts`) dengan storage state sesuai dari `.auth/{APP_ENV}/`.
+Generator otomatis membuat file test flat terpisah per role (`tests/<feature>-<role>.spec.ts`) dengan storage state sesuai dari `.auth/{APP_ENV}/`. Nested spec paths hanya kompatibilitas workspace lama jika `trace_requirement` masih dapat mencocokkan basename.
 
 Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT-CONVENTION.md)
 

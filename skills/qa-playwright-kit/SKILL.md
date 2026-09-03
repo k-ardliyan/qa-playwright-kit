@@ -98,6 +98,8 @@ Completion: `validate_plan` passes with no blocking errors.
 
 ### 5. Generate
 
+Generated spec naming is flat and canonical: `tests/<feature>[-<role>].spec.ts`. Nested `tests/<domain>/<feature>.spec.ts` files are compatibility-only for existing workspaces and are traceable only when `trace_requirement` can match the basename/role; explicit `testId`/`scenarioId` metadata is preferred.
+
 Load `.github/agents/generator.agent.md`. Follow [generator-step-titles.md](references/generator-step-titles.md):
 
 1. Wrap every requirement step in `test.step('<step text verbatim>')`. Step titles are **UI actions only** (e.g. `Buka halaman login`, `Isi field login dan password`).

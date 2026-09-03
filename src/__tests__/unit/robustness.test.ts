@@ -155,9 +155,8 @@ test.describe('buildDetailPage includes timestamps', () => {
 });
 
 // ─── P1-4: durationMs extraction logic ────────────────────────────────────
-// saveLatestRun() uses path.resolve('reports') which is relative to cwd at module init time.
-// We cannot sandbox the real function without a factory refactor.
-// Instead, test the extraction expression in isolation — it is a pure derivation with no side effects.
+// saveLatestRun resolves the canonical artifacts/reports directory (or
+// QA_REPORT_DIR at call time). Test the pure derivation without filesystem I/O.
 test.describe('durationMs extraction logic', () => {
   test('prefers summary.runMeta.totalDurationMs over latestRun fallback', () => {
     // Mirror the exact expression from saveLatestRun()
@@ -399,9 +398,8 @@ import { listReportHistory } from '../../agents/reporter/report-history';
 
 test.describe('report-history deriveStatus', () => {
   test('passRate 100 with skipped>0 is partial, not success', () => {
-    // Cannot call buildEntry directly (internal) — verify via a run with
-    // skipped tests. Use the real archives in reports/archive as integration data.
-    // These exist in the repo test env (run-20260804-*).
+    // Cannot call buildEntry directly (internal); listReportHistory reads only
+    // canonical archives and returns an empty list when none exist.
     const history = listReportHistory({ sort: 'newest', limit: 5 });
     // If archives exist, assert statuses are valid enum values.
     for (const entry of history) {
@@ -462,7 +460,7 @@ test.describe('export formatDuration NaN guard', () => {
 import { getLatestRunInfo } from '../../agents/reporter/report-archive';
 
 test.describe('latest-run marker fallback fields', () => {
-  test('reports/.latest-run in repo carries appEnv and totalDurationMs (regression)', () => {
+  test('canonical latest-run marker is optional and parseable when present', () => {
     const info = getLatestRunInfo();
     // If marker exists, it must be parseable; archive:save depends on it.
     expect(info === null || typeof info === 'object').toBe(true);

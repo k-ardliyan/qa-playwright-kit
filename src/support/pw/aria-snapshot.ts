@@ -22,9 +22,7 @@ function isPage(target: Page | Locator): target is Page {
 export function readAriaCatalog(catalogAriaPath: string): string {
   const abs = resolveRepoPath(catalogAriaPath);
   if (!fs.existsSync(abs)) {
-    throw new Error(
-      `ARIA catalog not found: ${abs}. Run snapshot_page (or npm run snapshot:page) first.`,
-    );
+    throw new Error(`ARIA catalog not found: ${abs}. Run the snapshot_page MCP tool first.`);
   }
   return fs.readFileSync(abs, 'utf8');
 }

@@ -1,6 +1,6 @@
 /**
- * Unit tests for wizard-auth-template backup behavior and output shape
- * Run: npx tsx scripts/__tests__/wizard-auth-template.test.ts
+ * Standalone Node assert harness (not a Playwright test).
+ * Run: npx tsx tools/scripts/__tests__/wizard-auth-template.test.ts
  */
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
@@ -25,7 +25,9 @@ const v1 = fs.readFileSync(out, 'utf-8');
 // shared helper present
 assert.ok(v1.includes('async function loginRole('), 'shared loginRole helper missing');
 // thin setup wrapper present
-assert.ok(v1.includes("setup('authenticate:user'"), 'setup block for user missing');
+assert.ok(v1.includes('function configuredRoles()'), 'dynamic role discovery missing');
+assert.ok(v1.includes('parseRolesFromEnvMap'), 'canonical role parser missing');
+assert.ok(v1.includes('isPlaceholderCredential'), 'placeholder credential guard missing');
 // authFile uses cred.authFile — NOT a hardcoded string
 assert.ok(v1.includes('cred.authFile'), 'authFile must use cred.authFile, not hardcoded string');
 assert.ok(!v1.includes("'.auth/"), "authFile must NOT be hardcoded literal '.auth/...' in setup");
@@ -53,8 +55,8 @@ assert.ok(fs.existsSync(out + '.bak'));
 const bak = fs.readFileSync(out + '.bak', 'utf-8');
 assert.equal(bak, v1);
 const v2 = fs.readFileSync(out, 'utf-8');
-assert.ok(v2.includes("setup('authenticate:finance'"), 'setup block for finance missing');
-assert.ok(v2.includes("setup('authenticate:user'"), 'setup block for user still missing');
+assert.ok(v2.includes('authenticate:${role.name}'), 'dynamic setup block missing');
+assert.ok(v2.includes('missing or placeholder credentials'), 'credential failure message missing');
 assert.ok(v2.includes('cred.authFile'), 'v2 authFile must use cred.authFile');
 assert.ok(v2.includes('async function loginRole('), 'v2 shared loginRole helper missing');
 assert.ok(

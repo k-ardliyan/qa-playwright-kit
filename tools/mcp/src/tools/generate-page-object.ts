@@ -7,7 +7,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createToolError, type ToolError, getRepoRoot } from '../utils/safety';
+import { createToolError, type ToolError, getRepoRoot, resolveAllowedPath } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
 
 export interface GeneratePageObjectArgs {
@@ -136,41 +136,30 @@ export async function generatePageObject(
   // be rejected regardless of catalog existence, and never read then discarded.
   const outputPathArg = readString(args.outputPath);
   const defaultOutputPath = path.join(mcpWorkspace.pagesDir, `${className}.ts`);
-  const outputPath = outputPathArg
-    ? (() => {
-        const abs = path.isAbsolute(outputPathArg)
-          ? outputPathArg
-          : path.join(repoRoot, outputPathArg);
-        const rel = path.relative(repoRoot, abs);
-        if (rel.startsWith('..') || path.isAbsolute(rel)) {
-          return null; // path escape attempt
-        }
-        // Lock scaffold writes to tests/pages/ — never overwrite framework or spec files
-        const relNorm = rel.replace(/\\/g, '/');
-        if (relNorm !== mcpWorkspace.pagesRel && !relNorm.startsWith(`${mcpWorkspace.pagesRel}/`)) {
-          return null;
-        }
-        return abs;
-      })()
-    : defaultOutputPath;
+  const resolvedOutput = outputPathArg
+    ? resolveAllowedPath(outputPathArg, 'pages', { mustExist: false, readOnly: false })
+    : {
+        ok: true as const,
+        absolutePath: defaultOutputPath,
+        relativePath: path.relative(repoRoot, defaultOutputPath).replace(/\\/g, '/'),
+      };
 
-  if (!outputPath) {
-    const err = createToolError(
-      'INVALID_PATH',
-      `outputPath must be inside the repository root under '${mcpWorkspace.pagesRel}/'.`,
-    );
+  if (!resolvedOutput.ok) {
+    const err = createToolError('INVALID_PATH', resolvedOutput.error.message);
     return { status: 'error', message: err.error.message, error: err.error };
   }
+  const outputPath = resolvedOutput.absolutePath;
 
-  const catalogPath = path.join(mcpWorkspace.selectorCatalogDir, featureName, `${pageName}.json`);
-
-  if (!fs.existsSync(catalogPath)) {
-    const err = createToolError(
-      'CATALOG_NOT_FOUND',
-      `Catalog not found at ${catalogPath}. Run snapshot_page first.`,
-    );
+  const catalogResolved = resolveAllowedPath(
+    `${mcpWorkspace.selectorCatalogRel}/${featureName}/${pageName}.json`,
+    'selector-catalog',
+    { mustExist: true, readOnly: true },
+  );
+  if (!catalogResolved.ok) {
+    const err = createToolError('CATALOG_NOT_FOUND', catalogResolved.error.message);
     return { status: 'error', message: err.error.message, error: err.error };
   }
+  const catalogPath = catalogResolved.absolutePath;
 
   if (fs.existsSync(outputPath) && !force) {
     return {

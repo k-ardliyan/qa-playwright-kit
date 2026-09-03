@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { findRepoRoot } from '../mcp/version-resolver';
+import { workspace } from '../workspace-paths';
 
 export interface TraceSession {
   runId: string;
@@ -18,9 +18,7 @@ export class McpTraceWorkflow {
     testId: string,
     customOutDir?: string,
   ): TraceSession {
-    const root = findRepoRoot();
-    const dir =
-      customOutDir ?? path.join(root, 'artifacts', 'test-results', 'mcp', runId, 'traces');
+    const dir = customOutDir ?? path.join(workspace.testResultsDir, 'mcp', runId, 'traces');
     const safeTestId = testId.replace(/[^a-zA-Z0-9_-]/g, '_');
     const tracePath = path.join(dir, `${safeTestId}-trace.zip`);
 

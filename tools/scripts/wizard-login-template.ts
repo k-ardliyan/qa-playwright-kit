@@ -23,7 +23,7 @@ export type LoginMechanism = 'form' | 'sso' | 'none';
 export interface RoleSpec {
   /** Role name (lowercase-hyphen). Misal: 'user', 'admin', 'finance'. Never 'general'. */
   name: string;
-  /** Path ke auth state file. Misal: '.auth/local/user.json'. */
+  /** Path ke auth state file. Misal: '.auth/{APP_ENV}/user.json'. */
   authFile: string;
 }
 
@@ -844,9 +844,11 @@ function ssoScenarios(state: LoginTemplateState): string {
     `\n---\n\n` +
     `## Catatan untuk Hermes\n\n` +
     `Aplikasi ini memakai SSO. Setelah setup selesai, minta Hermes:\n\n` +
-    `> \`Tolong buat tests/auth.setup.ts untuk SSO login di ${state.baseUrl}${state.loginUrl}\`\n\n` +
-    `Setelah auth.setup.ts siap, requirement ini bisa diotomasi dengan ` +
-    `menambahkan storageState per-role (\`.auth/{APP_ENV}/<role>.json\`) dan menghapus tag \`(@manual)\`.\n\n`
+    `> \`Sesuaikan src/support/auth.setup.ts untuk SSO login di ${state.baseUrl}${state.loginUrl}; pertahankan tests/auth.setup.ts sebagai entrypoint setup Playwright.\`\n\n` +
+    '`tests/auth.setup.ts` adalah entrypoint project setup yang mengimpor implementasi dari ' +
+    '`src/support/auth.setup.ts`. Sesuaikan implementasi di `src/support/auth.setup.ts`, ' +
+    'bukan mengganti entrypoint, lalu tambahkan storageState per-role (`.auth/{APP_ENV}/<role>.json`) ' +
+    'dan hapus tag `(@manual)` setelah alur SSO dapat dijalankan otomatis.\n\n'
   );
 }
 

@@ -1,6 +1,4 @@
 import { test as setup, test } from '@playwright/test';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { setTestMetadata, captureActualResult } from './test-metadata';
 import { isSessionValid, saveSessionState, resolveRoleCredentials } from './auth-helpers';
 import {
@@ -11,11 +9,17 @@ import {
 } from './human-challenge';
 import { resolveAppUrl } from './app-url';
 import type { Page } from '@playwright/test';
+import {
+  parseRolesFromEnvMap,
+  roleCredentialKeys,
+  isPlaceholderCredential,
+  type RoleCredentialRef,
+} from '../shared/utils/role-credentials';
 
 /**
  * Auth Setup — modular, customizable login runner.
  *
- * Roles in scope: admin, guru, murid (fully role-aware — no general/user mode)
+ * Roles in scope: discovered from the loaded environment (fully role-aware — no hardcoded role list)
  *
  * Runs once during setup project to materialize .auth/{APP_ENV}/<role>.json.
  * If your app requires extra login steps (profile picker, tenant selector, 2-step login),
@@ -46,14 +50,22 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
     expectedResult: 'Sesi login aktif tersimpan di ' + authFile,
   });
 
-  if (!cred.loginId || !cred.password) {
-    const dir = path.dirname(authFile);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(authFile, JSON.stringify({ cookies: [], origins: [] }, null, 2));
-    console.log(
-      `ℹ [Auth] ${roleName}: missing login id or password — wrote empty storage. Set env keys.`,
+  const roleRef = roleCredentialKeys(roleName);
+  const missing = [] as string[];
+  if (isPlaceholderCredential(process.env[roleRef.passwordKey])) {
+    missing.push(roleRef.passwordKey);
+  }
+  if (
+    [roleRef.emailKey, roleRef.usernameKey, roleRef.phoneKey].every((key) =>
+      isPlaceholderCredential(process.env[key]),
+    )
+  ) {
+    missing.push('one of ' + [roleRef.emailKey, roleRef.usernameKey, roleRef.phoneKey].join(', '));
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `Auth setup cannot authenticate role "${roleName}": missing or placeholder credentials (${missing.join('; ')}).`,
     );
-    return;
   }
 
   const forceLogin = process.env.AUTH_FORCE_LOGIN === 'true';
@@ -132,14 +144,18 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
 
 // ─── Setup blocks per role ─────────────────────────────────────────────────────
 
-setup('authenticate:admin', async ({ page }) => {
-  await loginRole('admin', page);
-});
+function configuredRoles(): RoleCredentialRef[] {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
+  const roles = parseRolesFromEnvMap(env);
+  return roles.length > 0 ? roles : [roleCredentialKeys('user')];
+}
 
-setup('authenticate:guru', async ({ page }) => {
-  await loginRole('guru', page);
-});
-
-setup('authenticate:murid', async ({ page }) => {
-  await loginRole('murid', page);
-});
+for (const role of configuredRoles()) {
+  setup(`authenticate:${role.name}`, async ({ page }) => {
+    await loginRole(role.name, page);
+  });
+}

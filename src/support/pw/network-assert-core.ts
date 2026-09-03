@@ -7,7 +7,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fixturePath, findRepoRoot } from './file-content-core';
+import { workspace } from '../../shared/workspace-paths';
 
 export interface NetworkHit {
   method: string;
@@ -282,27 +282,31 @@ export function matchNetworkHit(
 }
 
 /**
- * Resolve contract path:
- * - absolute path → as-is
- * - tests/data/... → under the workspace test-data root
- * - otherwise resolve from cwd, then workspace test-data root
+ * Resolve a contract path inside the configured workspace test-data root.
+ * Absolute paths and traversal are rejected; callers can still pass either
+ * `tests/data/network/...` or the convenient `network/...` form.
  */
-export function resolveNetworkContractPath(relativeOrAbsolute: string): string {
-  if (path.isAbsolute(relativeOrAbsolute)) {
-    return relativeOrAbsolute;
+export function resolveNetworkContractPath(relativePath: string): string {
+  const raw = relativePath.trim();
+  if (!raw) throw new Error('Network contract path must be a non-empty string');
+  if (path.isAbsolute(raw)) {
+    throw new Error('Network contract path must be relative to the workspace test-data directory');
   }
-  const normalized = relativeOrAbsolute.replace(/\\/g, '/');
-  if (normalized.startsWith('tests/data/')) {
-    return path.join(findRepoRoot(), ...normalized.split('/'));
+  const normalized = raw.replace(/\\/g, '/');
+  const relative =
+    normalized === workspace.testDataRel
+      ? ''
+      : normalized.startsWith(`${workspace.testDataRel}/`)
+        ? normalized.slice(workspace.testDataRel.length + 1)
+        : normalized.startsWith('network/')
+          ? normalized
+          : normalized;
+  const root = path.resolve(workspace.testDataDir);
+  const resolved = path.resolve(root, relative);
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error('Network contract path must stay inside the workspace test-data directory');
   }
-  if (normalized.startsWith('network/')) {
-    return fixturePath(...normalized.split('/'));
-  }
-  const fromCwd = path.resolve(relativeOrAbsolute);
-  if (fs.existsSync(fromCwd)) {
-    return fromCwd;
-  }
-  return fixturePath(...normalized.split('/'));
+  return resolved;
 }
 
 export function loadNetworkContract(relativeOrAbsolute: string): NetworkContractFile {

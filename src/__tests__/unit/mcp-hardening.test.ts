@@ -10,7 +10,39 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { getToolEntry, TOOL_REGISTRY } from '../../../tools/mcp/src/tools/registry';
+import argumentInventory from '../../../tools/mcp/src/__tests__/fixtures/tool-argument-inventory.json';
 import { pipelineStatus } from '../../../tools/mcp/src/tools/pipeline-status';
+import { traceRequirement } from '../../../tools/mcp/src/tools/trace-requirement';
+import { resolveFileInspectPath } from '../../../tools/mcp/src/tools/_internal/file-inspect-path';
+import {
+  generateManifest,
+  MANIFEST_OMITTED_ON_DEMAND_TOOLS,
+} from '../../agents/integration/manifest';
+
+function withProcessEnv(values: Record<string, string | undefined>, run: () => void): void {
+  const previous = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  try {
+    run();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+function makeStatusWorkspace(pin?: string): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pwkit-pstatus-env-'));
+  fs.mkdirSync(path.join(root, 'config', 'environments'), { recursive: true });
+  if (pin !== undefined) {
+    fs.writeFileSync(path.join(root, 'config', 'environments', '.active-env'), pin, 'utf-8');
+  }
+  return root;
+}
 
 test.describe('pipeline_status tool', () => {
   test('registered, read-only, and exposed to planner/reporter/all', () => {
@@ -25,6 +57,40 @@ test.describe('pipeline_status tool', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
+  test('registry schemas cover every handler argument read', () => {
+    for (const item of argumentInventory as Array<{ name: string; reads: string[] }>) {
+      const entry = getToolEntry(item.name);
+      expect(entry, item.name).toBeDefined();
+      const properties = Object.keys(entry!.inputSchema.properties);
+      expect(properties.sort(), item.name).toEqual([...item.reads].sort());
+    }
+  });
+
+  test('trace schema removes unsupported resultsDir', () => {
+    const entry = getToolEntry('trace_requirement');
+    expect(Object.keys(entry!.inputSchema.properties)).not.toContain('resultsDir');
+  });
+
+  test('manifest covers every canonical registry tool with exact metadata', () => {
+    const manifest = generateManifest();
+    const tools = new Map(
+      Object.values(manifest.phases)
+        .flatMap((phase) => phase.tools)
+        .map((tool) => [tool.name, tool]),
+    );
+    const omitted = new Set<string>(MANIFEST_OMITTED_ON_DEMAND_TOOLS);
+    expect(tools.size + omitted.size).toBe(TOOL_REGISTRY.length);
+    for (const entry of TOOL_REGISTRY) {
+      if (omitted.has(entry.name)) continue;
+      expect(tools.get(entry.name)).toEqual({
+        server: 'qa-playwright-kit',
+        name: entry.name,
+        description: entry.description,
+      });
+    }
+    expect(manifest.phases.plan.tools.map((tool) => tool.name)).toContain('pipeline_status');
+  });
+
   test('returns no_state when no state file exists (isolated dir)', () => {
     const isolate = fs.mkdtempSync(path.join(os.tmpdir(), 'pwkit-pstatus-'));
     const prevReport = process.env['QA_REPORT_DIR'];
@@ -32,7 +98,7 @@ test.describe('pipeline_status tool', () => {
     process.env['QA_REPORT_DIR'] = path.join(isolate, 'reports');
     process.chdir(isolate);
     try {
-      const out = pipelineStatus();
+      const out = pipelineStatus({ repoRoot: isolate, pinFileContents: null });
       expect(out.status).toBe('no_state');
       expect(out.environment).toBeDefined();
       expect(out.lastRun).toBeNull();
@@ -41,6 +107,80 @@ test.describe('pipeline_status tool', () => {
       if (prevReport === undefined) delete process.env['QA_REPORT_DIR'];
       else process.env['QA_REPORT_DIR'] = prevReport;
       fs.rmSync(isolate, { recursive: true, force: true });
+    }
+  });
+
+  test('resolves auth roles from the pinned environment without reading credentials', () => {
+    const isolate = makeStatusWorkspace('staging');
+    fs.mkdirSync(path.join(isolate, '.auth', 'staging'), { recursive: true });
+    fs.writeFileSync(
+      path.join(isolate, '.auth', 'staging', 'finance.json'),
+      '{"cookies":[]}',
+      'utf-8',
+    );
+    fs.mkdirSync(path.join(isolate, '.auth', 'local'), { recursive: true });
+    fs.writeFileSync(path.join(isolate, '.auth', 'local', 'wrong.json'), '{}', 'utf-8');
+    try {
+      withProcessEnv({ APP_ENV: undefined, CI: undefined }, () => {
+        const out = pipelineStatus({ repoRoot: isolate });
+        expect(out.environment).toEqual({
+          appEnv: 'staging',
+          authDir: '.auth/staging',
+          authRoles: ['finance'],
+        });
+      });
+    } finally {
+      fs.rmSync(isolate, { recursive: true, force: true });
+    }
+  });
+
+  test('uses default local auth directory when pin is absent', () => {
+    const isolate = makeStatusWorkspace();
+    fs.mkdirSync(path.join(isolate, '.auth', 'local'), { recursive: true });
+    fs.writeFileSync(path.join(isolate, '.auth', 'local', 'admin.json'), '{}', 'utf-8');
+    try {
+      withProcessEnv({ APP_ENV: undefined, CI: undefined }, () => {
+        expect(pipelineStatus({ repoRoot: isolate }).environment).toEqual({
+          appEnv: 'local',
+          authDir: '.auth/local',
+          authRoles: ['admin'],
+        });
+      });
+    } finally {
+      fs.rmSync(isolate, { recursive: true, force: true });
+    }
+  });
+
+  test('OS APP_ENV overrides the active pin', () => {
+    const isolate = makeStatusWorkspace('dev');
+    fs.mkdirSync(path.join(isolate, '.auth', 'production'), { recursive: true });
+    fs.writeFileSync(path.join(isolate, '.auth', 'production', 'ops.json'), '{}', 'utf-8');
+    try {
+      withProcessEnv({ APP_ENV: 'production', CI: undefined }, () => {
+        expect(pipelineStatus({ repoRoot: isolate }).environment).toEqual({
+          appEnv: 'production',
+          authDir: '.auth/production',
+          authRoles: ['ops'],
+        });
+      });
+    } finally {
+      fs.rmSync(isolate, { recursive: true, force: true });
+    }
+  });
+
+  test('CI ignores the active pin and invalid pins fail closed to local', () => {
+    const ciRoot = makeStatusWorkspace('staging');
+    const invalidRoot = makeStatusWorkspace('not-a-real-env');
+    try {
+      withProcessEnv({ APP_ENV: undefined, CI: 'true' }, () => {
+        expect(pipelineStatus({ repoRoot: ciRoot }).environment?.appEnv).toBe('local');
+      });
+      withProcessEnv({ APP_ENV: undefined, CI: undefined }, () => {
+        expect(pipelineStatus({ repoRoot: invalidRoot }).environment?.appEnv).toBe('local');
+      });
+    } finally {
+      fs.rmSync(ciRoot, { recursive: true, force: true });
+      fs.rmSync(invalidRoot, { recursive: true, force: true });
     }
   });
 
@@ -117,8 +257,7 @@ test.describe('hardened write paths', () => {
   test('generate_page_object rejects outputPath outside tests/pages/', async () => {
     const entry = getToolEntry('generate_page_object');
     expect(entry).toBeDefined();
-    // outputPath is validated BEFORE the catalog read: an out-of-pages path
-    // must return INVALID_PATH even when featureName/pageName don't resolve.
+    // outputPath is validated BEFORE touching the catalog.
     const out = (await entry!.handler({
       featureName: 'nonexistent-feature-zz',
       pageName: 'page',
@@ -128,5 +267,27 @@ test.describe('hardened write paths', () => {
     expect(out.error?.code).toBe('INVALID_PATH');
     const msg = JSON.stringify(out);
     expect(msg).toContain('pages');
+  });
+
+  test('trace_requirement rejects removed resultsDir instead of ignoring it', () => {
+    const out = traceRequirement({
+      requirementsText: '# REQ-TRACE-001: Trace\n\n## Kriteria Penerimaan\n- **AC-01:** Check',
+      resultsDir: 'artifacts/test-results',
+    } as Record<string, unknown>);
+    expect(out.status).toBe('error');
+    expect(out.diagnostics?.[0]?.message).toContain('resultsDir');
+  });
+
+  test('trace_requirement summaryPath is confined to reports/test-summary.json', () => {
+    const out = traceRequirement({
+      requirementsText: '# REQ-TRACE-001: Trace\n\n## Kriteria Penerimaan\n- **AC-01:** Check',
+      summaryPath: '../package.json',
+    });
+    expect(out.status).toBe('error');
+  });
+
+  test('file inspection paths use the shared workspace safety resolver', () => {
+    expect(resolveFileInspectPath('../package.json').ok).toBe(false);
+    expect(resolveFileInspectPath('tests/data/../package.json').ok).toBe(false);
   });
 });

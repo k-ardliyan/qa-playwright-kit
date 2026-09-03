@@ -15,10 +15,9 @@ import {
   assertPdfContains as assertPdfContainsCore,
   assertPdfMatches as assertPdfMatchesCore,
   detectFileKind,
-  findRepoRoot,
-  fixturePath,
   type FileKind,
 } from './file-content-core';
+import { workspace } from '../../shared/workspace-paths';
 
 export {
   assertStringsContain,
@@ -41,25 +40,35 @@ function ensureDir(dir: string): void {
 
 /**
  * Resolve a fixture path for upload.
- * Accepts: absolute path, `tests/data/...`, or relative under tests/data (e.g. `pdf/sample.pdf`).
+ * Paths are confined to the configured workspace test-data root. Absolute paths
+ * and traversal are rejected to avoid turning this public helper into an
+ * arbitrary file read/upload primitive.
  */
-export function resolveUploadFixturePath(relativeOrAbsolute: string): string {
-  const raw = relativeOrAbsolute.trim();
+export function resolveUploadFixturePath(relativePath: string): string {
+  const raw = relativePath.trim();
   if (!raw) {
     throw new Error('Upload fixture path must be a non-empty string');
   }
   if (path.isAbsolute(raw)) {
-    return raw;
+    throw new Error('Upload fixture path must be relative to the workspace test-data directory');
   }
   const normalized = raw.replace(/\\/g, '/');
-  if (normalized === 'tests/data' || normalized.startsWith('tests/data/')) {
-    return path.join(findRepoRoot(), ...normalized.split('/').filter(Boolean));
+  const relative =
+    normalized === workspace.testDataRel
+      ? ''
+      : normalized.startsWith(`${workspace.testDataRel}/`)
+        ? normalized.slice(workspace.testDataRel.length + 1)
+        : normalized;
+  const resolved = path.resolve(workspace.testDataDir, relative);
+  const root = path.resolve(workspace.testDataDir);
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error('Upload fixture path must stay inside the workspace test-data directory');
   }
-  return fixturePath(...normalized.split('/').filter(Boolean));
+  return resolved;
 }
 
 /**
- * Wait for a download triggered by `trigger`, save under test-results/downloads.
+ * Wait for a download triggered by `trigger`, save under the configured test-results/downloads.
  * Uses path.basename on suggestedFilename to avoid path traversal in suggested names.
  */
 export async function downloadAndSave(
@@ -71,7 +80,7 @@ export async function downloadAndSave(
   await trigger();
   const download = await downloadPromise;
   const suggestedFilename = path.basename(download.suggestedFilename() || 'download.bin');
-  const dir = options?.dir ?? path.join(findRepoRoot(), 'artifacts', 'test-results', 'downloads');
+  const dir = options?.dir ?? path.join(workspace.testResultsDir, 'downloads');
   ensureDir(dir);
   const target = path.join(dir, suggestedFilename);
   await download.saveAs(target);
@@ -79,7 +88,7 @@ export async function downloadAndSave(
   return { path: target, suggestedFilename, size };
 }
 
-/** Upload a file from `tests/data/` (or absolute path). */
+/** Upload a file from the configured workspace test-data directory. */
 export async function uploadFixture(locator: Locator, relativeFixturePath: string): Promise<void> {
   const absolute = resolveUploadFixturePath(relativeFixturePath);
   if (!fs.existsSync(absolute)) {

@@ -43,6 +43,12 @@ export interface VerifySetupOptions {
   lang: WizardLang;
   /** Relative path of the generated login requirement (optional). */
   loginRequirementPath?: string;
+  /** Canonical requirement compiler result; missing means only existence is checked. */
+  loginRequirementValid?: boolean;
+  /** Secret-free compiler diagnostic for an invalid requirement. */
+  loginRequirementError?: string;
+  /** Config validation status, used for the final authenticated readiness check. */
+  configValid?: boolean;
   /** Whether skill sync reported success (from syncAgentSkillsAndMcp). */
   skillsSynced?: boolean;
   /** Whether MCP config generation reported success. */
@@ -221,22 +227,33 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
     }
   }
 
-  // ── 8. Login requirement written ──
+  // ── 8. Login requirement written and contract-valid ──
   if (opts.loginRequirementPath) {
     const reqAbs = path.join(repoRoot, opts.loginRequirementPath);
     const exists = fs.existsSync(reqAbs);
+    const valid = exists && (opts.loginRequirementValid ?? true);
     add({
       id: 'login_requirement',
       label: labelFor(lang, 'Requirement login', 'Login requirement'),
-      status: exists ? 'pass' : 'warn',
-      detail: opts.loginRequirementPath,
-      fix: exists
-        ? undefined
-        : labelFor(
+      status: !exists ? 'warn' : !valid ? 'fail' : 'pass',
+      detail: !exists
+        ? labelFor(
             lang,
-            'Jalankan ulang npm run setup (auto-generated, file custom tidak ditimpa)',
-            'Re-run npm run setup (auto-generated; custom files are left intact)',
-          ),
+            `${opts.loginRequirementPath} pending`,
+            `${opts.loginRequirementPath} pending`,
+          )
+        : !valid
+          ? (opts.loginRequirementError ?? 'Requirement contract validation failed')
+          : opts.loginRequirementPath,
+      fix:
+        !exists || !valid
+          ? labelFor(
+              lang,
+              'Buat atau perbaiki requirements/login.md lalu jalankan setup lagi',
+              'Create or fix requirements/login.md, then run setup again',
+            )
+          : undefined,
+      critical: exists && !valid,
     });
   }
 
@@ -286,6 +303,7 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
     const missingAuth = roles
       .map((r) => `.auth/${appEnv}/${r}.json`)
       .filter((rel) => !fs.existsSync(path.join(repoRoot, rel)));
+    const authReady = missingAuth.length === 0;
     add({
       id: 'auth_files',
       label: labelFor(lang, 'Sesi login role (.auth/)', 'Role login sessions (.auth/)'),
@@ -294,10 +312,10 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
         missingAuth.length > 0
           ? labelFor(
               lang,
-              `belum dibuat: ${missingAuth.join(', ')}`,
-              `not created yet: ${missingAuth.join(', ')}`,
+              `pending — belum dibuat: ${missingAuth.join(', ')}`,
+              `pending — not created yet: ${missingAuth.join(', ')}`,
             )
-          : undefined,
+          : labelFor(lang, 'ready', 'ready'),
       fix:
         missingAuth.length > 0
           ? labelFor(
@@ -306,6 +324,27 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
               'npm run auth:setup (OTP/CAPTCHA: npm run auth:setup:headed)',
             )
           : undefined,
+    });
+    add({
+      id: 'pipeline_ready',
+      label: labelFor(lang, 'Pipeline authenticated', 'Authenticated pipeline'),
+      status: authReady && (opts.configValid ?? true) ? 'pass' : 'warn',
+      detail:
+        authReady && (opts.configValid ?? true)
+          ? labelFor(lang, 'ready', 'ready')
+          : labelFor(
+              lang,
+              'pending — config atau sesi belum siap',
+              'pending — config or sessions not ready',
+            ),
+      fix:
+        authReady && (opts.configValid ?? true)
+          ? undefined
+          : labelFor(
+              lang,
+              'Validasi config lalu jalankan npm run auth:setup',
+              'Validate config, then run npm run auth:setup',
+            ),
     });
   }
 

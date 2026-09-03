@@ -1,6 +1,7 @@
 /**
+ * Standalone Node assert harness (not a Playwright test).
  * MCP parse_requirement_scenarios — authContext + roleScope resolution.
- * Run: npx tsx scripts/__tests__/parse-auth-context.test.ts
+ * Run: npx tsx tools/scripts/__tests__/parse-auth-context.test.ts
  */
 import assert from 'node:assert/strict';
 import { parseRequirementScenarios } from '../../mcp/src/tools/parse-requirement-scenarios';

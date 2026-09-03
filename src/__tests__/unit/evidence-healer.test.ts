@@ -11,6 +11,8 @@ import { normalizeConsoleMessages } from '../../shared/evidence/console-normaliz
 import { classifyFailureFromEvidence } from '../../shared/evidence/failure-classifier';
 import { McpTraceWorkflow } from '../../shared/evidence/trace-workflow';
 import { McpVideoWorkflow } from '../../shared/evidence/video-workflow';
+import { resolveMcpOutputDir } from '../../shared/mcp/output-resolver';
+import { WorkspacePathRegistry } from '../../shared/workspace-paths';
 import type { EvidenceManifest } from '../../shared/evidence/types';
 
 test.describe('Evidence-Driven Healing & Observability (MCP-053 to MCP-065)', () => {
@@ -183,6 +185,22 @@ test.describe('Evidence-Driven Healing & Observability (MCP-053 to MCP-065)', ()
     expect(normalized).toHaveLength(2);
     expect(normalized[0].type).toBe('info'); // ErrorHandler is not an error
     expect(normalized[1].type).toBe('error');
+  });
+
+  test('custom manifest resolves MCP evidence outputs consistently', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-workspace-test-'));
+    try {
+      fs.mkdirSync(path.join(tempDir, 'config'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tempDir, 'config', 'qa-kit.workspace.json'),
+        JSON.stringify({ paths: { testResults: 'out/results' } }),
+      );
+      const registry = new WorkspacePathRegistry(tempDir);
+      const outputDir = resolveMcpOutputDir({ registry, runId: 'run-1', ensureExists: false });
+      expect(outputDir).toBe(path.join(tempDir, 'out', 'results', 'mcp', 'run-1'));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   test('manages trace and video sessions', () => {

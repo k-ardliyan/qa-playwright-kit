@@ -1,9 +1,12 @@
 /**
- * Unit tests for file-content-core (demo fixtures only — not product schema).
+ * Standalone Node assert harness (not a Playwright test).
+ * file-content-core (demo fixtures only — not product schema).
  * Run: npx tsx src/support/pw/__tests__/file-content-core.test.ts
  */
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { resolveUploadFixturePath } from '../files';
 import {
   assertDownloadedEnvelope,
   assertExcelHeaders,
@@ -37,6 +40,11 @@ process.stdout.write('\nfile-content-core tests\n');
 test('fixturePath resolves sample pdf', () => {
   const p = fixturePath('pdf', 'sample-text.pdf');
   assert.ok(fs.existsSync(p), `missing ${p}`);
+});
+
+test('resolve upload fixture rejects absolute and traversal paths', () => {
+  assert.throws(() => resolveUploadFixturePath(path.resolve('secret.txt')), /must be relative/);
+  assert.throws(() => resolveUploadFixturePath('../secret.txt'), /stay inside/);
 });
 
 test('detectMagic pdf', () => {

@@ -379,13 +379,9 @@ export const TOOL_REGISTRY: ToolEntry[] = [
           type: 'string',
           description: 'Optional raw markdown requirement content.',
         },
-        resultsDir: {
-          type: 'string',
-          description: 'Optional path to test-results directory.',
-        },
         summaryPath: {
           type: 'string',
-          description: 'Optional path to test-summary.json.',
+          description: 'Optional path to test-summary.json under artifacts/reports/.',
         },
       },
     },

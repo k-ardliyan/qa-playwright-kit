@@ -27,10 +27,13 @@ import type {
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
+import { resolveWorkspaceReportDir } from '../shared/workspace-paths';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const METRICS_FILE = path.join('artifacts', 'reports', 'pipeline-metrics.json');
+function metricsFile(): string {
+  return path.join(resolveWorkspaceReportDir(), 'pipeline-metrics.json');
+}
 const RETENTION_DAYS = 90;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -73,7 +76,7 @@ function createEmptyStore(): PipelineMetricsStore {
  */
 export function loadMetricsStore(): PipelineMetricsStore {
   try {
-    const filePath = path.resolve(METRICS_FILE);
+    const filePath = metricsFile();
     if (!fs.existsSync(filePath)) {
       return createEmptyStore();
     }
@@ -90,7 +93,7 @@ export function loadMetricsStore(): PipelineMetricsStore {
  * Creates the artifacts/reports/ directory if it doesn't exist.
  */
 export function saveMetricsStore(store: PipelineMetricsStore): void {
-  const filePath = path.resolve(METRICS_FILE);
+  const filePath = metricsFile();
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

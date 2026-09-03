@@ -393,7 +393,7 @@ function parsePlaywrightResult(
 
 export function getTestFailures(resultsDir: string = DEFAULT_RESULTS_DIR): GetTestFailuresOutput {
   // Path containment is enforced at the MCP dispatch boundary (see
-  // `mcp-server/src/tools/registry.ts` for the get_test_failures handler).
+  // `tools/mcp/src/tools/registry.ts` for the get_test_failures handler).
   // Direct callers (property tests, scripts) pass repo-relative paths
   // resolved against the cwd or absolute paths inside the temp dir; the
   // function trusts its input here.

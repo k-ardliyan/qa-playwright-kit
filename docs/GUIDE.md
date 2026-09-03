@@ -249,8 +249,8 @@ Generate Playwright tests dari specs/nama-fitur-test-plan.md:
 3. Untuk halaman baru: live verification via playwright-cli (preferred) atau browser_* MCP tools.
    Untuk halaman di selector-catalog: cek apakah `tests/pages/<PomName>.ts` sudah ada.
    - Ada → import via fixture, gunakan langsung.
-   - Belum ada → jalankan `generate_page_object` (qa-playwright-kit) untuk scaffold otomatis, lalu QA register di project.fixture.ts.
-   - Tidak ada catalog → `snapshot_page` dulu, baru `generate_page_object`.
+   - Belum ada → panggil `generate_page_object` (qa-playwright-kit) untuk scaffold otomatis, lalu QA review dan register POM di `src/fixtures/project.fixture.ts` bila perlu.
+   - Tidak ada catalog → panggil `snapshot_page` lebih dulu, baru `generate_page_object`.
 4. Tulis file di tests/ (kebab-case .spec.ts, import ./fixtures).
 5. Scenario (@access-restriction): assert penolakan akses — redirect, error message, atau elemen tidak ada.
 6. Scenario (@failure): assert pesan error atau state validasi gagal.
@@ -283,15 +283,15 @@ Snapshot halaman https://staging.app/login lalu simpan ke artifacts/selector-cat
 ### Snapshot + Generate POM scaffold (Path B)
 
 ```
-Buat POM scaffold dari halaman https://staging.app/login:
+Buat POM scaffold dari halaman target:
 
-1. snapshot_page (qa-playwright-kit) — url, featureName=login, pageName=login-form
-2. generate_page_object (qa-playwright-kit) — featureName=login, pageName=login-form
-   → Hasilkan tests/pages/LoginForm.ts (scaffold, tidak overwrite file yang sudah ada)
-3. QA review scaffold: rename locator, tambah goto(), tambah business methods (doLogin dll)
-4. Register POM di tests/fixtures.ts atau src/fixtures/project.fixture.ts
-5. Tambah "POM yang dibutuhkan: LoginForm" di requirement
-6. Jalankan pipeline normal — Generator akan import LoginForm otomatis
+1. snapshot_page (qa-playwright-kit) dengan `url`, `featureName`, dan `pageName`
+2. generate_page_object (qa-playwright-kit) dengan `featureName` dan `pageName`
+   → Hasil default: `tests/pages/<ClassName>.ts`; tool tidak menimpa file yang sudah ada
+3. QA review scaffold: perbaiki locator TODO, tambah `goto()` dan business methods bila perlu
+4. Jika dipakai sebagai fixture, register POM di `src/fixtures/project.fixture.ts`
+5. Tambah field POM yang dibutuhkan di requirement hanya bila pipeline harus memakai POM itu
+6. Jalankan pipeline normal — Generator memakai POM yang terdaftar; jika tidak diperlukan, gunakan inline locator dari catalog
 ```
 
 ---
@@ -307,7 +307,7 @@ Buat POM scaffold dari halaman https://staging.app/login:
 | Auth state per role         | `.auth/{APP_ENV}/<role>.json` (helper: `authStatePath`) |
 | Katalog selector            | `artifacts/selector-catalog/<fitur>/<halaman>.json`     |
 | Scaffold POM                | `tests/pages/<NamaHalaman>.ts`                          |
-| Daftarkan POM               | `tests/fixtures.ts` / `src/fixtures/project.fixture.ts` |
+| Daftarkan POM               | `src/fixtures/project.fixture.ts`                       |
 | Server QA custom            | `qa-playwright-kit`                                     |
 | Cek kesehatan               | tool `health_check`                                     |
 | Status & resume pipeline    | tool `pipeline_status`                                  |

@@ -179,7 +179,8 @@ List every tool explicitly by server:
 - Pass Planner test plan to Generator.
 - Generator reads `Role` and `Auth Context` columns per scenario.
 - Generator reads `Module` and `Feature` from requirement metadata (via `compile_requirement` or `parse_requirement_scenarios` output fields `module` and `feature`) and injects them into every `setTestMetadata()` call: `module: '<value>'` and `feature: '<value>'`. This ensures the dashboard grouping and export CSV/TSV columns are populated correctly. If module is `'-'`, use the requirement filename stem as fallback.
-- If role-aware: Generator creates one file per role (`tests/<feature>-<role>.spec.ts`).
+- Canonical generated spec paths are flat: `tests/<feature>.spec.ts` or one file per role at `tests/<feature>-<role>.spec.ts`.
+- Nested `tests/<domain>/<feature>.spec.ts` files are compatibility-only for existing workspaces; use them only when `trace_requirement` can match the basename/role, with explicit `testId`/`scenarioId` metadata preferred.
 - Generator uses `test.use({ storageState: authStatePath('<role>') })` or `.auth/{APP_ENV}/<role>.json` for role-specific files.
 - For blocked/unclear scenarios: Generator produces skeleton with `test.skip`.
 - Call `validate_generated_tests` before execution to verify structural rules and ensure no ephemeral browser/CLI locators leaked.

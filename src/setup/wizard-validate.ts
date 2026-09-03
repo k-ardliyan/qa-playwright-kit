@@ -13,6 +13,8 @@ import {
   isRoleLoginReady,
   roleCredentialKeys,
   isPlaceholderCredential,
+  parseRolesFromEnvMap,
+  type RoleCredentialRef,
 } from '../shared/utils/role-credentials';
 import { isEncryptedValue } from './wizard-writer';
 import { checkReachable } from './reachability';
@@ -21,11 +23,14 @@ import { type WizardLang, t } from './i18n';
 export { isReachableStatus, checkReachable } from './reachability';
 
 export interface ValidationResult {
+  /** Config is structurally valid; auth sessions are checked separately. */
   valid: boolean;
   errors: string[];
   warnings: string[];
   /** BASE_URL reachable via HEAD request */
   reachable: boolean;
+  /** All roles discovered from the loaded environment. */
+  rolesConfigured: string[];
   /** Roles with complete, non-template credentials */
   rolesReady: string[];
   /** Roles with missing or template-placeholder credentials */
@@ -34,6 +39,36 @@ export interface ValidationResult {
   rolesEncrypted: string[];
   /** Absolute path to the validated env file */
   envFilePath: string | null;
+}
+
+/** Return clear, secret-free credential errors for one configured role. */
+export function roleCredentialErrors(
+  envMap: Record<string, string>,
+  role: RoleCredentialRef,
+  lang: WizardLang = 'id',
+): string[] {
+  const errors: string[] = [];
+  const password = envMap[role.passwordKey];
+  const identifier = [envMap[role.emailKey], envMap[role.usernameKey], envMap[role.phoneKey]];
+  if (isPlaceholderCredential(password)) {
+    errors.push(
+      t(
+        lang,
+        `Role "${role.name}" membutuhkan password asli (${role.passwordKey})`,
+        `Role "${role.name}" needs a real password (${role.passwordKey})`,
+      ),
+    );
+  }
+  if (identifier.every((value) => isPlaceholderCredential(value))) {
+    errors.push(
+      t(
+        lang,
+        `Role "${role.name}" membutuhkan salah satu identifier asli (EMAIL, USERNAME, atau PHONE)`,
+        `Role "${role.name}" needs one real identifier (EMAIL, USERNAME, or PHONE)`,
+      ),
+    );
+  }
+  return errors;
 }
 
 /**
@@ -68,6 +103,7 @@ export async function validateSetup(
       ],
       warnings: [],
       reachable: false,
+      rolesConfigured: [],
       rolesReady: [],
       rolesIncomplete: [],
       rolesEncrypted: [],
@@ -103,32 +139,17 @@ export async function validateSetup(
     }
   }
 
-  // 3. Role credentials (dinamis — temukan semua role yang ada di env keys)
+  // 3. Role credentials (dinamis — gunakan parser role canonical yang sama dengan auth setup)
   const rolesReady: string[] = [];
   const rolesIncomplete: string[] = [];
   const rolesEncrypted: string[] = [];
-
-  const discoveredRoles = new Set<string>();
-  for (const key of Object.keys(envMap)) {
-    const m = /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD)$/.exec(key);
-    if (!m) continue;
-    const prefix = m[1];
-    if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
-    if (prefix.endsWith('_LOGIN_ID')) continue;
-    if (prefix === 'TEST_USER') {
-      discoveredRoles.add('user');
-    } else {
-      discoveredRoles.add(prefix.toLowerCase().replace(/_/g, '-'));
-    }
-  }
+  const discoveredRoles = parseRolesFromEnvMap(envMap);
 
   // Jika env sama sekali belum punya role key, laporkan role default 'user' incomplete
-  if (discoveredRoles.size === 0) {
-    discoveredRoles.add('user');
-  }
+  const roleRefs = discoveredRoles.length > 0 ? discoveredRoles : [roleCredentialKeys('user')];
 
-  for (const roleName of discoveredRoles) {
-    const roleKeys = roleCredentialKeys(roleName);
+  for (const roleKeys of roleRefs) {
+    const roleName = roleKeys.name;
     const roleHasEncrypted =
       isEncryptedValue(envMap[roleKeys.passwordKey]) ||
       isEncryptedValue(envMap[roleKeys.emailKey]) ||
@@ -140,18 +161,8 @@ export async function validateSetup(
     } else if (isRoleLoginReady(envMap, roleKeys)) {
       rolesReady.push(roleName);
     } else {
-      const hasAny =
-        envMap[roleKeys.passwordKey] || envMap[roleKeys.emailKey] || envMap[roleKeys.usernameKey];
-      if (hasAny && isPlaceholderCredential(envMap[roleKeys.passwordKey] ?? '')) {
-        warnings.push(
-          t(
-            lang,
-            `Role "${roleName}" masih kredensial template — update sebelum menjalankan test`,
-            `Role "${roleName}" has template credentials — update before running tests`,
-          ),
-        );
-      }
       rolesIncomplete.push(roleName);
+      warnings.push(...roleCredentialErrors(envMap, roleKeys, lang));
     }
   }
 
@@ -178,6 +189,7 @@ export async function validateSetup(
     errors,
     warnings,
     reachable,
+    rolesConfigured: roleRefs.map((role) => role.name),
     rolesReady,
     rolesIncomplete,
     rolesEncrypted,
@@ -195,25 +207,11 @@ export function isSetupReady(envMap: Record<string, string> | null): boolean {
   const raw = envMap['BASE_URL'] ?? '';
   if (!raw || isEncryptedValue(raw)) return false;
 
-  const roles = new Set<string>();
-  for (const key of Object.keys(envMap)) {
-    const m = /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD)$/.exec(key);
-    if (!m) continue;
-    const prefix = m[1];
-    if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
-    if (prefix.endsWith('_LOGIN_ID')) continue;
-    if (prefix === 'TEST_USER') {
-      roles.add('user');
-    } else {
-      roles.add(prefix.toLowerCase().replace(/_/g, '-'));
-    }
-  }
-
-  if (roles.size === 0) return false;
+  const roles = parseRolesFromEnvMap(envMap);
+  if (roles.length === 0) return false;
 
   // At least one role must be login-ready (and not encrypted in plaintext probe)
-  for (const roleName of roles) {
-    const roleKeys = roleCredentialKeys(roleName);
+  for (const roleKeys of roles) {
     const hasEncrypted =
       isEncryptedValue(envMap[roleKeys.passwordKey]) ||
       isEncryptedValue(envMap[roleKeys.emailKey]) ||

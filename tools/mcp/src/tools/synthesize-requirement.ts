@@ -65,15 +65,25 @@ export async function synthesizeRequirement(
   }
 
   const rawCatalogDir = readString(args.catalogDirOverride, 'catalogDirOverride');
-  const catalogDir = rawCatalogDir
-    ? path.isAbsolute(rawCatalogDir)
-      ? rawCatalogDir
-      : path.join(getRepoRoot(), rawCatalogDir)
-    : path.join(
-        getRepoRoot(),
-        mcpWorkspace.selectorCatalogRel,
-        featureName.toLowerCase().replace(/[^a-z0-9-_]+/g, '-'),
-      );
+  const defaultCatalogDir = `${mcpWorkspace.selectorCatalogRel}/${featureName
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')}`;
+  const catalogResolved = resolveAllowedPath(
+    rawCatalogDir ?? defaultCatalogDir,
+    'selector-catalog',
+    {
+      mustExist: false,
+      readOnly: true,
+    },
+  );
+  if (!catalogResolved.ok) {
+    return {
+      status: 'error',
+      message: catalogResolved.error.message,
+      error: catalogResolved.error,
+    };
+  }
+  const catalogDir = catalogResolved.absolutePath;
 
   const semanticCatalogs: SemanticCatalog[] = [];
 
@@ -315,7 +325,7 @@ ${backlogList.join('\n')}
     resolvedAbs ??
     path.join(
       getRepoRoot(),
-      'requirements',
+      mcpWorkspace.requirementsRel,
       `${featureName.toLowerCase().replace(/[^a-z0-9-_]+/g, '-')}.md`,
     );
   const outputRel = path.relative(getRepoRoot(), outputAbs).replace(/\\/g, '/');

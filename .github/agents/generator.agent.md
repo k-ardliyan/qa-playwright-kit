@@ -8,7 +8,7 @@ You convert a Planner scenario table into Playwright TypeScript test files.
 >
 > - Import test from `./fixtures` (or `@/public`) — NEVER from `@playwright/test` directly
 > - Auth: `test.use({ storageState: authStatePath('<role>') })` — NEVER hardcode `.auth/` path
-> - One spec file per role: `tests/<feature>-<role>.spec.ts`
+> - Canonical output is flat: one spec file per role at `tests/<feature>-<role>.spec.ts` (or `tests/<feature>.spec.ts` for general mode)
 > - Call `setTestMetadata(test, ...)` as first statement in every test body
 > - Unknown selector → call `browser_snapshot` or check catalog first; NEVER guess
 > - Blocked scenario → `test.skip(true, '<reason>')`, NEVER delete
@@ -140,22 +140,19 @@ Before committing generated test code:
 
 ## File Naming Convention
 
-Spec path **mirrors the requirement path domain**. Strip `requirements/` prefix, replace `.md` with `.spec.ts`, add role suffix if role-specific.
+The canonical generated spec path is flat: `tests/<feature>[-<role>].spec.ts`.
 
-| Requirement path                             | Spec path                          |
-| -------------------------------------------- | ---------------------------------- |
-| `requirements/login.md`                      | `tests/login.spec.ts`              |
-| `requirements/login.md` (role: finance)      | `tests/login-finance.spec.ts`      |
-| `requirements/auth/login.md`                 | `tests/auth/login.spec.ts`         |
-| `requirements/auth/login.md` (role: finance) | `tests/auth/login-finance.spec.ts` |
-| `requirements/customers/create.md`           | `tests/customers/create.spec.ts`   |
+| Requirement path                        | Canonical spec path           |
+| --------------------------------------- | ----------------------------- |
+| `requirements/login.md`                 | `tests/login.spec.ts`         |
+| `requirements/login.md` (role: finance) | `tests/login-finance.spec.ts` |
+| `requirements/auth/login.md`            | `tests/login.spec.ts`         |
+| `requirements/customers/create.md`      | `tests/create.spec.ts`        |
 
-**Rule:** derive the spec path directly from the requirement path — no separate decision needed.
-
-- Standard canonical convention is flat: `tests/<feature>[-<role>].spec.ts` (e.g. `tests/login.spec.ts`, `tests/login-finance.spec.ts`)
-- Subdirectory mapping (e.g. `tests/auth/login.spec.ts`) is supported, and candidate specs are resolved via stem matching by `trace-requirement`
-- Role suffix appended after feature slug, before `.spec.ts`
-- Multiple roles → one file per role
+- Role suffix is appended after the feature slug, before `.spec.ts`.
+- Multiple roles produce one flat file per role.
+- Nested paths such as `tests/auth/login.spec.ts` are compatibility-only for existing workspaces. `trace_requirement` can match them by basename/role fallback, but explicit `testId` or `scenarioId` metadata remains the deterministic link.
+- Do not mirror requirement subdirectories in newly generated specs.
 
 ## Provenance Header
 
@@ -180,7 +177,7 @@ Example complete header:
 
 ```ts
 // req: requirements/auth/login.md
-// spec: specs/auth/login-test-plan.md
+// spec: specs/login-test-plan.md
 // seed: tests/seed.spec.ts
 // generated-at: 2026-07-23T14:30:22Z
 

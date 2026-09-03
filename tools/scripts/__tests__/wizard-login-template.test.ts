@@ -1,9 +1,9 @@
 /// <reference types="node" />
 /**
- * Unit tests for wizard-login-template — pure function, no I/O.
+ * Standalone Node assert harness (not a Playwright test).
+ * wizard-login-template — pure function, no I/O.
  *
- * Run:
- *   npx tsx scripts/__tests__/wizard-login-template.test.ts
+ * Run: npx tsx tools/scripts/__tests__/wizard-login-template.test.ts
  */
 
 import * as assert from 'node:assert/strict';
@@ -182,9 +182,12 @@ test('sso: marks all scenarios as manual', () => {
   );
 });
 
-test('sso: gives Hermes instruction for auth.setup.ts', () => {
+test('sso: distinguishes setup entrypoint from implementation', () => {
   const md = buildLoginRequirement(baseState({ mechanism: 'sso' }));
-  assert.ok(md.includes('auth.setup.ts'), 'sso instruction missing');
+  assert.ok(md.includes('tests/auth.setup.ts'), 'setup entrypoint missing');
+  assert.ok(md.includes('src/support/auth.setup.ts'), 'auth implementation path missing');
+  assert.ok(md.includes('bukan mengganti entrypoint'), 'entrypoint protection missing');
+  assert.ok(!md.includes('buat tests/auth.setup.ts untuk SSO'), 'stale SSO guidance remains');
 });
 
 // ─── none mechanism ──────────────────────────────────────────────────────────

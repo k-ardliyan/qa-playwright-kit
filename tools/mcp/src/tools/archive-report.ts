@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getRepoRoot } from '../utils/safety';
+import { getRepoRoot, resolveAllowedPath } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
 
 export interface ArchiveReportInput {
@@ -59,7 +59,15 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
     return !rel.startsWith('..') && !path.isAbsolute(rel);
   };
 
-  const absoluteReportPath = path.resolve(repoRoot, reportPath);
+  const resolvedReport = resolveAllowedPath(reportPath, 'reports', {
+    mustExist: true,
+    readOnly: true,
+  });
+  if (!resolvedReport.ok) {
+    return { status: 'error', message: resolvedReport.error.message };
+  }
+  const absoluteReportPath = resolvedReport.absolutePath;
+
   if (!insideRepo(absoluteReportPath)) {
     return {
       status: 'error',
@@ -74,6 +82,18 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
     };
   }
 
+  let resolvedJsonPath: string | null = null;
+  if (jsonReportPath) {
+    const resolvedJson = resolveAllowedPath(jsonReportPath, 'reports', {
+      mustExist: true,
+      readOnly: true,
+    });
+    if (!resolvedJson.ok) {
+      return { status: 'error', message: resolvedJson.error.message };
+    }
+    resolvedJsonPath = resolvedJson.absolutePath;
+  }
+
   try {
     fs.mkdirSync(archiveDir, { recursive: true });
 
@@ -86,14 +106,6 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
 
     // 2. Resolve summary.json (from jsonReportPath or default artifacts/reports/test-summary.json)
     let summaryData: Record<string, unknown> = {};
-    let resolvedJsonPath: string | null = null;
-
-    if (jsonReportPath) {
-      const candidate = path.resolve(repoRoot, jsonReportPath);
-      if (insideRepo(candidate) && fs.existsSync(candidate)) {
-        resolvedJsonPath = candidate;
-      }
-    }
 
     if (!resolvedJsonPath) {
       const defaultSummary = path.join(mcpWorkspace.reportsDir, 'test-summary.json');

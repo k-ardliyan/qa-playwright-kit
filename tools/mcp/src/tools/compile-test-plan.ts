@@ -16,7 +16,7 @@ import {
   failureResult,
 } from '../contracts';
 import { compileRequirementFromText } from './compile-requirement';
-import { containsEphemeralRef } from '../utils/ephemeral-guard';
+import { containsEphemeralReference } from '../utils/ephemeral-guard';
 
 export interface CompileTestPlanArgs {
   testPlanPath?: unknown;
@@ -293,7 +293,7 @@ export function compileTestPlanFromText(
       if (!itemClean || itemClean === 'none' || itemClean === '-') continue;
 
       // Check Ephemeral Browser Refs
-      if (containsEphemeralRef(itemClean)) {
+      if (containsEphemeralReference(itemClean)) {
         diagnostics.push(
           createDiagnostic(
             'PLAN_EPHEMERAL_REF',

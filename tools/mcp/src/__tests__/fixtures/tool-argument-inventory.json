@@ -1,0 +1,74 @@
+[
+  { "name": "health_check", "reads": [] },
+  { "name": "pipeline_status", "reads": [] },
+  { "name": "get_test_failures", "reads": ["resultsDir"] },
+  { "name": "get_test_summary", "reads": [] },
+  { "name": "list_artifacts", "reads": [] },
+  { "name": "list_requirement_status", "reads": [] },
+  { "name": "compile_requirement", "reads": ["requirementsText", "requirementPath"] },
+  { "name": "normalize_requirements", "reads": ["requirementsText", "requirementPath"] },
+  { "name": "parse_requirement_scenarios", "reads": ["requirementsText", "requirementPath"] },
+  { "name": "validate_generated_tests", "reads": ["filePath"] },
+  { "name": "validate_requirement", "reads": ["requirementsText", "requirementPath"] },
+  {
+    "name": "validate_plan",
+    "reads": ["testPlan", "testPlanPath", "requirement", "requirementPath"]
+  },
+  { "name": "compile_test_plan", "reads": ["testPlanPath", "testPlanText", "requirementPath"] },
+  { "name": "trace_requirement", "reads": ["requirementPath", "requirementsText", "summaryPath"] },
+  {
+    "name": "snapshot_page",
+    "reads": [
+      "url",
+      "featureName",
+      "pageName",
+      "role",
+      "exploreModals",
+      "waitForSelector",
+      "include",
+      "maxElements",
+      "force",
+      "waitUntil",
+      "navigationTimeoutMs"
+    ]
+  },
+  {
+    "name": "synthesize_requirement",
+    "reads": [
+      "featureName",
+      "moduleName",
+      "title",
+      "entryUrl",
+      "role",
+      "catalogDirOverride",
+      "outputPath"
+    ]
+  },
+  {
+    "name": "discover_pages",
+    "reads": [
+      "rootUrl",
+      "featureName",
+      "role",
+      "maxDepth",
+      "maxPages",
+      "excludePatterns",
+      "respectRobots",
+      "requestDelayMs",
+      "waitUntil",
+      "force"
+    ]
+  },
+  {
+    "name": "archive_report",
+    "reads": ["runId", "reportPath", "jsonReportPath", "qaDecision", "qaNotes"]
+  },
+  {
+    "name": "generate_page_object",
+    "reads": ["featureName", "pageName", "className", "outputPath", "force"]
+  },
+  { "name": "inspect_file", "reads": ["filePath"] },
+  { "name": "extract_pdf_text", "reads": ["filePath", "maxChars"] },
+  { "name": "read_excel_summary", "reads": ["filePath", "sheet", "maxRows"] },
+  { "name": "list_test_fixtures", "reads": ["subdir"] }
+]

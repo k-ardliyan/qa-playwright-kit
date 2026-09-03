@@ -615,7 +615,15 @@ async function actionRemoveRole(
   if (!confirm) return { content };
 
   const ref = roleCredentialKeys(roleName);
-  const keys = [ref.emailKey, ref.usernameKey, ref.phoneKey, ref.passwordKey, ref.loginIdPrefKey];
+  const keys = [
+    ref.emailKey,
+    ref.usernameKey,
+    ref.phoneKey,
+    ref.passwordKey,
+    ref.loginIdPrefKey,
+    ref.loginUrlPathKey,
+    ref.successUrlPathKey,
+  ];
 
   const next = removeEnvKeys(content, keys);
 

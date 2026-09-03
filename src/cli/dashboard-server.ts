@@ -50,6 +50,7 @@ import { HistoryPage } from '../support/custom-dashboard/pages/history';
 import { ComparePage } from '../support/custom-dashboard/pages/compare';
 import { ReportDetailPage } from '../support/custom-dashboard/pages/report-detail';
 import { deriveDisplayName } from '../support/custom-dashboard/domain/run';
+import { resolveWorkspaceReportDir } from '../shared/workspace-paths';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ const DEFAULT_PORT = 4567;
 const HEARTBEAT_TIMEOUT_MS = 20_000; // server shuts down if no heartbeat for 20s
 
 function getSummaryPath(): string {
-  return path.resolve(process.cwd(), 'artifacts', 'reports', 'test-summary.json');
+  return path.join(resolveWorkspaceReportDir(), 'test-summary.json');
 }
 
 // ─── Arg parsing ─────────────────────────────────────────────────────────────
@@ -499,8 +500,8 @@ function serveStaticFile(
 
 function resolveReportFile(relPath: string): string | null {
   const cleanRel = relPath.replace(/^\/+/, '');
-  const candidate = path.resolve(process.cwd(), 'artifacts', 'reports', cleanRel);
-  const root = path.resolve(process.cwd(), 'artifacts', 'reports');
+  const root = resolveWorkspaceReportDir();
+  const candidate = path.resolve(root, cleanRel);
   if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) return null;
   try {
     return fs.existsSync(candidate) && fs.statSync(candidate).isFile() ? candidate : null;

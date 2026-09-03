@@ -1,6 +1,6 @@
 /**
- * Unit tests for scripts/env-edit-lib.ts + role-credentials
- * Run: npx tsx scripts/__tests__/env-edit-lib.test.ts
+ * Standalone Node assert harness (not a Playwright test).
+ * Run: npx tsx tools/scripts/__tests__/env-edit-lib.test.ts
  */
 import assert from 'node:assert/strict';
 import {

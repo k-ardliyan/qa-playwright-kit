@@ -103,12 +103,22 @@ export class WorkspacePathRegistry {
       if (!parsed.paths || typeof parsed.paths !== 'object') {
         return DEFAULT_WORKSPACE_MANIFEST;
       }
+
+      const configuredPaths = parsed.paths as Partial<
+        Record<keyof WorkspaceManifestPaths, unknown>
+      >;
+      const paths = Object.fromEntries(
+        (Object.keys(DEFAULT_WORKSPACE_MANIFEST.paths) as Array<keyof WorkspaceManifestPaths>).map(
+          (key) => [
+            key,
+            this.normalizeManifestPath(configuredPaths[key], DEFAULT_WORKSPACE_MANIFEST.paths[key]),
+          ],
+        ),
+      ) as unknown as WorkspaceManifestPaths;
+
       return {
         schemaVersion: parsed.schemaVersion ?? DEFAULT_WORKSPACE_MANIFEST.schemaVersion,
-        paths: {
-          ...DEFAULT_WORKSPACE_MANIFEST.paths,
-          ...parsed.paths,
-        },
+        paths,
         ownership: {
           ...DEFAULT_WORKSPACE_MANIFEST.ownership,
           ...(parsed.ownership ?? {}),
@@ -117,6 +127,29 @@ export class WorkspacePathRegistry {
     } catch {
       return DEFAULT_WORKSPACE_MANIFEST;
     }
+  }
+
+  /**
+   * Manifest paths are workspace-relative by contract. Invalid or escaping
+   * values fall back individually instead of allowing a local config file to
+   * redirect framework output outside the workspace.
+   */
+  private normalizeManifestPath(value: unknown, fallback: string): string {
+    if (typeof value !== 'string' || value.trim() === '') return fallback;
+    const candidate = value.trim().replace(/\\/g, '/');
+    if (
+      candidate.startsWith('/') ||
+      /^[A-Za-z]:\//.test(candidate) ||
+      candidate.startsWith('\\\\')
+    ) {
+      return fallback;
+    }
+    const resolved = path.resolve(this._rootDir, candidate);
+    const relative = path.relative(this._rootDir, resolved);
+    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      return fallback;
+    }
+    return relative.replace(/\\/g, '/');
   }
 
   public toRelative(targetPath: string): string {
@@ -237,3 +270,16 @@ export class WorkspacePathRegistry {
 }
 
 export const workspace = new WorkspacePathRegistry();
+
+/** Resolve report output while preserving the QA_REPORT_DIR test override. */
+export function resolveWorkspaceReportDir(registry: WorkspacePathRegistry = workspace): string {
+  const override = process.env['QA_REPORT_DIR'];
+  return override ? path.resolve(override) : registry.reportsDir;
+}
+
+/** Resolve test-result output from the active workspace manifest. */
+export function resolveWorkspaceTestResultsDir(
+  registry: WorkspacePathRegistry = workspace,
+): string {
+  return registry.testResultsDir;
+}

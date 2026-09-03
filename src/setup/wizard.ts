@@ -61,6 +61,11 @@ import {
 } from '../../tools/scripts/wizard-login-template';
 import { writeAuthSetup } from '../../tools/scripts/wizard-auth-template';
 import { buildAgentPrompt } from '../../tools/scripts/qa-run-prompt';
+import {
+  formatRequirementValidationFailure,
+  validateRequirementFile,
+  type RequirementValidationResult,
+} from './requirement-validation';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -86,6 +91,8 @@ export interface WizardResult {
   checks: SetupCheck[];
   /** Relative path of generated requirements/login.md (interactive run only) */
   loginRequirementPath?: string;
+  /** Contract validation status for requirements/login.md. */
+  loginRequirementValidation?: RequirementValidationResult;
 }
 
 const TOTAL_STEPS = 6;
@@ -274,6 +281,15 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   const loginMarkdown = loginFile.skipped
     ? fs.readFileSync(loginFile.absolutePath, 'utf-8')
     : buildLoginRequirement(loginState, { generated: true });
+  const loginRequirementValidation = await validateRequirementFile(
+    process.cwd(),
+    loginFile.relativePath,
+  );
+  if (!loginRequirementValidation.valid) {
+    throw new Error(
+      `Generated login requirement is invalid: ${formatRequirementValidationFailure(loginRequirementValidation)}`,
+    );
+  }
   stepLine(
     t(
       lang,
@@ -335,6 +351,10 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     );
   }
 
+  // ─── Validate (parse + reachability + roles) ────────────────────────────
+  const freshEnv = readExistingEnv(appEnv);
+  const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath, lang);
+
   // ─── Phase: REAL artifact verification ──────────────────────────────────
   printSection(lang, 'Verifikasi artefak (nyata)', 'Artifact verification (real)');
 
@@ -346,14 +366,15 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     roles: roleNames,
     lang,
     loginRequirementPath: loginFile.relativePath,
+    loginRequirementValid: loginRequirementValidation.valid,
+    loginRequirementError: loginRequirementValidation.valid
+      ? undefined
+      : formatRequirementValidationFailure(loginRequirementValidation),
+    configValid: validation.valid,
     skillsSynced: agentSync.skillsSynced.length > 0,
     mcpConfigsGenerated: agentSync.mcpConfigsGenerated,
   });
   printChecklist(checks.map(toChecklistItem));
-
-  // ─── Validate (parse + reachability + roles) ────────────────────────────
-  const freshEnv = readExistingEnv(appEnv);
-  const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath, lang);
 
   // ─── Summary ────────────────────────────────────────────────────────────
   printSummary({
@@ -367,6 +388,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     agentSync,
     loginRequirementPath: loginFile.relativePath,
     loginMarkdown,
+    loginRequirementValidation,
   });
 
   // ─── Offer to run auth:setup in a parallel terminal ─────────────────────
@@ -411,6 +433,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     validation,
     checks,
     loginRequirementPath: loginFile.relativePath,
+    loginRequirementValidation,
   };
 }
 
@@ -555,14 +578,16 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
   const existing = readExistingEnv(appEnv);
   const envPath = resolveEnvPath(appEnv);
   const validation = await validateSetup(appEnv, existing, envPath, lang);
+  const loginRequirementPath = 'requirements/login.md';
+  const loginRequirementValidation = fs.existsSync(path.join(process.cwd(), loginRequirementPath))
+    ? await validateRequirementFile(process.cwd(), loginRequirementPath)
+    : undefined;
 
   // Sync / check skills and MCP
   const agentSync = syncAgentSkillsAndMcp(process.cwd());
 
   if (validation.valid) {
-    console.log(
-      t(lang, '✅ Setup valid dan siap untuk testing.', '✅ Setup is valid and ready for testing.'),
-    );
+    console.log(t(lang, '✅ Config valid.', '✅ Config valid.'));
   } else {
     console.log(t(lang, '❌ Setup bermasalah:', '❌ Setup has issues:'));
     for (const err of validation.errors) {
@@ -576,7 +601,18 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
     }
   }
 
-  console.log(`   ${t(lang, 'Dapat diakses', 'Reachable')}: ${validation.reachable ? '✅' : '❌'}`);
+  console.log(
+    `   ${t(lang, 'Dapat diakses', 'Reachable')}: ${validation.reachable ? 'ready' : 'pending'}`,
+  );
+  console.log(
+    `   ${t(lang, 'Requirement', 'Requirement')}: ${loginRequirementValidation ? (loginRequirementValidation.valid ? 'valid' : 'invalid') : 'pending'}`,
+  );
+  console.log(
+    `   ${t(lang, 'Auth session', 'Auth sessions')}: pending — ${validation.rolesConfigured.join(', ') || 'no configured roles'}`,
+  );
+  console.log(
+    `   ${t(lang, 'Pipeline', 'Pipeline')}: ${loginRequirementValidation?.valid && validation.valid ? 'pending — auth sessions must be created and verified' : 'blocked — fix config/requirement first'}`,
+  );
   console.log(
     `   ${t(lang, 'Role siap', 'Roles ready')}: ${validation.rolesReady.join(', ') || t(lang, 'tidak ada', 'none')}`,
   );
@@ -599,6 +635,9 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
   console.log(
     `   ${t(lang, 'Role belum lengkap', 'Roles incomplete')}: ${validation.rolesIncomplete.join(', ') || t(lang, 'tidak ada', 'none')}`,
   );
+  if (loginRequirementValidation && !loginRequirementValidation.valid) {
+    console.log(`   ERROR: ${formatRequirementValidationFailure(loginRequirementValidation)}`);
+  }
 
   return {
     envFilePath: envPath,
@@ -620,6 +659,7 @@ function printSummary(data: {
   agentSync?: AgentSyncResult;
   loginRequirementPath?: string;
   loginMarkdown?: string;
+  loginRequirementValidation?: RequirementValidationResult;
 }): void {
   const { lang } = data;
   const line = '═'.repeat(54);
@@ -638,7 +678,21 @@ function printSummary(data: {
   stepLine(`  ${t(lang, 'Challenge', 'Challenge')}    : ${data.challengeMode}`);
   stepLine(`  ${t(lang, 'Env file', 'Env file')}    : config/environments/${data.appEnv}.env`);
   stepLine(
-    `  ${t(lang, 'Dapat diakses', 'Reachable')}   : ${data.validation.reachable ? '✅' : '❌'}`,
+    `  ${t(lang, 'Config', 'Config')}       : ${data.validation.valid ? 'valid' : 'invalid'}`,
+  );
+  stepLine(
+    `  ${t(lang, 'Dapat diakses', 'Reachable')}   : ${data.validation.reachable ? 'ready' : 'pending'}`,
+  );
+  if (data.loginRequirementValidation) {
+    stepLine(
+      `  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementValidation.valid ? 'valid' : 'invalid'}`,
+    );
+  }
+  stepLine(
+    `  ${t(lang, 'Auth session', 'Auth sessions')}: pending — jalankan npm run auth:setup${data.challengeMode !== 'none' ? ':headed' : ''}`,
+  );
+  stepLine(
+    `  ${t(lang, 'Pipeline', 'Pipeline')}    : ${data.loginRequirementValidation?.valid && data.validation.valid ? 'pending — auth sessions belum diverifikasi' : 'blocked — config/requirement belum valid'}`,
   );
 
   const roleSummary: string[] = [];
@@ -693,7 +747,7 @@ function printSummary(data: {
     stepLine(`  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementPath}`);
   }
 
-  if (data.loginRequirementPath && data.loginMarkdown) {
+  if (data.loginRequirementPath && data.loginMarkdown && data.loginRequirementValidation?.valid) {
     const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown, lang, {
       baseUrl: data.baseUrl,
       appEnv: data.appEnv,

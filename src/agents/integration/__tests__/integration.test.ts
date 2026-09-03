@@ -24,7 +24,22 @@ import { PipelinePhase, PhaseResult } from '../types';
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Create a mock PhaseExecutor that tracks calls and returns success. */
+/**
+ * Each integration test gets an isolated report directory. The production
+ * state and hook implementations honor QA_REPORT_DIR at call time.
+ */
+let isolatedReportDir: string | undefined;
+let previousReportDir: string | undefined;
+
+function reportDir(): string {
+  if (!isolatedReportDir) throw new Error('Report directory was not initialized');
+  return isolatedReportDir;
+}
+
+function mockArtifactPath(phase: PipelinePhase): string {
+  return path.join(reportDir(), `mock-${phase}-artifact.json`);
+}
+
 function createMockExecutor(options?: {
   failPhase?: PipelinePhase;
   retryable?: boolean;
@@ -53,62 +68,31 @@ function createMockExecutor(options?: {
         phase,
         status: 'success',
         output: { mockResult: true, phase },
-        artifacts: [`reports/mock-${phase}-artifact.json`],
+        artifacts: [mockArtifactPath(phase)],
       };
     },
   };
 }
 
-/** Backup and restore the pipeline state file around tests. */
-const STATE_FILES = [
-  path.resolve('artifacts/reports/pipeline-state.json'),
-  path.resolve('reports/pipeline-state.json'),
-];
-const EVENTS_FILE = path.resolve('artifacts', 'reports', 'pipeline-events.jsonl');
+test.beforeEach(() => {
+  previousReportDir = process.env['QA_REPORT_DIR'];
+  isolatedReportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'integration-reports-'));
+  process.env['QA_REPORT_DIR'] = isolatedReportDir;
+});
 
-function backupStateFile(): Record<string, string> {
-  const backups: Record<string, string> = {};
-  for (const file of STATE_FILES) {
-    if (fs.existsSync(file)) {
-      const backup = file + '.bak';
-      fs.copyFileSync(file, backup);
-      backups[file] = backup;
-    }
-  }
-  return backups;
-}
-
-function restoreStateFile(backups: Record<string, string>): void {
-  for (const file of STATE_FILES) {
-    const backup = backups[file];
-    if (backup && fs.existsSync(backup)) {
-      fs.copyFileSync(backup, file);
-      fs.unlinkSync(backup);
-    } else if (fs.existsSync(file)) {
-      fs.unlinkSync(file);
-    }
-  }
-}
+test.afterEach(() => {
+  if (previousReportDir === undefined) delete process.env['QA_REPORT_DIR'];
+  else process.env['QA_REPORT_DIR'] = previousReportDir;
+  if (isolatedReportDir) fs.rmSync(isolatedReportDir, { recursive: true, force: true });
+  isolatedReportDir = undefined;
+  previousReportDir = undefined;
+});
 
 // ---------------------------------------------------------------------------
 // 1. Automatic Pipeline Run
 // ---------------------------------------------------------------------------
 
 test.describe('Automatic Pipeline Run', () => {
-  let stateBackup: Record<string, string>;
-
-  test.beforeEach(() => {
-    stateBackup = backupStateFile();
-  });
-
-  test.afterEach(() => {
-    restoreStateFile(stateBackup);
-    // Clean up events file entries added during test
-    if (fs.existsSync(EVENTS_FILE)) {
-      fs.unlinkSync(EVENTS_FILE);
-    }
-  });
-
   test('executes all 5 phases in sequence and returns success', async () => {
     const executor = createMockExecutor();
     const hooks = new PipelineHookRegistry();
@@ -166,19 +150,6 @@ test.describe('Automatic Pipeline Run', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Resume Workflow', () => {
-  let stateBackup: Record<string, string>;
-
-  test.beforeEach(() => {
-    stateBackup = backupStateFile();
-  });
-
-  test.afterEach(() => {
-    restoreStateFile(stateBackup);
-    if (fs.existsSync(EVENTS_FILE)) {
-      fs.unlinkSync(EVENTS_FILE);
-    }
-  });
-
   test('runs 2 phases, saves state, then resumes from phase 3', async () => {
     // Step 1: Run first 2 phases manually and save state
     const state: PipelineState = {
@@ -220,9 +191,9 @@ test.describe('Resume Workflow', () => {
       currentPhase: 'execute',
       completedPhases: ['plan', 'generate', 'execute'],
       artifacts: {
-        plan: ['reports/mock-plan-artifact.json'],
-        generate: ['reports/nonexistent-artifact.json'], // This file doesn't exist
-        execute: ['reports/mock-execute-artifact.json'],
+        plan: [path.join(reportDir(), 'mock-plan-artifact.json')],
+        generate: [path.join(reportDir(), 'nonexistent-artifact.json')], // This file doesn't exist
+        execute: [path.join(reportDir(), 'mock-execute-artifact.json')],
         heal: [],
         report: [],
       },
@@ -234,11 +205,9 @@ test.describe('Resume Workflow', () => {
     };
 
     // Create the plan artifact so only generate's artifact is missing
-    const reportsDir = path.resolve('reports');
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
-    }
-    fs.writeFileSync(path.resolve('reports/mock-plan-artifact.json'), '{}', 'utf-8');
+    const reportsDir = reportDir();
+    fs.mkdirSync(reportsDir, { recursive: true });
+    fs.writeFileSync(path.join(reportsDir, 'mock-plan-artifact.json'), '{}', 'utf-8');
 
     saveState(state);
 
@@ -253,24 +222,12 @@ test.describe('Resume Workflow', () => {
       expect(resumeResult.state.completedPhases).not.toContain('generate');
       expect(resumeResult.state.completedPhases).not.toContain('execute');
     }
-
-    // Cleanup
-    if (fs.existsSync(path.resolve('reports/mock-plan-artifact.json'))) {
-      fs.unlinkSync(path.resolve('reports/mock-plan-artifact.json'));
-    }
   });
 
   test('resume with no state file returns error', () => {
-    // Ensure no state file exists
-    for (const f of STATE_FILES) {
-      if (fs.existsSync(f)) {
-        fs.unlinkSync(f);
-      }
-    }
-    if (process.env['QA_REPORT_DIR']) {
-      const p = path.join(process.env['QA_REPORT_DIR'], 'pipeline-state.json');
-      if (fs.existsSync(p)) fs.unlinkSync(p);
-    }
+    // Ensure no state file exists in the isolated report directory.
+    const statePath = path.join(reportDir(), 'pipeline-state.json');
+    if (fs.existsSync(statePath)) fs.unlinkSync(statePath);
 
     const resumeResult = resumeState();
     expect('error' in resumeResult).toBe(true);
@@ -439,19 +396,6 @@ test.describe('Agent Validation', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Protocol Handler Routing', () => {
-  let stateBackup: Record<string, string>;
-
-  test.beforeEach(() => {
-    stateBackup = backupStateFile();
-  });
-
-  test.afterEach(() => {
-    restoreStateFile(stateBackup);
-    if (fs.existsSync(EVENTS_FILE)) {
-      fs.unlinkSync(EVENTS_FILE);
-    }
-  });
-
   test('query action returns manifest', async () => {
     const executor = createMockExecutor();
     const response = await handleProtocolRequest({ action: 'query' }, executor);
@@ -524,16 +468,9 @@ test.describe('Protocol Handler Routing', () => {
   });
 
   test('resume without state file returns error', async () => {
-    // Ensure no state file
-    for (const f of STATE_FILES) {
-      if (fs.existsSync(f)) {
-        fs.unlinkSync(f);
-      }
-    }
-    if (process.env['QA_REPORT_DIR']) {
-      const p = path.join(process.env['QA_REPORT_DIR'], 'pipeline-state.json');
-      if (fs.existsSync(p)) fs.unlinkSync(p);
-    }
+    // Ensure no state file exists in the isolated report directory.
+    const statePath = path.join(reportDir(), 'pipeline-state.json');
+    if (fs.existsSync(statePath)) fs.unlinkSync(statePath);
 
     const executor = createMockExecutor();
     const response = await handleProtocolRequest(

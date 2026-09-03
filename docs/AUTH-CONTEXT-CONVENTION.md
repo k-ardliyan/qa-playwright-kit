@@ -35,8 +35,6 @@ Auth state **scoped by `APP_ENV`** (satu-satunya selector environment):
     admin.json
 ```
 
-Legacy (hanya `local`): `.auth/user.json` masih dibaca; `migrateLegacyAuthFiles()` menyalin ke `.auth/local/` saat auth setup.
-
 File berisi Playwright storage state (cookies + localStorage).
 
 > `.auth/` sudah ada di `.gitignore` — jangan commit auth state ke repository.

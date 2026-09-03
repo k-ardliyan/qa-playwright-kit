@@ -1,6 +1,6 @@
 /**
- * Unit tests for role-projects path defaults
- * Run: npx tsx scripts/__tests__/role-projects.test.ts
+ * Standalone Node assert harness (not a Playwright test).
+ * Run: npx tsx tools/scripts/__tests__/role-projects.test.ts
  */
 import assert from 'node:assert/strict';
 import { roleStorageStatePath, buildRoleProject } from '../../../src/support/pw/role-projects';

@@ -5,8 +5,10 @@
  * pipeline phase, its required MCP tools, input/output contracts, and
  * supported orchestration modes.
  *
- * The manifest is derived from hardcoded phase definitions and a static
- * tool info map (matching the MCP tool registry).
+ * The manifest keeps a package-boundary-safe metadata snapshot because the
+ * nested MCP package cannot be imported by its own build. Tests validate that
+ * snapshot against the canonical MCP registry and generation fails closed on
+ * any internal phase/catalog drift.
  *
  * @module agents/integration/manifest
  */
@@ -76,29 +78,35 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     description:
       'Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline.',
   },
+  pipeline_status: {
+    server: 'qa-playwright-kit',
+    name: 'pipeline_status',
+    description:
+      'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.',
+  },
   compile_requirement: {
     server: 'qa-playwright-kit',
     name: 'compile_requirement',
     description:
-      'Compile requirement markdown into typed RequirementContractV1 with access matrix, scenarios, and source hash.',
+      'Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix.',
   },
   compile_test_plan: {
     server: 'qa-playwright-kit',
     name: 'compile_test_plan',
     description:
-      'Compile Markdown test plan into canonical TestPlanContractV1 with assertion provenance and coverage references.',
+      'Compile Markdown test plan (specs/*.md) into canonical TestPlanContractV1 (qa.test-plan/v1) with typed assertion provenance, scenario metadata, and coverage gaps.',
   },
   validate_plan: {
     server: 'qa-playwright-kit',
     name: 'validate_plan',
     description:
-      'Validate test plan contract against requirement contract and check for drift or uncovered ACs.',
+      'Validate a TestPlanContractV1 (qa.test-plan/v1) against its source requirement contract. Checks scenario coverage, AC coverage, role/auth drift, assertion provenance, and ephemeral browser references.',
   },
   trace_requirement: {
     server: 'qa-playwright-kit',
     name: 'trace_requirement',
     description:
-      'Build end-to-end TraceabilityContractV1 graph and 4-dimensional coverage metrics.',
+      'Build end-to-end TraceabilityContractV1 (qa.traceability/v1) graph linking Requirement -> Acceptance Criteria -> Scenarios -> Test Specs -> Execution Evidence.',
   },
   validate_requirement: {
     server: 'qa-playwright-kit',
@@ -122,13 +130,13 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'discover_pages',
     description:
-      'BFS auto-crawl a public site from a single entry point. For each unique same-origin URL: persist ARIA + selector catalog and append to page-map.json.',
+      'BFS auto-crawl a public site from a single entry point. For each unique same-origin URL: persist ARIA + selector catalog and append to page-map.json. Respects robots.txt, applies politeness delay, and supports checkpoint/resume.',
   },
   snapshot_page: {
     server: 'qa-playwright-kit',
     name: 'snapshot_page',
     description:
-      'Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}.',
+      'Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash, semanticSummary) for AI agents — read the JSON file for selector details.',
   },
   validate_generated_tests: {
     server: 'qa-playwright-kit',
@@ -140,7 +148,7 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'get_test_failures',
     description:
-      "Get Playwright test failures from the caller's resultsDir (or repo artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
+      "Get Playwright test failures from the caller's resultsDir (or artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
   },
   get_test_summary: {
     server: 'qa-playwright-kit',
@@ -163,7 +171,7 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'generate_page_object',
     description:
-      'Scaffold typed Page Object Model class in tests/pages/<PageName>.ts from selector catalog.',
+      'Generate TypeScript POM scaffold from selector catalog JSON. Never overwrites existing files unless force=true. Returns scaffold with grouped locators, TODO markers for business methods, and warnings for fragile selectors.',
   },
   list_test_fixtures: {
     server: 'qa-playwright-kit',
@@ -175,32 +183,50 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'inspect_file',
     description:
-      'Read envelope metadata (kind, size, magic signature) for files under tests/data/ or artifacts/test-results/.',
+      'Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.',
   },
   extract_pdf_text: {
     server: 'qa-playwright-kit',
     name: 'extract_pdf_text',
     description:
-      'Extract raw text content from a PDF under tests/data/ or artifacts/test-results/.',
+      'Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).',
   },
   read_excel_summary: {
     server: 'qa-playwright-kit',
     name: 'read_excel_summary',
     description:
-      'Read xlsx sheet names, header row, and sample rows under tests/data/ or artifacts/test-results/.',
+      'Read xlsx sheet names, header row, and sample rows under tests/data/ or artifacts/test-results/. Structure dump only — expected headers come from the scenario, not a fixed domain schema.',
+  },
+  synthesize_requirement: {
+    server: 'qa-playwright-kit',
+    name: 'synthesize_requirement',
+    description:
+      'Synthesize a compliant requirement markdown file from selector-catalog semantic extractions (tables, forms, stat cards, modals) with active test scenarios and backlog suggestions.',
   },
   archive_report: {
     server: 'qa-playwright-kit',
     name: 'archive_report',
-    description: 'Archive pipeline run artifacts to artifacts/reports/archive/<runId>/.',
+    description:
+      'Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Requires an explicit QA decision and never overwrites an existing archive. Call this after the Reporter produces the final pipeline report and QA decides.',
   },
 };
 
 // ─── Phase Definitions ───────────────────────────────────────────────────────
 
 /**
- * Hardcoded phase metadata defining which tools and MCP servers each phase uses.
+ * Package-boundary-safe phase metadata defining which tools and MCP servers each phase uses.
  */
+/**
+ * Tools intentionally omitted from the phase manifest because they are
+ * on-demand artifact helpers gated by their MCP profiles.
+ */
+export const MANIFEST_OMITTED_ON_DEMAND_TOOLS = ['extract_pdf_text', 'read_excel_summary'] as const;
+
+const REQUIRED_PHASE_TOOLS: Partial<Record<PipelinePhase, readonly string[]>> = {
+  plan: ['health_check', 'pipeline_status'],
+  report: ['trace_requirement', 'get_test_summary', 'get_test_failures'],
+};
+
 const PHASE_DEFINITIONS: Record<
   PipelinePhase,
   {
@@ -216,6 +242,7 @@ const PHASE_DEFINITIONS: Record<
     mcpServers: ['qa-playwright-kit'],
     toolNames: [
       'health_check',
+      'pipeline_status',
       'compile_requirement',
       'compile_test_plan',
       'validate_plan',
@@ -225,6 +252,7 @@ const PHASE_DEFINITIONS: Record<
       'list_requirement_status',
       'discover_pages',
       'snapshot_page',
+      'synthesize_requirement',
     ],
   },
   generate: {
@@ -406,14 +434,31 @@ export const MANIFEST_FILENAME = 'agent-manifest.json';
  */
 export function generateManifest(): CapabilityManifest {
   const phases = {} as Record<PipelinePhase, PhaseCapability>;
+  const catalogNames = new Set(Object.keys(TOOL_INFO));
+  const phaseNames = new Set<string>();
 
   for (const [phase, def] of Object.entries(PHASE_DEFINITIONS) as [
     PipelinePhase,
     (typeof PHASE_DEFINITIONS)[PipelinePhase],
   ][]) {
-    const tools: ToolDescriptor[] = def.toolNames
-      .map((name) => TOOL_INFO[name])
-      .filter((t): t is ToolDescriptor => t !== undefined);
+    const unknownTools = def.toolNames.filter((name) => !catalogNames.has(name));
+    if (unknownTools.length > 0) {
+      throw new Error(
+        `[agent-manifest] Phase "${phase}" references unknown tool(s): ${unknownTools.join(', ')}`,
+      );
+    }
+    for (const name of def.toolNames) phaseNames.add(name);
+
+    const missingRequired = (REQUIRED_PHASE_TOOLS[phase] ?? []).filter(
+      (name) => !def.toolNames.includes(name),
+    );
+    if (missingRequired.length > 0) {
+      throw new Error(
+        `[agent-manifest] Phase "${phase}" omits required tool(s): ${missingRequired.join(', ')}`,
+      );
+    }
+
+    const tools: ToolDescriptor[] = def.toolNames.map((name) => TOOL_INFO[name]);
 
     phases[phase] = {
       description: def.description,
@@ -423,6 +468,16 @@ export function generateManifest(): CapabilityManifest {
       inputSchema: INPUT_SCHEMAS[phase],
       outputSchema: OUTPUT_SCHEMAS[phase],
     };
+  }
+
+  const allowedOmissions = new Set<string>(MANIFEST_OMITTED_ON_DEMAND_TOOLS);
+  const missingCatalogEntries = Object.keys(TOOL_INFO).filter(
+    (name) => !phaseNames.has(name) && !allowedOmissions.has(name),
+  );
+  if (missingCatalogEntries.length > 0) {
+    throw new Error(
+      `[agent-manifest] Tool catalog entries are not mapped to any phase: ${missingCatalogEntries.join(', ')}`,
+    );
   }
 
   const orchestrationModes: OrchestrationModeDescriptor[] = [

@@ -138,7 +138,8 @@ Planner table with columns:
 
 ### Output Format
 
-- Generated files under `tests/` (`tests/<feature>-<role>.spec.ts` or `tests/<feature>.spec.ts`)
+- Generated files under `tests/` using the flat canonical paths `tests/<feature>-<role>.spec.ts` or `tests/<feature>.spec.ts`
+- Nested `tests/<domain>/<feature>.spec.ts` paths are compatibility-only for existing workspaces and require traceability matching by basename/role; explicit `testId`/`scenarioId` metadata is preferred
 - Mapping of scenario → file
 - Skipped scenarios with reason
 

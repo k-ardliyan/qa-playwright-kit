@@ -5,7 +5,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { isEncryptedValue, buildEnvFileContent } from '@/setup/wizard-writer';
 import { isSecretEnvKey, secretKeysFromEnvText } from '@/utils/env-secrets';
-import { validateSetup, isSetupReady } from '@/setup/wizard-validate';
+import { validateSetup, isSetupReady, roleCredentialErrors } from '@/setup/wizard-validate';
+import { parseRolesFromEnvMap } from '@/shared/utils/role-credentials';
 import { parseNumberedChoice, normalizeAppPath, isValidAppPathInput } from '@/setup/wizard-prompts';
 import { browsersDir, hasChromiumInstalled, buildInstallCommand } from '@/setup/browser-check';
 import { buildTerminalCommand } from '@/setup/terminal';
@@ -361,6 +362,52 @@ test.describe('buildEnvFileContent with custom multi-roles', () => {
     } finally {
       cleanup();
     }
+  });
+});
+
+test.describe('dynamic roles and credential gates', () => {
+  test('discovers arbitrary configured roles with the canonical parser', () => {
+    const roles = parseRolesFromEnvMap({
+      ANALYST_USERNAME: 'analyst',
+      ANALYST_PASSWORD: 'real-password',
+      SUPPORT_EMAIL: 'support@example.com',
+      SUPPORT_PASSWORD: 'real-password',
+    });
+    expect(roles.map((role) => role.name)).toEqual(['analyst', 'support']);
+  });
+
+  test('reports missing and placeholder credentials without values', () => {
+    const errors = roleCredentialErrors(
+      { ANALYST_PASSWORD: 'your_password_here', ANALYST_USERNAME: '' },
+      {
+        name: 'analyst',
+        authFile: '.auth/dev/analyst.json',
+        emailKey: 'ANALYST_EMAIL',
+        usernameKey: 'ANALYST_USERNAME',
+        phoneKey: 'ANALYST_PHONE',
+        passwordKey: 'ANALYST_PASSWORD',
+        loginIdPrefKey: 'ANALYST_LOGIN_ID_PREF',
+        loginUrlPathKey: 'ANALYST_LOGIN_URL_PATH',
+        successUrlPathKey: 'ANALYST_SUCCESS_URL_PATH',
+      },
+    );
+    expect(errors.join(' ')).toContain('ANALYST_PASSWORD');
+    expect(errors.join(' ')).not.toContain('your_password_here');
+  });
+
+  test('validateSetup exposes configured roles and incomplete placeholders', async () => {
+    const result = await validateSetup(
+      'dev',
+      {
+        BASE_URL: 'http://localhost:3000',
+        ANALYST_USERNAME: 'analyst',
+        ANALYST_PASSWORD: 'your_password_here',
+      },
+      '/tmp/dev.env',
+    );
+    expect(result.rolesConfigured).toEqual(['analyst']);
+    expect(result.rolesIncomplete).toEqual(['analyst']);
+    expect(result.warnings.join(' ')).toContain('ANALYST_PASSWORD');
   });
 });
 

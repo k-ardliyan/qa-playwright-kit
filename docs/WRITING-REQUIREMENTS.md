@@ -10,7 +10,7 @@ Setup mesin dan pipeline: [GUIDE.md](GUIDE.md)
 
 **Path A (default — tanpa POM):** Fitur baru, skenario sederhana, QA pemula. Generator pakai inline locators dari catalog → test langsung jalan. Tidak perlu buat POM sama sekali.
 
-**Path B (reusable — dengan POM):** Fitur dipakai >2 spec, role-aware, atau butuh maintainability jangka panjang. QA jalankan `snapshot_page` → `generate_page_object` → edit scaffold → simpan di `tests/pages/` dan register di `tests/fixtures.ts` → tambah field "POM yang dibutuhkan" di requirement.
+**Path B (reusable — dengan POM):** Fitur dipakai >2 spec, role-aware, atau butuh maintainability jangka panjang. QA jalankan `snapshot_page` → `generate_page_object` → review scaffold di `tests/pages/<ClassName>.ts` → register di `src/fixtures/project.fixture.ts` bila diperlukan → tambah field "POM yang dibutuhkan" di requirement.
 
 Untuk QA pemula: **mulai dari Path A**. POM adalah optimasi, bukan keharusan.
 

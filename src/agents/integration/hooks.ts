@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PipelinePhase } from './types';
+import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 
 /**
  * Event types emitted during pipeline phase lifecycle.
@@ -51,9 +52,7 @@ export interface HookRegistry {
  * Lazily resolved so QA_REPORT_DIR overrides (test isolation) are honored.
  */
 function eventsFilePath(): string {
-  return process.env['QA_REPORT_DIR']
-    ? path.resolve(process.env['QA_REPORT_DIR'], 'pipeline-events.jsonl')
-    : path.resolve('artifacts', 'reports', 'pipeline-events.jsonl');
+  return path.join(resolveWorkspaceReportDir(), 'pipeline-events.jsonl');
 }
 
 /**

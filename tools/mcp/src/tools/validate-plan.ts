@@ -13,7 +13,7 @@ import {
 } from '../contracts';
 import { compileRequirementFromText } from './compile-requirement';
 import { compileTestPlanFromText } from './compile-test-plan';
-import { containsEphemeralRef } from '../utils/ephemeral-guard';
+import { containsEphemeralReference } from '../utils/ephemeral-guard';
 
 export interface ValidatePlanArgs {
   testPlan?: TestPlanContractV1 | unknown;
@@ -86,7 +86,7 @@ export function validateTestPlan(
 
     // Check actions / locator intents for ephemeral refs
     for (const action of sc.actions) {
-      if (containsEphemeralRef(action)) {
+      if (containsEphemeralReference(action)) {
         diagnostics.push(
           createDiagnostic(
             'PLAN_EPHEMERAL_REF_DETECTED',
@@ -98,7 +98,7 @@ export function validateTestPlan(
       }
     }
     for (const loc of sc.locatorIntent) {
-      if (containsEphemeralRef(loc)) {
+      if (containsEphemeralReference(loc)) {
         diagnostics.push(
           createDiagnostic(
             'PLAN_EPHEMERAL_REF_DETECTED',

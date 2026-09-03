@@ -841,12 +841,12 @@ Keputusan: Setuju · Lapor Bug · Ubah Kebutuhan · Betulkan Test · Betulkan Li
             <p class="mini-line mt-4">Membaca rencana + kebutuhan</p>
             <p class="mini-line">Locator dari hasil scan halaman (snapshot)</p>
             <p class="mini-line">Metadata: module, feature, TC-ID</p>
-            <p class="mini-line">Output: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/&lt;fitur&gt;[-&lt;peran&gt;].spec.ts</code></p>
+            <p class="mini-line">Output: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/&lt;fitur&gt;[-&lt;peran&gt;].spec.ts</code> (flat)</p>
             <p class="mini-line">Validasi otomatis sebelum dijalankan</p>
           </div>
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-play"></i><p class="font-display text-2xl font-bold text-blue">Jalankan</p></div>
-            <p class="mini-line mt-4"><code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run qa:run -- requirements/X.md</code></p>
+            <p class="mini-line mt-4"><code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npx tsx tools/scripts/qa-run.ts requirements/X.md</code></p>
             <p class="mini-line">Sesi masuk per peran: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.auth/{APP_ENV}/peran.json</code></p>
             <p class="mini-line">Tangkapan / video / jejak saat gagal</p>
             <p class="mini-line">Laporan → <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">artifacts/reports/custom-dashboard.html</code></p>
@@ -970,7 +970,7 @@ HRD_EMAIL=...
 → .auth/local/hrd.json</div>
           </div>
         </div>
-        <p class="mt-6 sub-lead">File test: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/&lt;fitur&gt;-&lt;peran&gt;.spec.ts</code> · ganti password: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run env:edit</code></p>
+        <p class="mt-6 sub-lead">File test (flat): <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/&lt;fitur&gt;-&lt;peran&gt;.spec.ts</code> · ganti password: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run env:edit</code></p>
         <div class="callout mt-6"><span class="font-bold text-ink">Gampangnya:</span> test finance pakai kartu finance, test HRD pakai kartu HRD: tidak pernah tertukar. Setup mengenkripsi password saja; URL/flag tetap bisa diedit di file. Ganti password: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run env:edit</code>.</div>
       </div>
     </div>
@@ -1023,7 +1023,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
           <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> tests</div>
           <div class="tree-row tree-indent-2"><i class="ph ph-file-text"></i> auth.setup.ts</div>
           <div class="tree-row tree-folder tree-indent-2"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> pages</div>
-          <div class="tree-row tree-indent-1" style="padding-left:78px"><i class="ph ph-file-text"></i> LoginForm.ts</div>
+          <div class="tree-row tree-indent-1" style="padding-left:78px"><i class="ph ph-file-text"></i> &lt;ClassName&gt;.ts</div>
           <div class="tree-row tree-folder tree-indent-2"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> demo</div>
           <div class="tree-row tree-indent-1" style="padding-left:78px"><i class="ph ph-file-text"></i> demo-pw-power.spec.ts</div>
           <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> tools/mcp</div>
@@ -1224,7 +1224,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
           </div></div>
           <div class="flex items-center gap-6"><span class="step-lg">2</span><div class="flex-1"><p class="font-bold">Isi skenario</p><p class="mini-line text-sm text-muted">Tag, Module wajib, Feature disarankan, Role scope, SC-01...</p></div></div>
           <div class="flex items-center gap-6"><span class="step-lg">3</span><div class="flex-1"><p class="font-bold">Jalankan pipeline</p>
-            <div class="term mt-2"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — qa:run</span></div><div class="term-body"><span class="p">$</span> npm run qa:run -- requirements/fitur-saya.md</div></div>
+            <div class="term mt-2"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — qa:run</span></div><div class="term-body"><span class="p">$</span> npx tsx tools/scripts/qa-run.ts requirements/fitur-saya.md</div></div>
           </div></div>
           <div class="flex items-center gap-6"><span class="step-lg">4</span><div class="flex-1"><p class="font-bold">Pipeline selesai → lihat dashboard</p><p class="mini-line text-sm text-muted">Setelah Hermes selesai: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run dashboard</code> (dashboard run terbaru)</p></div></div>
         </div>
@@ -1241,7 +1241,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Perintah Sehari-hari</h2>
         <div class="mt-9 grid gap-x-12 md:grid-cols-2">
           <div>
-            <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">qa:run -- requirements/X.md</code><p class="text-xs text-faint mt-1">titik masuk pipeline</p></div></div>
+            <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">qa:run requirements/X.md</code><p class="text-xs text-faint mt-1">titik masuk pipeline</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">setup</code><p class="text-xs text-faint mt-1">panduan pemasangan pertama</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">setup:check</code><p class="text-xs text-faint mt-1">cek kesiapan setup</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">env:edit</code><p class="text-xs text-faint mt-1">ganti password / peran / OTP</p></div></div>

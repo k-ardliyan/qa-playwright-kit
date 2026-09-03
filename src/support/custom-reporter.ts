@@ -30,18 +30,49 @@ import { resolveFailureSource } from './custom-dashboard/failure-source';
 import { toReportRelativePath } from './custom-dashboard/shared';
 import { streamTelemetryEvent } from './streaming/live-telemetry';
 import { logger } from '../utils/logger';
+import {
+  resolveWorkspaceReportDir,
+  resolveWorkspaceTestResultsDir,
+} from '../shared/workspace-paths';
 
 function resolveReportDir(): string {
-  const override = process.env['QA_REPORT_DIR'];
-  if (override) return path.resolve(override);
-  return path.resolve(process.cwd(), 'artifacts', 'reports');
+  return resolveWorkspaceReportDir();
 }
 
-const REPORT_DIR = resolveReportDir();
-const DASHBOARD_PATH = path.join(REPORT_DIR, 'custom-dashboard.html');
-const SUMMARY_PATH = path.join(REPORT_DIR, 'test-summary.json');
-const HTML_REPORT_DIR = path.join(REPORT_DIR, 'html');
-const ATTACHMENTS_DIR = path.join(REPORT_DIR, 'attachments');
+function reportPaths(): {
+  reportDir: string;
+  dashboardPath: string;
+  summaryPath: string;
+  htmlReportDir: string;
+  attachmentsDir: string;
+  testResultsDir: string;
+} {
+  const reportDir = resolveReportDir();
+  return {
+    reportDir,
+    dashboardPath: path.join(reportDir, 'custom-dashboard.html'),
+    summaryPath: path.join(reportDir, 'test-summary.json'),
+    htmlReportDir: path.join(reportDir, 'html'),
+    attachmentsDir: path.join(reportDir, 'attachments'),
+    testResultsDir: resolveWorkspaceTestResultsDir(),
+  };
+}
+
+function reportDir(): string {
+  return reportPaths().reportDir;
+}
+function dashboardPath(): string {
+  return reportPaths().dashboardPath;
+}
+function summaryPath(): string {
+  return reportPaths().summaryPath;
+}
+function htmlReportDir(): string {
+  return reportPaths().htmlReportDir;
+}
+function attachmentsDir(): string {
+  return reportPaths().attachmentsDir;
+}
 
 const KIND_SUBDIR: Record<'screenshot' | 'video' | 'trace', string> = {
   screenshot: 'screenshots',
@@ -60,18 +91,17 @@ function safeFilePrefix(test: CollectedTestData): string {
 function resolveAttachmentSourcePath(relativeOrAbs: string): string | null {
   const normalized = relativeOrAbs.replace(/\\/g, '/');
   const candidates: string[] = [];
+  const paths = reportPaths();
 
   if (path.isAbsolute(relativeOrAbs)) {
     candidates.push(relativeOrAbs);
   } else {
-    candidates.push(path.resolve(REPORT_DIR, normalized));
+    candidates.push(path.resolve(paths.reportDir, normalized));
     candidates.push(path.resolve(process.cwd(), normalized));
-    candidates.push(
-      path.resolve(process.cwd(), 'artifacts', 'test-results', path.basename(normalized)),
-    );
+    candidates.push(path.resolve(paths.testResultsDir, path.basename(normalized)));
     // Already-materialized path re-run safety
     if (normalized.startsWith('attachments/')) {
-      candidates.push(path.resolve(REPORT_DIR, normalized));
+      candidates.push(path.resolve(paths.reportDir, normalized));
     }
   }
 
@@ -90,7 +120,7 @@ function resolveAttachmentSourcePath(relativeOrAbs: string): string | null {
 function materializeAttachments(tests: CollectedTestData[]): void {
   try {
     for (const sub of Object.values(KIND_SUBDIR)) {
-      const dir = path.join(ATTACHMENTS_DIR, sub);
+      const dir = path.join(attachmentsDir(), sub);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     }
 
@@ -108,7 +138,7 @@ function materializeAttachments(tests: CollectedTestData[]): void {
 
         // Skip if already under reports/attachments
         if (attachment.relativePath.replace(/\\/g, '/').startsWith('attachments/')) {
-          const already = path.resolve(REPORT_DIR, attachment.relativePath);
+          const already = path.resolve(reportDir(), attachment.relativePath);
           if (fs.existsSync(already)) continue;
         }
 
@@ -117,7 +147,7 @@ function materializeAttachments(tests: CollectedTestData[]): void {
 
         const destName = `${prefix}__${path.basename(absPath)}`;
         const sub = KIND_SUBDIR[attachment.kind];
-        const uniqueDest = path.join(ATTACHMENTS_DIR, sub, destName);
+        const uniqueDest = path.join(attachmentsDir(), sub, destName);
         try {
           fs.copyFileSync(absPath, uniqueDest);
           attachment.relativePath = `attachments/${sub}/${destName}`.replace(/\\/g, '/');
@@ -458,7 +488,7 @@ function collectAttachments(result: TestResult): CollectedAttachment[] {
 
 function ensureReportDirectory(): void {
   try {
-    fs.mkdirSync(REPORT_DIR);
+    fs.mkdirSync(reportDir());
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code !== 'EEXIST') {
@@ -707,22 +737,19 @@ export default class CustomReporter implements Reporter {
         ? buildCiHtml(summary, this.collectedTests, reportHistory, dashboardOptions)
         : buildLocalHtml(summary, this.collectedTests, reportHistory, dashboardOptions);
 
-      fs.writeFileSync(DASHBOARD_PATH, html, 'utf-8');
-      fs.writeFileSync(SUMMARY_PATH, JSON.stringify(summary, null, 2), 'utf-8');
+      fs.writeFileSync(dashboardPath(), html, 'utf-8');
+      fs.writeFileSync(summaryPath(), JSON.stringify(summary, null, 2), 'utf-8');
 
       // Mirror to artifacts/reports/ only when REPORT_DIR is NOT already artifacts/reports
       try {
-        const artifactsReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
-        if (REPORT_DIR !== artifactsReportDir) {
-          if (
-            fs.existsSync(artifactsReportDir) ||
-            fs.existsSync(path.resolve(process.cwd(), 'artifacts'))
-          ) {
-            if (!fs.existsSync(artifactsReportDir))
-              fs.mkdirSync(artifactsReportDir, { recursive: true });
-            fs.writeFileSync(path.join(artifactsReportDir, 'custom-dashboard.html'), html, 'utf-8');
+        const configuredReportDir = resolveWorkspaceReportDir();
+        const legacyReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
+        if (configuredReportDir !== legacyReportDir) {
+          if (fs.existsSync(legacyReportDir) || fs.existsSync(path.dirname(legacyReportDir))) {
+            if (!fs.existsSync(legacyReportDir)) fs.mkdirSync(legacyReportDir, { recursive: true });
+            fs.writeFileSync(path.join(legacyReportDir, 'custom-dashboard.html'), html, 'utf-8');
             fs.writeFileSync(
-              path.join(artifactsReportDir, 'test-summary.json'),
+              path.join(legacyReportDir, 'test-summary.json'),
               JSON.stringify(summary, null, 2),
               'utf-8',
             );
@@ -734,10 +761,10 @@ export default class CustomReporter implements Reporter {
 
       // Write .latest-run marker so archive:save can detect the latest run
       try {
-        const latestRunMarker = path.join(REPORT_DIR, '.latest-run');
+        const latestRunMarker = path.join(reportDir(), '.latest-run');
         const markerPayload = JSON.stringify({
           timestamp: summary.timestamp,
-          summaryPath: path.relative(process.cwd(), SUMMARY_PATH),
+          summaryPath: path.relative(process.cwd(), summaryPath()),
           total: summary.total,
           passed: summary.passed,
           failed: summary.failed,
@@ -752,9 +779,10 @@ export default class CustomReporter implements Reporter {
         fs.writeFileSync(latestRunMarker, markerPayload, 'utf-8');
 
         // Also mirror .latest-run into artifacts/reports only if REPORT_DIR is different
-        const artifactsReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
-        if (REPORT_DIR !== artifactsReportDir && fs.existsSync(artifactsReportDir)) {
-          fs.writeFileSync(path.join(artifactsReportDir, '.latest-run'), markerPayload, 'utf-8');
+        const configuredReportDir = resolveWorkspaceReportDir();
+        const legacyReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
+        if (configuredReportDir !== legacyReportDir && fs.existsSync(legacyReportDir)) {
+          fs.writeFileSync(path.join(legacyReportDir, '.latest-run'), markerPayload, 'utf-8');
         }
       } catch {
         // Non-blocking
@@ -772,13 +800,13 @@ export default class CustomReporter implements Reporter {
       console.log('────────────────────────────────────────────────────────');
       console.log('');
 
-      forcePlaywrightHtmlToLight(HTML_REPORT_DIR);
+      forcePlaywrightHtmlToLight(htmlReportDir());
 
       logger.info('Custom reports generated.', {
         mode: isCiMode ? 'ci' : 'local',
         reportMode,
-        dashboard: path.relative(process.cwd(), DASHBOARD_PATH),
-        summary: path.relative(process.cwd(), SUMMARY_PATH),
+        dashboard: path.relative(process.cwd(), dashboardPath()),
+        summary: path.relative(process.cwd(), summaryPath()),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

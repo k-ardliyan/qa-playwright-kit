@@ -28,6 +28,9 @@ export const EPHEMERAL_REF_PATTERNS: RegExp[] = [
  *
  * @param str - The string to test (action step, locator intent, assertion description, etc.)
  */
-export function containsEphemeralRef(str: string): boolean {
+export function containsEphemeralReference(str: string): boolean {
   return EPHEMERAL_REF_PATTERNS.some((p) => p.test(str));
 }
+
+/** @deprecated Use containsEphemeralReference. */
+export const containsEphemeralRef = containsEphemeralReference;

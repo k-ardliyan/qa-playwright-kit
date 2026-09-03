@@ -41,6 +41,8 @@ function baseOpts(repoRoot: string, overrides: Record<string, unknown> = {}) {
     roles: ['user'],
     lang: 'id' as const,
     loginRequirementPath: 'requirements/login.md',
+    loginRequirementValid: true,
+    configValid: true,
     ...overrides,
   };
 }
@@ -91,11 +93,16 @@ test('missing artifacts (login.md, skills, mcp, auth files) warn with fix hints'
   const repo = makeRepo({ withNodeModules: true, envContent: PLAINTEXT_ENV });
   try {
     const checks = verifySetupArtifacts(baseOpts(repo));
-    for (const id of ['login_requirement', 'skills_synced', 'mcp_configs', 'auth_files']) {
+    for (const id of ['skills_synced', 'mcp_configs', 'auth_files']) {
       const check = checks.find((c) => c.id === id)!;
       expect(check.status, id).toBe('warn');
       expect(check.fix, `${id} must carry a fix hint`).toBeTruthy();
     }
+    const loginRequirement = checks.find((c) => c.id === 'login_requirement')!;
+    expect(loginRequirement.status).toBe('warn');
+    expect(loginRequirement.critical).not.toBe(true);
+    expect(loginRequirement.fix).toBeTruthy();
+    expect(checks.find((c) => c.id === 'pipeline_ready')?.status).toBe('warn');
     expect(hasCriticalFailure(checks)).toBe(false);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
@@ -123,6 +130,7 @@ test('present artifacts pass: skills, mcp configs, auth file, login requirement'
     for (const id of ['login_requirement', 'skills_synced', 'mcp_configs', 'auth_files']) {
       expect(checks.find((c) => c.id === id)!.status, id).toBe('pass');
     }
+    expect(checks.find((c) => c.id === 'pipeline_ready')?.status).toBe('pass');
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

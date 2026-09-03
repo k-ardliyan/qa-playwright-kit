@@ -1,6 +1,6 @@
 /**
- * Unit tests for auth-paths + multi-role discovery helpers
- * Run: npx tsx scripts/__tests__/auth-paths.test.ts
+ * Standalone Node assert harness (not a Playwright test).
+ * Run: npx tsx tools/scripts/__tests__/auth-paths.test.ts
  */
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
