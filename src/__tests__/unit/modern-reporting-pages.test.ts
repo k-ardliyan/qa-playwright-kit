@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { buildDashboardOverview } from '../../support/custom-dashboard/domain/dashboard-overview';
 import { DashboardPage } from '../../support/custom-dashboard/pages/dashboard';
 import { HistoryPage } from '../../support/custom-dashboard/pages/history';
+import { TrendChart } from '../../support/custom-dashboard/pages/history/TrendChart';
 import { ComparePage } from '../../support/custom-dashboard/pages/compare';
 import { ReportDetailPage } from '../../support/custom-dashboard/pages/report-detail';
 import type { ReportHistoryEntry } from '../../agents/reporter/report-history';
@@ -179,6 +180,20 @@ test.describe('Modern Reporting Subsystem', () => {
     expect(html).toContain('decision-file-bug');
     expect(html).toContain('decision-approve');
     expect(html).toContain('Save Run to History');
+  });
+
+  test('TrendChart stays compact while retaining accessible run details', () => {
+    const html = String(TrendChart({ history: mockHistory }));
+
+    expect(html).toContain('id="history-trend"');
+    expect(html).toContain('Pass Rate Trend · 2 runs · Latest 90% · -10 pp');
+    expect(html).toContain('class="trend-summary sr-only"');
+    expect(html).toContain('aria-labelledby="history-trend-label history-trend-summary"');
+    expect(html).toContain('Login Regression — Staging RC11: 100% pass rate');
+    expect(html).toContain('Login Regression — Staging RC12: 90% pass rate');
+
+    expect(TrendChart({ history: mockHistory.slice(0, 1) })).toBeNull();
+    expect(TrendChart({ history: [] })).toBeNull();
   });
 
   test('ComparePage renders comparison stats, compatibility notice, and scenario diffs', () => {

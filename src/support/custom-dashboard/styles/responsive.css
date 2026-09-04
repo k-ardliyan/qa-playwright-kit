@@ -147,8 +147,9 @@
     gap: 12px;
   }
 
-  .history-trend {
+  .history-page .history-trend {
     width: 100%;
+    max-width: 100%;
     align-items: flex-start;
   }
 

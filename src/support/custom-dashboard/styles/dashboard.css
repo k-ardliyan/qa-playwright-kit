@@ -3068,13 +3068,62 @@ html[data-theme='dark'] .app-nav__link.is-active {
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 24px;
 }
 
-.history-trend {
+.history-page .history-trend {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  margin-top: 0;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
+}
+
+.trend-meta {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.trend-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.trend-metric {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1;
+}
+
+.trend-delta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs, 4px);
+}
+
+.trend-delta.positive {
+  background: var(--success-subtle, rgba(46, 125, 50, 0.12));
+  color: var(--success, #2e7d32);
+}
+
+.trend-delta.negative {
+  background: var(--danger-subtle, rgba(211, 47, 47, 0.12));
+  color: var(--danger, #d32f2f);
+}
+
+.history-page .trend-sparkline {
+  flex-shrink: 0;
 }
 
 .trend-summary {
@@ -3107,9 +3156,9 @@ html[data-theme='dark'] .app-nav__link.is-active {
 
 .toolbar-search {
   position: relative;
-  flex: 1 1 240px;
-  min-width: 200px;
-  max-width: 380px;
+  flex: 1 1 280px;
+  min-width: 220px;
+  max-width: 440px;
   display: flex;
   align-items: center;
 }
