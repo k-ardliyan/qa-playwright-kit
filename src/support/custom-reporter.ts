@@ -30,6 +30,7 @@ import { resolveFailureSource } from './custom-dashboard/failure-source';
 import { toReportRelativePath } from './custom-dashboard/shared';
 import { streamTelemetryEvent } from './streaming/live-telemetry';
 import { logger } from '../utils/logger';
+import { canonicalRoleName } from '../shared/utils/role-credentials';
 import {
   resolveWorkspaceReportDir,
   resolveWorkspaceTestResultsDir,
@@ -227,6 +228,29 @@ function normalizePriority(raw: string): Priority {
   const p = (raw || 'medium').toLowerCase();
   if (p === 'high' || p === 'medium' || p === 'low') return p;
   return 'medium';
+}
+
+/**
+ * Keep a single configured role as the default for tests that omit role metadata.
+ * Empty roles remain unscoped for true general or genuinely mixed-role runs.
+ */
+function normalizeCollectedRoles(tests: CollectedTestData[]): void {
+  const roles = new Set<string>();
+
+  for (const test of tests) {
+    const rawRole = (test.role ?? '').trim();
+    test.role = rawRole ? canonicalRoleName(rawRole) : '';
+    if (test.role) roles.add(test.role);
+  }
+
+  if (roles.size !== 1) return;
+
+  const [singleRole] = roles;
+  if (!singleRole) return;
+
+  for (const test of tests) {
+    if (!(test.role ?? '').trim()) test.role = singleRole;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -671,6 +695,7 @@ export default class CustomReporter implements Reporter {
       ensureReportDirectory();
 
       materializeAttachments(this.collectedTests);
+      normalizeCollectedRoles(this.collectedTests);
 
       const reportMode: ReportMode = this.collectedTests.some((t) => t.role && t.role.length > 0)
         ? 'role-aware'

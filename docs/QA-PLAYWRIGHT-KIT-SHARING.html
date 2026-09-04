@@ -351,6 +351,8 @@
     transition: background 0.15s, color 0.15s;
   }
   .nav-btn:hover { background: #e9edf3; color: #0f766e; border-color: #b9c6d8; }
+  .nav-btn:disabled { cursor: not-allowed; opacity: 0.38; }
+  .nav-pill[aria-hidden="true"] { visibility: hidden; }
 
   .slide::-webkit-scrollbar { width: 6px; }
   .slide::-webkit-scrollbar-thumb { background: #ccd5e2; border-radius: 999px; }
@@ -364,7 +366,79 @@
     letter-spacing: -0.02em;
   }
   .sub-lead { font-size: 17.5px; line-height: 1.6; color: #46515f; }
-  .listline { font-size: 16px; line-height: 1.55; }
+  .listline, .mini-line { font-size: 15px; line-height: 1.55; color: #46515f; }
+  .mini-line + .mini-line { margin-top: 0.55rem; }
+
+  .trace-ribbon {
+    display: flex; align-items: center; gap: 0;
+    margin: 1.5rem 0 0.25rem;
+    color: #0f766e;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .trace-ribbon .trace-node {
+    width: 9px; height: 9px; border: 2px solid currentColor;
+    border-radius: 999px; background: #f5f7fa; flex: 0 0 auto;
+  }
+  .trace-ribbon .trace-link { height: 1px; width: 38px; background: currentColor; opacity: 0.35; }
+  .trace-ribbon .trace-label { margin-left: 9px; opacity: 0.7; }
+  .source-foot {
+    margin-top: 1.5rem; color: #67738a; font-size: 11px; line-height: 1.45;
+  }
+  .source-foot code { color: #46515f; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid #ccd5e2; border-radius: 999px; padding: 5px 10px;
+    color: #46515f; background: rgba(255,255,255,0.7);
+    font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .phase-card {
+    min-height: 150px; border: 1px solid #ccd5e2; border-radius: 14px;
+    background: rgba(255,255,255,0.78); padding: 17px;
+  }
+  .phase-card .phase-kicker { color: #67738a; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+  .phase-card .phase-title { margin-top: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 800; }
+  .phase-card .phase-copy { margin-top: 7px; color: #46515f; font-size: 13px; line-height: 1.5; }
+  .badge-runtime, .badge-illustration {
+    display: inline-flex; border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .badge-runtime { border: 1px solid rgba(21,128,61,0.3); color: #15803d; background: rgba(21,128,61,0.08); }
+  .badge-illustration { border: 1px solid rgba(29,78,216,0.25); color: #1d4ed8; background: rgba(29,78,216,0.07); }
+  .slide-content-safe { padding-bottom: 6rem; }
+  .table-scroll { overflow-x: auto; }
+  .table-scroll table { min-width: 620px; width: 100%; border-collapse: collapse; }
+  .table-scroll th, .table-scroll td { border-bottom: 1px solid #e4e9f0; padding: 10px 12px; text-align: left; vertical-align: top; }
+  .table-scroll th { color: #67738a; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .table-scroll td { color: #46515f; font-size: 13px; line-height: 1.45; }
+  .table-scroll code { color: #0f766e; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
+  :focus-visible { outline: 3px solid rgba(29,78,216,0.45); outline-offset: 4px; }
+  .slide[aria-hidden="true"] { visibility: hidden; }
+
+  @media (max-width: 640px) {
+    .statement { font-size: clamp(31px, 11vw, 46px); }
+    .sub-lead { font-size: 16px; }
+    .slide > div { padding-bottom: 7rem; }
+    .editor-lines, .term-body, .notes-block { font-size: 11px; }
+    .trace-ribbon .trace-link { width: 18px; }
+    .phase-card { min-height: auto; }
+  }
+
+  @media print {
+    @page { size: A4 landscape; margin: 12mm; }
+    html, body { height: auto; overflow: visible !important; background: #fff; }
+    body { font-size: 11pt; }
+    .deck-bg { min-height: 0; overflow: visible !important; background: #fff; }
+    .deck-bg::before, .progress, .nav-pill, #section-badge { display: none !important; }
+    .slide, .slide.active, .slide.leaving {
+      position: relative; inset: auto; display: block; visibility: visible !important; opacity: 1 !important;
+      transform: none !important; pointer-events: auto; overflow: visible;
+      min-height: 170mm; break-after: page; page-break-after: always;
+    }
+    .slide:last-of-type { break-after: auto; page-break-after: auto; }
+    .slide > div { min-height: 0 !important; }
+    .source-foot { display: block !important; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .slide, .anim, .nav-pill { transition: none !important; }
@@ -372,20 +446,21 @@
 </style>
 </head>
 <body class="h-full overflow-hidden">
-<div class="deck-bg relative h-full w-full overflow-hidden">
+  <main class="deck-bg relative h-full w-full overflow-hidden" aria-label="QA Playwright Kit sharing session">
+
   <div class="progress fixed top-0 left-0 h-[3px] z-50 bg-gradient-to-r from-accent to-blue" id="progress" style="width:0%"></div>
   <div class="fixed top-4 right-5 z-40 hidden sm:inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted" id="section-badge">Intro</div>
 
   <!-- 1. INTRO -->
-  <section class="slide active" id="s1" data-section="Intro">
+  <section class="slide active" id="s1" data-section="Intro" role="region" aria-labelledby="s1-title" tabindex="-1" aria-hidden="false">
     <div class="flex min-h-full items-center justify-center px-6 py-12">
       <div class="max-w-4xl text-center">
         <p class="mb-6 text-sm font-bold uppercase tracking-[0.25em] text-accent">Sharing Session</p>
-        <h1 class="font-display text-6xl sm:text-7xl lg:text-8xl font-extrabold leading-[1.0] tracking-tight">
+        <h1 id="s1-title" class="font-display text-6xl sm:text-7xl lg:text-8xl font-extrabold leading-[1.0] tracking-tight">
           QA<br/><span class="text-accent">PLAYWRIGHT KIT</span>
         </h1>
         <p class="sub-lead mx-auto mt-7 max-w-xl text-lg font-medium text-muted">
-          Dari kebutuhan pengujian jadi test otomatis.<br class="hidden sm:block"/> Tanpa perlu jago coding.
+          Dari requirement yang rapi menjadi evidence yang bisa diputuskan.<br class="hidden sm:block"/> Tanpa menulis TypeScript untuk setiap skenario.
         </p>
         <div class="mt-9 flex flex-wrap justify-center gap-2.5">
           <span class="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-surface px-4 py-2 text-sm font-semibold text-ink/80"><i class="ph-bold ph-bug"></i>E2E Testing</span>
@@ -407,12 +482,47 @@
     </div>
   </section>
 
+  <!-- 1A. AUDIENS -->
+  <section class="slide" id="s1-audience" data-section="Intro" role="region" aria-labelledby="s1-audience-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Sebelum framework</span>
+        <h2 id="s1-audience-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Sharing ini untuk siapa?</h2>
+        <p class="mt-4 sub-lead max-w-2xl">Untuk QA, developer, dan lead yang ingin mengubah kebutuhan bisnis menjadi regresi yang bisa dijalankan, dibaca, dan diputuskan bersama.</p>
+        <div class="trace-ribbon" aria-label="Benang merah materi"><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-label">requirement · test · evidence · decision</span></div>
+        <div class="mt-10 grid gap-4 md:grid-cols-3">
+          <div class="phase-card"><p class="phase-kicker">QA</p><p class="phase-title">Memperjelas skenario</p><p class="phase-copy">Menentukan risiko, role, data, dan hasil yang observable.</p></div>
+          <div class="phase-card"><p class="phase-kicker">Developer</p><p class="phase-title">Menerima bukti yang utuh</p><p class="phase-copy">Melihat langkah, actual result, source kegagalan, dan attachment.</p></div>
+          <div class="phase-card"><p class="phase-kicker">Lead</p><p class="phase-title">Mengambil keputusan</p><p class="phase-copy">Memisahkan bug aplikasi dari masalah test, environment, atau requirement.</p></div>
+        </div>
+        <p class="source-foot">Target sesi: paham alur dan batasnya, bukan menghafal API Playwright.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1B. PETA MATERI -->
+  <section class="slide" id="s1-map" data-section="Intro" role="region" aria-labelledby="s1-map-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Peta materi</span>
+        <h2 id="s1-map-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Empat pertanyaan yang kita jawab</h2>
+        <div class="mt-10 grid gap-4 sm:grid-cols-2">
+          <div class="phase-card"><p class="phase-kicker">01 · Konteks</p><p class="phase-title">Kenapa bukan chat saja?</p><p class="phase-copy">Kita mulai dari problem QA yang berulang dan sulit dilacak.</p></div>
+          <div class="phase-card"><p class="phase-kicker">02 · Mekanisme</p><p class="phase-title">Bagaimana pipeline bekerja?</p><p class="phase-copy">Requirement, Plan, Generate, Execute, Heal, dan Report.</p></div>
+          <div class="phase-card"><p class="phase-kicker">03 · Batas</p><p class="phase-title">Apa yang tidak dijanjikan?</p><p class="phase-copy">Auth challenge, manual scenario, healing bounded, dan review manusia.</p></div>
+          <div class="phase-card"><p class="phase-kicker">04 · Praktik</p><p class="phase-title">Bagaimana mulai dengan aman?</p><p class="phase-copy">Setup, contoh login, role-aware invoice, dashboard, dan command reference.</p></div>
+        </div>
+        <div class="callout mt-8"><span class="font-bold text-accent">Cara pakai ulang:</span> baca slide alur untuk orientasi; gunakan slide kontrak, tag, command, dan glossary sebagai referensi setelah sesi.</div>
+      </div>
+    </div>
+  </section>
+
   <!-- 2. MANUAL vs OTOMATIS -->
-  <section class="slide" id="s2" data-section="Dasar Pengujian">
+  <section class="slide" id="s2" data-section="Dasar Pengujian" role="region" aria-labelledby="s2-title" tabindex="-1" aria-hidden="true">
     <div class="flex min-h-full items-center">
       <div class="mx-auto w-full max-w-6xl px-6 py-12">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Dasar</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Dua Alat, Dua Peran</h2>
+        <h2 id="s2-title" class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Dua Alat, Dua Peran</h2>
         <p class="mt-3 sub-lead max-w-2xl">Manual dan otomatis bukan musuh. Keduanya bekerja bergantian.</p>
         <div class="mt-12 grid gap-12 md:grid-cols-2">
           <div>
@@ -444,11 +554,11 @@
   </section>
 
   <!-- 3. PIRAMIDA -->
-  <section class="slide" id="s3" data-section="Dasar Pengujian">
+  <section class="slide" id="s3" data-section="Dasar Pengujian" role="region" aria-labelledby="s3-title" tabindex="-1" aria-hidden="true">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-4xl px-6 py-12 text-center">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Dasar</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Piramida Pengujian</h2>
+        <h2 id="s3-title" class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Piramida Pengujian</h2>
         <p class="mt-3 sub-lead max-w-2xl mx-auto">Makin ke atas, makin dekat dengan pengalaman pengguna sungguhan.</p>
         <div class="mx-auto mt-14 max-w-2xl space-y-4">
           <div class="mx-auto w-full max-w-xs rounded-xl border-2 border-violet/50 bg-violet/10 px-6 py-4">
@@ -492,8 +602,8 @@
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-6xl px-6 py-12">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Cara Kerja</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Perintah, Lima Langkah</h2>
-        <p class="mt-3 sub-lead max-w-2xl">Dari berkas test sampai laporan: semuanya otomatis.</p>
+        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Test, Lima Gerak</h2>
+        <p class="mt-3 sub-lead max-w-2xl">Ini primer Playwright. Pipeline framework yang lebih besar dibahas setelahnya.</p>
         <div class="mt-12 grid gap-4 sm:grid-cols-5">
           <div class="text-center"><span class="step-lg">1</span><p class="mt-3 font-bold">Jalankan</p><p class="mini-line text-sm text-muted mt-1">npx playwright test</p></div>
           <div class="text-center"><span class="step-lg">2</span><p class="mt-3 font-bold">Buka browser</p><p class="mini-line text-sm text-muted mt-1">Chromium / Firefox / WebKit</p></div>
@@ -509,16 +619,16 @@
             </div>
             <div class="editor-body">
               <div class="editor-gutter"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div></div>
-              <div class="editor-lines"><div><span class="tk-c">// login.spec.ts — contoh test</span></div>
-<div><span class="tk-k">import</span> { test, expect } <span class="tk-k">from</span> <span class="tk-s">'@playwright/test'</span>;</div>
-<div></div>
-<div>test(<span class="tk-s">'pengguna bisa masuk'</span>, <span class="tk-k">async</span> ({ page }) =&gt; {</div>
-<div>  <span class="tk-k">await</span> page.goto(<span class="tk-s">'/login'</span>);</div>
-<div>  <span class="tk-k">await</span> page.getByLabel(<span class="tk-s">'Email'</span>).fill(<span class="tk-s">'user@app.com'</span>);</div>
-<div>  <span class="tk-k">await</span> page.getByLabel(<span class="tk-s">'Kata sandi'</span>).fill(<span class="tk-s">'rahasia'</span>);</div>
-<div>  <span class="tk-k">await</span> page.getByRole(<span class="tk-s">'button'</span>, { name: <span class="tk-s">'Masuk'</span> }).click();</div>
-<div>  <span class="tk-k">await</span> expect(page).toHaveURL(<span class="tk-s">'/dashboard'</span>);</div>
-<div>});</div></div>
+              <div class="editor-lines"><div><span class="tk-c">// generated spec — illustrative, no real credentials</span></div>
+	<div><span class="tk-k">import</span> { test, expect, authStatePath } <span class="tk-k">from</span> <span class="tk-s">'./fixtures'</span>;</div>
+	<div><span class="tk-k">import</span> { setTestMetadata, captureActualResult } <span class="tk-k">from</span> <span class="tk-s">'./fixtures'</span>;</div>
+	<div>test.use({ storageState: authStatePath(<span class="tk-s">'user'</span>) });</div>
+	<div>test(<span class="tk-s">'TC-LOGIN-001 — login sukses'</span>, <span class="tk-k">async</span> ({ page }) =&gt; {</div>
+	<div>  setTestMetadata({ inputData: { email: <span class="tk-s">'&lt;credential from vault&gt;'</span> } });</div>
+	<div>  <span class="tk-k">await</span> test.step(<span class="tk-s">'Buka halaman login'</span>, () =&gt; page.goto(<span class="tk-s">'/login'</span>));</div>
+	<div>  <span class="tk-k">await</span> expect(page).toHaveURL(<span class="tk-s">'/dashboard'</span>);</div>
+	<div>  captureActualResult(<span class="tk-s">'Dashboard tampil setelah login'</span>);</div>
+	<div>});</div></div>
             </div>
           </div>
           <div class="callout"><span class="font-bold text-accent">Bacanya seperti instruksi untuk manusia:</span> buka, isi, klik, periksa. Bedanya — semua otomatis dan bisa dijalankan ribuan kali.</div>
@@ -532,19 +642,26 @@
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-4xl px-6 py-12">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Mulai</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Hanya Dua Perintah</h2>
-        <div class="mt-12 space-y-6">
-          <div class="flex items-center gap-6"><span class="step-lg">1</span><div class="flex-1"><p class="font-bold">Siapkan proyek</p>
-            <div class="term mt-2"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — setup</span></div><div class="term-body"><span class="p">$</span> npm init playwright@latest
-<span class="cm"># wizard: nama folder, browser, contoh test</span></div></div>
-          </div></div>
-          <div class="flex items-center gap-6"><span class="step-lg">2</span><div class="flex-1"><p class="font-bold">Unduh browser</p>
-            <div class="term mt-2"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — install</span></div><div class="term-body"><span class="p">$</span> npx playwright install
-<span class="cm"># Chromium, Firefox, WebKit ready</span></div></div>
-          </div></div>
+        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Primer vs Setup Kit</h2>
+        <div class="mt-10 grid gap-6 md:grid-cols-2">
+          <div class="phase-card">
+            <span class="badge-illustration">Primer Playwright</span>
+            <p class="phase-title">Kalau mulai dari nol</p>
+            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — generic project</span></div><div class="term-body"><span class="p">$</span> npm init playwright@latest
+<span class="cm"># ini hanya konsep umum, bukan setup kit</span></div></div>
+          </div>
+          <div class="phase-card">
+            <span class="badge-runtime">Setup yang berjalan</span>
+            <p class="phase-title">Kalau memakai kit</p>
+            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — qa-playwright-kit</span></div><div class="term-body"><span class="p">$</span> npm install
+<span class="p">$</span> npm run setup
+<span class="p">$</span> npm run setup:check
+<span class="p">$</span> npm run health:check</div></div>
+          </div>
         </div>
-        <p class="mt-8 sub-lead">Node.js 20+ disarankan. Wizard langsung membuat folder test, contoh tes, dan pengaturan dasar.</p>
-        <div class="callout mt-6"><span class="font-bold text-accent">Tenang,</span> di QA Playwright Kit semua ini sudah diurus. Anda tidak perlu menyentuh kode setup.</div>
+        <p class="mt-8 sub-lead">Prasyarat framework: Node.js <strong>&gt;=20.19.0</strong>. Wizard menyiapkan environment, role, login requirement, enkripsi secret, dan verifikasi.</p>
+        <div class="callout mt-6"><span class="font-bold text-accent">Pembeda penting:</span> Playwright adalah mesinnya; QA Playwright Kit adalah workflow, kontrak, alat, dan bukti di sekeliling mesin itu.</div>
+        <p class="source-foot">Sumber: <code>package.json</code> scripts/engines · <code>docs/GUIDE.md</code> § Setup Lokal</p>
       </div>
     </div>
   </section>
@@ -627,10 +744,10 @@
         <div class="mt-12 grid gap-10 md:grid-cols-2">
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-key"></i><p class="font-display text-2xl font-bold">Sesi Login</p></div>
-            <p class="mini-line mt-4">Login sekali, status disimpan ke berkas <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.auth/</code></p>
-            <p class="mini-line mt-2">Test lain memakai berkas itu: tidak perlu isi form lagi</p>
-            <p class="mini-line mt-2">Di QA Playwright Kit: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run auth:setup</code></p>
-            <div class="callout mt-5"><span class="font-bold text-ink">Gampangnya:</span> seperti tombol "ingat saya" di browser.</div>
+            <p class="mini-line mt-4">Sesi disimpan per environment dan role: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.auth/{APP_ENV}/&lt;role&gt;.json</code></p>
+            <p class="mini-line mt-2">Spec authenticated memilihnya eksplisit lewat <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">authStatePath('&lt;role&gt;')</code></p>
+            <p class="mini-line mt-2">Buat/perbarui sesi: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run auth:setup</code></p>
+            <div class="callout mt-5"><span class="font-bold text-ink">Gampangnya:</span> seperti kartu akses berbeda untuk setiap lingkungan dan peran.</div>
           </div>
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-video-camera"></i><p class="font-display text-2xl font-bold">Rekaman Jejak</p></div>
@@ -732,15 +849,15 @@ test('login sukses', async ({ page }) =&gt; {
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 pt-10 pb-32">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Perbandingan</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Prompt,<br/><span class="text-accent">Semua Fase Beres</span></h2>
-        <p class="mt-4 sub-lead max-w-2xl">QA bekerja lewat chat: perintah di atas, hasil dan pembahasan ada di percakapan yang sama.</p>
+        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Requirement-first,<br/><span class="text-accent">Bukan Prompt-first</span></h2>
+        <p class="mt-4 sub-lead max-w-2xl">Chat adalah pintu masuk. Sumber kebenaran tetap requirement, kontrak, evidence, dan review QA.</p>
         <div class="mt-10 grid items-start gap-10 md:grid-cols-2">
           <div>
             <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Percakapan QA + Hermes</p>
             <div class="chat">
               <div class="chat-bubble chat-user"><div class="chat-head"><i class="ph ph-user-circle"></i> Anda — QA</div>Jalankan pipeline QA untuk
 requirements/login.md</div>
-              <div class="chat-bubble chat-ai"><div class="chat-head"><i class="ph ph-robot"></i> Hermes — koordinator</div>✅ Persiapan + Validasi → ✅ Rencana + Buat → ✅ Jalankan + Perbaiki → ✅ Laporan</div>
+              <div class="chat-bubble chat-ai"><div class="chat-head"><i class="ph ph-robot"></i> Hermes — koordinator</div>✅ health_check + validasi → ✅ Plan → ✅ Generate → ✅ Execute → ✅ Heal → ✅ Report</div>
               <div class="chat-bubble chat-ai"><div class="chat-head"><i class="ph ph-chat-circle-dots"></i> Ringkasan + keputusan</div>3 skenario: 2 PASS · 1 FAIL (app) — bukti di dashboard
 Keputusan: Setuju · Lapor Bug · Ubah Kebutuhan · Betulkan Test · Betulkan Lingkungan · Diblokir</div>
             </div>
@@ -768,8 +885,8 @@ Keputusan: Setuju · Lapor Bug · Ubah Kebutuhan · Betulkan Test · Betulkan Li
       <div class="mx-auto w-full max-w-6xl px-6 py-12">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Solusinya</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Alur, Tujuh Fase</h2>
-        <p class="mt-3 sub-lead max-w-2xl">Setiap fase punya peran AI dan alatnya sendiri. Anda cukup menulis kebutuhan.</p>
-        <p class="mt-2 text-sm text-faint">5 fase AI inti (Rencana → Buat → Jalankan → Perbaiki → Laporkan) + 2 langkah persiapan — dijalankan per fase atau sekali jalan via <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">qa:run</code>.</p>
+        <p class="mt-3 sub-lead max-w-2xl">QA menulis kebutuhan dan meninjau hasil. Agent mengerjakan mekanik yang bisa diverifikasi.</p>
+        <p class="mt-2 text-sm text-faint">Dua preparation gate + lima fase inti. Mode automatic berjalan berurutan; mode manual berhenti di setiap fase untuk review QA.</p>
         <div class="mt-12 flex flex-wrap items-stretch justify-center gap-2.5">
           <div class="rounded-xl border-2 border-violet/40 bg-violet/5 px-4 py-3 text-center"><p class="font-bold text-sm">Persiapan</p><p class="text-[11px] text-faint">cek lingkungan</p></div>
           <div class="self-center text-faint text-lg">→</div>
@@ -786,9 +903,138 @@ Keputusan: Setuju · Lapor Bug · Ubah Kebutuhan · Betulkan Test · Betulkan Li
           <div class="rounded-xl border-2 border-rose/40 bg-rose/5 px-4 py-3 text-center"><p class="font-bold text-sm">Laporkan</p><p class="text-[11px] text-faint">dashboard + keputusan</p></div>
         </div>
         <div class="mt-10 grid gap-4 sm:grid-cols-2">
-          <div class="callout !py-4"><span class="font-bold text-ink">MCP</span>: "jembatan" antara AI (Hermes) dan alat framework: buka browser, jalankan test, baca hasil.</div>
-          <div class="callout !py-4"><span class="font-bold text-ink">Hermes</span>: agen AI yang menjalankan alur ini untuk Anda, sesuai instruksi di <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">AGENTS.md</code>.</div>
+          <div class="callout !py-4"><span class="font-bold text-ink">MCP</span>: jembatan alat. <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">playwright</code> mengeksplorasi, <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">playwright-test</code> mengeksekusi, <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">qa-playwright-kit</code> mengurus contract/report/artifact.</div>
+          <div class="callout !py-4"><span class="font-bold text-ink">Hermes</span>: koordinator agent. <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">qa:run</code> melakukan preflight + validasi lalu mencetak prompt; core pipeline dijalankan setelah prompt itu diorkestrasi.</div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14A. PREPARATION GATES -->
+  <section class="slide" id="s14-gates" data-section="Pipeline" role="region" aria-labelledby="s14-gates-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Sebelum fase inti</span>
+        <h2 id="s14-gates-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Dua gate sebelum agent bekerja</h2>
+        <p class="mt-4 sub-lead max-w-2xl">Framework tidak langsung menulis test. Ia lebih dulu memastikan lingkungan dan requirement cukup sehat untuk diproses.</p>
+        <div class="trace-ribbon"><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-label">health → contract</span></div>
+        <div class="mt-10 grid gap-5 md:grid-cols-2">
+          <div class="phase-card"><p class="phase-kicker">Gate 01 · health_check</p><p class="phase-title">Lingkungan siap?</p><p class="phase-copy">Node, Playwright, build MCP, environment file, auth state, dan artifact path diverifikasi sebelum run.</p><div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — preflight</span></div><div class="term-body"><span class="p">$</span> npm run health:check</div></div></div>
+          <div class="phase-card"><p class="phase-kicker">Gate 02 · compile/validate</p><p class="phase-title">Requirement bisa dibuktikan?</p><p class="phase-copy">Metadata, AC, scenario ID, role, input provenance, dan hasil observable dikompilasi menjadi contract.</p><div class="code-block wrap mt-4">qa.requirement/v1
+Module · Feature · AC-XX · SC-XX
+Test ID · Input Data · Expected</div></div>
+        </div>
+        <div class="callout mt-8"><span class="font-bold text-accent">Jika gate gagal:</span> berhenti di awal lebih murah daripada menghasilkan test dari kebutuhan yang ambigu.</div>
+        <p class="source-foot">Sumber: <code>AGENTS.md</code> § Pre-flight · <code>src/contracts/versions.ts</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14B. PHASE INPUT OUTPUT -->
+  <section class="slide" id="s14-phases" data-section="Pipeline" role="region" aria-labelledby="s14-phases-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-6xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Lima fase inti</span>
+        <h2 id="s14-phases-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Setiap fase meninggalkan jejak</h2>
+        <div class="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div class="phase-card"><p class="phase-kicker">01</p><p class="phase-title">Plan</p><p class="phase-copy"><strong>Input:</strong> requirement<br/><strong>Output:</strong> test plan + coverage gap</p></div>
+          <div class="phase-card"><p class="phase-kicker">02</p><p class="phase-title">Generate</p><p class="phase-copy"><strong>Input:</strong> plan + catalog<br/><strong>Output:</strong> flat spec + metadata</p></div>
+          <div class="phase-card"><p class="phase-kicker">03</p><p class="phase-title">Execute</p><p class="phase-copy"><strong>Input:</strong> spec<br/><strong>Output:</strong> result + evidence</p></div>
+          <div class="phase-card"><p class="phase-kicker">04</p><p class="phase-title">Heal</p><p class="phase-copy"><strong>Input:</strong> failure payload<br/><strong>Output:</strong> fix, rerun, atau classify</p></div>
+          <div class="phase-card"><p class="phase-kicker">05</p><p class="phase-title">Report</p><p class="phase-copy"><strong>Input:</strong> summary + trace<br/><strong>Output:</strong> dashboard + decision</p></div>
+        </div>
+        <div class="trace-ribbon mt-8"><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-label">input → output → evidence</span></div>
+        <p class="source-foot">Sumber: <code>AGENTS.md</code> § Execution Pipeline · <code>.github/agents/*.agent.md</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14C. MODES AND RESUME -->
+  <section class="slide" id="s14-state" data-section="Pipeline" role="region" aria-labelledby="s14-state-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Control plane</span>
+        <h2 id="s14-state-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Automatic tidak berarti tanpa kontrol</h2>
+        <div class="mt-10 grid gap-5 md:grid-cols-2">
+          <div class="phase-card"><p class="phase-kicker">Manual</p><p class="phase-title">Satu fase, satu review</p><p class="phase-copy">Cocok untuk debugging dan eksplorasi. QA memeriksa output sebelum fase berikutnya.</p><div class="code-block wrap mt-4">Run only the Plan stage for
+requirements/fitur.md</div></div>
+          <div class="phase-card"><p class="phase-kicker">Automatic</p><p class="phase-title">Berurutan dengan checkpoint</p><p class="phase-copy">Cocok untuk run rutin. Jika terputus, state dan artifact dipakai untuk menentukan titik resume.</p><div class="code-block wrap mt-4">artifacts/reports/
+pipeline-state.json</div></div>
+        </div>
+        <div class="mt-8 grid gap-3 sm:grid-cols-3"><div class="callout !py-4"><strong>roleFilter</strong><br/>batasi role yang dijalankan</div><div class="callout !py-4"><strong>pipeline_status</strong><br/>cek staleness + artifact</div><div class="callout !py-4"><strong>source hash</strong><br/>requirement berubah? Plan diulang</div></div>
+        <p class="source-foot">Sumber: <code>AGENTS.md</code> § Orchestration &amp; Pipeline State · <code>docs/GUIDE.md</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14D. TRACEABILITY -->
+  <section class="slide" id="s14-trace" data-section="Pipeline" role="region" aria-labelledby="s14-trace-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Bukti yang bisa ditelusuri</span>
+        <h2 id="s14-trace-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">ID adalah tulang punggung cerita</h2>
+        <p class="mt-4 sub-lead max-w-2xl">Jangan berharap nama file menebak hubungan antar artefak. Beri ID eksplisit agar graph traceability tidak bergantung pada heuristik.</p>
+        <div class="trace-ribbon mt-10"><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-label">REQ → AC → SC → TC → evidence</span></div>
+        <div class="mt-10 grid gap-4 sm:grid-cols-5"><div class="phase-card"><p class="phase-kicker">Source</p><p class="phase-title">REQ</p><p class="phase-copy">kebutuhan bisnis</p></div><div class="phase-card"><p class="phase-kicker">Proof target</p><p class="phase-title">AC-01</p><p class="phase-copy">kriteria penerimaan</p></div><div class="phase-card"><p class="phase-kicker">User flow</p><p class="phase-title">SC-01</p><p class="phase-copy">skenario</p></div><div class="phase-card"><p class="phase-kicker">Test</p><p class="phase-title">TC-001</p><p class="phase-copy">spec generated</p></div><div class="phase-card"><p class="phase-kicker">Runtime</p><p class="phase-title">Evidence</p><p class="phase-copy">result + attachment</p></div></div>
+        <div class="callout mt-8"><span class="font-bold text-accent">Catatan:</span> exact <code class="font-mono">testId/scenarioId</code> adalah jalur deterministik; filename/role matching hanya fallback diagnostik.</div>
+        <p class="source-foot">Sumber: <code>trace_requirement</code> · <code>src/contracts/traceability-contract.ts</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14E. CAPABILITY MAP -->
+  <section class="slide" id="s14-capabilities" data-section="Kemampuan" role="region" aria-labelledby="s14-capabilities-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-6xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Capability map</span>
+        <h2 id="s14-capabilities-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Tag bukan hiasan</h2>
+        <p class="mt-3 sub-lead max-w-2xl">Tag memberi sinyal cara pengujian dan validator mencari helper/API yang sesuai.</p>
+        <div class="mt-9 table-scroll rounded-xl border border-line bg-surface"><table><thead><tr><th>Tag</th><th>Untuk apa</th><th>Contoh bukti</th></tr></thead><tbody><tr><td><code>@network</code></td><td>mock error / empty response</td><td>response terkontrol</td></tr><tr><td><code>@network-assert</code></td><td>assert request/response live</td><td>payload + status</td></tr><tr><td><code>@hybrid</code></td><td>seed API, assert UI</td><td>data konsisten</td></tr><tr><td><code>@upload</code> / <code>@download</code></td><td>fixture-first file flow</td><td>envelope + content</td></tr><tr><td><code>@aria</code> / <code>@visual</code></td><td>structure / screenshot baseline</td><td>snapshot / diff</td></tr><tr><td><code>@file-content</code></td><td>PDF text / Excel headers</td><td>token yang diminta skenario</td></tr></tbody></table></div>
+        <p class="source-foot">Sumber: <code>docs/GUIDE.md</code> § Fitur Resmi Playwright · <code>docs/MANUAL-SCENARIOS.md</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14F. AUTOMATION BOUNDARY -->
+  <section class="slide" id="s14-boundary" data-section="Kemampuan" role="region" aria-labelledby="s14-boundary-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Batas yang sehat</span>
+        <h2 id="s14-boundary-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Tidak semua hal harus dipaksa otomatis</h2>
+        <div class="mt-10 grid gap-4 md:grid-cols-2"><div class="phase-card"><p class="phase-kicker text-green">Automatable</p><p class="phase-title">Fixture dan struktur</p><p class="phase-copy">Upload memakai fixture dari <code>tests/data/</code>. PDF text dan Excel structure bisa diperiksa dari expected result skenario. Live API assertion juga didukung.</p></div><div class="phase-card"><p class="phase-kicker text-rose">Tetap manual bila perlu</p><p class="phase-title">Human challenge dan visual judgement</p><p class="phase-copy">CAPTCHA, physical OTP, biometric, 3DS, hardware interaction, dan penilaian layout PDF dapat ditandai <code>@manual</code>.</p></div></div>
+        <div class="callout mt-8"><span class="font-bold text-rose">Prinsip:</span> manual bukan kegagalan pipeline. Ia adalah status eksplisit agar coverage map tetap jujur.</div>
+        <p class="source-foot">Sumber: <code>docs/MANUAL-SCENARIOS.md</code> · <code>docs/AUTH-CONTEXT-CONVENTION.md</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14G. AUTH AND ENV -->
+  <section class="slide" id="s14-auth" data-section="Kemampuan" role="region" aria-labelledby="s14-auth-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Environment control plane</span>
+        <h2 id="s14-auth-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu target, banyak kartu akses</h2>
+        <p class="mt-4 sub-lead max-w-2xl"><code>APP_ENV</code> memilih target. Role login-ready ditemukan dari environment; spec authenticated memilih state secara eksplisit.</p>
+        <div class="mt-10 grid gap-6 md:grid-cols-2"><div class="code-block wrap">APP_ENV=staging
+.auth/staging/finance.json
+.auth/staging/hrd.json</div><div class="editor"><div class="editor-tabbar"><span class="editor-tab">authenticated.spec.ts</span><span class="editor-lang">TypeScript</span></div><div class="editor-lines"><div><span class="tk-k">import</span> { test, authStatePath } <span class="tk-k">from</span> <span class="tk-s">'./fixtures'</span>;</div><div>test.use({ storageState: authStatePath(<span class="tk-s">'finance'</span>) });</div></div></div></div>
+        <div class="mt-8 grid gap-3 sm:grid-cols-3"><div class="callout !py-4"><strong>setup</strong><br/>wizard + encrypt secrets</div><div class="callout !py-4"><strong>auth:setup</strong><br/>materialize session</div><div class="callout !py-4"><strong>CI</strong><br/>interactive challenge dilarang</div></div>
+        <p class="source-foot">Sumber: <code>docs/AUTH-CONTEXT-CONVENTION.md</code> · <code>src/support/auth-paths.ts</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14H. ROLE-AWARE EXAMPLE -->
+  <section class="slide" id="s14-invoice" data-section="Contoh" role="region" aria-labelledby="s14-invoice-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-6xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Worked example · role-aware</span>
+        <h2 id="s14-invoice-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu fitur, dua keputusan berbeda</h2>
+        <p class="mt-3 sub-lead max-w-2xl">Contoh invoice approval memperlihatkan kenapa role scope dan access matrix penting sejak requirement.</p>
+        <div class="mt-9 table-scroll rounded-xl border border-line bg-surface"><table><thead><tr><th>Role</th><th>Akses</th><th>Expected</th><th>File test</th></tr></thead><tbody><tr><td><strong>finance</strong></td><td class="text-green">allow</td><td>Approve pending invoice; status menjadi Approved</td><td><code>tests/approve-invoice-finance.spec.ts</code></td></tr><tr><td><strong>hrd</strong></td><td class="text-rose">deny</td><td>Akses ke halaman approval ditolak</td><td><code>tests/approve-invoice-hrd.spec.ts</code></td></tr></tbody></table></div>
+        <div class="trace-ribbon mt-8"><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-link"></span><span class="trace-node"></span><span class="trace-label">role → access → evidence</span></div>
+        <div class="callout mt-6"><span class="font-bold text-accent">Hasil laporan:</span> summary bisa dibaca per role dan per module; satu fitur tidak dipaksa punya satu persona.</div>
+        <p class="source-foot">Sumber: <code>requirements/_TEMPLATE.md</code> · <code>AGENTS.md</code> § Role-Aware Pipeline</p>
       </div>
     </div>
   </section>
@@ -797,32 +1043,44 @@ Keputusan: Setuju · Lapor Bug · Ubah Kebutuhan · Betulkan Test · Betulkan Li
   <section class="slide" id="s15" data-section="QA Playwright Kit">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Fase 1-2</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Dokumen,<br/><span class="text-accent">Semua Kepastian</span></h2>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Preparation → Plan</p>
+        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Requirement yang Bisa<br/><span class="text-accent">Dibuktikan Mesin</span></h2>
         <div class="mt-10 grid gap-10 md:grid-cols-2">
           <div>
             <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Kebutuhan (requirement) — ditulis QA</p>
             <div class="notes-block wrap"># REQ-LOGIN-001: Login dengan Email Valid
 
-**Module:** auth
-**Feature:** login
+**Tags:** #smoke #regression
 **Prioritas:** high
 **Auth state:** unauthenticated
 **Halaman awal:** /login
+**Module:** auth
+**Feature:** login
+
+- **AC-01:** Pengguna berhasil masuk ke dashboard.
 
 ### SC-01: Login sukses (@success)
-**Langkah:** buka /login, isi email
-&amp; password valid, klik Login
+- **Test ID:** `TC-LOGIN-001`
+- **Covers:** `AC-01`
+
+**Input Data:**
+- email: credential:user.email
+
+**Langkah:**
+1. Buka halaman login
+2. Isi email dan kata sandi valid
+3. Klik tombol Masuk
 
 **Hasil yang Diharapkan:**
-- Teks "Berhasil Masuk" muncul
-- Pindah ke /dashboard</div>
+- URL berubah ke `/dashboard`
+- Notifikasi sukses terlihat</div>
           </div>
           <div class="space-y-5">
-            <div class="callout"><span class="font-bold text-ink">Gampangnya:</span> bukan tulisan bebas: ada metadata, skenario, dan hasil yang harus bisa dicek mesin.</div>
-            <div class="mini-line"><span class="text-green font-bold">✓</span> Validasi otomatis sebelum jalan</div>
-            <div class="mini-line"><span class="text-green font-bold">✓</span> AI menyusun rencana + mencatat gap</div>
-            <div class="mini-line"><span class="text-green font-bold">✓</span> Setiap test membawa ID (traceability)</div>
+            <div class="callout"><span class="font-bold text-ink">Gampangnya:</span> bukan tulisan bebas: ada metadata, ID, input provenance, dan hasil observable yang harus bisa dicek mesin.</div>
+            <div class="mini-line"><span class="text-green font-bold">✓</span> <strong>Module</strong> wajib; <strong>Feature</strong> disarankan</div>
+            <div class="mini-line"><span class="text-green font-bold">✓</span> AC dan scenario punya ID eksplisit</div>
+            <div class="mini-line"><span class="text-green font-bold">✓</span> `Test ID → scenario → requirement` menjaga traceability</div>
+            <p class="source-foot">Sumber: <code>requirements/_TEMPLATE.md</code> · <code>docs/WRITING-REQUIREMENTS.md</code></p>
           </div>
         </div>
       </div>
@@ -833,23 +1091,23 @@ Keputusan: Setuju · Lapor Bug · Ubah Kebutuhan · Betulkan Test · Betulkan Li
   <section class="slide" id="s16" data-section="QA Playwright Kit">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Fase 3-4</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Ditulis AI,<br/><span class="text-accent">Dijalankan Nyata</span></h2>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Generate → Execute</p>
+        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Generated Spec,<br/><span class="text-accent">Browser yang Nyata</span></h2>
         <div class="mt-10 grid gap-10 md:grid-cols-2">
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-magic-wand"></i><p class="font-display text-2xl font-bold text-green">Buat Test</p></div>
             <p class="mini-line mt-4">Membaca rencana + kebutuhan</p>
-            <p class="mini-line">Locator dari hasil scan halaman (snapshot)</p>
-            <p class="mini-line">Metadata: module, feature, TC-ID</p>
-            <p class="mini-line">Output: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/&lt;fitur&gt;[-&lt;peran&gt;].spec.ts</code> (flat)</p>
-            <p class="mini-line">Validasi otomatis sebelum dijalankan</p>
+            <p class="mini-line">Selector catalog yang fresh dipakai ulang; bila belum ada, lakukan snapshot/live verification</p>
+            <p class="mini-line">Metadata: module, feature, Test ID, inputData</p>
+            <p class="mini-line">Output canonical: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/&lt;fitur&gt;[-&lt;peran&gt;].spec.ts</code> (flat)</p>
+            <p class="mini-line">Validator menolak credential leakage, hard wait, dan ephemeral ref</p>
           </div>
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-play"></i><p class="font-display text-2xl font-bold text-blue">Jalankan</p></div>
-            <p class="mini-line mt-4"><code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npx tsx tools/scripts/qa-run.ts requirements/X.md</code></p>
-            <p class="mini-line">Sesi masuk per peran: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.auth/{APP_ENV}/peran.json</code></p>
-            <p class="mini-line">Tangkapan / video / jejak saat gagal</p>
-            <p class="mini-line">Laporan → <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">artifacts/reports/custom-dashboard.html</code></p>
+            <p class="mini-line mt-4">Executor: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">playwright-test:run_tests</code></p>
+            <p class="mini-line">Sesi per role: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.auth/{APP_ENV}/&lt;role&gt;.json</code></p>
+            <p class="mini-line">Tangkapan, video, trace, dan retry evidence saat tersedia</p>
+            <p class="mini-line">Report: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">artifacts/reports/pipeline-report-&lt;runId&gt;.md</code></p>
           </div>
         </div>
         <div class="callout mt-8"><span class="font-bold text-ink">Traceability</span>: setiap test membawa ID <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">testId → scenarioId → requirementId</code>, jadi laporan selalu bisa ditarik ke asal skenario.</div>
@@ -861,16 +1119,17 @@ Keputusan: Setuju · Lapor Bug · Ubah Kebutuhan · Betulkan Test · Betulkan Li
   <section class="slide" id="s17" data-section="QA Playwright Kit">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Fase 5-6</p>
-        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Gagal? Diperbaiki.<br/><span class="text-accent">Berhasil? Diputuskan.</span></h2>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Heal → Report</p>
+        <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Gagal? Dibaca Sebabnya.<br/><span class="text-accent">Berhasil? Diputuskan.</span></h2>
         <div class="mt-10 grid gap-10 md:grid-cols-2">
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-first-aid"></i><p class="font-display text-2xl font-bold text-amber">Heal</p></div>
             <p class="mini-line mt-4">Ambil kegagalan + jejak/tangkapan</p>
             <p class="mini-line">Kelompokkan sumber kegagalan</p>
-            <p class="mini-line">Perbaiki locator / pemeriksaan</p>
-            <p class="mini-line">Jalankan ulang test yang terkena</p>
-            <div class="callout mt-4"><span class="font-bold text-ink">Gampangnya:</span> seperti QA membaca tumpukan bug report: cari sebab, perbaiki, coba lagi.</div>
+            <p class="mini-line">Perbaiki masalah test/generation yang memang bisa diperbaiki</p>
+            <p class="mini-line">Maksimum <strong>3 cycle per file</strong>, lalu klasifikasikan unresolved</p>
+            <p class="mini-line">Bug aplikasi tidak ditutupi dengan assertion yang dilemahkan</p>
+            <div class="callout mt-4"><span class="font-bold text-ink">Gampangnya:</span> seperti triage: cari sebab, bantu perbaikan yang aman, lalu berhenti dengan status yang jujur.</div>
           </div>
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-chart-bar"></i><p class="font-display text-2xl font-bold text-rose">Laporan + Keputusan</p></div>
@@ -971,7 +1230,7 @@ HRD_EMAIL=...
           </div>
         </div>
         <p class="mt-6 sub-lead">File test (flat): <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/&lt;fitur&gt;-&lt;peran&gt;.spec.ts</code> · ganti password: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run env:edit</code></p>
-        <div class="callout mt-6"><span class="font-bold text-ink">Gampangnya:</span> test finance pakai kartu finance, test HRD pakai kartu HRD: tidak pernah tertukar. Setup mengenkripsi password saja; URL/flag tetap bisa diedit di file. Ganti password: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run env:edit</code>.</div>
+          <div class="callout mt-6"><span class="font-bold text-ink">Gampangnya:</span> test finance pakai kartu finance, test HRD pakai kartu HRD: tidak pernah tertukar. Role ditemukan dinamis dari environment; secret keys otomatis dienkripsi saat setup. Perubahan berikutnya lewat <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run env:edit</code>.</div>
       </div>
     </div>
   </section>
@@ -1028,9 +1287,9 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
           <div class="tree-row tree-indent-1" style="padding-left:78px"><i class="ph ph-file-text"></i> demo-pw-power.spec.ts</div>
           <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> tools/mcp</div>
           <div class="tree-row tree-folder tree-indent-2"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> src/tools</div>
-          <div class="tree-row tree-indent-3"><i class="ph ph-file-text"></i> compile-requirement.ts</div>
-          <div class="tree-row tree-indent-3"><i class="ph ph-file-text"></i> validate-requirement.ts</div>
-          <div class="tree-row tree-indent-3"><i class="ph ph-file-text"></i> get-test-summary.ts</div>
+          <div class="tree-row tree-indent-2" style="padding-left:78px"><i class="ph ph-file-text"></i> compile-requirement.ts</div>
+          <div class="tree-row tree-indent-2" style="padding-left:78px"><i class="ph ph-file-text"></i> validate-requirement.ts</div>
+          <div class="tree-row tree-indent-2" style="padding-left:78px"><i class="ph ph-file-text"></i> get-test-summary.ts</div>
           <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> .github/agents</div>
           <div class="tree-row tree-indent-2"><i class="ph ph-file-text"></i> planner.agent.md</div>
           <div class="tree-row tree-indent-2"><i class="ph ph-file-text"></i> generator.agent.md</div>
@@ -1043,10 +1302,10 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
           <div class="tree-row tree-indent-2"><i class="ph ph-file-text"></i> setup/wizard.ts</div>
           <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▾</span><i class="ph ph-folder-open"></i> config</div>
           <div class="tree-row tree-indent-2"><i class="ph ph-file-text"></i> environments/local.env.example</div>
-          <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▸</span><i class="ph ph-folder"></i> .auth <span class="tree-note">rahasia, tidak ikut git</span></div>
+          <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▸</span><i class="ph ph-folder"></i> .auth <span class="tree-note">storage state, gitignored</span></div>
           <div class="tree-row tree-folder tree-indent-1"><span class="tree-chev">▸</span><i class="ph ph-folder"></i> artifacts <span class="tree-note">hasil run &amp; bukti</span></div>
         </div>
-        <div class="callout mt-8"><span class="font-bold text-ink">Gampangnya:</span> "dapur" yang tertata: QA cukup berurusan dengan satu folder: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">requirements/</code>.</div>
+          <div class="callout mt-8"><span class="font-bold text-ink">Gampangnya:</span> jalur kerja punya rumah masing-masing: QA menulis <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">requirements/</code>; agent menghasilkan <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">specs/</code> dan <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">tests/</code>; runtime meninggalkan bukti di <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">artifacts/</code>.</div>
       </div>
     </div>
   </section>
@@ -1055,15 +1314,16 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
   <section class="slide" id="s23" data-section="QA Playwright Kit">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12 text-center">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Sekilas Ukuran</p>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Repo snapshot</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Angka di Baliknya</h2>
         <div class="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div><p class="font-display text-6xl font-extrabold text-accent">7</p><p class="mt-2 font-semibold">fase alur kerja</p><p class="text-sm text-muted">dari persiapan sampai laporan</p></div>
           <div><p class="font-display text-6xl font-extrabold text-blue">3</p><p class="mt-2 font-semibold">server MCP</p><p class="text-sm text-muted">browser · run · QA tools</p></div>
-          <div><p class="font-display text-6xl font-extrabold text-violet">76</p><p class="mt-2 font-semibold">alat MCP siap pakai</p><p class="text-sm text-muted">21 khusus QA</p></div>
+          <div><p class="font-display text-6xl font-extrabold text-violet">76</p><p class="mt-2 font-semibold">capability Playwright MCP</p><p class="text-sm text-muted">23 custom tools di server QA</p></div>
           <div><p class="font-display text-6xl font-extrabold text-green">6</p><p class="mt-2 font-semibold">keputusan QA</p><p class="text-sm text-muted">dari setuju sampai blokir</p></div>
         </div>
-        <div class="callout mx-auto mt-12 max-w-2xl"><span class="font-bold text-ink">Bukan sekadar banyak alat, </span> semuanya terhubung dalam satu alur, satu tempat hasil, satu bahasa laporan.</div>
+        <div class="callout mx-auto mt-12 max-w-2xl"><span class="font-bold text-ink">Bukan sekadar banyak alat, </span> capability tersedia sesuai profile dan fase; tidak semua dipanggil pada setiap run.</div>
+        <p class="source-foot text-center">Snapshot kontrak repo saat deck ini ditulis · angka dapat berubah mengikuti manifest.</p>
       </div>
     </div>
   </section>
@@ -1139,9 +1399,10 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
         <div class="mt-10 grid gap-10 md:grid-cols-2">
           <div>
             <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Melalui Git</p>
-            <div class="term"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — clone</span></div><div class="term-body"><span class="p">$</span> git clone https://github.com/k-ardliyan/qa-playwright-kit.git
+            <div class="term"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — clone + install</span></div><div class="term-body"><span class="p">$</span> git clone https://github.com/k-ardliyan/qa-playwright-kit.git
 <span class="p">$</span> cd qa-playwright-kit
-<span class="cm"># butuh Node.js 20.19+</span></div></div>
+<span class="p">$</span> npm install
+<span class="cm"># butuh Node.js &gt;=20.19.0</span></div></div>
           </div>
           <div>
             <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Melalui ZIP</p>
@@ -1154,7 +1415,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
         <div class="mt-8">
           <p class="mb-3 text-sm font-semibold">Prasyarat</p>
           <div class="flex flex-wrap gap-2">
-            <span class="rounded-full border border-green/40 bg-green/10 px-3 py-1.5 text-xs text-green">Node.js 20+</span>
+            <span class="rounded-full border border-green/40 bg-green/10 px-3 py-1.5 text-xs text-green">Node.js &gt;=20.19.0</span>
             <span class="rounded-full border border-blue/40 bg-blue/10 px-3 py-1.5 text-xs text-blue">Git (opsional)</span>
             <span class="rounded-full border border-violet/40 bg-violet/10 px-3 py-1.5 text-xs text-violet">VS Code + Hermes</span>
             <span class="rounded-full border border-amber/40 bg-amber/10 px-3 py-1.5 text-xs text-amber">Akses URL aplikasi</span>
@@ -1172,14 +1433,15 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Wizard, Enam Langkah</h2>
         <div class="term mt-8"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — wizard</span></div><div class="term-body text-center"><span class="p">$</span> npm run setup</div></div>
         <div class="mt-10 grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
-          <div><span class="step-lg">1</span><p class="mt-2 font-bold">APP_ENV</p><p class="mini-line text-sm text-muted">pilih lingkungan: local, dev, staging, prod</p></div>
-          <div><span class="step-lg">2</span><p class="mt-2 font-bold">BASE_URL</p><p class="mini-line text-sm text-muted">alamat aplikasi untuk lingkungan itu</p></div>
-          <div><span class="step-lg">3</span><p class="mt-2 font-bold">Peran</p><p class="mini-line text-sm text-muted">kredensial dan peran yang dipakai</p></div>
-          <div><span class="step-lg">4</span><p class="mt-2 font-bold">Kode OTP</p><p class="mini-line text-sm text-muted">mode verifikasi (OTP / CAPTCHA)</p></div>
-          <div><span class="step-lg">5</span><p class="mt-2 font-bold">Tulis berkas</p><p class="mini-line text-sm text-muted">tulis file env + validasi</p></div>
-          <div><span class="step-lg">6</span><p class="mt-2 font-bold">Ringkasan</p><p class="mini-line text-sm text-muted">hasil validasi + langkah berikutnya</p></div>
+          <div><span class="step-lg">1</span><p class="mt-2 font-bold">Bahasa</p><p class="mini-line text-sm text-muted">pilih bahasa wizard dan output</p></div>
+          <div><span class="step-lg">2</span><p class="mt-2 font-bold">APP_ENV</p><p class="mini-line text-sm text-muted">local, dev, staging, atau production</p></div>
+          <div><span class="step-lg">3</span><p class="mt-2 font-bold">BASE_URL</p><p class="mini-line text-sm text-muted">alamat aplikasi untuk environment itu</p></div>
+          <div><span class="step-lg">4</span><p class="mt-2 font-bold">Kredensial &amp; role</p><p class="mini-line text-sm text-muted">identifier, password, dan path login</p></div>
+          <div><span class="step-lg">5</span><p class="mt-2 font-bold">Challenge</p><p class="mini-line text-sm text-muted">mode OTP / CAPTCHA bila diperlukan</p></div>
+          <div><span class="step-lg">6</span><p class="mt-2 font-bold">Konfirmasi</p><p class="mini-line text-sm text-muted">tulis, encrypt, verify, lalu lanjut auth setup</p></div>
         </div>
-        <div class="callout mt-8"><span class="font-bold text-ink">Gampangnya:</span> "isi formulir sekali": file env siap dipakai. Enkripsi nilai rahasia dilakukan terpisah lewat <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">env:edit</code> (dotenvx), lalu <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">setup:check</code> memastikan semuanya siap.</div>
+        <div class="callout mt-8"><span class="font-bold text-ink">Gampangnya:</span> "isi formulir sekali": file env ditulis, secret keys otomatis dienkripsi, lalu <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">setup:check</code> memastikan semuanya siap. <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">env:edit</code> dipakai untuk perubahan berikutnya.</div>
+        <p class="source-foot">Sumber: <code>src/setup/wizard.ts</code> · <code>src/setup/wizard-writer.ts</code> · <code>docs/CREDENTIALS.md</code></p>
       </div>
     </div>
   </section>
@@ -1196,7 +1458,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-plugs-connected"></i><p class="font-display text-2xl font-bold">3 server MCP</p></div>
             <p class="mini-line mt-4"><strong>playwright</strong>: membuka browser</p>
             <p class="mini-line"><strong>playwright-test</strong>: menjalankan &amp; memeriksa test</p>
-            <p class="mini-line"><strong>qa-playwright-kit</strong>: 21 alat QA: validasi, rencana, laporan, cakupan</p>
+            <p class="mini-line"><strong>qa-playwright-kit</strong>: 23 custom tools untuk contract, plan, report, coverage, dan artifact</p>
           </div>
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-check-square"></i><p class="font-display text-2xl font-bold">Cek di VS Code</p></div>
@@ -1224,11 +1486,13 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
           </div></div>
           <div class="flex items-center gap-6"><span class="step-lg">2</span><div class="flex-1"><p class="font-bold">Isi skenario</p><p class="mini-line text-sm text-muted">Tag, Module wajib, Feature disarankan, Role scope, SC-01...</p></div></div>
           <div class="flex items-center gap-6"><span class="step-lg">3</span><div class="flex-1"><p class="font-bold">Jalankan pipeline</p>
-            <div class="term mt-2"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — qa:run</span></div><div class="term-body"><span class="p">$</span> npx tsx tools/scripts/qa-run.ts requirements/fitur-saya.md</div></div>
+            <div class="term mt-2"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — preflight + prompt</span></div><div class="term-body"><span class="p">$</span> npm run qa:run
+<span class="cm"># masukkan path requirement saat diminta; lalu tempel prompt ke Hermes</span></div></div>
           </div></div>
           <div class="flex items-center gap-6"><span class="step-lg">4</span><div class="flex-1"><p class="font-bold">Pipeline selesai → lihat dashboard</p><p class="mini-line text-sm text-muted">Setelah Hermes selesai: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">npm run dashboard</code> (dashboard run terbaru)</p></div></div>
         </div>
         <p class="mt-8 sub-lead">Dokumen: <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">docs/GUIDE.md</code> · <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">docs/CHEATSHEET.md</code> · <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">docs/REPORT-GUIDE.md</code></p>
+        <p class="source-foot">Catatan: <code>archive_report</code> membutuhkan keputusan QA eksplisit; archive tidak otomatis berarti APPROVE.</p>
       </div>
     </div>
   </section>
@@ -1241,7 +1505,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Perintah Sehari-hari</h2>
         <div class="mt-9 grid gap-x-12 md:grid-cols-2">
           <div>
-            <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">qa:run requirements/X.md</code><p class="text-xs text-faint mt-1">titik masuk pipeline</p></div></div>
+            <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">npm run qa:run</code><p class="text-xs text-faint mt-1">preflight + validation + prompt Hermes</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">setup</code><p class="text-xs text-faint mt-1">panduan pemasangan pertama</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">setup:check</code><p class="text-xs text-faint mt-1">cek kesiapan setup</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">env:edit</code><p class="text-xs text-faint mt-1">ganti password / peran / OTP</p></div></div>
@@ -1249,7 +1513,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">auth:setup:headed</code><p class="text-xs text-faint mt-1">sesi + OTP/CAPTCHA di browser</p></div></div>
           </div>
           <div>
-            <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">validate:requirement -- X</code><p class="text-xs text-faint mt-1">periksa 1 file kebutuhan</p></div></div>
+            <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">npm run validate:requirement</code><p class="text-xs text-faint mt-1">periksa format requirement</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">manual:check</code><p class="text-xs text-faint mt-1">daftar skenario manual</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">health:check</code><p class="text-xs text-faint mt-1">cek lingkungan + MCP</p></div></div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">mcp:build</code><p class="text-xs text-faint mt-1">bangun ulang alat QA</p></div></div>
@@ -1257,7 +1521,45 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
             <div class="row-item"><div class="flex-1"><code class="font-mono text-[15px] text-accent">archive:save</code><p class="text-xs text-faint mt-1">simpan arsip run untuk rujukan</p></div></div>
           </div>
         </div>
-        <div class="callout mt-8 text-center"><span class="font-bold text-ink">Ingat 3 ini:</span> <code class="font-mono text-sm text-accent">qa:run</code> → <code class="font-mono text-sm text-accent">env:edit</code> → <code class="font-mono text-sm text-accent">auth:setup</code></div>
+        <div class="callout mt-8 text-center"><span class="font-bold text-ink">Urutan praktis:</span> <code class="font-mono text-sm text-accent">setup</code> → <code class="font-mono text-sm text-accent">health:check</code> → <code class="font-mono text-sm text-accent">qa:run</code> → Hermes → <code class="font-mono text-sm text-accent">dashboard</code></div>
+        <p class="source-foot text-center">Untuk perubahan credentials/challenge setelah setup: <code>npm run env:edit</code> lalu <code>npm run auth:setup</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 30A. GLOSSARY -->
+  <section class="slide" id="s30-glossary" data-section="Referensi" role="region" aria-labelledby="s30-glossary-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-6xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Referensi baca ulang</span>
+        <h2 id="s30-glossary-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Bahasa yang perlu sama</h2>
+        <div class="mt-9 table-scroll rounded-xl border border-line bg-surface"><table><thead><tr><th>Istilah</th><th>Arti di framework</th><th>Jangan disalahartikan sebagai</th></tr></thead><tbody><tr><td><code>Requirement</code></td><td>kontrak kebutuhan dan observable scenario</td><td>prompt bebas ke AI</td></tr><tr><td><code>Plan</code></td><td>rencana test terstruktur + coverage gap</td><td>kode test final</td></tr><tr><td><code>Heal</code></td><td>triage dan perbaikan berbatas</td><td>jaminan test selalu hijau</td></tr><tr><td><code>Evidence</code></td><td>result, screenshot, video, trace, attachments</td><td>opini tanpa artefak</td></tr><tr><td><code>failureSource</code></td><td>app, test, requirement, env, atau ai_generation</td><td>alasan untuk menghapus test</td></tr><tr><td><code>archive</code></td><td>menyimpan run setelah keputusan QA</td><td>APPROVE otomatis</td></tr></tbody></table></div>
+        <p class="source-foot">Sumber: <code>AGENTS.md</code> § QA Exit Decisions · <code>docs/REPORT-GUIDE.md</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 30B. REQUIREMENT CHECKLIST -->
+  <section class="slide" id="s30-checklist" data-section="Referensi" role="region" aria-labelledby="s30-checklist-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Sebelum minta pipeline</span>
+        <h2 id="s30-checklist-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Checklist requirement yang siap</h2>
+        <div class="mt-10 grid gap-4 md:grid-cols-2"><div class="phase-card"><p class="phase-kicker">Struktur</p><p class="phase-title">✓ Module · Feature · Tags</p><p class="phase-copy">Auth state, halaman awal, prioritas, dan role scope terisi sesuai konteks.</p></div><div class="phase-card"><p class="phase-kicker">Traceability</p><p class="phase-title">✓ AC-XX · SC-XX · Test ID</p><p class="phase-copy">Setiap scenario menyebut Covers dan punya hubungan yang bisa ditelusuri.</p></div><div class="phase-card"><p class="phase-kicker">Input</p><p class="phase-title">✓ Provenance jelas</p><p class="phase-copy"><code>seed:</code>, <code>credential:</code>, <code>fixture:</code>, atau <code>literal:</code>; bukan secret mentah.</p></div><div class="phase-card"><p class="phase-kicker">Expected</p><p class="phase-title">✓ Observable</p><p class="phase-copy">URL, text, visibility, status, file content, atau bukti lain yang bisa dicek.</p></div></div>
+        <div class="callout mt-8"><span class="font-bold text-accent">Rule of thumb:</span> jika reviewer tidak bisa membayangkan bukti pass/fail-nya, requirement belum siap di-Plan.</div>
+        <p class="source-foot">Sumber: <code>requirements/_TEMPLATE.md</code> · <code>docs/WRITING-REQUIREMENTS.md</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 30C. SOURCE INDEX -->
+  <section class="slide" id="s30-sources" data-section="Referensi" role="region" aria-labelledby="s30-sources-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Source index</span>
+        <h2 id="s30-sources-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Kalau ingin menggali lebih dalam</h2>
+        <div class="mt-9 grid gap-3 sm:grid-cols-2"><div class="row-item"><code class="font-mono text-accent">docs/ARCHITECTURE.md</code><span class="mini-line">peta layer dan konvensi inti</span></div><div class="row-item"><code class="font-mono text-accent">docs/GUIDE.md</code><span class="mini-line">setup, pipeline, capability</span></div><div class="row-item"><code class="font-mono text-accent">docs/AUTH-CONTEXT-CONVENTION.md</code><span class="mini-line">environment, role, challenge</span></div><div class="row-item"><code class="font-mono text-accent">docs/REPORT-GUIDE.md</code><span class="mini-line">dashboard, evidence, archive</span></div><div class="row-item"><code class="font-mono text-accent">AGENTS.md</code><span class="mini-line">orchestrator runbook dan QA decisions</span></div><div class="row-item"><code class="font-mono text-accent">requirements/_TEMPLATE.md</code><span class="mini-line">format requirement canonical</span></div></div>
+        <p class="source-foot">Deck ini menjelaskan behavior repo saat ini; bila implementasi berubah, source code dan contract menjadi sumber kebenaran.</p>
       </div>
     </div>
   </section>
@@ -1291,11 +1593,11 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
   </section>
 
   <!-- 31. CLOSING -->
-  <section class="slide" id="s32" data-section="Penutup">
+  <section class="slide" id="s32" data-section="Penutup" role="region" aria-labelledby="s32-title" tabindex="-1" aria-hidden="true">
     <div class="flex min-h-full items-center justify-center px-6 py-12">
       <div class="max-w-3xl text-center">
         <p class="mb-6 text-sm font-bold uppercase tracking-[0.25em] text-accent">Lanjut</p>
-        <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight">Siap <span class="text-accent">Mencoba?</span></h1>
+        <h1 id="s32-title" class="font-display text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight">Siap <span class="text-accent">Mencoba?</span></h1>
         <p class="mt-6 text-lg leading-relaxed text-muted">Manual + chat AI = mulai cepat.<br/><span class="font-semibold text-ink">QA Playwright Kit</span> = terukur, terstandar, siap keputusan.</p>
         <div class="mx-auto mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
           <div><span class="step-lg">1</span><p class="mt-2 font-semibold">Clone + wizard</p><p class="text-xs text-faint mt-1">npm run setup</p></div>
@@ -1311,15 +1613,21 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
 
   <nav class="nav-pill fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full px-2 py-1.5" aria-label="Navigasi slide">
     <button id="btn-prev" type="button" class="nav-btn" title="Sebelumnya (←)" aria-label="Sebelumnya">◀</button>
-    <span id="slide-counter" class="min-w-[80px] text-center font-mono text-sm text-muted">1 / 32</span>
+    <span id="slide-counter" class="min-w-[80px] text-center font-mono text-sm text-muted" aria-live="polite" aria-atomic="true">— / —</span>
     <button id="btn-next" type="button" class="nav-btn" title="Berikutnya (→)" aria-label="Berikutnya">▶</button>
   </nav>
-</div>
+</main>
 
 <script>
 (function () {
   var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
   var idx = 0;
+  slides.forEach(function (slide, index) {
+    slide.setAttribute('role', slide.getAttribute('role') || 'region');
+    slide.setAttribute('aria-label', (index + 1) + ' / ' + slides.length + ' — ' + (slide.getAttribute('data-section') || 'Slide'));
+    slide.setAttribute('aria-hidden', index === 0 ? 'false' : 'true');
+    if (!slide.hasAttribute('tabindex')) slide.setAttribute('tabindex', '-1');
+  });
   var progress = document.getElementById('progress');
   var counter = document.getElementById('slide-counter');
   var badge = document.getElementById('section-badge');
@@ -1331,22 +1639,33 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
     return i;
   }
 
-  function show(i, animate) {
+  var prevButton = document.getElementById('btn-prev');
+  var nextButton = document.getElementById('btn-next');
+
+  function show(i) {
     i = clamp(i);
     if (i !== idx) {
       var leavingEl = slides[idx];
       leavingEl.classList.add('leaving');
+      leavingEl.classList.remove('active');
+      leavingEl.setAttribute('aria-hidden', 'true');
       setTimeout(function () {
         leavingEl.classList.remove('leaving');
       }, 240);
-      leavingEl.classList.remove('active');
       idx = i;
       slides[idx].scrollTop = 0;
       slides[idx].classList.add('active');
+      slides[idx].setAttribute('aria-hidden', 'false');
+      slides[idx].focus({ preventScroll: true });
+      window.history.replaceState(null, '', '#' + slides[idx].id);
     }
     counter.textContent = (idx + 1) + ' / ' + slides.length;
     progress.style.width = (((idx + 1) / slides.length) * 100) + '%';
     badge.textContent = slides[idx].getAttribute('data-section') || '';
+    prevButton.disabled = idx === 0;
+    nextButton.disabled = idx === slides.length - 1;
+    prevButton.setAttribute('aria-disabled', String(idx === 0));
+    nextButton.setAttribute('aria-disabled', String(idx === slides.length - 1));
     try { localStorage.setItem(KEY, String(idx)); } catch (e) {}
   }
 
@@ -1356,9 +1675,13 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
 
   function wakeNav() {
     nav.classList.remove('nav-hidden');
+    nav.removeAttribute('aria-hidden');
     clearTimeout(navTimer);
     navTimer = setTimeout(function () {
-      nav.classList.add('nav-hidden');
+      if (!nav.contains(document.activeElement)) {
+        nav.classList.add('nav-hidden');
+        nav.setAttribute('aria-hidden', 'true');
+      }
     }, IDLE_MS);
   }
 
@@ -1377,10 +1700,13 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
 
   wakeNav();
 
-  document.getElementById('btn-prev').addEventListener('click', function () { show(idx - 1); });
-  document.getElementById('btn-next').addEventListener('click', function () { show(idx + 1); });
+  prevButton.addEventListener('click', function () { show(idx - 1); });
+  nextButton.addEventListener('click', function () { show(idx + 1); });
 
   document.addEventListener('keydown', function (e) {
+    var tag = document.activeElement && document.activeElement.tagName;
+    var isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'A';
+    if (isTyping) return;
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
       e.preventDefault();
       show(idx + 1);
@@ -1408,11 +1734,21 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
   }, { passive: true });
 
   var start = 0;
-  try {
-    var saved = parseInt(localStorage.getItem(KEY) || '0', 10);
-    if (!isNaN(saved)) start = saved;
-  } catch (e) {}
-  show(start, false);
+  var hash = window.location.hash.replace('#', '');
+  var hashIndex = slides.findIndex(function (slide) { return slide.id === hash; });
+  if (hashIndex >= 0) start = hashIndex;
+  else {
+    try {
+      var saved = parseInt(localStorage.getItem(KEY) || '0', 10);
+      if (!isNaN(saved)) start = saved;
+    } catch (e) {}
+  }
+  show(start);
+  slides[idx].focus({ preventScroll: true });
+  window.addEventListener('hashchange', function () {
+    var targetIndex = slides.findIndex(function (slide) { return slide.id === window.location.hash.replace('#', ''); });
+    if (targetIndex >= 0) show(targetIndex);
+  });
 })();
 </script>
 </body>

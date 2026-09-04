@@ -41,6 +41,7 @@ interface ReporterRunOutput {
     reportMode?: string;
     rolesInScope?: string[];
     testCases?: unknown[];
+    summaryByRole?: Record<string, { passing: number; failing: number; skipped: number }>;
     runMeta?: {
       appEnv: string;
       ci: boolean;
@@ -266,6 +267,47 @@ async function property10ReportModeDetection(): Promise<void> {
     assert.ok(
       summary.rolesInScope?.includes('super-admin'),
       'rolesInScope should include super-admin',
+    );
+  }
+
+  // A single configured role is the default for unannotated feature tests.
+  {
+    const reporter = new CustomReporter();
+    reporter.onBegin(
+      {} as unknown as FullConfig,
+      {
+        allTests: () => [{}, {}, {}],
+      } as unknown as Suite,
+    );
+
+    reporter.onTestEnd(
+      makeSyntheticTest(0, [{ type: 'role', description: 'user' }]),
+      makeSyntheticResult(0, { status: 'passed', duration: 100 }),
+    );
+    reporter.onTestEnd(
+      makeSyntheticTest(1, []),
+      makeSyntheticResult(1, { status: 'passed', duration: 100 }),
+    );
+    reporter.onTestEnd(
+      makeSyntheticTest(2, []),
+      makeSyntheticResult(2, { status: 'skipped', duration: 20 }),
+    );
+    await reporter.onEnd({} as unknown as FullResult);
+
+    const summary = JSON.parse(
+      fs.readFileSync(SUMMARY_PATH, 'utf8'),
+    ) as ReporterRunOutput['summary'];
+    assert.strictEqual(summary.reportMode, 'role-aware');
+    assert.deepStrictEqual(summary.rolesInScope, ['user']);
+    assert.ok(
+      summary.testCases?.every((testCase) => (testCase as { role: string }).role === 'user'),
+    );
+    assert.deepStrictEqual(summary.summaryByRole, {
+      user: { passing: 2, failing: 0, skipped: 1 },
+    });
+    assert.equal(
+      (summary.summaryByRole as Record<string, unknown> | undefined)?.['GENERAL / UNSCOPED'],
+      undefined,
     );
   }
 
