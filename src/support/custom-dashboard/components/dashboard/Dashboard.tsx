@@ -4,7 +4,6 @@ import type { CollectedTestData, TestSummary } from '../../types';
 import { buildHistoryJs, buildHistorySection, buildSaveModal } from '../../build-history-view';
 import { buildHashRouterJs, renderHashNav } from '../../build-hash-router';
 import { AccordionToolbar } from '../detail/AccordionToolbar';
-import { jsonForScript } from '../../shared';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AccordionView } from '../detail/AccordionView';
 import { TableToolbar } from '../table/TableToolbar';
@@ -58,17 +57,6 @@ export function Dashboard({
   const latestRunArchived = options?.latestRunArchived ?? false;
   const serveMode = options?.serveMode ?? false;
 
-  const testDataMapJson = jsonForScript(
-    tests.reduce(
-      (acc, t, idx) => {
-        const key = t.testId || `test-${idx}`;
-        acc[key] = t;
-        return acc;
-      },
-      {} as Record<string, CollectedTestData>,
-    ),
-  );
-
   const safeHashNav = serveMode ? renderHashNav() : null;
   const safeSaveModal = buildSaveModal();
   const safeAccordionToolbar = <AccordionToolbar />;
@@ -111,12 +99,7 @@ export function Dashboard({
 
       {safeSaveModal}
 
-      <script>
-        {`
-      window.__TEST_DATA_MAP__ = ${testDataMapJson};
-      window.__SERVE_MODE__ = ${serveMode};
-        `}
-      </script>
+      <script>{`window.__SERVE_MODE__ = ${serveMode};`}</script>
 
       <div id="primary-view">
         <Hero mode={mode} summary={summary} collectedTests={tests} />

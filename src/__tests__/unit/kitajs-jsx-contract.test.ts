@@ -154,7 +154,7 @@ test.describe('KitaJS dashboard — boolean short-circuit must not leak text', (
       status: 'failed',
     } as CollectedTestData;
     const html = String(ActualResultCell({ test: testCase }));
-    expect(html).toContain('<br>');
+    expect(html).toMatch(/<br\s*\/>/);
     expect(html).toContain('&lt;script&gt;');
     expect(html).not.toContain('<script>alert(1)</script>');
   });
@@ -184,7 +184,7 @@ test.describe('KitaJS dashboard — onclick must not interpolate runId into JS s
   test('HistoryRunsTable serve-mode view/compare encode the runId at click time, not at render', () => {
     const html = String(HistoryRunsTable({ history: mockHistory, serveMode: true }));
     expect(html).toContain("window.location.href='/history/'+encodeURIComponent(");
-    expect(html).toContain("window.location.href='/compare?baseline='+encodeURIComponent(");
+    expect(html).toContain("window.location.href='/compare?current='+encodeURIComponent(");
     expect(html).not.toContain("window.location.href='/history/run-20260820-100000-001'");
   });
 });

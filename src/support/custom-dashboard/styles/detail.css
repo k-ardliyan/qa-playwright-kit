@@ -907,6 +907,7 @@ html[data-theme='dark'] .attachment-card video {
 .attachment-chip {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   padding: 7px 12px;
   border-radius: var(--radius-pill);
   font-size: 0.8rem;

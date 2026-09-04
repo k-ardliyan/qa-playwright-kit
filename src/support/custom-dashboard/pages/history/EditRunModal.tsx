@@ -17,10 +17,17 @@ export function EditRunModal() {
       class="modal-overlay"
       id="edit-run-modal"
       hidden
+      aria-hidden="true"
       style="display:none"
       onclick="if(event.target===this){ closeEditModal && closeEditModal(); }"
     >
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title">
+      <div
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-edit-title"
+        aria-describedby="modal-edit-description"
+      >
         <div class="modal-head">
           <div class="modal-title-wrap">
             <span class="modal-icon-badge">
@@ -39,6 +46,9 @@ export function EditRunModal() {
         </div>
 
         <div class="modal-body">
+          <p id="modal-edit-description" class="sr-only">
+            Edit archived run metadata, QA decision, and notes.
+          </p>
           <div class="form-group">
             <label class="form-label">Run ID</label>
             <div class="font-mono text-muted pad-8" id="edit-run-id-display" />
@@ -111,7 +121,7 @@ export function EditRunModal() {
             />
           </div>
 
-          <div id="edit-feedback" class="save-feedback" />
+          <div id="edit-feedback" class="save-feedback" role="alert" aria-live="assertive" />
         </div>
 
         <div class="modal-foot">

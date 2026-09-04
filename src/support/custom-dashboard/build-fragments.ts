@@ -111,7 +111,20 @@ export function buildHistoryPage(options: {
 export function buildDetailPage(options: {
   runId: string;
   summary?: Record<string, unknown> | null;
-  metadata?: { qaDecision?: string; qaNotes?: string; savedAt?: string; ranAt?: string } | null;
+  metadata?: {
+    displayName?: string;
+    testSeriesId?: string;
+    requirementId?: string;
+    requirementTitle?: string;
+    appEnv?: string;
+    baseUrl?: string;
+    reportMode?: string;
+    qaDecision?: string;
+    qaNotes?: string;
+    savedAt?: string;
+    ranAt?: string;
+    durationMs?: number;
+  } | null;
   scenarios?: Array<{
     testId?: string;
     scenarioId?: string;
@@ -130,6 +143,18 @@ export function buildDetailPage(options: {
     affectedLayer?: string[];
     attachmentCount?: number;
     hasTrace?: boolean;
+    errors?: Array<{ message: string; stack?: string }>;
+    steps?: Array<{
+      title: string;
+      status: string;
+      duration: number;
+      errorMessage?: string;
+      steps?: unknown[];
+    }>;
+    attachments?: Array<{ name: string; contentType?: string; relativePath: string; kind: string }>;
+    fullTitle?: string;
+    filePath?: string;
+    retry?: number;
   }>;
 }): string {
   const { runId, summary, metadata, scenarios } = options;
@@ -138,28 +163,43 @@ export function buildDetailPage(options: {
   const failed = (summary?.failed as number) ?? 0;
   const skipped = (summary?.skipped as number) ?? 0;
   const passRate = (summary?.passRate as number) ?? 0;
-  const statusIcon = failed === 0 ? '✅' : '⚠️';
+  const statusIcon = failed === 0 ? 'Run healthy' : 'Run needs triage';
+
+  const encodeEvidenceUrl = (relativePath: string, archivedRunId: string): string => {
+    if (relativePath.startsWith('/')) return relativePath;
+    const encoded = relativePath
+      .replace(/\\/g, '/')
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
+    return `/api/archive/${encodeURIComponent(archivedRunId)}/${encoded}`;
+  };
 
   let rowIndex = 0;
   const rows = (scenarios ?? [])
     .map((s) => {
       const status = s.status ?? 'skipped';
+      const retry = s.retry ?? 0;
+      const fullTitle = s.fullTitle || s.title || '';
+      const trace = s.attachments?.find((a) => a.kind === 'trace' && a.relativePath);
+      const screenshot = s.attachments?.find((a) => a.kind === 'screenshot' && a.relativePath);
       const idx = rowIndex++;
       const isExpandable = status === 'failed' || (s.errorMessage && s.errorMessage.length > 0);
       const expandBtn = isExpandable
-        ? `<button class="detail-expand-btn" title="Show details">▸</button>`
+        ? `<button class="detail-expand-btn" type="button" title="Show details" aria-expanded="false" aria-controls="detail-expand-${idx}">▸</button>`
         : '';
 
       const mainRow = `
-        <tr class="tbl-row tbl-row--${status}" data-idx="${idx}" ${isExpandable ? `onclick="toggleDetailRow(${idx})" style="cursor:pointer"` : ''}>
+        <tr class="tbl-row tbl-row--${status}" data-idx="${idx}" ${isExpandable ? `onclick="toggleDetailRow(${idx})" tabindex="0" role="button" aria-label="Toggle details for ${escapeHtml(s.testId ?? s.title ?? 'test case')}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="cursor:pointer"` : ''}>
           <td class="tbl-test-id col-sticky-0" data-col="testId"><code>${escapeHtml(s.testId ?? '')}</code>${expandBtn}</td>
           <td class="tbl-module" data-col="module"><span class="module-chip">${escapeHtml(s.module ?? 'general')}</span></td>
           <td class="tbl-feature" data-col="feature"><span class="feature-chip">${escapeHtml(s.feature ?? 'general')}</span></td>
-          <td class="tbl-description" data-col="description"><span class="tbl-title">${escapeHtml(s.title ?? '')}</span></td>
+          <td class="tbl-description" data-col="description"><span class="tbl-title">${escapeHtml(fullTitle)}</span></td>
           <td class="tbl-status" data-col="status">${renderStatusBadge(status)}</td>
           <td class="tbl-priority" data-col="priority">${renderPriorityBadge(s.priority ?? 'medium')}</td>
-          <td class="tbl-source" data-col="source">${renderFailureSourceCell({ failureSource: s.failureSource as FailureSource | undefined, errorMessage: s.errorMessage })}</td>
-          <td class="tbl-notes" data-col="notes">${s.duration ? s.duration + 'ms' : '—'}</td>
+          <td class="tbl-source" data-col="source">${renderFailureSourceCell({ status, failureSource: s.failureSource as FailureSource | undefined, errorMessage: s.errorMessage })}</td>
+          <td class="tbl-notes" data-col="notes">${s.duration ? s.duration + 'ms' : '—'}${retry > 0 ? ` · retry ×${retry}` : ''}${trace ? ` · <a href="${escapeHtml(encodeEvidenceUrl(trace.relativePath, runId))}" target="_blank" rel="noopener">trace</a>` : ''}${screenshot ? ` · <a href="${escapeHtml(encodeEvidenceUrl(screenshot.relativePath, runId))}" target="_blank" rel="noopener">screenshot</a>` : ''}</td>
         </tr>`;
 
       if (!isExpandable) return mainRow;
@@ -178,6 +218,11 @@ export function buildDetailPage(options: {
             <div class="detail-expand-content">
               <div class="detail-expand-grid">
                 <div class="detail-expand-block">
+                  <h4>Test Details</h4>
+                  <p>${escapeHtml(fullTitle)}</p>
+                  <p>File: ${escapeHtml(s.filePath || '—')} · Retry: ${retry}</p>
+                </div>
+                <div class="detail-expand-block">
                   <h4>Input Data</h4>
                   ${inputDataHtml}
                 </div>
@@ -194,7 +239,8 @@ export function buildDetailPage(options: {
                   <p>${layers}</p>
                 </div>
               </div>
-              ${s.errorMessage ? `<div class="detail-expand-error"><h4>Full Error</h4><pre>${escapeHtml(s.errorMessage)}</pre></div>` : ''}
+              ${s.errors && s.errors.length > 0 ? s.errors.map((error) => `<div class="detail-expand-error"><h4>Error</h4><pre>${escapeHtml([error.message, error.stack].filter(Boolean).join('\n\n'))}</pre></div>`).join('') : ''}
+              ${s.errorMessage && (!s.errors || s.errors.length === 0) ? `<div class="detail-expand-error"><h4>Full Error</h4><pre>${escapeHtml(s.errorMessage)}</pre></div>` : ''}
             </div>
           </td>
         </tr>`;
@@ -225,18 +271,19 @@ export function buildDetailPage(options: {
 
       ${metadata?.qaNotes ? `<div class="muted">Notes: ${escapeHtml(metadata.qaNotes)}</div>` : ''}
 
-      <div class="table-wrapper">
+      <div class="table-wrapper" data-scroll-hint="Scroll horizontally to view all columns">
         <table class="qa-report-table data-table detail-table">
+          <caption class="sr-only">Archived run test details</caption>
           <thead>
             <tr>
-              <th class="col-sticky-0" data-col="testId">TEST ID</th>
-              <th data-col="module">MODULE</th>
-              <th data-col="feature">FEATURE</th>
-              <th data-col="description">DESCRIPTION</th>
-              <th data-col="status">STATUS</th>
-              <th data-col="priority">PRIORITY</th>
-              <th data-col="source">SOURCE</th>
-              <th data-col="notes">DURATION</th>
+              <th scope="col" class="col-sticky-0" data-col="testId">TEST ID</th>
+              <th scope="col" data-col="module">MODULE</th>
+              <th scope="col" data-col="feature">FEATURE</th>
+              <th scope="col" data-col="description">DESCRIPTION</th>
+              <th scope="col" data-col="status">STATUS</th>
+              <th scope="col" data-col="priority">PRIORITY</th>
+              <th scope="col" data-col="source">SOURCE</th>
+              <th scope="col" data-col="notes">DURATION</th>
             </tr>
           </thead>
           <tbody>${rows || '<tr><td colspan="8" class="muted">No test cases recorded for this run.</td></tr>'}</tbody>

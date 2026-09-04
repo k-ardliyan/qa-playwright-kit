@@ -9,7 +9,12 @@ export function FailureAlert({ unhealthyCount }: FailureAlertProps) {
   const isHealthy = unhealthyCount === 0;
 
   return (
-    <div class={`alert ${isHealthy ? 'alert--success' : 'alert--warning'}`}>
+    <div
+      class={`alert ${isHealthy ? 'alert--success' : 'alert--warning'}`}
+      role={isHealthy ? 'status' : 'alert'}
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div class="alert__body">
         <span class="alert__icon" aria-hidden="true">
           <Icon name={isHealthy ? 'check' : 'warn'} />
@@ -26,6 +31,9 @@ export function FailureAlert({ unhealthyCount }: FailureAlertProps) {
               <span>
                 {unhealthyCount} unhealthy test{unhealthyCount === 1 ? '' : 's'} surfaced in this
                 run.
+              </span>
+              <span class="alert__context">
+                Start with Status, Role, and Has evidence filters to triage.
               </span>
             </>
           )}

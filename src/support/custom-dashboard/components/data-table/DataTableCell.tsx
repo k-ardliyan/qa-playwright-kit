@@ -10,6 +10,7 @@ export interface DataTableCellProps {
   onclick?: string;
   'data-col'?: string;
   safe?: boolean;
+  scope?: string;
   children?: Children;
 }
 
@@ -22,6 +23,7 @@ export function DataTableCell({
   onclick,
   'data-col': dataCol,
   safe,
+  scope,
   children,
 }: DataTableCellProps) {
   if (isHeader) {
@@ -33,6 +35,7 @@ export function DataTableCell({
         title={title}
         onclick={onclick}
         data-col={dataCol}
+        scope={scope}
         safe={safe}
       >
         {children}

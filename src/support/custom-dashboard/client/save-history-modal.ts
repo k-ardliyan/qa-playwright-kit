@@ -4,6 +4,51 @@
 export function buildSaveHistoryModalJs(): string {
   return `
   (function () {
+    var modalState = { element: null, restore: null };
+    function focusables(root) {
+      return Array.prototype.slice.call(root.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+    }
+    function openAccessibleModal(modal, initialId) {
+      if (!modal) return;
+      var dialog = modal.querySelector('[role="dialog"]');
+      if (dialog) dialog.setAttribute('tabindex', '-1');
+      if (modalState.element && modalState.element !== modal) closeAccessibleModal();
+      modalState.element = modal;
+      modalState.restore = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      modal.hidden = false;
+      modal.removeAttribute('hidden');
+      modal.style.display = 'flex';
+      modal.classList.add('modal--open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      var target = (initialId && document.getElementById(initialId)) || focusables(modal)[0] || modal.querySelector('[role="dialog"]');
+      if (target instanceof HTMLElement) { if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1'); setTimeout(function () { target.focus(); }, 0); }
+    }
+    function closeAccessibleModal(modal) {
+      var current = modal || modalState.element;
+      if (!current) return;
+      current.hidden = true;
+      current.setAttribute('hidden', '');
+      current.style.display = 'none';
+      current.classList.remove('modal--open');
+      current.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      var restore = modalState.restore;
+      if (modalState.element === current) { modalState.element = null; modalState.restore = null; }
+      if (restore && restore.isConnected) setTimeout(function () { restore.focus(); }, 0);
+    }
+    document.addEventListener('keydown', function (e) {
+      var modal = modalState.element;
+      if (!modal || modal.hidden) return;
+      if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); closeAccessibleModal(modal); return; }
+      if (e.key !== 'Tab') return;
+      var list = focusables(modal);
+      if (!list.length) { e.preventDefault(); return; }
+      var first = list[0], last = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+
     function openSaveModal() {
       var modal = document.getElementById('save-modal') || document.getElementById('save-run-modal');
       var backdrop = document.getElementById('save-modal-backdrop');
@@ -29,11 +74,7 @@ export function buildSaveHistoryModalJs(): string {
           .catch(function () {});
       }
 
-      modal.hidden = false;
-      modal.removeAttribute('hidden');
-      modal.style.display = 'flex';
-      modal.classList.add('modal--open');
-      document.body.style.overflow = 'hidden';
+      openAccessibleModal(modal, 'save-decision');
       if (backdrop) {
         backdrop.hidden = false;
         backdrop.removeAttribute('hidden');
@@ -52,11 +93,7 @@ export function buildSaveHistoryModalJs(): string {
       var modal = document.getElementById('save-modal') || document.getElementById('save-run-modal');
       var backdrop = document.getElementById('save-modal-backdrop');
       if (!modal) return;
-      modal.hidden = true;
-      modal.setAttribute('hidden', '');
-      modal.style.display = 'none';
-      modal.classList.remove('modal--open');
-      document.body.style.overflow = '';
+      closeAccessibleModal(modal);
       if (backdrop) {
         backdrop.hidden = true;
         backdrop.setAttribute('hidden', '');
@@ -82,7 +119,13 @@ export function buildSaveHistoryModalJs(): string {
       var notes = ne ? ne.value.trim() : '';
 
       if (!decision) {
-        alert('Please select a QA Decision');
+        if (fe) {
+          fe.textContent = 'Please select a QA Decision.';
+          fe.setAttribute('role', 'alert');
+          fe.setAttribute('aria-live', 'assertive');
+          fe.style.display = 'block';
+        }
+        if (de && typeof de.focus === 'function') de.focus();
         return;
       }
 
@@ -100,7 +143,11 @@ export function buildSaveHistoryModalJs(): string {
           .then(function (r) { return r.json(); })
           .then(function (d) {
             if (d.ok) {
-              if (fe) fe.innerHTML = 'Saved! Run ID: <code>' + d.runId + '</code>';
+              if (fe) {
+                fe.innerHTML = 'Saved! Run ID: <code>' + d.runId + '</code>';
+                fe.setAttribute('role', 'status');
+                fe.setAttribute('aria-live', 'polite');
+              }
               setTimeout(function () {
                 closeSaveModal();
                 var banners = document.querySelectorAll('.save-banner-top, #save-banner, #save-banner-history');
@@ -112,7 +159,11 @@ export function buildSaveHistoryModalJs(): string {
                 }
               }, 1000);
             } else {
-              if (fe) fe.textContent = d.error || 'Save failed';
+              if (fe) {
+                fe.textContent = d.error || 'Save failed';
+                fe.setAttribute('role', 'alert');
+                fe.setAttribute('aria-live', 'assertive');
+              }
               if (btn) {
                 btn.textContent = 'Save to History';
                 btn.disabled = false;
@@ -120,12 +171,33 @@ export function buildSaveHistoryModalJs(): string {
             }
           })
           .catch(function (e) {
-            if (fe) fe.textContent = e.message;
+            if (fe) {
+              fe.textContent = e.message;
+              fe.setAttribute('role', 'alert');
+              fe.setAttribute('aria-live', 'assertive');
+            }
             if (btn) {
               btn.textContent = 'Save to History';
               btn.disabled = false;
             }
           });
+      } else {
+        var Q = String.fromCharCode(34);
+        var B = String.fromCharCode(92);
+        var sn = notes.split(Q).join(B + Q);
+        var sl = label.split(Q).join(B + Q);
+        var ss = series.split(Q).join(B + Q);
+        var cmd = 'npm run archive:save -- --decision=' + decision
+          + (label ? ' --label=' + Q + sl + Q : '')
+          + (series ? ' --series=' + Q + ss + Q : '')
+          + (notes ? ' --notes=' + Q + sn + Q : '')
+          + ' --yes';
+        if (fe) {
+          fe.textContent = 'Command copied! Paste in your terminal: ' + cmd;
+          fe.setAttribute('role', 'status');
+          fe.setAttribute('aria-live', 'polite');
+        }
+        if (typeof copyTextToClipboard === 'function') copyTextToClipboard(cmd, null, 'Copied');
       }
     }
 
@@ -173,13 +245,12 @@ export function buildSaveHistoryModalJs(): string {
       var feedback = document.getElementById('edit-feedback');
       if (feedback) {
         feedback.textContent = '';
+        feedback.setAttribute('role', 'status');
+        feedback.setAttribute('aria-live', 'polite');
         feedback.style.display = 'none';
       }
 
-      modal.hidden = false;
-      modal.removeAttribute('hidden');
-      modal.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
+      openAccessibleModal(modal, 'edit-display-name');
       if (backdrop) {
         backdrop.hidden = false;
         backdrop.removeAttribute('hidden');
@@ -214,10 +285,7 @@ export function buildSaveHistoryModalJs(): string {
       var modal = document.getElementById('edit-run-modal');
       var backdrop = document.getElementById('edit-modal-backdrop');
       if (!modal) return;
-      modal.hidden = true;
-      modal.setAttribute('hidden', '');
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
+      closeAccessibleModal(modal);
       if (backdrop) {
         backdrop.hidden = true;
         backdrop.setAttribute('hidden', '');
@@ -231,10 +299,7 @@ export function buildSaveHistoryModalJs(): string {
       modal.dataset.runId = runId;
       var el = document.getElementById('confirm-delete-target');
       if (el) el.textContent = 'Archive: ' + runId;
-      modal.hidden = false;
-      modal.removeAttribute('hidden');
-      modal.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
+      openAccessibleModal(modal, 'btn-confirm-delete-execute');
       if (backdrop) {
         backdrop.hidden = false;
         backdrop.removeAttribute('hidden');
@@ -245,10 +310,7 @@ export function buildSaveHistoryModalJs(): string {
       var modal = document.getElementById('confirm-delete-modal');
       var backdrop = document.getElementById('delete-modal-backdrop');
       if (!modal) return;
-      modal.hidden = true;
-      modal.setAttribute('hidden', '');
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
+      closeAccessibleModal(modal);
       if (backdrop) {
         backdrop.hidden = true;
         backdrop.setAttribute('hidden', '');

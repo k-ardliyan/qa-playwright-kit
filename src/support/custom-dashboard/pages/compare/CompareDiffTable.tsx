@@ -87,31 +87,35 @@ export function CompareDiffTable({ comparison }: CompareDiffTableProps) {
 
   return (
     <DataTableContainer>
-      <DataTable variant="compare" id="compare-diff-table">
+      <DataTable
+        variant="compare"
+        id="compare-diff-table"
+        caption="Changes between baseline and candidate runs"
+      >
         <DataTableHead>
           <tr>
-            <DataTableCell isHeader class="col-diff-change">
+            <DataTableCell isHeader scope="col" class="col-diff-change">
               Change
             </DataTableCell>
-            <DataTableCell isHeader class="col-diff-id">
+            <DataTableCell isHeader scope="col" class="col-diff-id">
               Scenario ID
             </DataTableCell>
-            <DataTableCell isHeader class="col-diff-name">
+            <DataTableCell isHeader scope="col" class="col-diff-name">
               Scenario Name
             </DataTableCell>
-            <DataTableCell isHeader class="col-diff-role">
+            <DataTableCell isHeader scope="col" class="col-diff-role">
               Role
             </DataTableCell>
-            <DataTableCell isHeader class="col-diff-mod">
+            <DataTableCell isHeader scope="col" class="col-diff-mod">
               Module / Feature
             </DataTableCell>
-            <DataTableCell isHeader class="col-diff-before">
+            <DataTableCell isHeader scope="col" class="col-diff-before">
               Baseline Status
             </DataTableCell>
-            <DataTableCell isHeader class="col-diff-after">
+            <DataTableCell isHeader scope="col" class="col-diff-after">
               Candidate Status
             </DataTableCell>
-            <DataTableCell isHeader class="col-diff-error">
+            <DataTableCell isHeader scope="col" class="col-diff-error">
               Error / Root Cause
             </DataTableCell>
           </tr>

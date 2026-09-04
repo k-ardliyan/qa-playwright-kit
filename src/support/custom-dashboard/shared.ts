@@ -338,6 +338,18 @@ export function renderInteractiveScript(): string {
     var colPicker = document.getElementById('column-picker');
     var colBtn = document.getElementById('column-picker-btn');
     var colMenu = document.getElementById('column-picker-menu');
+    var liveRegion = document.getElementById('dashboard-live-region');
+    function announce(message) {
+      if (!liveRegion) {
+        liveRegion = document.createElement('div');
+        liveRegion.id = 'dashboard-live-region';
+        liveRegion.className = 'sr-only';
+        liveRegion.setAttribute('role', 'status');
+        liveRegion.setAttribute('aria-live', 'polite');
+        document.body.appendChild(liveRegion);
+      }
+      liveRegion.textContent = message;
+    }
 
     function loadColState() {
       try {

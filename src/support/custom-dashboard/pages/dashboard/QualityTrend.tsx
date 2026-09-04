@@ -37,22 +37,32 @@ export function QualityTrend({ trendPoints, width = 680, height = 140 }: Quality
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(' ');
+  const chartSummary = trendPoints
+    .map((point) => `${point.displayName}: ${point.passRate}% pass rate`)
+    .join('. ');
 
   return (
     <div class="panel quality-trend-panel">
       <div class="panel-header">
-        <h3 class="panel-title">Pass Rate Trend ({trendPoints.length} runs)</h3>
+        <h3 class="panel-title" id="quality-trend-title">
+          Pass Rate Trend ({trendPoints.length} runs)
+        </h3>
         <span class="muted">
           Min: {Math.min(...rates)}% · Max: {Math.max(...rates)}%
         </span>
       </div>
 
       <div class="trend-svg-container">
+        <p class="trend-summary sr-only" id="quality-trend-summary" safe>
+          {chartSummary}
+        </p>
         <svg
           class="trend-chart-svg"
           viewBox={`0 0 ${width} ${height}`}
           style="max-width:100%;height:auto;display:block;"
           xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-labelledby="quality-trend-title quality-trend-summary"
         >
           {/* Baseline guide lines */}
           <line

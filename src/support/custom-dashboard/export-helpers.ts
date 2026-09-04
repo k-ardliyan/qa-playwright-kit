@@ -927,7 +927,7 @@ export function renderStatusBadge(status: string): string {
     icon: '?',
     label: status || 'Unknown',
   };
-  return `<span class="status-pill status-pill--full ${entry.cls}"><span class="status-pill__icon">${entry.icon}</span> ${entry.label}</span>`;
+  return `<span class="status-pill status-pill--full ${entry.cls}" role="img" aria-label="Status: ${escapeHtml(entry.label)}"><span class="status-pill__icon" aria-hidden="true">${entry.icon}</span> ${entry.label}</span>`;
 }
 
 export function renderPriorityBadge(priority: string): string {
@@ -938,14 +938,16 @@ export function renderPriorityBadge(priority: string): string {
   };
   const safe = (priority || '').toLowerCase();
   const cls = map[safe] ?? 'priority-badge--medium';
-  return `<span class="priority-badge ${cls}">${(priority || 'MEDIUM').toUpperCase()}</span>`;
+  const label = (priority || 'MEDIUM').toUpperCase();
+  return `<span class="priority-badge ${cls}" role="img" aria-label="Priority: ${escapeHtml(label)}">${escapeHtml(label)}</span>`;
 }
 
 export function renderFailureSourceCell(test: {
+  status?: string;
   failureSource?: FailureSource;
   errorMessage?: string;
 }): string {
-  if (!test.failureSource) {
+  if (!['failed', 'timedOut', 'interrupted'].includes(test.status || '') || !test.failureSource) {
     return '<span class="muted">-</span>';
   }
   const src = test.failureSource;

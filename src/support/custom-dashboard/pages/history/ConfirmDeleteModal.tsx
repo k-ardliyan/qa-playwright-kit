@@ -7,6 +7,7 @@ export function ConfirmDeleteModal() {
       class="modal-overlay"
       id="confirm-delete-modal"
       hidden
+      aria-hidden="true"
       style="display:none"
       onclick="if(event.target===this){ closeConfirmDelete && closeConfirmDelete(); }"
     >
@@ -15,6 +16,7 @@ export function ConfirmDeleteModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-delete-title"
+        aria-describedby="modal-delete-description"
       >
         <div class="modal-head">
           <div class="modal-title-wrap">
@@ -33,7 +35,9 @@ export function ConfirmDeleteModal() {
           </button>
         </div>
         <div class="modal-body">
-          <p>Are you sure you want to permanently delete this archived run?</p>
+          <p id="modal-delete-description">
+            Are you sure you want to permanently delete this archived run?
+          </p>
           <p class="modal-delete-target text-danger" id="confirm-delete-target" />
           <p class="modal-delete-warning muted">
             This action removes the saved summary and metadata. This cannot be undone.
@@ -50,6 +54,7 @@ export function ConfirmDeleteModal() {
           <button
             class="btn-danger"
             id="btn-confirm-delete-execute"
+            aria-describedby="modal-delete-description"
             type="button"
             onclick="confirmDeleteExecute && confirmDeleteExecute()"
           >

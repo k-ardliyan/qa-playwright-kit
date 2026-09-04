@@ -10,6 +10,7 @@ export function buildTestFilterJs(): string {
     var statusEl = document.getElementById('filter-status');
     var priorityEl = document.getElementById('filter-priority');
     var roleEl = document.getElementById('filter-role');
+    var scopeEl = document.getElementById('filter-scope');
     var evidenceEl = document.getElementById('filter-evidence');
     var countEl = document.getElementById('filter-count');
     var moduleEl = document.getElementById('module-filter-select');
@@ -26,6 +27,7 @@ export function buildTestFilterJs(): string {
         status: statusEl && statusEl.value || '',
         priority: priorityEl && priorityEl.value || '',
         role: roleEl && roleEl.value || '',
+        scope: scopeEl && scopeEl.value || '',
         module: moduleEl && moduleEl.value || '',
         feature: featureEl && featureEl.value || '',
         evidence: !!(evidenceEl && evidenceEl.checked)
@@ -37,6 +39,7 @@ export function buildTestFilterJs(): string {
       var status = el.getAttribute('data-status') || '';
       var priority = el.getAttribute('data-priority') || '';
       var role = el.getAttribute('data-role') || '';
+      var scope = el.getAttribute('data-scope') || '';
       var moduleName = el.getAttribute('data-module') || '';
       var featureName = el.getAttribute('data-feature') || '';
 
@@ -50,6 +53,7 @@ export function buildTestFilterJs(): string {
       } else if (state.status && status !== state.status) return false;
       if (state.priority && priority !== state.priority) return false;
       if (state.role && role !== state.role) return false;
+      if (state.scope && scope !== state.scope) return false;
       if (state.evidence) {
         if (el.getAttribute('data-has-trace') !== '1'
           && el.getAttribute('data-has-screenshot') !== '1'
@@ -65,6 +69,7 @@ export function buildTestFilterJs(): string {
         if (state.status) p.set('status', state.status);
         if (state.priority) p.set('priority', state.priority);
         if (state.role) p.set('role', state.role);
+        if (state.scope) p.set('scope', state.scope);
         if (state.module) p.set('module', state.module);
         if (state.feature) p.set('feature', state.feature);
         if (state.evidence) p.set('evidence', '1');
@@ -125,6 +130,7 @@ export function buildTestFilterJs(): string {
         state.status ||
         state.priority ||
         state.role ||
+        state.scope ||
         state.module ||
         state.feature ||
         state.evidence
@@ -144,6 +150,7 @@ export function buildTestFilterJs(): string {
       if (statusEl) statusEl.value = '';
       if (priorityEl) priorityEl.value = '';
       if (roleEl) roleEl.value = '';
+      if (scopeEl) scopeEl.value = '';
       if (moduleEl) moduleEl.value = '';
       if (featureEl) featureEl.value = '';
       if (evidenceEl) evidenceEl.checked = false;
@@ -170,6 +177,7 @@ export function buildTestFilterJs(): string {
         if (statusEl && savedF.status) statusEl.value = savedF.status;
         if (priorityEl && savedF.priority) priorityEl.value = savedF.priority;
         if (roleEl && savedF.role) roleEl.value = savedF.role;
+        if (scopeEl && savedF.scope) scopeEl.value = savedF.scope;
         if (moduleEl && savedF.module) moduleEl.value = savedF.module;
         if (featureEl && savedF.feature) featureEl.value = savedF.feature;
         if (evidenceEl) evidenceEl.checked = !!savedF.evidence;
@@ -177,7 +185,7 @@ export function buildTestFilterJs(): string {
     } catch (e) {}
 
     ['change'].forEach(function (evt) {
-      [statusEl, priorityEl, roleEl, evidenceEl, moduleEl, featureEl].forEach(function (el) {
+      [statusEl, priorityEl, roleEl, scopeEl, evidenceEl, moduleEl, featureEl].forEach(function (el) {
         if (el) el.addEventListener(evt, applyFilters);
       });
     });

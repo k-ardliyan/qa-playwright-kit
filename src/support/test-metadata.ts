@@ -10,6 +10,8 @@ import { test } from '@playwright/test';
 
 export interface TestMetadata {
   testId?: string;
+  /** Stable requirement scenario identifier (for example `SC-01`). */
+  scenarioId?: string;
   priority?: 'HIGH' | 'MEDIUM' | 'LOW';
   role?: string;
   /** Module this test belongs to — matches requirement `- **Module:** <name>`. */
@@ -49,6 +51,9 @@ export function setTestMetadata(metadata: TestMetadata): void {
 
   if (metadata.testId) {
     info.annotations.push({ type: 'testId', description: metadata.testId });
+  }
+  if (metadata.scenarioId) {
+    info.annotations.push({ type: 'scenarioId', description: metadata.scenarioId });
   }
   if (metadata.priority) {
     info.annotations.push({ type: 'priority', description: metadata.priority });

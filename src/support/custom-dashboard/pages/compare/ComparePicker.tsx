@@ -83,6 +83,8 @@ export function ComparePicker({
                 autocomplete="off"
                 aria-expanded="false"
                 aria-autocomplete="list"
+                aria-controls="dropdown-baseline"
+                aria-activedescendant=""
                 role="combobox"
               />
               <button
@@ -111,6 +113,7 @@ export function ComparePicker({
                 {history.map((entry) => {
                   const isSelected = entry.runId === defaultBaseline;
                   const itemLabel = `${entry.displayName || entry.runId} (${entry.appEnv} · ${entry.passRate}%)`;
+                  const optionId = `option-baseline-${entry.runId}`;
                   const passClass =
                     entry.passRate >= 80
                       ? 'rate-good'
@@ -126,6 +129,7 @@ export function ComparePicker({
                       data-series={entry.testSeriesId || ''}
                       data-env={entry.appEnv || ''}
                       data-search={`${entry.displayName || ''} ${entry.runId} ${entry.appEnv} ${entry.testSeriesId || ''} ${entry.passRate}%`.toLowerCase()}
+                      id={optionId}
                       role="option"
                       aria-selected={isSelected ? 'true' : 'false'}
                       tabindex={-1}
@@ -190,6 +194,8 @@ export function ComparePicker({
                 autocomplete="off"
                 aria-expanded="false"
                 aria-autocomplete="list"
+                aria-controls="dropdown-candidate"
+                aria-activedescendant=""
                 role="combobox"
               />
               <button
@@ -218,6 +224,7 @@ export function ComparePicker({
                 {history.map((entry) => {
                   const isSelected = entry.runId === defaultCandidate;
                   const itemLabel = `${entry.displayName || entry.runId} (${entry.appEnv} · ${entry.passRate}%)`;
+                  const optionId = `option-candidate-${entry.runId}`;
                   const passClass =
                     entry.passRate >= 80
                       ? 'rate-good'
@@ -233,6 +240,7 @@ export function ComparePicker({
                       data-series={entry.testSeriesId || ''}
                       data-env={entry.appEnv || ''}
                       data-search={`${entry.displayName || ''} ${entry.runId} ${entry.appEnv} ${entry.testSeriesId || ''} ${entry.passRate}%`.toLowerCase()}
+                      id={optionId}
                       role="option"
                       aria-selected={isSelected ? 'true' : 'false'}
                       tabindex={-1}
@@ -386,6 +394,7 @@ export function ComparePicker({
 
     function clearHighlight() {
       highlightedIndex = -1;
+      input.setAttribute('aria-activedescendant', '');
       items.forEach(function (item) {
         item.classList.remove('is-highlighted');
       });
@@ -398,8 +407,10 @@ export function ComparePicker({
       if (index < 0) index = 0;
       if (index >= visible.length) index = visible.length - 1;
       highlightedIndex = index;
-      visible[index].classList.add('is-highlighted');
-      visible[index].scrollIntoView({ block: 'nearest' });
+      var target = visible[index];
+      target.classList.add('is-highlighted');
+      input.setAttribute('aria-activedescendant', target.id || '');
+      target.scrollIntoView({ block: 'nearest' });
     }
 
     input.addEventListener('focus', function () {

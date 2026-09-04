@@ -81,7 +81,10 @@ const KIND_SUBDIR: Record<'screenshot' | 'video' | 'trace', string> = {
 };
 
 function safeFilePrefix(test: CollectedTestData): string {
-  return (test.testId || test.title).replace(/[^a-zA-Z0-9-]/g, '_').slice(0, 40) || 'test';
+  return (
+    (test.logicalKey || test.testId || test.title).replace(/[^a-zA-Z0-9-]/g, '_').slice(0, 60) ||
+    'test'
+  );
 }
 
 /**
@@ -168,10 +171,12 @@ function materializeAttachments(tests: CollectedTestData[]): void {
 }
 
 function buildRunMeta(tests: CollectedTestData[]): RunMeta {
+  const playwrightRunId = process.env.PLAYWRIGHT_RUN_ID?.trim();
+  const githubRunId = process.env.GITHUB_RUN_ID?.trim();
   return {
     appEnv: process.env.APP_ENV?.trim() || 'unknown',
-    runId: process.env.PLAYWRIGHT_RUN_ID || process.env.GITHUB_RUN_ID || undefined,
-    requirementPath: process.env.REQUIREMENT_PATH || undefined,
+    runId: playwrightRunId || githubRunId || undefined,
+    requirementPath: process.env.REQUIREMENT_PATH?.trim() || undefined,
     ci: process.env.CI === 'true',
     totalDurationMs: tests.reduce((sum, t) => sum + (t.duration || 0), 0),
     generatedAt: new Date().toISOString(),
@@ -553,9 +558,6 @@ function forcePlaywrightHtmlToLight(htmlFolder: string): void {
 
 export default class CustomReporter implements Reporter {
   private totalTests = 0;
-  private passedTests = 0;
-  private failedTests = 0;
-  private skippedTests = 0;
   private collectedTests: CollectedTestData[] = [];
 
   onBegin(_config: FullConfig, suite: Suite): void {
@@ -593,18 +595,12 @@ export default class CustomReporter implements Reporter {
       durationMs: result.duration,
       error: result.error?.message,
     });
-    if (result.status === 'passed') {
-      this.passedTests += 1;
-    } else if (result.status === 'skipped') {
-      this.skippedTests += 1;
-    } else {
-      this.failedTests += 1;
-    }
 
     const errors = collectErrors(result);
     const errorMessage = formatErrorMessage(errors);
     const filePath = path.relative(process.cwd(), test.location.file);
     const fullTitle = test.titlePath().join(' > ');
+    const logicalKey = test.id || `${filePath}::${fullTitle}`;
     const attachments = collectAttachments(result);
 
     const testId = getAnnotation(test, 'testId') || deriveTestId(test.title);
@@ -615,7 +611,6 @@ export default class CustomReporter implements Reporter {
     const priority = normalizePriority(getAnnotation(test, 'priority') || 'medium');
     const inputData = safeParseJson<Record<string, string>>(getAnnotation(test, 'inputData'), {});
     const expectedResult = getAnnotation(test, 'expectedResult');
-    const affectedLayer = parseAffectedLayer(getAnnotation(test, 'affectedLayer'));
 
     const actualResultAnnotation = getAnnotation(test, 'actualResult');
     const actualResult =
@@ -630,7 +625,8 @@ export default class CustomReporter implements Reporter {
       annotation: getAnnotation(test, 'failureSource'),
     });
 
-    this.collectedTests.push({
+    const next: CollectedTestData = {
+      logicalKey,
       title: test.title,
       fullTitle,
       filePath,
@@ -641,6 +637,8 @@ export default class CustomReporter implements Reporter {
       steps: collectSteps(result.steps ?? []),
       attachments,
       retry: result.retry,
+      attempts: 1,
+      metadataIncomplete: !expectedResult || !actualResultAnnotation,
       testId,
       scenarioId,
       role,
@@ -650,9 +648,20 @@ export default class CustomReporter implements Reporter {
       inputData,
       expectedResult,
       actualResult,
-      affectedLayer,
+      affectedLayer: parseAffectedLayer(getAnnotation(test, 'affectedLayer')),
       failureSource,
-    });
+    };
+
+    const previousIndex = this.collectedTests.findIndex((item) => item.logicalKey === logicalKey);
+    if (previousIndex === -1) {
+      this.collectedTests.push(next);
+      return;
+    }
+
+    const previous = this.collectedTests[previousIndex]!;
+    next.attempts = (previous.attempts ?? 1) + 1;
+    next.retry = Math.max(previous.retry, result.retry);
+    this.collectedTests[previousIndex] = next;
   }
 
   async onEnd(_result: FullResult): Promise<void> {
@@ -672,6 +681,7 @@ export default class CustomReporter implements Reporter {
       ];
 
       const testCases: CollectedTestCase[] = this.collectedTests.map((t) => ({
+        logicalKey: t.logicalKey,
         testId: t.testId,
         scenarioId: t.scenarioId,
         title: t.title,
@@ -688,6 +698,9 @@ export default class CustomReporter implements Reporter {
         attachmentCount: t.attachments.length,
         hasTrace: t.attachments.some((a) => a.kind === 'trace'),
         failureSource: t.failureSource,
+        retry: t.retry,
+        attempts: t.attempts,
+        metadataIncomplete: t.metadataIncomplete,
         // Richer runtime data for detail views, exports, and MCP summaries
         errorMessage: t.errorMessage,
         errors: t.errors,
@@ -696,17 +709,54 @@ export default class CustomReporter implements Reporter {
       }));
 
       const runMeta = buildRunMeta(this.collectedTests);
+      const total = this.collectedTests.length;
+      const passed = this.collectedTests.filter((t) => t.status === 'passed').length;
+      const skipped = this.collectedTests.filter((t) => t.status === 'skipped').length;
+      const failed = total - passed - skipped;
+      const summaryByRole: TestSummary['summaryByRole'] = {};
+      const summaryByModule: TestSummary['summaryByModule'] = {};
+      for (const testCase of this.collectedTests) {
+        const role = testCase.role || 'GENERAL / UNSCOPED';
+        const roleBreakdown = (summaryByRole[role] ??= { passing: 0, failing: 0, skipped: 0 });
+        if (testCase.status === 'passed') roleBreakdown.passing += 1;
+        else if (testCase.status === 'skipped') roleBreakdown.skipped += 1;
+        else roleBreakdown.failing += 1;
+
+        const module = testCase.module || 'GENERAL';
+        const moduleBreakdown = (summaryByModule[module] ??= {
+          passing: 0,
+          failing: 0,
+          skipped: 0,
+          features: {},
+        });
+        if (testCase.status === 'passed') moduleBreakdown.passing += 1;
+        else if (testCase.status === 'skipped') moduleBreakdown.skipped += 1;
+        else moduleBreakdown.failing += 1;
+        const feature = testCase.feature || 'GENERAL';
+        const featureBreakdown = (moduleBreakdown.features[feature] ??= {
+          passing: 0,
+          failing: 0,
+          skipped: 0,
+        });
+        if (testCase.status === 'passed') featureBreakdown.passing += 1;
+        else if (testCase.status === 'skipped') featureBreakdown.skipped += 1;
+        else featureBreakdown.failing += 1;
+      }
 
       const summary: TestSummary = {
-        total: this.totalTests,
-        passed: this.passedTests,
-        failed: this.failedTests,
-        skipped: this.skippedTests,
-        passRate: this.totalTests > 0 ? Math.round((this.passedTests / this.totalTests) * 100) : 0,
+        runId: runMeta.runId,
+        requirementPath: runMeta.requirementPath,
+        total,
+        passed,
+        failed,
+        skipped,
+        passRate: total > 0 ? Math.round((passed / total) * 100) : 0,
         timestamp: runMeta.generatedAt,
         reportMode,
         rolesInScope,
         testCases,
+        summaryByRole,
+        summaryByModule,
         runMeta,
       };
 
@@ -763,6 +813,7 @@ export default class CustomReporter implements Reporter {
       try {
         const latestRunMarker = path.join(reportDir(), '.latest-run');
         const markerPayload = JSON.stringify({
+          runId: summary.runId,
           timestamp: summary.timestamp,
           summaryPath: path.relative(process.cwd(), summaryPath()),
           total: summary.total,

@@ -4,6 +4,9 @@ import type { Children } from '@kitajs/html';
 export interface DataTableRowProps {
   class?: string;
   onclick?: string;
+  onkeydown?: string;
+  tabindex?: number;
+  role?: string;
   id?: string;
   'data-run-id'?: string;
   'data-test-id'?: string;
@@ -20,12 +23,23 @@ export interface DataTableRowProps {
 export function DataTableRow({
   class: className = '',
   onclick,
+  onkeydown,
+  tabindex,
+  role,
   id,
   children,
   ...rest
 }: DataTableRowProps) {
   return (
-    <tr class={className || undefined} onclick={onclick} id={id} {...rest}>
+    <tr
+      class={className || undefined}
+      onclick={onclick}
+      onkeydown={onkeydown}
+      tabindex={tabindex}
+      role={role}
+      id={id}
+      {...rest}
+    >
       {children}
     </tr>
   );

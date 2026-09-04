@@ -4,6 +4,7 @@ export interface DashboardClientState {
   status: string;
   priority: string;
   role: string;
+  scope: string;
   module: string;
   feature: string;
   evidence: boolean;

@@ -1,12 +1,12 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedTestData, FailureSource } from '../../types';
 import { generateErrorFingerprint } from '../../../classifier/fingerprint';
+import { escapeHtml } from '../../shared';
 import {
   decisionHintFor,
   decisionHintTooltipFor,
   decisionHintBlurbFor,
 } from '../../failure-source';
-import { escapeHtml } from '../../shared';
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: string; label: string }> = {
@@ -23,8 +23,12 @@ export function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <span class={`status-pill status-pill--full ${entry.cls}`}>
-      <span class="status-pill__icon" safe>
+    <span
+      class={`status-pill status-pill--full ${entry.cls}`}
+      role="img"
+      aria-label={`Status: ${entry.label}`}
+    >
+      <span class="status-pill__icon" aria-hidden="true" safe>
         {entry.icon}
       </span>{' '}
       <span safe>{entry.label}</span>
@@ -40,9 +44,10 @@ export function PriorityBadgeCell({ priority }: { priority?: string }) {
   };
   const safePriority = (priority || '').toLowerCase();
   const cls = map[safePriority] ?? 'priority-badge--medium';
+  const label = (priority || 'MEDIUM').toUpperCase();
   return (
-    <span class={`priority-badge ${cls}`} safe>
-      {(priority || 'MEDIUM').toUpperCase()}
+    <span class={`priority-badge ${cls}`} role="img" aria-label={`Priority: ${label}`} safe>
+      {label}
     </span>
   );
 }
@@ -50,9 +55,9 @@ export function PriorityBadgeCell({ priority }: { priority?: string }) {
 export function FailureSourceCell({
   test,
 }: {
-  test: { failureSource?: FailureSource; errorMessage?: string };
+  test: { status: string; failureSource?: FailureSource; errorMessage?: string };
 }) {
-  if (!test.failureSource) {
+  if (!['failed', 'timedOut', 'interrupted'].includes(test.status) || !test.failureSource) {
     return <span class="muted">-</span>;
   }
   const src = test.failureSource;
@@ -146,15 +151,33 @@ export function ActualResultCell({ test }: { test: CollectedTestData }) {
   const isUnhealthy = ['failed', 'timedOut', 'interrupted'].includes(test.status);
   const cls = isUnhealthy ? 'actual-result--failed' : 'actual-result--passed';
   const full = test.actualResult || '-';
-  const safeHtml = escapeHtml(full).replace(/\r\n|\n|\r/g, '<br>');
+  const lines = full.split(/\r\n|\n|\r/);
 
-  return <div class={cls}>{safeHtml}</div>;
+  return (
+    <div class={cls}>
+      {lines.map((line, index) => (
+        <>
+          {index > 0 ? <br /> : null}
+          <span>{escapeHtml(line)}</span>
+        </>
+      ))}
+    </div>
+  );
 }
 
 export function MultilineTextCell({ text, class: className }: { text?: string; class: string }) {
   const full = text || '-';
-  const safeHtml = escapeHtml(full).replace(/\r\n|\n|\r/g, '<br>');
-  return <div class={className}>{safeHtml}</div>;
+  const lines = full.split(/\r\n|\n|\r/);
+  return (
+    <div class={className}>
+      {lines.map((line, index) => (
+        <>
+          {index > 0 ? <br /> : null}
+          <span>{escapeHtml(line)}</span>
+        </>
+      ))}
+    </div>
+  );
 }
 
 function formatDuration(ms: number): string {
@@ -162,7 +185,24 @@ function formatDuration(ms: number): string {
   return `${(safeMs / 1000).toFixed(2)}s`;
 }
 
-export function NotesCell({ test }: { test: CollectedTestData }) {
+function encodeEvidencePath(relPath: string): string {
+  if (relPath.startsWith('/')) return relPath.replace(/^\/+/, '');
+  return relPath
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+export function NotesCell({ test, runId }: { test: CollectedTestData; runId?: string }) {
+  const evidenceUrl = (relPath: string) => {
+    if (relPath.startsWith('/')) return relPath;
+    const encoded = encodeEvidencePath(relPath);
+    return runId && /^run-[\d-]+$/.test(runId)
+      ? `/api/archive/${encodeURIComponent(runId)}/${encoded}`
+      : `/${encoded}`;
+  };
   const screenshots = test.attachments.filter((a) => a.kind === 'screenshot' && a.relativePath);
   const videos = test.attachments.filter((a) => a.kind === 'video' && a.relativePath);
   const trace = test.attachments.find((a) => a.kind === 'trace' && a.relativePath);
@@ -184,18 +224,22 @@ export function NotesCell({ test }: { test: CollectedTestData }) {
       {screenshots.length > 0 ? (
         <div class="notes-row notes-row--screenshot">
           <a
-            href={screenshots[0].relativePath}
+            href={evidenceUrl(screenshots[0].relativePath)}
             target="_blank"
             rel="noopener noreferrer"
             class="evidence-thumb"
             title="Screenshot"
+            aria-label={`Open screenshot evidence: ${screenshots[0].name}`}
           >
             <img
-              src={screenshots[0].relativePath}
+              src={evidenceUrl(screenshots[0].relativePath)}
               alt="screenshot"
               loading="lazy"
               onerror="this.closest('a')?.classList.add('evidence-missing')"
             />
+            <span class="evidence-missing-label" aria-hidden="true">
+              Missing image
+            </span>
           </a>
           {screenshots.length > 1 ? (
             <span class="evidence-more" title={`${screenshots.length - 1} more screenshots`}>
@@ -208,7 +252,7 @@ export function NotesCell({ test }: { test: CollectedTestData }) {
         <div class="notes-row notes-row--video">
           <a
             class="evidence-link"
-            href={videos[0].relativePath}
+            href={evidenceUrl(videos[0].relativePath)}
             target="_blank"
             rel="noopener noreferrer"
             title="Video"
@@ -221,7 +265,7 @@ export function NotesCell({ test }: { test: CollectedTestData }) {
         <div class="notes-row notes-row--trace">
           <a
             class="evidence-link"
-            href={trace.relativePath}
+            href={evidenceUrl(trace.relativePath)}
             target="_blank"
             rel="noopener noreferrer"
             title="Trace"

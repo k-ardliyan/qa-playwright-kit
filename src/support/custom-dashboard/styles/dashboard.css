@@ -156,9 +156,10 @@ html[data-theme='dark'] .hero--healthy {
   font-size: 0.82rem;
   font-weight: 400;
   line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .hero__meta-inline {
@@ -241,8 +242,8 @@ html[data-theme='dark'] .hero--healthy {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
@@ -844,6 +845,30 @@ html[data-theme='dark'] .deep-link__path {
   font-variant-numeric: tabular-nums;
 }
 
+.role-health__chip--neutral {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.role-health__chip--good strong {
+  color: #047857;
+}
+.role-health__chip--warn strong {
+  color: #92400e;
+}
+.role-health__chip--bad strong {
+  color: #b91c1c;
+}
+html[data-theme='dark'] .role-health__chip--good strong {
+  color: #6ee7b7;
+}
+html[data-theme='dark'] .role-health__chip--warn strong {
+  color: #fcd34d;
+}
+html[data-theme='dark'] .role-health__chip--bad strong {
+  color: #fca5a5;
+}
+
 .artifacts-card {
   margin-top: 18px;
   border: 1px solid var(--border);
@@ -1197,6 +1222,12 @@ a.artifacts-card__file:hover {
   opacity: 0.9;
 }
 
+.alert__context {
+  font-size: 0.72rem !important;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
 .alert__actions {
   display: flex;
   align-items: center;
@@ -1211,25 +1242,25 @@ a.artifacts-card__file:hover {
 .alert--warning {
   background: linear-gradient(180deg, #fdf3e8 0%, #fcefe4 100%);
   border-color: rgba(196, 149, 106, 0.28);
-  color: #8a5a2b;
+  color: #713f12;
 }
 
 .alert--success {
   background: linear-gradient(180deg, #f0faf2 0%, #e7f5ea 100%);
   border-color: rgba(61, 139, 85, 0.22);
-  color: #2f6b42;
+  color: #166534;
 }
 
 html[data-theme='dark'] .alert--warning {
   background: rgba(80, 50, 20, 0.4);
   border-color: rgba(212, 165, 116, 0.28);
-  color: #f0d7b8;
+  color: #fef3c7;
 }
 
 html[data-theme='dark'] .alert--success {
   background: rgba(20, 60, 35, 0.4);
   border-color: rgba(125, 206, 160, 0.22);
-  color: #dcfce7;
+  color: #d1fae5;
 }
 
 .results-footer {
@@ -1434,6 +1465,8 @@ html[data-theme='dark'] .toggle-btn--active {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 40px;
+  padding: 0 4px;
   font-size: 0.8rem;
   color: var(--muted);
   user-select: none;
@@ -1472,6 +1505,10 @@ html[data-theme='dark'] .toggle-btn--active {
 
 .history-row {
   transition: background 0.15s;
+  cursor: pointer;
+}
+
+.history-row[tabindex='0'] {
   cursor: pointer;
 }
 
@@ -1759,6 +1796,8 @@ html[data-theme='dark'] .toggle-btn--active {
   font-size: 1.1rem;
   color: var(--muted);
   cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
   padding: 4px 8px;
   border-radius: var(--radius-xs);
   line-height: 1;
@@ -2871,6 +2910,10 @@ html[data-theme='dark'] .app-nav__link.is-active {
   overflow-x: auto;
 }
 
+.trend-summary {
+  margin: 0;
+}
+
 .trend-chart-svg {
   display: block;
 }
@@ -3034,7 +3077,15 @@ html[data-theme='dark'] .app-nav__link.is-active {
   gap: 4px;
 }
 
+.trend-summary {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
 .trend-label {
+  display: block;
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--muted);
@@ -3278,6 +3329,11 @@ td.col-actions {
   transition: background var(--transition-fast);
 }
 
+.history-table .history-row:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -2px;
+}
+
 .history-table .history-row:hover {
   background: var(--surface-muted);
 }
@@ -3359,6 +3415,7 @@ td.col-actions {
 .btn-compare,
 .btn-edit,
 .btn-delete {
+  min-height: 44px;
   padding: 0 10px;
   font-size: 0.76rem;
   font-weight: 600;
@@ -3378,7 +3435,9 @@ td.col-actions {
 
 .btn-edit,
 .btn-delete {
-  width: 28px;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
   padding: 0;
 }
 
@@ -3444,8 +3503,8 @@ td.col-actions {
 }
 
 .btn-swap-runs {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface);

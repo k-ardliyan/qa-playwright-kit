@@ -16,9 +16,31 @@ interface ArtifactItem {
   retry?: number;
 }
 
+function isArchivedRunId(runId?: string): runId is string {
+  return Boolean(runId && /^run-[\d-]+$/.test(runId));
+}
+
+function encodeEvidencePath(relPath: string): string {
+  return relPath
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+function resolveEvidenceUrl(relPath: string, runId?: string): string {
+  if (relPath.startsWith('/')) return relPath;
+  const encoded = encodeEvidencePath(relPath);
+  return isArchivedRunId(runId)
+    ? `/api/archive/${encodeURIComponent(runId)}/${encoded}`
+    : `/${encoded}`;
+}
+
 function collectAttachmentsByKind(
   tests: CollectedTestData[],
   kind: 'screenshot' | 'video' | 'trace',
+  runId?: string,
 ): ArtifactItem[] {
   const result: ArtifactItem[] = [];
   for (const t of tests) {
@@ -28,7 +50,7 @@ function collectAttachmentsByKind(
           testId: t.testId || '-',
           title: t.title || t.fullTitle || 'test',
           name: a.name,
-          href: a.relativePath,
+          href: resolveEvidenceUrl(a.relativePath, runId),
         });
       }
     }
@@ -119,9 +141,9 @@ function ArtifactFileList({
 
 export function ArtifactsStrip({ collectedTests, runId }: ArtifactsStripProps) {
   const retried = collectRetriedTests(collectedTests);
-  const traces = collectAttachmentsByKind(collectedTests, 'trace');
-  const screenshots = collectAttachmentsByKind(collectedTests, 'screenshot');
-  const videos = collectAttachmentsByKind(collectedTests, 'video');
+  const traces = collectAttachmentsByKind(collectedTests, 'trace', runId);
+  const screenshots = collectAttachmentsByKind(collectedTests, 'screenshot', runId);
+  const videos = collectAttachmentsByKind(collectedTests, 'video', runId);
 
   const totalEvidence = traces.length + screenshots.length + videos.length;
   const readiness =
@@ -131,17 +153,23 @@ export function ArtifactsStrip({ collectedTests, runId }: ArtifactsStripProps) {
 
   const isArchivedRun = Boolean(runId && /^run-[\d-]+$/.test(runId));
 
-  const summaryHref = isArchivedRun ? `/api/archive/${runId}/summary.json` : '/test-summary.json';
+  const summaryHref = isArchivedRun
+    ? `/api/archive/${encodeURIComponent(runId!)}/summary.json`
+    : '/test-summary.json';
   const summaryPath = isArchivedRun
     ? `artifacts/reports/archive/${runId}/summary.json`
     : 'artifacts/reports/test-summary.json';
 
-  const metadataHref = isArchivedRun ? `/api/archive/${runId}/metadata.json` : null;
+  const metadataHref = isArchivedRun
+    ? `/api/archive/${encodeURIComponent(runId!)}/metadata.json`
+    : null;
   const metadataPath = isArchivedRun ? `artifacts/reports/archive/${runId}/metadata.json` : null;
 
   const pipelineHref = !isArchivedRun ? '/pipeline-state.json' : null;
 
-  const attachmentsHref = isArchivedRun ? `/api/archive/${runId}/attachments/` : '/attachments/';
+  const attachmentsHref = isArchivedRun
+    ? `/api/archive/${encodeURIComponent(runId!)}/attachments/`
+    : '/attachments/';
   const attachmentsPath = isArchivedRun
     ? `artifacts/reports/archive/${runId}/attachments/`
     : 'artifacts/reports/attachments/';

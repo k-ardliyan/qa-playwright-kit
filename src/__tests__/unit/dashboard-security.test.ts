@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { jsonForScript, escapeHtml } from '../../support/custom-dashboard/shared';
-import { isValidRunId } from '../../agents/reporter/report-archive';
+import { isValidRunId, isQaDecision, QA_DECISIONS } from '../../agents/reporter/report-archive';
 import { renderFailureSourceCell } from '../../support/custom-dashboard/export-helpers';
 
 test.describe('dashboard security — inline script JSON embedding', () => {
@@ -47,11 +47,28 @@ test.describe('dashboard security — runId validation (path traversal)', () => 
   });
 });
 
+test.describe('dashboard security — QA decision contract', () => {
+  test('exposes exactly six accepted decisions', () => {
+    expect(QA_DECISIONS).toEqual([
+      'APPROVE',
+      'FILE_BUG',
+      'REVISE_REQUIREMENT',
+      'FIX_TEST',
+      'FIX_ENV',
+      'MARK_BLOCKED',
+    ]);
+    expect(isQaDecision('APPROVE')).toBe(true);
+    expect(isQaDecision('approve')).toBe(false);
+    expect(isQaDecision('')).toBe(false);
+  });
+});
+
 test.describe('dashboard security — failure source cell escaping', () => {
   test('renderFailureSourceCell escapes failureSource and decision text', () => {
     // failureSource is rendered into class + text; decision hint/blurb are
     // escaped. A hostile failureSource value must not break out of the cell.
     const html = renderFailureSourceCell({
+      status: 'failed',
       failureSource: 'test',
       errorMessage: '</span><img src=x onerror=alert(1)>',
     });

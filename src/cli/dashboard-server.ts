@@ -33,6 +33,9 @@ import {
   loadArchivedMetadata,
   generateRunId,
   isValidRunId,
+  getArchiveDir,
+  isQaDecision,
+  QA_DECISIONS,
 } from '../agents/reporter/report-archive';
 import { compareLatestVsPrevious, compareReports } from '../agents/reporter/report-compare';
 import type { ReportComparison } from '../agents/reporter/report-compare';
@@ -42,8 +45,6 @@ import {
   buildDetailPage,
 } from '../support/custom-dashboard/build-fragments';
 import { escapeHtml } from '../support/custom-dashboard/shared';
-import type { QaDecision } from '../agents/reporter/report-archive';
-
 import { buildDashboardOverview } from '../support/custom-dashboard/domain/dashboard-overview';
 import { DashboardPage } from '../support/custom-dashboard/pages/dashboard';
 import { HistoryPage } from '../support/custom-dashboard/pages/history';
@@ -112,9 +113,28 @@ function resetHeartbeat() {
 // This normalizer bridges the gap with safe defaults for serve mode.
 function normalizeTestCases(
   testCases: unknown[],
+  archivedRunId?: string,
 ): import('../support/custom-dashboard/types').CollectedTestData[] {
   return testCases.map((tc) => {
     const t = tc as Record<string, unknown>;
+    const rawAttachments = Array.isArray(t['attachments'])
+      ? (t['attachments'] as Array<Record<string, unknown>>)
+      : [];
+    const attachments = rawAttachments.map((attachment) => {
+      const relativePath =
+        typeof attachment.relativePath === 'string' ? attachment.relativePath : '';
+      if (!archivedRunId || !relativePath || relativePath.startsWith('/')) return attachment;
+      const encodedPath = relativePath
+        .replace(/\\/g, '/')
+        .split('/')
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment))
+        .join('/');
+      return {
+        ...attachment,
+        relativePath: `/api/archive/${encodeURIComponent(archivedRunId)}/${encodedPath}`,
+      };
+    });
     return {
       // Fields present in CollectedTestCase
       testId: (t['testId'] as string) || '',
@@ -136,15 +156,14 @@ function normalizeTestCases(
       failureSource: t['failureSource'] as
         import('../support/custom-dashboard/types').FailureSource | undefined,
       // Fields not in CollectedTestCase — safe defaults for serve mode
-      fullTitle: (t['title'] as string) || '',
-      filePath: '',
+      fullTitle: (t['fullTitle'] as string) || (t['title'] as string) || '',
+      filePath: (t['filePath'] as string) || '',
       errorMessage: (t['errorMessage'] as string) || '',
       errors: (t['errors'] as import('../support/custom-dashboard/types').CollectedError[]) || [],
       steps: (t['steps'] as import('../support/custom-dashboard/types').CollectedStep[]) || [],
       attachments:
-        (t['attachments'] as import('../support/custom-dashboard/types').CollectedAttachment[]) ||
-        [],
-      retry: 0,
+        attachments as unknown as import('../support/custom-dashboard/types').CollectedAttachment[],
+      retry: (t['retry'] as number) ?? 0,
       attachmentCount:
         (t['attachmentCount'] as number) ??
         (Array.isArray(t['attachments']) ? (t['attachments'] as unknown[]).length : 0),
@@ -306,13 +325,18 @@ function renderComparePage(baseline?: string, candidate?: string, series?: strin
 function renderLatestDetailPage(): string {
   let summary: object | undefined;
   let collectedTests: import('../support/custom-dashboard/types').CollectedTestData[] = [];
+  let latestRunId: string | undefined;
 
   try {
     const summaryPath = getSummaryPath();
     if (fs.existsSync(summaryPath)) {
       const raw = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
       summary = raw;
-      collectedTests = Array.isArray(raw.testCases) ? normalizeTestCases(raw.testCases) : [];
+      const latest = getLatestRunInfo();
+      latestRunId = latest ? generateRunId(latest.timestamp) : undefined;
+      collectedTests = Array.isArray(raw.testCases)
+        ? normalizeTestCases(raw.testCases, isLatestRunArchived() ? latestRunId : undefined)
+        : [];
     }
   } catch (err) {
     return buildErrorPage(
@@ -352,6 +376,7 @@ function renderLatestDetailPage(): string {
       isArchived,
       hasLatestRun: latestRun !== null,
       serveMode: true,
+      runId: isArchived ? latestRunId : undefined,
       breadcrumb: [{ label: 'Dashboard', href: '/dashboard' }, { label: 'Latest Report' }],
     }),
   );
@@ -366,7 +391,7 @@ function renderArchivedDetailPage(runId: string): string | null {
   const rawSummary = (summary ?? {}) as Record<string, unknown>;
   const tc = Array.isArray(rawSummary.testCases)
     ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      normalizeTestCases(rawSummary.testCases as any[])
+      normalizeTestCases(rawSummary.testCases as any[], runId)
     : [];
 
   const displayName =
@@ -498,19 +523,88 @@ function serveStaticFile(
   }
 }
 
-function resolveReportFile(relPath: string): string | null {
+function isContainedPath(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return (
+    relative === '' ||
+    (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  );
+}
+
+/** Resolve an existing path while enforcing lexical and realpath containment. */
+function resolveContainedPath(
+  root: string,
+  relPath: string,
+  kind: 'file' | 'directory' | 'any',
+): string | null {
   const cleanRel = relPath.replace(/^\/+/, '');
-  const root = resolveWorkspaceReportDir();
+  const pathSegments = cleanRel.replace(/\\/g, '/').split('/');
+  if (pathSegments.some((segment) => segment === '.' || segment === '..')) return null;
   const candidate = path.resolve(root, cleanRel);
-  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) return null;
+  if (!isContainedPath(root, candidate)) return null;
   try {
-    return fs.existsSync(candidate) && fs.statSync(candidate).isFile() ? candidate : null;
+    if (!fs.existsSync(root) || !fs.existsSync(candidate)) return null;
+    const rootReal = fs.realpathSync(root);
+    const candidateReal = fs.realpathSync(candidate);
+    if (!isContainedPath(rootReal, candidateReal)) return null;
+    const stat = fs.statSync(candidateReal);
+    if (kind === 'file' && !stat.isFile()) return null;
+    if (kind === 'directory' && !stat.isDirectory()) return null;
+    return candidateReal;
   } catch {
     return null;
   }
 }
 
-function serveAttachmentsDirectory(res: http.ServerResponse, dirPath: string) {
+function resolveReportPath(
+  relPath: string,
+  kind: 'file' | 'directory' | 'any' = 'any',
+): string | null {
+  return resolveContainedPath(resolveWorkspaceReportDir(), relPath, kind);
+}
+
+function resolveReportFile(relPath: string): string | null {
+  return resolveReportPath(relPath, 'file');
+}
+
+/** Separate directory resolver: callers must opt into serving a folder. */
+function resolveReportDirectory(relPath: string): string | null {
+  return resolveReportPath(relPath, 'directory');
+}
+
+/** Archive resolver keeps archive routes scoped to the configured archive root. */
+function resolveArchivePath(
+  runId: string,
+  relPath: string,
+  kind: 'file' | 'directory' | 'any',
+): string | null {
+  if (!isValidRunId(runId)) return null;
+  return resolveContainedPath(getArchiveDir(), path.join(runId, relPath), kind);
+}
+
+function decodeRequestPath(rawPath: string): string | null {
+  try {
+    const decoded = decodeURIComponent(rawPath);
+    return decoded.includes('\0') ? null : decoded;
+  } catch {
+    return null;
+  }
+}
+
+function encodePathForUrl(relativePath: string): string {
+  return relativePath
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+function serveAttachmentsDirectory(
+  res: http.ServerResponse,
+  dirPath: string,
+  baseHref = '/attachments/',
+) {
   try {
     if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
       htmlResponse(
@@ -520,35 +614,56 @@ function serveAttachmentsDirectory(res: http.ServerResponse, dirPath: string) {
       );
       return;
     }
-    const entries = fs.readdirSync(dirPath, { recursive: true, withFileTypes: true });
-    const files = entries
-      .filter((e) => e.isFile())
-      .map((e) => {
-        // Build relative path inside attachments directory
-        const full = path.join((e as { parentPath?: string }).parentPath || dirPath, e.name);
-        return path.relative(dirPath, full).replace(/\\/g, '/');
-      });
 
-    const isArchive = dirPath.includes('archive');
-    const baseHref = isArchive
-      ? dirPath.match(/(run-[\d-]+)/)?.[1]
-        ? `/api/archive/${dirPath.match(/(run-[\d-]+)/)?.[1]}/attachments/`
-        : '/attachments/'
-      : '/attachments/';
+    // Walk explicitly instead of relying on Dirent.parentPath, which is not
+    // available on every supported Node version and loses nested paths.
+    const files: string[] = [];
+    const walk = (current: string) => {
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const full = path.join(current, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.isFile()) files.push(path.relative(dirPath, full).replace(/\\/g, '/'));
+      }
+    };
+    walk(dirPath);
+    files.sort();
 
-    const fileListHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Attachments</title><style>body{font-family:sans-serif;padding:24px;background:#0d1117;color:#c9d1d9;}a{color:#58a6ff;text-decoration:none;display:inline-block;padding:4px 0;}a:hover{text-decoration:underline;}ul{list-style:none;padding:0;}li{margin:8px 0;border-bottom:1px solid #30363d;padding-bottom:6px;}</style></head><body><h2>Attachments Directory</h2><p style="color:#8b949e">Showing ${files.length} file(s) in: ${escapeHtml(dirPath)}</p><ul>${files.length > 0 ? files.map((f) => `<li><a href="${baseHref}${f}" target="_blank">${f}</a></li>`).join('') : '<li>No files recorded</li>'}</ul></body></html>`;
+    const fileListHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Attachments</title><style>body{font-family:sans-serif;padding:24px;background:#0d1117;color:#c9d1d9;}a{color:#58a6ff;text-decoration:none;display:inline-block;padding:4px 0;}a:hover{text-decoration:underline;}ul{list-style:none;padding:0;}li{margin:8px 0;border-bottom:1px solid #30363d;padding-bottom:6px;}</style></head><body><h2>Attachments Directory</h2><p style="color:#8b949e">Showing ${files.length} file(s) in: ${escapeHtml(dirPath)}</p><ul>${files.length > 0 ? files.map((f) => `<li><a href="${baseHref}${encodePathForUrl(f)}" target="_blank" rel="noopener">${escapeHtml(f)}</a></li>`).join('') : '<li>No files recorded</li>'}</ul></body></html>`;
     htmlResponse(res, 200, fileListHtml);
   } catch (err) {
     htmlResponse(res, 500, buildErrorPage('Error', String(err)));
   }
 }
 
+function validationError(
+  res: http.ServerResponse,
+  field: string,
+  code: string,
+  message: string,
+): void {
+  jsonResponse(res, 400, { error: message, code, field });
+}
+
+function hasOwn(body: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(body, key);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 // ─── Request router ───────────────────────────────────────────────────────────
 
 export async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
   const parsed = url.parse(req.url ?? '/', true);
-  const pathname = parsed.pathname ?? '/';
+  const rawPathname = parsed.pathname ?? '/';
+  const pathname = decodeRequestPath(rawPathname);
   const method = req.method ?? 'GET';
+
+  if (pathname === null) {
+    jsonResponse(res, 400, { error: 'Invalid URL path' });
+    return;
+  }
 
   // CORS preflight — kept minimal; dashboard is same-origin so no wildcard.
   if (method === 'OPTIONS') {
@@ -623,12 +738,27 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     const parts = subPath.split('/');
     const runId = parts[0];
 
-    // If sub-path requests a static report file inside history (e.g. /history/run-xxx/html/index.html or /history/html/index.html)
+    // Validate archive scope before resolving any static sub-path.
     if (runId === 'html' || parts.length > 1) {
+      if (runId !== 'html' && !isValidRunId(runId)) {
+        jsonResponse(res, 400, { error: 'Invalid runId', code: 'INVALID_RUN_ID', field: 'runId' });
+        return;
+      }
       const targetRel =
         runId === 'html'
           ? `html/${parts.slice(1).join('/')}`
           : `archive/${runId}/${parts.slice(1).join('/')}`;
+      const resolvedDir = resolveReportDirectory(targetRel);
+      if (resolvedDir) {
+        serveAttachmentsDirectory(
+          res,
+          resolvedDir,
+          runId === 'html'
+            ? '/history/html/'
+            : `/history/${encodeURIComponent(runId)}/attachments/`,
+        );
+        return;
+      }
       const resolved = resolveReportFile(targetRel);
       if (resolved && serveStaticFile(res, resolved)) {
         return;
@@ -773,6 +903,9 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
             testId: (s['testId'] as string) ?? '',
             scenarioId: (s['scenarioId'] as string) ?? '',
             title: (s['title'] as string) ?? '',
+            fullTitle: (s['fullTitle'] as string) ?? (s['title'] as string) ?? '',
+            filePath: (s['filePath'] as string) ?? '',
+            retry: (s['retry'] as number) ?? 0,
             status: (s['status'] as string) ?? 'skipped',
             role: (s['role'] as string) ?? '',
             module: (s['module'] as string) ?? '',
@@ -787,6 +920,22 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
             affectedLayer: (s['affectedLayer'] as string[]) ?? [],
             attachmentCount: (s['attachmentCount'] as number) ?? 0,
             hasTrace: (s['hasTrace'] as boolean) ?? false,
+            errors: (s['errors'] as Array<{ message: string; stack?: string }>) ?? [],
+            steps:
+              (s['steps'] as Array<{
+                title: string;
+                status: string;
+                duration: number;
+                errorMessage?: string;
+                steps?: unknown[];
+              }>) ?? [],
+            attachments:
+              (s['attachments'] as Array<{
+                name: string;
+                contentType?: string;
+                relativePath: string;
+                kind: string;
+              }>) ?? [],
           })),
         });
       } else {
@@ -847,6 +996,27 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     return;
   }
 
+  // ── GET latest attachment folder aliases ──────────────────────────────────
+  if (
+    method === 'GET' &&
+    (pathname === '/latest/attachments' ||
+      pathname === '/latest/attachments/' ||
+      pathname === '/api/runs/latest/attachments' ||
+      pathname === '/api/runs/latest/attachments/')
+  ) {
+    const attachmentsDir = resolveReportDirectory('attachments');
+    if (attachmentsDir) {
+      serveAttachmentsDirectory(res, attachmentsDir, '/attachments/');
+    } else {
+      htmlResponse(
+        res,
+        404,
+        buildErrorPage('Attachments Not Found', 'No attachments folder found.'),
+      );
+    }
+    return;
+  }
+
   // ── GET /api/runs/latest ─────────────────────────────────────────────────
   if (pathname === '/api/runs/latest' && method === 'GET') {
     const summaryPath = getSummaryPath();
@@ -876,19 +1046,39 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     method === 'POST'
   ) {
     try {
-      const body = (await readBody(req)) as Record<string, string>;
-      const { decision, notes, label, series } = body;
+      const body = ((await readBody(req)) || {}) as Record<string, unknown>;
+      const decision = body['decision'];
+      const notes = body['notes'];
+      const label = body['label'];
+      const series = body['series'];
 
-      if (!decision) {
-        jsonResponse(res, 400, { error: 'decision is required' });
+      if (!isQaDecision(decision)) {
+        validationError(
+          res,
+          'decision',
+          'INVALID_QA_DECISION',
+          `decision must be one of: ${QA_DECISIONS.join(', ')}`,
+        );
+        return;
+      }
+      if (label !== undefined && (typeof label !== 'string' || label.trim() === '')) {
+        validationError(res, 'label', 'INVALID_LABEL', 'label must be a non-empty string');
+        return;
+      }
+      if (notes !== undefined && typeof notes !== 'string') {
+        validationError(res, 'notes', 'INVALID_FIELD', 'notes must be a string');
+        return;
+      }
+      if (series !== undefined && typeof series !== 'string') {
+        validationError(res, 'series', 'INVALID_FIELD', 'series must be a string');
         return;
       }
 
       const result = saveLatestRun({
-        qaDecision: decision as QaDecision,
-        qaNotes: notes ?? '',
-        displayName: label,
-        testSeriesId: series,
+        qaDecision: decision,
+        qaNotes: (notes as string | undefined) ?? '',
+        displayName: label as string | undefined,
+        testSeriesId: series as string | undefined,
         triggerSource: 'dashboard-button',
       });
 
@@ -912,51 +1102,54 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     pathname !== '/api/archive/save' &&
     pathname !== '/api/runs/latest'
   ) {
-    // If sub-path requests attachments folder inside archive (e.g. /api/archive/run-xxx/attachments/ or /api/archive/run-xxx/attachments)
-    if (pathname.startsWith('/api/archive/') && pathname.includes('/attachments')) {
-      const rest = pathname.replace('/api/archive/', '');
-      const parts = rest.split('/');
-      const rId = parts[0];
-      const sub = parts.slice(1).join('/');
-      if (sub === 'attachments' || sub === 'attachments/') {
-        const targetDir = resolveReportFile(`archive/${rId}/attachments`);
+    const archiveMatch = pathname.match(/^\/api\/(?:archive|runs)\/([^/]+)(?:\/(.*))?$/);
+    if (archiveMatch) {
+      const rId = archiveMatch[1];
+      const fileSub = archiveMatch[2] ?? '';
+      // Validate runId before resolving either files or directories.
+      if (!isValidRunId(rId)) {
+        jsonResponse(res, 400, {
+          error: 'Invalid runId',
+          code: 'INVALID_RUN_ID',
+          field: 'runId',
+        });
+        return;
+      }
+      if (fileSub === 'attachments' || fileSub === 'attachments/') {
+        const targetDir = resolveArchivePath(rId, 'attachments', 'directory');
         if (targetDir) {
-          serveAttachmentsDirectory(res, targetDir);
-          return;
-        }
-        // Folder is absent for this run (or runId is invalid) — give an honest
-        // 404 instead of falling through to the misleading "Invalid runId" 400.
-        if (isValidRunId(rId)) {
+          serveAttachmentsDirectory(
+            res,
+            targetDir,
+            `/api/archive/${encodeURIComponent(rId)}/attachments/`,
+          );
+        } else {
           htmlResponse(
             res,
             404,
             buildErrorPage(
               'Attachments Not Found',
-              `No attachments folder found for run "${rId}". The run had no attachments to snapshot.`,
+              `No attachments folder found for run "${escapeHtml(rId)}". The run had no attachments to snapshot.`,
             ),
           );
-          return;
         }
+        return;
       }
-    }
-
-    // If sub-path requests a static file inside archive (e.g. /api/archive/run-xxx/summary.json or /api/archive/run-xxx/attachments/xxx.png)
-    if (pathname.startsWith('/api/archive/') && pathname.includes('/', '/api/archive/'.length)) {
-      const rest = pathname.replace('/api/archive/', '');
-      const slashIdx = rest.indexOf('/');
-      if (slashIdx !== -1) {
-        const rId = rest.substring(0, slashIdx);
-        const fileSub = rest.substring(slashIdx + 1);
-        const resolved = resolveReportFile(`archive/${rId}/${fileSub}`);
-        if (resolved && serveStaticFile(res, resolved)) {
-          return;
-        }
+      if (fileSub) {
+        const resolved = resolveArchivePath(rId, fileSub, 'file');
+        if (resolved && serveStaticFile(res, resolved)) return;
+        jsonResponse(res, 404, { error: 'Archive file not found' });
+        return;
       }
     }
 
     const runId = pathname.replace(/^\/api\/(archive|runs)\//, '');
-    if (!runId || /[/\\.]/.test(runId) || runId.includes('..')) {
-      jsonResponse(res, 400, { error: 'Invalid runId' });
+    if (!runId || !isValidRunId(runId)) {
+      jsonResponse(res, 400, {
+        error: 'Invalid runId',
+        code: 'INVALID_RUN_ID',
+        field: 'runId',
+      });
       return;
     }
     try {
@@ -998,8 +1191,8 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     method === 'DELETE'
   ) {
     const runId = pathname.replace(/^\/api\/(archive|runs)\//, '');
-    if (!runId || /[/\\.]/.test(runId) || runId.includes('..')) {
-      jsonResponse(res, 400, { error: 'Invalid runId' });
+    if (!runId || !isValidRunId(runId)) {
+      jsonResponse(res, 400, { error: 'Invalid runId', code: 'INVALID_RUN_ID', field: 'runId' });
       return;
     }
     try {
@@ -1028,12 +1221,52 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
   ) {
     let runId = pathname.replace(/^\/api\/(archive|runs)\//, '');
     if (runId.endsWith('/edit')) runId = runId.replace(/\/edit$/, '');
-    if (!runId || /[/\\.]/.test(runId) || runId.includes('..')) {
-      jsonResponse(res, 400, { error: 'Invalid runId' });
+    if (!runId || !isValidRunId(runId)) {
+      jsonResponse(res, 400, { error: 'Invalid runId', code: 'INVALID_RUN_ID', field: 'runId' });
       return;
     }
     try {
-      const parsedBody = ((await readBody(req)) as Record<string, unknown>) || {};
+      const rawBody = await readBody(req);
+      if (!isRecord(rawBody)) {
+        validationError(res, 'body', 'INVALID_BODY', 'request body must be a JSON object');
+        return;
+      }
+      const parsedBody = rawBody;
+      const decisionValue = parsedBody['qaDecision'] ?? parsedBody['decision'];
+      const labelValue = parsedBody['displayName'] ?? parsedBody['label'];
+      if (hasOwn(parsedBody, 'qaDecision') || hasOwn(parsedBody, 'decision')) {
+        if (!isQaDecision(decisionValue)) {
+          validationError(
+            res,
+            'qaDecision',
+            'INVALID_QA_DECISION',
+            `qaDecision must be one of: ${QA_DECISIONS.join(', ')}`,
+          );
+          return;
+        }
+      }
+      if (hasOwn(parsedBody, 'displayName') || hasOwn(parsedBody, 'label')) {
+        if (typeof labelValue !== 'string' || labelValue.trim() === '') {
+          validationError(
+            res,
+            'displayName',
+            'INVALID_LABEL',
+            'displayName must be a non-empty string',
+          );
+          return;
+        }
+      }
+      for (const [key, value] of [
+        ['qaNotes', parsedBody['qaNotes'] ?? parsedBody['notes']],
+        ['testSeriesId', parsedBody['testSeriesId'] ?? parsedBody['series']],
+        ['requirementId', parsedBody['requirementId']],
+        ['requirementTitle', parsedBody['requirementTitle']],
+      ] as const) {
+        if (value !== undefined && typeof value !== 'string') {
+          validationError(res, key, 'INVALID_FIELD', `${key} must be a string`);
+          return;
+        }
+      }
       const updated = updateArchivedMetadata(runId, {
         displayName: (parsedBody['displayName'] ?? parsedBody['label']) as string | undefined,
         qaDecision: (parsedBody['qaDecision'] ?? parsedBody['decision']) as
@@ -1100,15 +1333,19 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
 
     // List directory for attachments folder link
     if (cleanPath === 'attachments' || cleanPath === 'attachments/') {
-      const attachmentsDir = resolveReportFile('attachments');
-      if (
-        attachmentsDir &&
-        fs.existsSync(attachmentsDir) &&
-        fs.statSync(attachmentsDir).isDirectory()
-      ) {
-        serveAttachmentsDirectory(res, attachmentsDir);
+      const attachmentsDir = resolveReportDirectory('attachments');
+      if (attachmentsDir) {
+        serveAttachmentsDirectory(res, attachmentsDir, '/attachments/');
         return;
       }
+      // A valid but empty/missing attachments directory is still a meaningful
+      // route; report a normal 404 rather than falling through as an arbitrary file.
+      htmlResponse(
+        res,
+        404,
+        buildErrorPage('Attachments Not Found', 'No attachments folder found.'),
+      );
+      return;
     }
 
     // Direct files: html/index.html, test-summary.json, pipeline-report.json, custom-dashboard.html, attachments/*, etc.

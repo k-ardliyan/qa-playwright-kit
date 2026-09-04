@@ -1,7 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedTestData, TestSummary } from '../../types';
 import { AccordionToolbar } from '../../components/detail/AccordionToolbar';
-import { jsonForScript } from '../../shared';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AccordionView } from '../../components/detail/AccordionView';
 import { TableToolbar } from '../../components/table/TableToolbar';
@@ -57,17 +56,6 @@ export function ReportDetailPage({
   const tests = Array.isArray(collectedTests) ? collectedTests : [];
   const unhealthyCount = tests.filter((t) => UNHEALTHY_STATUSES.has(t.status)).length;
   const { title, copy } = MODE_COPY[mode];
-
-  const testDataMapJson = jsonForScript(
-    tests.reduce(
-      (acc, t, idx) => {
-        const key = t.testId || `test-${idx}`;
-        acc[key] = t;
-        return acc;
-      },
-      {} as Record<string, CollectedTestData>,
-    ),
-  );
 
   const defaultBreadcrumbs = breadcrumb || [
     { label: 'Dashboard', href: '/dashboard' },
@@ -127,12 +115,7 @@ export function ReportDetailPage({
       />
       <ConfirmDeleteModal />
 
-      <script>
-        {`
-      window.__TEST_DATA_MAP__ = ${testDataMapJson};
-      window.__SERVE_MODE__ = ${serveMode};
-        `}
-      </script>
+      <script>{`window.__SERVE_MODE__ = ${serveMode};`}</script>
 
       <div id="primary-view">
         <Hero mode={mode} summary={summary} collectedTests={tests} />
@@ -172,7 +155,7 @@ export function ReportDetailPage({
                 role="tabpanel"
                 aria-labelledby="tab-table"
               >
-                <TableView summary={summary} collectedTests={tests} />
+                <TableView summary={summary} collectedTests={tests} runId={runId} />
               </div>
             </section>
           </section>

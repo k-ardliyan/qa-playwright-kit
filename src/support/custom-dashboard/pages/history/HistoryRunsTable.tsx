@@ -71,34 +71,34 @@ export function HistoryRunsTable({
 
   return (
     <DataTableContainer>
-      <DataTable variant="history" id="history-table">
+      <DataTable variant="history" id="history-table" caption="Archived test runs and QA decisions">
         <DataTableHead>
           <tr>
-            <DataTableCell isHeader class="col-status">
+            <DataTableCell isHeader scope="col" class="col-status">
               Status
             </DataTableCell>
-            <DataTableCell isHeader class="col-testing">
+            <DataTableCell isHeader scope="col" class="col-testing">
               Test Run / Target
             </DataTableCell>
-            <DataTableCell isHeader class="col-env">
+            <DataTableCell isHeader scope="col" class="col-env">
               Env
             </DataTableCell>
-            <DataTableCell isHeader class="col-rate">
+            <DataTableCell isHeader scope="col" class="col-rate">
               Pass Rate
             </DataTableCell>
-            <DataTableCell isHeader class="col-tests">
+            <DataTableCell isHeader scope="col" class="col-tests">
               Tests
             </DataTableCell>
-            <DataTableCell isHeader class="col-decision">
+            <DataTableCell isHeader scope="col" class="col-decision">
               QA Decision
             </DataTableCell>
-            <DataTableCell isHeader class="col-date">
+            <DataTableCell isHeader scope="col" class="col-date">
               Saved Date
             </DataTableCell>
-            <DataTableCell isHeader class="col-notes">
+            <DataTableCell isHeader scope="col" class="col-notes">
               Notes
             </DataTableCell>
-            <DataTableCell isHeader class="col-actions">
+            <DataTableCell isHeader scope="col" class="col-actions">
               Actions
             </DataTableCell>
           </tr>
@@ -129,8 +129,8 @@ export function HistoryRunsTable({
               ? `window.location.href='/history/'+encodeURIComponent(${runIdFromRow})`
               : `showArchiveDetail(${runIdFromRow})`;
             const compareAction = serveMode
-              ? `window.location.href='/compare?baseline='+encodeURIComponent(${runIdFromRow})`
-              : `alert('Compare requires the dashboard server. Run: npm run dashboard')`;
+              ? `window.location.href='/compare?current='+encodeURIComponent(${runIdFromRow})`
+              : `window.__dashboardAnnounce && window.__dashboardAnnounce('Compare requires the dashboard server. Run npm run dashboard.')`;
             const editAction = `event.stopPropagation();openEditModal(${runIdFromRow})`;
             const deleteAction = `event.stopPropagation();deleteArchive(${runIdFromRow})`;
 
@@ -144,18 +144,37 @@ export function HistoryRunsTable({
                 data-decision={entry.qaDecision || ''}
                 data-notes={entry.qaNotes || ''}
                 onclick={viewAction}
+                role="button"
+                tabindex={0}
+                aria-label={`Open details for ${displayLabel}`}
+                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"
               >
-                <DataTableCell class="history-status">
+                <DataTableCell class="history-status" scope="row">
                   {entry.status === 'success' ? (
-                    <span class="status-indicator status-indicator--passed" title="All Passed">
+                    <span
+                      class="status-indicator status-indicator--passed"
+                      title="All Passed"
+                      role="img"
+                      aria-label="All tests passed"
+                    >
                       <IconCheck size={12} />
                     </span>
                   ) : entry.status === 'partial' ? (
-                    <span class="status-indicator status-indicator--warning" title="Partial Pass">
+                    <span
+                      class="status-indicator status-indicator--warning"
+                      title="Partial Pass"
+                      role="img"
+                      aria-label="Partial pass"
+                    >
                       <IconAlert size={12} />
                     </span>
                   ) : (
-                    <span class="status-indicator status-indicator--failed" title="Failed">
+                    <span
+                      class="status-indicator status-indicator--failed"
+                      title="Failed"
+                      role="img"
+                      aria-label="Failed"
+                    >
                       <IconCross size={12} />
                     </span>
                   )}

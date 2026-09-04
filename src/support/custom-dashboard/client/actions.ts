@@ -4,6 +4,85 @@
 export function buildActionsJs(): string {
   return `
   (function () {
+    var modalState = { modal: null, trigger: null };
+    function modalFocusable(modal) {
+      return Array.prototype.slice.call(modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter(function (el) { return !el.disabled && el.getAttribute('aria-hidden') !== 'true' && el.offsetParent !== null; });
+    }
+    window.__qaModalOpened = function (modal, initial) {
+      if (!modal) return;
+      modalState.modal = modal;
+      modal.setAttribute('aria-hidden', 'false');
+      modalState.trigger = document.activeElement && typeof document.activeElement.focus === 'function' ? document.activeElement : null;
+      setTimeout(function () {
+        var target = initial && typeof initial.focus === 'function' ? initial : modalFocusable(modal)[0];
+        if (target && typeof target.focus === 'function') target.focus();
+      }, 0);
+    };
+    window.__qaModalClosed = function (modal) {
+      if (modalState.modal !== modal) return;
+      var trigger = modalState.trigger;
+      modal.setAttribute('aria-hidden', 'true');
+      modalState.modal = null;
+      modalState.trigger = null;
+      if (trigger && document.contains(trigger) && typeof trigger.focus === 'function') trigger.focus();
+    };
+    window.__qaCloseActiveModal = function () {
+      var modal = modalState.modal || document.querySelector('.modal-overlay:not([hidden])');
+      if (!modal) return;
+      if (!modalState.modal) {
+        modalState.modal = modal;
+        modalState.trigger = document.activeElement;
+      }
+      var close = modal.id === 'save-modal' || modal.id === 'save-run-modal'
+        ? window.closeSaveModal
+        : modal.id === 'edit-run-modal'
+          ? window.closeEditModal
+          : window.closeConfirmDelete || window.closeDeleteModal;
+      if (typeof close === 'function') close();
+    };
+    window.__dashboardAnnounce = function (message) {
+      var live = document.getElementById('dashboard-live-region');
+      if (!live) {
+        live = document.createElement('div');
+        live.id = 'dashboard-live-region';
+        live.className = 'sr-only';
+        live.setAttribute('role', 'status');
+        live.setAttribute('aria-live', 'polite');
+        document.body.appendChild(live);
+      }
+      live.textContent = '';
+      setTimeout(function () { live.textContent = String(message || ''); }, 20);
+    };
+    document.addEventListener('keydown', function (e) {
+      var modal = modalState.modal;
+      if (!modal || modal.hidden) {
+        var fallback = document.querySelector('.modal-overlay:not([hidden])');
+        if (fallback && (e.key === 'Escape' || e.key === 'Esc')) {
+          e.preventDefault();
+          window.__qaCloseActiveModal();
+        }
+        return;
+      }
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        e.preventDefault();
+        window.__qaCloseActiveModal();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      var items = modalFocusable(modal);
+      if (!items.length) { e.preventDefault(); return; }
+      var first = items[0];
+      var last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+
     var activeTab = document.querySelector('.toggle-btn.toggle-btn--active');
     var activeView = activeTab ? activeTab.getAttribute('data-view') : 'table';
     document.querySelectorAll('[data-toolbar-for]').forEach(function (tb) {
@@ -100,13 +179,5 @@ export function buildActionsJs(): string {
     }
   });
 
-  // Global Escape Key Listener for modal dismissal
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      if (typeof window.closeSaveModal === 'function') window.closeSaveModal();
-      if (typeof window.closeEditModal === 'function') window.closeEditModal();
-      if (typeof window.closeDeleteModal === 'function') window.closeDeleteModal();
-    }
-  });
   `;
 }

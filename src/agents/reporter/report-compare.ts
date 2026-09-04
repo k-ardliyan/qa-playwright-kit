@@ -15,10 +15,13 @@ export type ScenarioDiff = DomainScenarioDiff;
 export type ReportComparison = DomainReportComparison;
 export type { ComparisonCompatibility, ComparisonRunIdentity, CompatibilityLevel };
 
+export type ComparisonStatus =
+  'passed' | 'failed' | 'timedOut' | 'interrupted' | 'healed' | 'skipped' | 'not-generated';
+
 export interface ComparisonScenarioItem {
   scenarioId: string;
   name: string;
-  status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-generated';
+  status: ComparisonStatus;
   role?: string;
   module?: string;
   feature?: string;
@@ -49,16 +52,21 @@ function loadComparisonReportData(runId: string): ComparisonReportData | null {
   return {
     runId,
     timestamp: metadata?.ranAt ?? (summary.timestamp as string) ?? '',
-    requirementPath: metadata?.requirementPath ?? (summary.requirementPath as string) ?? '',
-    appEnv: metadata?.appEnv ?? 'local',
+    requirementPath: metadata?.requirementPath || (summary.requirementPath as string) || '',
+    appEnv:
+      metadata?.appEnv ||
+      ((summary.runMeta as Record<string, unknown> | undefined)?.appEnv as string) ||
+      'local',
     passRate: (summary.passRate as number) ?? 0,
     totalTests: (summary.total as number) ?? tc.length,
     scenarios: tc.map((t) => ({
-      scenarioId: (t.testId as string) || (t.scenarioId as string) || '',
+      // scenarioId is the traceability identity. testId is only a legacy fallback.
+      scenarioId: (t.scenarioId as string) || (t.testId as string) || '',
       name: (t.title as string) || '',
-      status: (['passed', 'failed', 'skipped'].includes(t.status as string)
+      // Keep runtime statuses intact; an absent status means the scenario was not generated.
+      status: (typeof t.status === 'string' && t.status
         ? t.status
-        : 'skipped') as ComparisonScenarioItem['status'],
+        : 'not-generated') as ComparisonScenarioItem['status'],
       role: t.role as string | undefined,
       module: t.module as string | undefined,
       feature: t.feature as string | undefined,
@@ -301,14 +309,12 @@ export function compareLatestVsPrevious(
     return { error: 'Need at least 2 archived reports to compare' };
   }
 
-  const latest = loadComparisonReportData(entries[0].runId);
-  const previous = loadComparisonReportData(entries[1].runId);
+  const latest = entries[0];
+  const previous = entries[1];
 
-  if (!latest || !previous) {
-    return { error: 'Failed to load comparison reports' };
-  }
-
-  return buildComparison(previous, latest);
+  // Reuse compareReports so this convenience API has the same identities,
+  // compatibility metadata, and chronological ordering as the explicit API.
+  return compareReports(previous.runId, latest.runId);
 }
 
 // ─── Internal ────────────────────────────────────────────────────────────────
@@ -438,64 +444,11 @@ function buildComparison(
       continue;
     }
 
-    const prev = baseScenario.status;
-    const curr = compScenario.status;
-
-    if (prev === 'passed' && curr === 'failed') {
-      regressions.push({
-        scenarioId: compScenario.scenarioId,
-        name: compScenario.name,
-        previousStatus: prev,
-        currentStatus: curr,
-        change: 'regression',
-        previousError: baseScenario.errorMessage,
-        currentError: compScenario.errorMessage,
-        role: compScenario.role,
-        module: compScenario.module,
-        feature: compScenario.feature,
-      });
-    } else if (prev === 'failed' && curr === 'passed') {
-      fixes.push({
-        scenarioId: compScenario.scenarioId,
-        name: compScenario.name,
-        previousStatus: prev,
-        currentStatus: curr,
-        change: 'fix',
-        previousError: baseScenario.errorMessage,
-        role: compScenario.role,
-        module: compScenario.module,
-        feature: compScenario.feature,
-      });
-    } else if (prev === 'failed' && curr === 'failed') {
-      const sameError = baseScenario.errorMessage === compScenario.errorMessage;
-      if (sameError) {
-        stableFailures.push({
-          scenarioId: compScenario.scenarioId,
-          name: compScenario.name,
-          previousStatus: prev,
-          currentStatus: curr,
-          change: 'stable',
-          previousError: baseScenario.errorMessage,
-          currentError: compScenario.errorMessage,
-          role: compScenario.role,
-          module: compScenario.module,
-          feature: compScenario.feature,
-        });
-      } else {
-        flakyScenarios.push({
-          scenarioId: compScenario.scenarioId,
-          name: compScenario.name,
-          previousStatus: prev,
-          currentStatus: curr,
-          change: 'flaky',
-          previousError: baseScenario.errorMessage,
-          currentError: compScenario.errorMessage,
-          role: compScenario.role,
-          module: compScenario.module,
-          feature: compScenario.feature,
-        });
-      }
-    }
+    const diff = classifyChange(baseScenario, compScenario);
+    if (diff.change === 'regression') regressions.push(diff);
+    else if (diff.change === 'fix') fixes.push(diff);
+    else if (diff.change === 'stable') stableFailures.push(diff);
+    else if (diff.change === 'flaky') flakyScenarios.push(diff);
   }
 
   for (const [key, baseScenario] of baselineMap) {

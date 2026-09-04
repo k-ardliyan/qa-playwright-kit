@@ -168,4 +168,66 @@ test.describe('dashboard server routes', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  test('rejects unknown, lowercase, and empty QA decisions with structured 4xx', async () => {
+    await withServer(async (base) => {
+      for (const decision of ['', 'approve', 'UNKNOWN']) {
+        const res = await requestRaw(
+          base,
+          '/api/archive/save',
+          'POST',
+          JSON.stringify({ decision }),
+        );
+        expect(res.status).toBe(400);
+        const parsed = JSON.parse(res.body);
+        expect(parsed.code).toBe('INVALID_QA_DECISION');
+        expect(parsed.field).toBe('decision');
+      }
+    });
+  });
+
+  test('rejects an empty save label with structured 4xx', async () => {
+    await withServer(async (base) => {
+      const res = await requestRaw(
+        base,
+        '/api/archive/save',
+        'POST',
+        JSON.stringify({ decision: 'APPROVE', label: '   ' }),
+      );
+      expect(res.status).toBe(400);
+      const parsed = JSON.parse(res.body);
+      expect(parsed.code).toBe('INVALID_LABEL');
+      expect(parsed.field).toBe('label');
+    });
+  });
+
+  test('rejects encoded traversal before resolving an archive subpath', async () => {
+    await withServer(async (base) => {
+      const res = await requestRaw(base, '/api/archive/run-1/%2e%2e/%2e%2e/etc/passwd');
+      expect(res.status).toBe(404);
+      expect(JSON.parse(res.body).error).toBe('Archive file not found');
+    });
+  });
+
+  test('rejects invalid decisions and labels on archive edits', async () => {
+    await withServer(async (base) => {
+      const invalidDecision = await requestRaw(
+        base,
+        '/api/archive/run-20260820-120000-001',
+        'PATCH',
+        JSON.stringify({ qaDecision: 'INVALID' }),
+      );
+      expect(invalidDecision.status).toBe(400);
+      expect(JSON.parse(invalidDecision.body).code).toBe('INVALID_QA_DECISION');
+
+      const emptyLabel = await requestRaw(
+        base,
+        '/api/archive/run-20260820-120000-001',
+        'PATCH',
+        JSON.stringify({ displayName: ' ' }),
+      );
+      expect(emptyLabel.status).toBe(400);
+      expect(JSON.parse(emptyLabel.body).code).toBe('INVALID_LABEL');
+    });
+  });
 });

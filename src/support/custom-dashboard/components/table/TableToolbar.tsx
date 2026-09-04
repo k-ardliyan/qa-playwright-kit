@@ -13,7 +13,8 @@ export function TableColumnPicker() {
         type="button"
         class="column-picker__btn"
         id="column-picker-btn"
-        aria-haspopup="true"
+        aria-haspopup="menu"
+        aria-controls="column-picker-menu"
         aria-expanded="false"
       >
         <svg
@@ -133,10 +134,33 @@ export function TableToolbar({ collectedTests = [] }: TableToolbarProps = {}) {
     .map((t) => (t.priority || '').trim().toLowerCase())
     .filter((p) => p && p !== '-');
   const distinctPriorities = Array.from(new Set(rawPriorities));
+  const distinctRoles = Array.from(
+    new Set(tests.map((t) => (t.role || '').trim() || 'GENERAL / UNSCOPED')),
+  ).sort();
+  const distinctScopes = Array.from(
+    new Set(
+      tests.map((t) => {
+        const path = (t.filePath || '').toLowerCase().replace(/\\/g, '/');
+        if (/(^|\/)demo(\/|$)/.test(path)) return 'DEMO';
+        if (/(^|\/)(fixture|fixtures|test-fixture)(\/|$)/.test(path)) return 'FIXTURE';
+        return 'GENERAL';
+      }),
+    ),
+  ).sort();
+  const hasEvidence = tests.some(
+    (t) =>
+      ['failed', 'timedOut', 'interrupted'].includes(t.status) &&
+      (t.attachments || []).some(
+        (a) => Boolean(a.relativePath) && ['trace', 'screenshot', 'video'].includes(a.kind),
+      ),
+  );
 
   const showModuleFilter = distinctModules.length > 1;
   const showFeatureFilter = distinctFeatures.length > 1;
   const showPriorityFilter = distinctPriorities.length > 1;
+  const showRoleFilter = distinctRoles.length > 1;
+  const showScopeFilter = distinctScopes.length > 1;
+  const showEvidenceFilter = hasEvidence;
 
   return (
     <div
@@ -184,6 +208,37 @@ export function TableToolbar({ collectedTests = [] }: TableToolbarProps = {}) {
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
+          </select>
+        ) : null}
+
+        {showRoleFilter ? (
+          <select id="filter-role" class="cmd-select" aria-label="Filter by role">
+            <option value="">All roles</option>
+            {distinctRoles.map((role) => (
+              <option value={role} safe>
+                {role}
+              </option>
+            ))}
+          </select>
+        ) : null}
+
+        {showEvidenceFilter ? (
+          <label class="cmd-check" for="filter-evidence">
+            <input
+              id="filter-evidence"
+              type="checkbox"
+              aria-label="Filter to unhealthy tests with evidence"
+            />
+            <span>Has evidence (unhealthy only)</span>
+          </label>
+        ) : null}
+
+        {showScopeFilter ? (
+          <select id="filter-scope" class="cmd-select" aria-label="Filter by data scope">
+            <option value="">All data scopes</option>
+            {distinctScopes.map((scope) => (
+              <option value={scope}>{scope}</option>
+            ))}
           </select>
         ) : null}
 

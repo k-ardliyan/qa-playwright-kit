@@ -83,11 +83,11 @@ export function buildHistorySection(
       const runIdFromRow = "this.closest('[data-run-id]').getAttribute('data-run-id')";
       const viewAction = `showArchiveDetail(${runIdFromRow})`;
       const compareAction = isStatic
-        ? `alert('Compare requires the dashboard server. Run npm run dashboard.')`
+        ? `window.__dashboardAnnounce && window.__dashboardAnnounce('Compare requires the dashboard server. Run npm run dashboard.')`
         : `window.location.hash='#/compare?current='+encodeURIComponent(${runIdFromRow})`;
       return `
-        <tr class="history-row" data-run-id="${escapeHtml(entry.runId)}" onclick="${viewAction}">
-          <td class="history-status"><span class="status-indicator ${statusClass}" title="${statusLabel}"></span></td>
+        <tr class="history-row" data-run-id="${escapeHtml(entry.runId)}" onclick="${viewAction}" role="button" tabindex="0" role="button" aria-label="Open details for ${escapeHtml(entry.displayName || entry.runId)}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+          <td class="history-status"><span class="status-indicator ${statusClass}" title="${statusLabel}" aria-label="${statusLabel}"></span></td>
           <td class="history-run-id" title="${escapeHtml(entry.runId)}">${escapeHtml(entry.runId)}${options?.latestRunId && entry.runId === options.latestRunId ? ' <span class="latest-badge">LATEST</span>' : ''}</td>
           <td class="history-date" title="${escapeHtml(entry.savedAt)}">${savedAtShort}</td>
           <td class="history-env">${escapeHtml(entry.appEnv)}</td>
@@ -112,17 +112,18 @@ export function buildHistorySection(
       </div>
       ${entries.length >= 2 ? `<div class="history-trend" id="history-trend">${buildTrendSparkline(entries)}</div>` : ''}
       <table class="history-table data-table">
+        <caption class="sr-only">Archived test runs and QA actions</caption>
         <thead>
           <tr>
-            <th></th>
-            <th>Run ID</th>
-            <th>Saved</th>
-            <th>Env</th>
-            <th>Pass Rate</th>
-            <th>Tests</th>
-            <th>Decision</th>
-            <th>Notes</th>
-            <th>Actions</th>
+            <th scope="col"></th>
+            <th scope="col">Run ID</th>
+            <th scope="col">Saved</th>
+            <th scope="col">Env</th>
+            <th scope="col">Pass Rate</th>
+            <th scope="col">Tests</th>
+            <th scope="col">Decision</th>
+            <th scope="col">Notes</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -137,8 +138,8 @@ export function buildHistorySection(
 
 function buildSaveModal(): string {
   return `
-    <div class="modal-overlay" id="save-modal" hidden style="display:none" onclick="if(event.target===this){ closeSaveModal && closeSaveModal(); }">
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-save-title">
+    <div class="modal-overlay" id="save-modal" hidden aria-hidden="true" onclick="if(event.target===this){ closeSaveModal && closeSaveModal(); }">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-save-title" aria-describedby="modal-save-description">
         <div class="modal-head">
           <div class="modal-title-wrap">
             <span class="modal-icon-badge" aria-hidden="true"></span>
@@ -147,6 +148,7 @@ function buildSaveModal(): string {
           <button type="button" class="btn-close" onclick="closeSaveModal && closeSaveModal()" aria-label="Close">✕</button>
         </div>
         <div class="modal-body">
+          <p id="modal-save-description" class="sr-only">Save the current test run with a QA decision and optional notes.</p>
           <div class="form-group">
             <label for="save-decision" class="form-label">QA Exit Decision <span class="required">*</span></label>
             <select id="save-decision" class="cmd-select form-select" required>
@@ -164,7 +166,7 @@ function buildSaveModal(): string {
             <textarea id="save-notes" class="cmd-input form-textarea" rows="3" placeholder="Optional notes about this run..."></textarea>
           </div>
           <div class="save-preview" id="save-preview"></div>
-          <div id="save-feedback" class="save-feedback"></div>
+          <div id="save-feedback" class="save-feedback" role="status" aria-live="polite"></div>
         </div>
         <div class="modal-foot">
           <button type="button" class="btn-secondary" onclick="closeSaveModal && closeSaveModal()">Cancel</button>
@@ -178,8 +180,8 @@ function buildSaveModal(): string {
 
 function buildConfirmDeleteModal(): string {
   return `
-    <div class="modal-overlay" id="confirm-delete-modal" hidden style="display:none" onclick="if(event.target===this){ closeConfirmDelete && closeConfirmDelete(); }">
-      <div class="modal-card modal-card--danger" role="dialog" aria-modal="true" aria-labelledby="modal-delete-title">
+    <div class="modal-overlay" id="confirm-delete-modal" hidden aria-hidden="true" onclick="if(event.target===this){ closeConfirmDelete && closeConfirmDelete(); }">
+      <div class="modal-card modal-card--danger" role="dialog" aria-modal="true" aria-labelledby="modal-delete-title" aria-describedby="modal-delete-description">
         <div class="modal-head">
           <div class="modal-title-wrap">
             <span class="modal-icon-badge modal-icon-badge--danger" aria-hidden="true"></span>
@@ -188,7 +190,7 @@ function buildConfirmDeleteModal(): string {
           <button type="button" class="btn-close" onclick="closeConfirmDelete && closeConfirmDelete()" aria-label="Close">✕</button>
         </div>
         <div class="modal-body">
-          <p>Are you sure you want to permanently delete this archived run?</p>
+          <p id="modal-delete-description">Are you sure you want to permanently delete this archived run?</p>
           <p class="modal-delete-target text-danger" id="confirm-delete-target"></p>
           <p class="modal-delete-warning muted">
             This action removes the saved summary and metadata. This cannot be undone.
@@ -196,7 +198,7 @@ function buildConfirmDeleteModal(): string {
         </div>
         <div class="modal-foot">
           <button type="button" class="btn-secondary" onclick="closeConfirmDelete && closeConfirmDelete()">Cancel</button>
-          <button type="button" class="btn-danger" id="btn-confirm-delete-execute" onclick="confirmDeleteExecute && confirmDeleteExecute()">Delete permanently</button>
+          <button type="button" class="btn-danger" id="btn-confirm-delete-execute" aria-describedby="modal-delete-description" onclick="confirmDeleteExecute && confirmDeleteExecute()">Delete permanently</button>
         </div>
       </div>
     </div>`;
@@ -298,16 +300,17 @@ export function buildComparisonSection(comparison: ReportComparison): string {
         </div>
       </div>
       <table class="comparison-table data-table">
+        <caption class="sr-only">Differences between compared test runs</caption>
         <thead>
           <tr>
-            <th></th>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Role</th>
-            <th>Module</th>
-            <th>Before</th>
-            <th>After</th>
-            <th>Error</th>
+            <th scope="col"></th>
+            <th scope="col">ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">Role</th>
+            <th scope="col">Module</th>
+            <th scope="col">Before</th>
+            <th scope="col">After</th>
+            <th scope="col">Error</th>
           </tr>
         </thead>
         <tbody>
@@ -328,22 +331,6 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '<script>',
     'window.__SERVE_MODE__ = ' + flag + ';',
     '',
-    '// Clipboard helper',
-    'function copyToClipboard(t,el){',
-    '  navigator.clipboard.writeText(t).then(function(){',
-    '    if(el){el.textContent="\u2705 Copied!";setTimeout(function(){el.textContent="";},2000);}',
-    '  }).catch(function(){',
-    '    var ta=document.createElement("textarea");',
-    '    ta.value=t;ta.style.position="fixed";ta.style.opacity="0";',
-    '    document.body.appendChild(ta);ta.select();',
-    '    try{',
-    '      document.execCommand("copy");',
-    '      if(el){el.textContent="\u2705 Copied!";setTimeout(function(){el.textContent="";},2000);}',
-    '    }catch(e){if(el)el.textContent="\u26a0\ufe0f Copy failed";}',
-    '    document.body.removeChild(ta);',
-    '  });',
-    '}',
-    '',
     '// Heartbeat + SSE (serve mode only)',
     'if(window.__SERVE_MODE__){',
     '  // Anti-stack: never fire a new heartbeat while one is still in flight.',
@@ -360,6 +347,7 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '    sse=new EventSource("/events");',
     '    sse.addEventListener("archive-saved",function(){ refreshCurrentView(); });',
     '    sse.addEventListener("archive-deleted",function(){ refreshCurrentView(); });',
+    '    sse.addEventListener("archive-updated",function(){ refreshCurrentView(); });',
     '    sse.onerror=function(){',
     '      try{sse.close();}catch(e){}',
     '      sse=null;',
@@ -370,8 +358,15 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '}',
     '',
     '// Selective view refresh — no full page reload',
+    'var refreshTimer=null;',
     'function refreshCurrentView(){',
-    '  if(typeof window.__loadFragment__!=="function"||typeof window.__showFragment__!=="function"){return;}',
+    '  if(refreshTimer){return;}',
+    '  refreshTimer=setTimeout(function(){',
+    '    refreshTimer=null;',
+    '    if(typeof window.__loadFragment__!=="function"||typeof window.__showFragment__!=="function"){',
+    '      if(location.pathname==="/"||location.pathname==="/dashboard"||location.pathname==="/history"||location.pathname==="/latest"||location.pathname==="/compare"||location.pathname.indexOf("/history/")===0){location.reload();}',
+    '      return;',
+    '    }',
     '  var h=location.hash||"#/";',
     '  if(h.charAt(1)!=="/")h="#/"+h.slice(1);',
     '  h=h.slice(1);',
@@ -385,74 +380,16 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '    var id=h.slice("/detail/".length).split(/[?#]/)[0];',
     '    window.__loadFragment__("/fragment/detail/"+encodeURIComponent(id)).then(window.__showFragment__).catch(function(){});',
     '  }',
+    '    },100);',
     '}',
     '',
-    '// Save modal',
-    'function openSaveModal(){',
-    '  var m=document.getElementById("save-modal")||document.getElementById("save-run-modal");if(m){m.hidden=false;m.removeAttribute("hidden");m.style.display="flex";document.body.style.overflow="hidden";}',
-    '  var p=document.getElementById("save-preview");',
-    '  if(p)p.innerHTML=window.__SERVE_MODE__',
-    '    ?`<span class="muted">Fill in details and click Save.</span>`',
-    '    :`<code>npm run archive:save</code>`;',
-    '  var fb=document.getElementById("save-feedback");if(fb)fb.textContent="";',
-    '}',
-    'function closeSaveModal(){',
-    '  var m=document.getElementById("save-modal")||document.getElementById("save-run-modal");',
-    '  if(m){m.hidden=true;m.setAttribute("hidden","");m.style.display="none";document.body.style.overflow="";}',
-    '  var btn=document.getElementById("btn-save-confirm");',
-    '  if(btn){btn.textContent="Save to History";btn.disabled=false;}',
-    '  var fb=document.getElementById("save-feedback");if(fb)fb.textContent="";',
-    '}',
     'function dismissSaveBanner(){["save-banner","save-banner-history"].forEach(function(id){var b=document.getElementById(id);if(b)b.style.display="none";});}',
     '',
-    'function confirmSave(){',
-    '  var le=document.getElementById("save-label");',
-    '  var se=document.getElementById("save-series");',
-    '  var de=document.getElementById("save-decision");',
-    '  var ne=document.getElementById("save-notes");',
-    '  var fe=document.getElementById("save-feedback");',
-    '  var label=le?le.value.trim():"";',
-    '  var series=se?se.value.trim():"";',
-    '  var decision=de?de.value:"";',
-    '  var notes=ne?ne.value.trim():"";',
-    '  if(!decision){alert("Please select a QA Decision");return;}',
-    '  if(window.__SERVE_MODE__){',
-    '    var btn=document.getElementById("btn-save-confirm");',
-    '    if(btn){btn.textContent="Saving\u2026";btn.disabled=true;}',
-    '    fetch("/api/archive/save",{method:"POST",headers:{"Content-Type":"application/json"},',
-    '      body:JSON.stringify({label:label,series:series,decision:decision,notes:notes})})',
-    '      .then(function(r){return r.json();})',
-    '      .then(function(d){',
-    '        if(d.ok){',
-    '          if(fe)fe.innerHTML="Saved! Run ID: <code>"+d.runId+"</code>";',
-    '          setTimeout(function(){',
-    '            closeSaveModal();',
-    '            dismissSaveBanner();',
-    '            if(location.pathname==="/history"||location.pathname==="/dashboard"||location.pathname==="/"||location.pathname==="/latest"){',
-    '              location.reload();',
-    '            }',
-    '          },1000);',
-    '        }else{',
-    '          if(fe)fe.textContent=(d.error||"Save failed");',
-    '          if(btn){btn.textContent="Save to History";btn.disabled=false;}',
-    '        }',
-    '      })',
-    '      .catch(function(e){',
-    '        if(fe)fe.textContent=e.message;',
-    '        if(btn){btn.textContent="Save to History";btn.disabled=false;}',
-    '      });',
-    '  }else{',
-    '    var Q=String.fromCharCode(34);',
-    '    var B=String.fromCharCode(92);',
-    '    var sn=notes.split(Q).join(B+Q);',
-    '    var sl=label.split(Q).join(B+Q);',
-    '    var ss=series.split(Q).join(B+Q);',
-    '    var cmd=`npm run archive:save -- --decision=`+decision+(label?` --label=`+Q+sl+Q:``)+(series?` --series=`+Q+ss+Q:``)+(notes?` --notes=`+Q+sn+Q:``)+` --yes`;',
-    '    copyToClipboard(cmd,fe);',
-    '    if(fe)fe.innerHTML="Command copied! Paste in your terminal:<br><code>"+cmd+"</code>";',
-    '  }',
+    'function announceDashboard(message){',
+    '  var live=document.getElementById("dashboard-live-region");',
+    '  if(!live){live=document.createElement("div");live.id="dashboard-live-region";live.className="sr-only";live.setAttribute("role","status");live.setAttribute("aria-live","polite");document.body.appendChild(live);}',
+    '  live.textContent=String(message||"");',
     '}',
-    '',
     '// Archive detail view',
     'function showArchiveDetail(runId){',
     '  if(window.__SERVE_MODE__){',
@@ -460,14 +397,8 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '    return;',
     '  }',
     '  // Static (file://) mode: full detail view is only available in serve mode.',
-    '  alert("Detail view requires the dashboard server.\\n\\nRun: npm run dashboard");',
+    '  announceDashboard("Detail view requires the dashboard server. Run npm run dashboard.");',
     '}',
-    'function escapeHtml(s){',
-    '  return String(s==null?"":s).replace(/[&<>"\']/g,function(c){',
-    '    return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","\'":"&#39;"}[c];',
-    '  });',
-    '}',
-    '',
     '// Delete archive — uses confirm modal instead of browser confirm()',
     'var _pendingDeleteRunId="";',
     'function deleteArchive(runId){',
@@ -475,12 +406,12 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '  var el=document.getElementById("confirm-delete-target");',
     '  if(el)el.textContent="Archive: "+runId;',
     '  var m=document.getElementById("confirm-delete-modal");',
-    '  if(m){m.hidden=false;m.removeAttribute("hidden");m.style.display="flex";document.body.style.overflow="hidden";}',
+    '  if(m){m.hidden=false;m.removeAttribute("hidden");m.setAttribute("aria-hidden","false");m.style.display="flex";document.body.style.overflow="hidden";if(typeof window.__qaModalOpened==="function"){window.__qaModalOpened(m,document.getElementById("btn-confirm-delete-execute"));}}',
     '}',
     'function closeConfirmDelete(){',
     '  _pendingDeleteRunId="";',
     '  var m=document.getElementById("confirm-delete-modal");',
-    '  if(m){m.hidden=true;m.setAttribute("hidden","");m.style.display="none";document.body.style.overflow="";}',
+    '  if(m){m.hidden=true;m.setAttribute("hidden","");m.setAttribute("aria-hidden","true");m.style.display="none";document.body.style.overflow="";if(typeof window.__qaModalClosed==="function"){window.__qaModalClosed(m);}}',
     '}',
     'function confirmDeleteExecute(){',
     '  var runId=_pendingDeleteRunId;',
@@ -495,20 +426,22 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '          if(row)row.remove();',
     '          else location.reload();',
     '        }else{',
-    '          alert("Delete failed: "+(d.error||"unknown"));',
+    '          announceDashboard("Delete failed: "+(d.error||"unknown"));',
     '        }',
     '      })',
-    '      .catch(function(e){alert("Network error: "+e.message);});',
+    '      .catch(function(e){announceDashboard("Network error: "+e.message);});',
     '  }else{',
     '    var cmd="npm run archive:delete -- --run="+runId+" --yes";',
     '    copyToClipboard(cmd,null);',
-    '    alert("Delete command copied!\\n\\nPaste in your terminal:\\n"+cmd);',
+    '    announceDashboard("Delete command copied. Paste it in your terminal.");',
     '  }',
     '}',
     'document.addEventListener("keydown", function(e){',
     '  if(e.key === "Escape" || e.key === "Esc"){',
+    '    if(typeof window.__qaCloseActiveModal === "function"){window.__qaCloseActiveModal();}',
     '    closeSaveModal();',
     '    closeConfirmDelete();',
+    '    if(typeof closeEditModal === "function"){closeEditModal();}',
     '  }',
     '});',
     '<' + '/script>',

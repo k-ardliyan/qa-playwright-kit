@@ -74,6 +74,8 @@
 }
 
 .column-picker__btn {
+  min-width: 44px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -160,6 +162,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 40px;
   padding: 6px 4px;
   font-size: 0.82rem;
   color: var(--text);
@@ -173,6 +176,13 @@
 
 .column-picker__item input:disabled {
   opacity: 0.55;
+}
+
+.column-picker__menu:focus-visible,
+.column-picker__actions button:focus-visible,
+.column-picker__item:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
 }
 
 .column-picker__item--locked {
@@ -191,7 +201,7 @@
 
 .column-picker__actions button {
   flex: 1;
-  height: 30px;
+  min-height: 44px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface-muted);
@@ -210,6 +220,7 @@
 }
 
 .table-wrapper {
+  position: relative;
   overflow-x: auto;
   overflow-y: visible;
   max-height: none;
@@ -300,6 +311,12 @@ html[data-theme='dark'] .data-table {
 
 .tbl-row {
   cursor: pointer;
+}
+
+.tbl-row:focus-visible,
+.history-row:focus-visible {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: -3px;
 }
 
 .tbl-row--passed td {
@@ -557,6 +574,21 @@ html[data-theme='dark'] .role-section-header {
   color: var(--accent-strong);
 }
 
+.scope-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
 .role-section-count {
   font-size: 11px;
   font-weight: 600;
@@ -638,6 +670,7 @@ html[data-theme='dark'] .role-section-header {
 .evidence-link {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   padding: 2px 7px;
   border-radius: var(--radius-pill);
   font-size: 10px;
@@ -661,10 +694,16 @@ html[data-theme='dark'] .role-section-header {
 
 .evidence-thumb {
   display: inline-flex;
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
 }
 
 .evidence-thumb img {
   width: 28px;
+  height: 28px;
   height: 20px;
   object-fit: cover;
   border-radius: 3px;
@@ -675,6 +714,21 @@ html[data-theme='dark'] .role-section-header {
 
 .evidence-thumb img:hover {
   transform: scale(1.08);
+}
+
+.evidence-missing-label {
+  display: none;
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.evidence-thumb.evidence-missing img {
+  display: none;
+}
+
+.evidence-thumb.evidence-missing .evidence-missing-label {
+  display: inline;
 }
 
 .evidence-more {

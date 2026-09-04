@@ -371,6 +371,7 @@ test.describe('history row View button stopPropagation', () => {
 
 // ─── F1: static mode showArchiveDetail shows alert, not silent no-op ──────
 import { buildHistoryJs } from '../../support/custom-dashboard/build-history-view';
+import { buildClientBootstrapJs } from '../../support/custom-dashboard/client/bootstrap';
 
 test.describe('showArchiveDetail static mode', () => {
   test('static mode path does NOT look for #archive-detail (removed DOM element)', () => {
@@ -390,6 +391,26 @@ test.describe('showArchiveDetail static mode', () => {
     // serve mode: use hash navigation
     expect(js).toContain('#/detail/');
     expect(js).toContain('window.location.hash');
+  });
+});
+
+test.describe('dashboard client contracts', () => {
+  test('static Save copies a CLI command instead of silently doing nothing', () => {
+    const js = buildClientBootstrapJs();
+    expect(js).toContain('npm run archive:save -- --decision=');
+    expect(js).toContain("copyTextToClipboard(cmd, null, 'Copied')");
+  });
+
+  test('serve mode refreshes after archive metadata updates', () => {
+    const js = buildHistoryJs({ serveMode: true });
+    expect(js).toContain('archive-updated');
+    expect(js).toContain('refreshCurrentView()');
+  });
+
+  test('clipboard helper falls back when Clipboard API is unavailable', () => {
+    const js = buildClientBootstrapJs();
+    expect(js).toContain("document.execCommand('copy')");
+    expect(js).toContain('.catch(fallback)');
   });
 });
 

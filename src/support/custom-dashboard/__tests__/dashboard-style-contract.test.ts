@@ -95,6 +95,9 @@ test.describe('Custom Dashboard Style Contract', () => {
     expect(styles).toContain('--z-bar');
     expect(styles).toContain('--z-modal');
     expect(styles).toContain('.filter-empty');
+    expect(styles).toContain('.scope-tag');
+    expect(styles).toContain('[data-scroll-hint]');
+    expect(styles).toContain('focus-visible');
     expect(styles).toContain('--on-accent');
     expect(styles).not.toContain('125, 211, 252');
     expect(styles).not.toContain('#0a1929');

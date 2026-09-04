@@ -153,15 +153,16 @@
   }
 
   .history-toolbar {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
     gap: 10px;
-    flex-wrap: wrap;
   }
 
   .toolbar-search {
-    flex: 1 1 200px;
-    min-width: 180px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
   }
 
   .filter-group {
@@ -177,7 +178,7 @@
   }
 
   .history-count {
-    margin-left: auto;
+    margin-left: 0;
     font-size: 0.78rem;
   }
 
@@ -234,11 +235,29 @@
 
   /* Tables & Horizontal Scrolling */
   .table-wrapper {
+    position: relative;
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     display: block;
+  }
+
+  .table-wrapper[data-scroll-hint]::after {
+    content: attr(data-scroll-hint);
+    position: sticky;
+    right: 8px;
+    bottom: 6px;
+    display: block;
+    width: max-content;
+    margin: 6px 8px 0 auto;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    color: var(--muted);
+    font-size: 0.68rem;
+    pointer-events: none;
   }
 
   /* Accordion test card */
@@ -278,6 +297,22 @@
   .modal-card {
     max-width: calc(100vw - 24px);
     max-height: calc(100vh - 24px);
+  }
+
+  .modal-overlay {
+    align-items: flex-start;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .history-table .history-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .history-table .history-actions button {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -325,10 +360,31 @@
   }
 
   .unified-toolbar__row {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+  }
+
+  .unified-toolbar__row .cmd-search-wrap {
+    grid-column: 1 / -1;
+    max-width: none;
+    width: 100%;
+  }
+
+  .unified-toolbar__end {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .unified-toolbar .cmd-search-wrap,
+  .unified-toolbar .cmd-select,
+  .unified-toolbar .sort-select,
+  .column-picker,
+  .column-picker__btn {
+    min-height: 44px;
   }
 
   .unified-toolbar .cmd-search-wrap {
@@ -337,8 +393,12 @@
   }
 
   .unified-toolbar .cmd-select {
-    flex: 0 1 auto;
-    min-width: 110px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .unified-toolbar .cmd-check {
+    min-height: 44px;
   }
 
   .quality-overview-grid {
@@ -382,6 +442,17 @@
 
   .hero {
     padding: 14px;
+  }
+
+  .hero__subtitle {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .hero__top-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .hero-stat-bar {

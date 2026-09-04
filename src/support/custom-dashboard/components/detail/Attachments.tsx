@@ -7,11 +7,25 @@ export interface AttachmentsProps {
   runId?: string;
 }
 
-function resolveAttachmentUrl(relPath: string | undefined, runId?: string): string | undefined {
+function encodePath(relPath: string): string {
+  return relPath
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+export function resolveAttachmentUrl(
+  relPath: string | undefined,
+  runId?: string,
+): string | undefined {
   if (!relPath) return undefined;
-  const clean = relPath.replace(/^\/+/, '');
+  // Preserve server-normalized archive paths; encoding them again corrupts URLs.
+  if (relPath.startsWith('/')) return relPath;
+  const clean = encodePath(relPath);
   if (runId && /^run-[\d-]+$/.test(runId)) {
-    return `/api/archive/${runId}/${clean}`;
+    return `/api/archive/${encodeURIComponent(runId)}/${clean}`;
   }
   return `/${clean}`;
 }
@@ -26,7 +40,7 @@ function ScreenshotAttachment({
   if (!attachment.relativePath) {
     return (
       <div class="attachment-chip attachment-chip--missing" safe>
-        Missing screenshot · {attachment.name}
+        Missing screenshot · {attachment.name || 'Unnamed file'}
       </div>
     );
   }
@@ -34,14 +48,17 @@ function ScreenshotAttachment({
   const src = resolveAttachmentUrl(attachment.relativePath, runId);
 
   return (
-    <figure class="attachment-card attachment-card--screenshot">
+    <figure
+      class="attachment-card attachment-card--screenshot"
+      aria-label={`Screenshot evidence: ${attachment.name || 'unnamed file'}`}
+    >
       <img
         src={src}
-        alt={attachment.name}
+        alt={`Screenshot evidence: ${attachment.name}`}
         loading="lazy"
-        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachment-chip attachment-chip--missing',textContent:'Missing file'}))"
+        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachment-chip attachment-chip--missing',role:'img',ariaLabel:'Missing screenshot',textContent:'Missing screenshot'}))"
       />
-      <figcaption safe>{attachment.name}</figcaption>
+      <figcaption safe>{attachment.name || 'Unnamed attachment'}</figcaption>
     </figure>
   );
 }
@@ -56,7 +73,7 @@ function VideoAttachment({
   if (!attachment.relativePath) {
     return (
       <div class="attachment-chip attachment-chip--missing" safe>
-        Missing video · {attachment.name}
+        Missing video · {attachment.name || 'Unnamed file'}
       </div>
     );
   }
@@ -64,11 +81,14 @@ function VideoAttachment({
   const src = resolveAttachmentUrl(attachment.relativePath, runId);
 
   return (
-    <figure class="attachment-card attachment-card--video">
-      <video controls>
+    <figure
+      class="attachment-card attachment-card--video"
+      aria-label={`Video evidence: ${attachment.name || 'unnamed file'}`}
+    >
+      <video controls aria-label={`Play video evidence: ${attachment.name || 'unnamed file'}`}>
         <source src={src} type={attachment.contentType} />
       </video>
-      <figcaption safe>{attachment.name}</figcaption>
+      <figcaption safe>{attachment.name || 'Unnamed attachment'}</figcaption>
     </figure>
   );
 }
@@ -83,7 +103,7 @@ function TraceAttachment({
   if (!attachment.relativePath) {
     return (
       <span class="attachment-chip attachment-chip--missing" safe>
-        Missing trace · {attachment.name}
+        Missing trace · {attachment.name || 'Unnamed file'}
       </span>
     );
   }
@@ -96,6 +116,7 @@ function TraceAttachment({
       href={href}
       target="_blank"
       rel="noopener"
+      aria-label={`Open trace evidence: ${attachment.name}`}
       safe
     >
       Trace · {attachment.name}
@@ -113,7 +134,7 @@ function OtherAttachment({
   if (!attachment.relativePath) {
     return (
       <span class="attachment-chip attachment-chip--missing" safe>
-        {attachment.name}
+        {attachment.name || 'Unnamed attachment'}
       </span>
     );
   }
@@ -121,8 +142,16 @@ function OtherAttachment({
   const href = resolveAttachmentUrl(attachment.relativePath, runId);
 
   return (
-    <a class="attachment-chip" href={href} target="_blank" rel="noopener" download="" safe>
-      {attachment.name}
+    <a
+      class="attachment-chip"
+      href={href}
+      target="_blank"
+      rel="noopener"
+      download=""
+      aria-label={`Download attachment: ${attachment.name}`}
+      safe
+    >
+      {attachment.name || 'Download attachment'}
     </a>
   );
 }

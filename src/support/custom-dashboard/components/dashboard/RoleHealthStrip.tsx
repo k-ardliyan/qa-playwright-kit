@@ -15,20 +15,22 @@ export function RoleHealthStrip({ summary, collectedTests }: RoleHealthStripProp
 
   return (
     <section class="role-health" aria-label="Pass rate by role">
+      <p class="sr-only">
+        Roles without captured tests are reported as No results, not as a failed pass rate.
+      </p>
       {summary.rolesInScope.map((role) => {
         const tests = testsList.filter((t) => (t.role || '') === role);
         const total = tests.length;
         const passed = tests.filter((t) => t.status === 'passed').length;
-        const rate = total > 0 ? Math.round((passed / total) * 100) : 0;
-        const tone = rate >= 90 ? 'good' : rate >= 70 ? 'warn' : 'bad';
+        const hasResults = total > 0;
+        const rate = hasResults ? Math.round((passed / total) * 100) : null;
+        const tone = !hasResults ? 'neutral' : rate! >= 90 ? 'good' : rate! >= 70 ? 'warn' : 'bad';
+        const label = hasResults ? `${passed}/${total} tests, ${rate}% passed` : 'No results';
 
         return (
           <div class={`role-health__chip role-health__chip--${tone}`} title={role}>
             <strong safe>{role}</strong>
-            <span>
-              {passed}/{total}
-            </span>
-            <span class="role-health__rate">{rate}%</span>
+            <span safe>{label}</span>
           </div>
         );
       })}

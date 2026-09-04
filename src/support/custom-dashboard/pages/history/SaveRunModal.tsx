@@ -22,10 +22,17 @@ export function SaveRunModal({ defaultLabel = '', defaultSeries = '' }: SaveRunM
       class="modal-overlay"
       id="save-modal"
       hidden
+      aria-hidden="true"
       style="display:none"
       onclick="if(event.target===this){ closeSaveModal && closeSaveModal(); }"
     >
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-save-title">
+      <div
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-save-title"
+        aria-describedby="modal-save-description"
+      >
         <div class="modal-head">
           <div class="modal-title-wrap">
             <span class="modal-icon-badge">
@@ -44,6 +51,9 @@ export function SaveRunModal({ defaultLabel = '', defaultSeries = '' }: SaveRunM
         </div>
 
         <div class="modal-body">
+          <p id="modal-save-description" class="sr-only">
+            Save the current test run with a QA decision and optional notes.
+          </p>
           <div class="form-group">
             <label for="save-label" class="form-label">
               Run Label <span class="required">*</span>
@@ -100,7 +110,7 @@ export function SaveRunModal({ defaultLabel = '', defaultSeries = '' }: SaveRunM
           </div>
 
           <div id="save-preview" class="save-preview" />
-          <div id="save-feedback" class="save-feedback" />
+          <div id="save-feedback" class="save-feedback" role="alert" aria-live="assertive" />
         </div>
 
         <div class="modal-foot">

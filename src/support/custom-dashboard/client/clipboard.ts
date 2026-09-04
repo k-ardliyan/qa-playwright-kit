@@ -5,15 +5,33 @@ export function buildClipboardJs(): string {
   return `
   function copyTextToClipboard(text, triggerEl, successText) {
     if (!text) return;
-    try {
-      navigator.clipboard.writeText(text).then(function () {
-        if (!triggerEl) return;
-        var orig = triggerEl.textContent;
-        triggerEl.textContent = successText || 'Copied!';
-        setTimeout(function () { triggerEl.textContent = orig; }, 1500);
-      });
-    } catch (err) {
-      console.warn('Clipboard write failed', err);
+    function copied() {
+      if (!triggerEl) return;
+      var orig = triggerEl.textContent;
+      triggerEl.textContent = successText || 'Copied!';
+      setTimeout(function () { triggerEl.textContent = orig; }, 1500);
+    }
+    function fallback() {
+      var area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      try {
+        if (!document.execCommand('copy')) throw new Error('execCommand returned false');
+        copied();
+      } catch (err) {
+        console.warn('Clipboard write failed', err);
+      } finally {
+        area.remove();
+      }
+    }
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(text).then(copied).catch(fallback);
+    } else {
+      fallback();
     }
   }
 

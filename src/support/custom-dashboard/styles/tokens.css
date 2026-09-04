@@ -7,14 +7,15 @@
   --surface-muted: #f1f5f9;
   --surface-soft: rgba(241, 245, 249, 0.94);
   --text: #0f172a;
-  --muted: #64748b;
+  --muted: #475569;
   --border: rgba(148, 163, 184, 0.28);
   --border-strong: rgba(100, 116, 139, 0.38);
-  --passed: #10b981;
+  /* Semantic foregrounds retain at least 4.5:1 contrast on their paired light surfaces. */
+  --passed: #047857;
   --passed-bg: #ecfdf5;
-  --failed: #ef4444;
+  --failed: #b91c1c;
   --failed-bg: #fef2f2;
-  --skipped: #f59e0b;
+  --skipped: #a16207;
   --skipped-bg: #fffbeb;
   --accent: #2563eb;
   --accent-strong: #1d4ed8;
@@ -75,14 +76,14 @@ html[data-theme='dark'] {
   --surface-muted: #1e293b;
   --surface-soft: rgba(30, 41, 59, 0.94);
   --text: #f8fafc;
-  --muted: #94a3b8;
+  --muted: #cbd5e1;
   --border: rgba(148, 163, 184, 0.16);
   --border-strong: rgba(148, 163, 184, 0.28);
-  --passed: #34d399;
+  --passed: #6ee7b7;
   --passed-bg: rgba(16, 185, 129, 0.14);
-  --failed: #f87171;
+  --failed: #fca5a5;
   --failed-bg: rgba(239, 68, 68, 0.16);
-  --skipped: #fbbf24;
+  --skipped: #fcd34d;
   --skipped-bg: rgba(245, 158, 11, 0.16);
   --accent: #60a5fa;
   --accent-strong: #93c5fd;

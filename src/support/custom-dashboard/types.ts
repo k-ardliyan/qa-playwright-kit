@@ -1,5 +1,9 @@
 import type { TestResult } from '@playwright/test/reporter';
 
+export type ReportStatus = TestResult['status'] | 'healed' | 'not-generated';
+
+export type TestScope = 'demo' | 'fixture' | 'unscoped';
+
 export type StepStatus = 'passed' | 'failed';
 
 export type AttachmentKind = 'screenshot' | 'video' | 'trace' | 'other';
@@ -10,6 +14,18 @@ export type AffectedLayer = 'FE' | 'BE' | 'DB' | 'API';
 
 export type ReportMode = 'general' | 'role-aware';
 
+/** Shared result counts used by role and module breakdowns. */
+export interface ResultBreakdown {
+  passing: number;
+  failing: number;
+  skipped: number;
+}
+
+/** Module breakdown keeps feature-level counts for existing consumers. */
+export interface ModuleBreakdown extends ResultBreakdown {
+  features: Record<string, ResultBreakdown>;
+}
+
 /** Suggested or annotated root cause class for QA exit decisions. */
 export type FailureSource = 'app' | 'test' | 'requirement' | 'env' | 'ai_generation' | 'unknown';
 
@@ -18,6 +34,9 @@ export interface CollectedAttachment {
   contentType?: string;
   relativePath: string;
   kind: AttachmentKind;
+  /** Attempt identity keeps evidence distinct when retries reuse filenames. */
+  attempt?: number;
+  retry?: number;
 }
 
 export interface CollectedError {
@@ -34,16 +53,23 @@ export interface CollectedStep {
 }
 
 export interface CollectedTestData {
+  /** Stable Playwright logical test key; attempts for this key are aggregated. */
+  logicalKey?: string;
   title: string;
   fullTitle: string;
   filePath: string;
-  status: TestResult['status'];
+  status: ReportStatus;
   duration: number;
   errorMessage: string;
   errors: CollectedError[];
   steps: CollectedStep[];
   attachments: CollectedAttachment[];
+  /** Number of completed retries for this logical test. */
   retry: number;
+  /** Number of Playwright attempts represented by this logical test. */
+  attempts?: number;
+  /** True when expected/actual metadata was not supplied by the test. */
+  metadataIncomplete?: boolean;
   // === Table view metadata ===
   testId: string;
   scenarioId: string;
@@ -69,6 +95,8 @@ export interface CollectedTestData {
  * via the get_test_summary MCP tool for the Reporter Agent.
  */
 export interface CollectedTestCase {
+  /** Stable Playwright logical test key; attempts for this key are aggregated. */
+  logicalKey?: string;
   testId: string;
   scenarioId: string;
   title: string;
@@ -93,6 +121,12 @@ export interface CollectedTestCase {
   errors?: CollectedError[];
   steps?: CollectedStep[];
   attachments?: CollectedAttachment[];
+  /** Number of completed retries for this logical test. */
+  retry?: number;
+  /** Number of Playwright attempts represented by this logical test. */
+  attempts?: number;
+  /** True when expected/actual metadata was not supplied by the test. */
+  metadataIncomplete?: boolean;
 }
 
 /**
@@ -114,6 +148,10 @@ export interface RunMeta {
 }
 
 export interface TestSummary {
+  /** Run identity duplicated from runMeta for consumers that read flat summary fields. */
+  runId?: string;
+  /** Source requirement duplicated from runMeta for archive/provenance consumers. */
+  requirementPath?: string;
   total: number;
   passed: number;
   failed: number;
@@ -124,6 +162,9 @@ export interface TestSummary {
   reportMode: ReportMode;
   rolesInScope: string[];
   testCases: CollectedTestCase[];
+  /** Explicit breakdowns built from the same logical test cases as totals. */
+  summaryByRole?: Record<string, ResultBreakdown>;
+  summaryByModule?: Record<string, ModuleBreakdown>;
   runMeta: RunMeta;
 }
 

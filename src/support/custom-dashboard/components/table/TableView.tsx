@@ -14,12 +14,14 @@ import { TestRow } from './TestRow';
 export interface TableViewProps {
   summary: TestSummary;
   collectedTests: CollectedTestData[];
+  runId?: string;
 }
 
 function buildRoleGroups(tests: CollectedTestData[]): RoleGroup[] {
   const roleMap = new Map<string, CollectedTestData[]>();
   for (const test of tests) {
-    const role = (test.role || 'user').trim();
+    // Missing role metadata is unscoped, not a product role or incident classification.
+    const role = (test.role || '').trim() || 'GENERAL / UNSCOPED';
     if (!roleMap.has(role)) roleMap.set(role, []);
     roleMap.get(role)!.push(test);
   }
@@ -29,26 +31,42 @@ function buildRoleGroups(tests: CollectedTestData[]): RoleGroup[] {
 function HeaderRow() {
   return (
     <tr>
-      <th class="col-sticky-0" data-col="testId">
+      <th scope="col" class="col-sticky-0" data-col="testId">
         TEST ID
       </th>
-      <th data-col="module">MODULE</th>
-      <th data-col="feature">FEATURE</th>
-      <th data-col="description">DESCRIPTION</th>
-      <th class="col-tertiary" data-col="steps">
+      <th scope="col" data-col="module">
+        MODULE
+      </th>
+      <th scope="col" data-col="feature">
+        FEATURE
+      </th>
+      <th scope="col" data-col="description">
+        DESCRIPTION
+      </th>
+      <th scope="col" class="col-tertiary" data-col="steps">
         TEST STEP
       </th>
-      <th class="col-secondary" data-col="input">
+      <th scope="col" class="col-secondary" data-col="input">
         INPUT DATA
       </th>
-      <th class="col-secondary" data-col="expected">
+      <th scope="col" class="col-secondary" data-col="expected">
         EXPECTED RESULT
       </th>
-      <th data-col="actual">ACTUAL RESULT</th>
-      <th data-col="status">STATUS</th>
-      <th data-col="priority">PRIORITY</th>
-      <th data-col="source">SOURCE</th>
-      <th data-col="notes">NOTES</th>
+      <th scope="col" data-col="actual">
+        ACTUAL RESULT
+      </th>
+      <th scope="col" data-col="status">
+        STATUS
+      </th>
+      <th scope="col" data-col="priority">
+        PRIORITY
+      </th>
+      <th scope="col" data-col="source">
+        SOURCE
+      </th>
+      <th scope="col" data-col="notes">
+        NOTES
+      </th>
     </tr>
   );
 }
@@ -65,20 +83,21 @@ function TableEmptyFilterRow() {
   );
 }
 
-function GeneralTable({ tests }: { tests: CollectedTestData[] }) {
+function GeneralTable({ tests, runId }: { tests: CollectedTestData[]; runId?: string }) {
   if (tests.length === 0) {
     return <EmptyState message="No test cases captured." />;
   }
 
   return (
-    <div class="table-wrapper">
+    <div class="table-wrapper" data-scroll-hint="Scroll horizontally to view all columns">
       <table class="qa-report-table data-table">
+        <caption class="sr-only">Test results and triage evidence</caption>
         <thead>
           <HeaderRow />
         </thead>
         <tbody>
           {tests.map((t, i) => (
-            <TestRow test={t} rowKey={`${t.testId || 'row'}-${i}`} />
+            <TestRow test={t} rowKey={`${t.testId || 'row'}-${i}`} runId={runId} />
           ))}
           <TableEmptyFilterRow />
         </tbody>
@@ -87,47 +106,56 @@ function GeneralTable({ tests }: { tests: CollectedTestData[] }) {
   );
 }
 
-function RoleSection({ group }: { group: RoleGroup }) {
+function RoleSection({ group, runId }: { group: RoleGroup; runId?: string }) {
   const roleSlug = (group.role || 'user').toLowerCase().replace(/[^a-z0-9]/g, '_');
   const roleLabel = group.role;
 
   return (
-    <div class="role-section">
+    <section class="role-section" aria-labelledby={`role-heading-${roleSlug}`}>
       <div class="role-section-header">
-        <span safe>ROLE: {roleLabel.toUpperCase()}</span>
+        <h3 id={`role-heading-${roleSlug}`} safe>
+          ROLE: {roleLabel.toUpperCase()}
+        </h3>
         <span class="role-section-count">
           {group.tests.length} test{group.tests.length !== 1 ? 's' : ''}
         </span>
       </div>
-      <div class="table-wrapper">
+      <div class="table-wrapper" data-scroll-hint="Scroll horizontally to view all columns">
         <table class="qa-report-table data-table">
+          <caption class="sr-only" safe>
+            {roleLabel} test results and triage evidence
+          </caption>
           <thead>
             <HeaderRow />
           </thead>
           <tbody>
             {group.tests.map((t, i) => (
-              <TestRow test={t} rowKey={`${roleSlug}__${t.testId || 'row'}-${i}`} />
+              <TestRow test={t} rowKey={`${roleSlug}__${t.testId || 'row'}-${i}`} runId={runId} />
             ))}
             <TableEmptyFilterRow />
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }
 
-function RoleAwareTable({ tests }: { tests: CollectedTestData[] }) {
-  const groups = buildRoleGroups(tests);
+function RoleAwareTable({ tests, runId }: { tests: CollectedTestData[]; runId?: string }) {
+  const groups = buildRoleGroups(tests).sort((a, b) => {
+    const aGeneral = a.role === 'GENERAL / UNSCOPED' ? 1 : 0;
+    const bGeneral = b.role === 'GENERAL / UNSCOPED' ? 1 : 0;
+    return aGeneral - bGeneral || a.role.localeCompare(b.role);
+  });
   return (
     <>
       {groups.map((g) => (
-        <RoleSection group={g} />
+        <RoleSection group={g} runId={runId} />
       ))}
     </>
   );
 }
 
-export function TableView({ summary, collectedTests }: TableViewProps) {
+export function TableView({ summary, collectedTests, runId }: TableViewProps) {
   const mode: ReportMode = summary?.reportMode ?? 'general';
   const tests = Array.isArray(collectedTests) ? collectedTests : [];
   const featureName = new Date().toISOString().slice(0, 10);
@@ -148,7 +176,11 @@ export function TableView({ summary, collectedTests }: TableViewProps) {
   return (
     <>
       <div class="table-view" id="view-table-content">
-        {mode === 'role-aware' ? <RoleAwareTable tests={tests} /> : <GeneralTable tests={tests} />}
+        {mode === 'role-aware' ? (
+          <RoleAwareTable tests={tests} runId={runId} />
+        ) : (
+          <GeneralTable tests={tests} runId={runId} />
+        )}
       </div>
       <script>
         {`

@@ -45,7 +45,9 @@ test.describe('Custom Dashboard Render Baseline', () => {
     expect(html).toContain('SC-04');
     expect(html).toContain('status-pill--failed');
     expect(html).toContain('Incident queue active');
+    expect(html).toContain('aria-live="polite"');
     expect(html).toContain('403 Forbidden');
+    expect(html).toContain('SOURCE');
   });
 
   test('renders mixed-results dataset with tabs and filters', () => {
@@ -87,17 +89,31 @@ test.describe('Custom Dashboard Render Baseline', () => {
 
   test('renders multi-role sections for role-aware reports', () => {
     const html = buildDashboardHtml('local', multiRoleSummary, multiRoleTests);
+    expect(html).toContain('filter-role');
+    expect(html).toContain('filter-scope');
+    expect(html).toContain('Has evidence');
     expect(html).toContain('ROLE: FINANCE');
     expect(html).toContain('ROLE: HRD');
     expect(html).toContain('ROLE: SUPER-ADMIN');
     expect(html).toContain('SC-FIN-01');
     expect(html).toContain('SC-HRD-01');
     expect(html).toContain('SC-ADMIN-01');
+    expect(html).toContain('GENERAL');
   });
 
   test('renders empty dataset without throwing', () => {
     const html = buildDashboardHtml('local', emptySummary, emptyTests);
     expect(html).toContain('Total 0 results');
+  });
+
+  test('renders accessible table, dialog, and chart contracts', () => {
+    const html = buildDashboardHtml('local', failureSummary, failureTests);
+    expect(html).toContain('caption class="sr-only"');
+    expect(html).toContain('triage evidence');
+    expect(html).toContain('<th scope="col"');
+    expect(html).toContain('aria-describedby="modal-save-description"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-controls="column-picker-menu"');
   });
 
   test('renders edge cases with invalid dates and special unicode', () => {

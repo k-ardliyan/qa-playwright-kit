@@ -82,13 +82,13 @@ html[data-theme='dark'] .status-pill--skipped {
 
 .priority-badge--high {
   background: #f5d0a9;
-  color: #8a4b1a;
+  color: #713f12;
   border-color: rgba(180, 120, 70, 0.22);
 }
 
 .priority-badge--medium {
   background: #f8e8c8;
-  color: #9a6b1f;
+  color: #854d0e;
   border-color: rgba(196, 138, 43, 0.22);
 }
 
@@ -99,12 +99,12 @@ html[data-theme='dark'] .status-pill--skipped {
 }
 
 html[data-theme='dark'] .priority-badge--high {
-  color: #f0d0a8;
+  color: #fef3c7;
   background: rgba(212, 165, 116, 0.18);
 }
 
 html[data-theme='dark'] .priority-badge--medium {
-  color: #f0c674;
+  color: #fde68a;
   background: rgba(196, 138, 43, 0.16);
 }
 
@@ -245,11 +245,11 @@ html[data-theme='dark'] .feature-chip {
   border-color: rgba(245, 158, 11, 0.22);
 }
 .failure-source--requirement {
-  color: #7c3aed;
+  color: #6d28d9;
   background: #f3e8ff;
 }
 .failure-source--ai_generation {
-  color: #0f766e;
+  color: #115e59;
   background: #ccfbf1;
 }
 .failure-source--unknown {
@@ -258,7 +258,7 @@ html[data-theme='dark'] .feature-chip {
 }
 .failure-source--infra {
   background: #d1ecf1;
-  color: #0c5460;
+  color: #164e63;
 }
 
 .src-cell {
@@ -381,6 +381,37 @@ html[data-theme='dark'] .feature-chip {
 .rate-bad {
   color: var(--failed);
   font-weight: 700;
+}
+
+/* Status text uses dark enough tones in both themes for WCAG AA. */
+html:not([data-theme='dark']) .status-pill--passed,
+html:not([data-theme='dark']) .rate-good {
+  color: #047857;
+}
+
+html:not([data-theme='dark']) .status-pill--failed,
+html:not([data-theme='dark']) .rate-bad {
+  color: #b91c1c;
+}
+
+html:not([data-theme='dark']) .status-pill--skipped,
+html:not([data-theme='dark']) .rate-warn {
+  color: #92400e;
+}
+
+html[data-theme='dark'] .status-pill--passed,
+html[data-theme='dark'] .rate-good {
+  color: #6ee7b7;
+}
+
+html[data-theme='dark'] .status-pill--failed,
+html[data-theme='dark'] .rate-bad {
+  color: #fca5a5;
+}
+
+html[data-theme='dark'] .status-pill--skipped,
+html[data-theme='dark'] .rate-warn {
+  color: #fcd34d;
 }
 
 .diff-regressed {

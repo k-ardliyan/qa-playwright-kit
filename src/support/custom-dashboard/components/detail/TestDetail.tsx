@@ -110,13 +110,36 @@ function ErrorsSection({ errors }: { errors: CollectedError[] }) {
   );
 }
 
-function TraceLink({ testData }: { testData: CollectedTestData }) {
+function encodeAttachmentPath(relPath: string): string {
+  return relPath
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+function resolveTraceUrl(relPath: string | undefined, runId?: string): string | undefined {
+  if (!relPath) return undefined;
+  if (relPath.startsWith('/')) return relPath;
+  const encoded = encodeAttachmentPath(relPath);
+  return runId && /^run-[\d-]+$/.test(runId)
+    ? `/api/archive/${encodeURIComponent(runId)}/${encoded}`
+    : `/${encoded}`;
+}
+
+function TraceLink({ testData, runId }: { testData: CollectedTestData; runId?: string }) {
   const trace = (testData.attachments ?? []).find((a) => a.kind === 'trace');
   if (!trace) {
     return <span class="muted">No trace</span>;
   }
   return (
-    <a class="btn btn--ghost" href={trace.relativePath} target="_blank" rel="noopener">
+    <a
+      class="btn btn--ghost"
+      href={resolveTraceUrl(trace.relativePath, runId)}
+      target="_blank"
+      rel="noopener"
+    >
       View trace
     </a>
   );
@@ -135,6 +158,12 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
   const hasTrace = (testData.hasTrace ?? attachments.some((a) => a.kind === 'trace')) ? '1' : '0';
   const hasScreenshot = attachments.some((a) => a.kind === 'screenshot') ? '1' : '0';
   const hasVideo = attachments.some((a) => a.kind === 'video') ? '1' : '0';
+  const scope = (() => {
+    const path = (testData.filePath || '').toLowerCase().replace(/\\/g, '/');
+    if (/(^|\/)demo(\/|$)/.test(path)) return 'DEMO';
+    if (/(^|\/)(fixture|fixtures|test-fixture)(\/|$)/.test(path)) return 'FIXTURE';
+    return 'GENERAL';
+  })();
   const layers = (testData.affectedLayer || []).join(',');
   const fingerprint = testData.errorMessage
     ? generateErrorFingerprint(testData.errorMessage)
@@ -175,7 +204,8 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
       data-test-id={testData.testId || ''}
       data-status={status}
       data-priority={(testData.priority || 'medium').toLowerCase()}
-      data-role={testData.role || ''}
+      data-role={(testData.role || '').trim() || 'GENERAL / UNSCOPED'}
+      data-scope={scope}
       data-module={testData.module || ''}
       data-feature={testData.feature || ''}
       data-layers={layers}
@@ -200,13 +230,12 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
                 {testData.testId}
               </span>
             ) : null}
-            {testData.role ? (
-              <span class="badge badge--meta" safe>
-                {testData.role.toUpperCase()}
-              </span>
-            ) : null}
+            <span class="badge badge--meta" safe>
+              {(testData.role || 'GENERAL / UNSCOPED').toUpperCase()}
+            </span>
+            <span class="scope-tag">{scope}</span>
             <PriorityBadge priority={testData.priority} />
-            {testData.failureSource ? (
+            {unhealthy && testData.failureSource ? (
               <span
                 class={`failure-source failure-source--${testData.failureSource}`}
                 title={decisionHintTooltipFor(testData.failureSource, testData.errorMessage)}
@@ -232,7 +261,7 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
               {testData.filePath}
             </span>
           ) : null}
-          <TraceLink testData={testData} />
+          <TraceLink testData={testData} runId={runId} />
         </div>
       </summary>
 
@@ -267,7 +296,7 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
           <div class="meta-grid__item">
             <span class="meta-grid__label">Trace</span>
             <span class="meta-grid__value">
-              <TraceLink testData={testData} />
+              <TraceLink testData={testData} runId={runId} />
             </span>
           </div>
           <div class="meta-grid__item">
@@ -278,7 +307,7 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
               ))}
             </span>
           </div>
-          {testData.failureSource ? (
+          {unhealthy && testData.failureSource ? (
             <div class="meta-grid__item">
               <span class="meta-grid__label">Failure source</span>
               <span class="meta-grid__value">

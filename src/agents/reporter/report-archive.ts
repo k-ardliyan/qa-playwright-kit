@@ -20,12 +20,40 @@ import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 /** QA decision options when saving a run. */
-export type QaDecision =
-  'APPROVE' | 'FILE_BUG' | 'REVISE_REQUIREMENT' | 'FIX_TEST' | 'FIX_ENV' | 'MARK_BLOCKED';
+export const QA_DECISIONS = [
+  'APPROVE',
+  'FILE_BUG',
+  'REVISE_REQUIREMENT',
+  'FIX_TEST',
+  'FIX_ENV',
+  'MARK_BLOCKED',
+] as const;
+export type QaDecision = (typeof QA_DECISIONS)[number];
+
+export function isQaDecision(value: unknown): value is QaDecision {
+  return typeof value === 'string' && (QA_DECISIONS as readonly string[]).includes(value);
+}
 
 /** Who triggered the save. */
 export type TriggerSource =
   'cli' | 'cli-auto' | 'dashboard-button' | 'mcp-tool' | 'pipeline-runner' | 'test-fixture';
+
+const TRIGGER_SOURCES: readonly TriggerSource[] = [
+  'cli',
+  'cli-auto',
+  'dashboard-button',
+  'mcp-tool',
+  'pipeline-runner',
+  'test-fixture',
+];
+
+function isTriggerSource(value: unknown): value is TriggerSource {
+  return typeof value === 'string' && TRIGGER_SOURCES.includes(value as TriggerSource);
+}
+
+function isTriggeredBy(value: unknown): value is ArchiveMetadata['triggeredBy'] {
+  return value === 'manual' || value === 'dashboard' || value === 'pipeline';
+}
 
 /** Options passed to saveLatestRun. */
 export interface SaveRunOptions {
@@ -105,6 +133,98 @@ function latestRunPath(): string {
   return path.join(reportDir(), '.latest-run');
 }
 
+function isContainedPath(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return (
+    relative === '' ||
+    (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  );
+}
+
+function resolveContainedExisting(
+  root: string,
+  relativePath: string,
+  kind: 'file' | 'directory' | 'any',
+): string | null {
+  try {
+    const rootReal = fs.realpathSync(root);
+    const candidate = path.resolve(root, relativePath);
+    if (!isContainedPath(root, candidate) || !fs.existsSync(candidate)) return null;
+    const candidateReal = fs.realpathSync(candidate);
+    if (!isContainedPath(rootReal, candidateReal)) return null;
+    const stat = fs.statSync(candidateReal);
+    if (kind === 'file' && !stat.isFile()) return null;
+    if (kind === 'directory' && !stat.isDirectory()) return null;
+    return candidateReal;
+  } catch {
+    return null;
+  }
+}
+
+function ensureArchiveRoot(): string {
+  const root = archiveDir();
+  fs.mkdirSync(root, { recursive: true });
+  const realRoot = fs.realpathSync(root);
+  if (!isContainedPath(realRoot, realRoot)) {
+    throw new Error('Invalid archive directory.');
+  }
+  return realRoot;
+}
+
+function validateArchiveMetadata(raw: Record<string, unknown>, runId: string): void {
+  if (raw.runId !== runId || !isQaDecision(raw.qaDecision)) {
+    throw new Error('Invalid archived metadata: qaDecision and runId are required.');
+  }
+  if (typeof raw.qaNotes !== 'string') {
+    throw new Error('Invalid archived metadata: qaNotes must be a string.');
+  }
+  for (const key of ['savedAt', 'ranAt', 'appEnv', 'triggeredBy', 'triggerSource']) {
+    if (typeof raw[key] !== 'string' || !(raw[key] as string).trim()) {
+      throw new Error(`Invalid archived metadata: ${key} is required.`);
+    }
+  }
+  if (
+    raw.displayName !== undefined &&
+    (typeof raw.displayName !== 'string' || !raw.displayName.trim())
+  ) {
+    throw new Error('Invalid archived metadata: displayName must not be empty.');
+  }
+  if (raw.triggerSource !== undefined && !isTriggerSource(raw.triggerSource)) {
+    throw new Error('Invalid archived metadata: triggerSource is invalid.');
+  }
+  if (!isTriggeredBy(raw.triggeredBy)) {
+    throw new Error('Invalid archived metadata: triggeredBy is invalid.');
+  }
+}
+
+function validateMetadataUpdates(updates: Partial<SaveRunOptions>): void {
+  if (updates.qaDecision !== undefined && !isQaDecision(updates.qaDecision)) {
+    throw new Error(
+      `Invalid qaDecision: ${String(updates.qaDecision)}. Must be one of: ${QA_DECISIONS.join(', ')}`,
+    );
+  }
+  if (
+    updates.displayName !== undefined &&
+    (typeof updates.displayName !== 'string' || !updates.displayName.trim())
+  ) {
+    throw new Error('displayName must be a non-empty string.');
+  }
+  for (const key of [
+    'qaNotes',
+    'testSeriesId',
+    'requirementId',
+    'requirementTitle',
+    'branch',
+    'buildRef',
+    'gitSha',
+  ] as const) {
+    const value = updates[key];
+    if (value !== undefined && typeof value !== 'string') {
+      throw new Error(`${key} must be a string.`);
+    }
+  }
+}
+
 // ─── Run ID generation ──────────────────────────────────────────────────────
 
 /**
@@ -141,6 +261,21 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
     gitSha: customGitSha,
   } = options;
 
+  if (!isQaDecision(qaDecision)) {
+    throw new Error(
+      `Invalid qaDecision: ${String(qaDecision)}. Must be one of: ${QA_DECISIONS.join(', ')}`,
+    );
+  }
+  if (!isTriggerSource(triggerSource)) {
+    throw new Error(`Invalid triggerSource: ${String(triggerSource)}.`);
+  }
+  if (typeof qaNotes !== 'string') {
+    throw new Error('qaNotes must be a string.');
+  }
+  if (customDisplayName !== undefined && !customDisplayName.trim()) {
+    throw new Error('displayName must not be empty.');
+  }
+
   // 1. Validate test-summary.json exists
   if (!fs.existsSync(summaryPath())) {
     throw new Error('No test-summary.json found. Run tests first before saving.');
@@ -175,7 +310,11 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
   const runId = generateRunId(ranAt);
 
   // 5. Validate runId doesn't already exist
-  const runDir = path.join(archiveDir(), runId);
+  const archiveRoot = ensureArchiveRoot();
+  const runDir = path.join(archiveRoot, runId);
+  if (!isContainedPath(archiveRoot, runDir)) {
+    throw new Error('Refusing to write outside archive directory.');
+  }
   if (fs.existsSync(runDir)) {
     throw new Error(`Archive for run ${runId} already exists. Will not overwrite.`);
   }
@@ -189,10 +328,14 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
 
   // 7b. Snapshot attachments directory if exists
   try {
-    const srcAttachments = path.join(reportDir(), 'attachments');
-    if (fs.existsSync(srcAttachments) && fs.statSync(srcAttachments).isDirectory()) {
+    const srcAttachmentsResolved = resolveContainedExisting(
+      reportDir(),
+      'attachments',
+      'directory',
+    );
+    if (srcAttachmentsResolved) {
       const destAttachments = path.join(runDir, 'attachments');
-      fs.cpSync(srcAttachments, destAttachments, { recursive: true });
+      fs.cpSync(srcAttachmentsResolved, destAttachments, { recursive: true });
     }
   } catch {
     // Non-blocking attachment snapshot
@@ -248,6 +391,9 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
     triggerSource,
   };
   const metadataPath = path.join(runDir, 'metadata.json');
+  if (!isContainedPath(archiveRoot, metadataPath)) {
+    throw new Error('Refusing to write metadata outside archive directory.');
+  }
   fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
 
   return {
@@ -263,13 +409,9 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
  * Returns null if the run does not exist.
  */
 export function loadArchivedSummary(runId: string): Record<string, unknown> | null {
-  // Security: reject invalid runId (path traversal guard)
   if (!isValidRunId(runId)) return null;
-  const ad = archiveDir();
-  const resolved = path.resolve(path.join(ad, runId));
-  if (!resolved.startsWith(path.resolve(ad) + path.sep)) return null;
-  const sp = path.join(ad, runId, 'summary.json');
-  if (!fs.existsSync(sp)) return null;
+  const sp = resolveContainedExisting(archiveDir(), path.join(runId, 'summary.json'), 'file');
+  if (!sp) return null;
   try {
     return JSON.parse(fs.readFileSync(sp, 'utf-8'));
   } catch {
@@ -282,31 +424,29 @@ export function loadArchivedSummary(runId: string): Record<string, unknown> | nu
  * Returns null if the metadata does not exist.
  */
 export function loadArchivedMetadata(runId: string): ArchiveMetadata | null {
-  // Security: reject invalid runId (path traversal guard)
   if (!isValidRunId(runId)) return null;
-  const ad = archiveDir();
-  const resolved = path.resolve(path.join(ad, runId));
-  if (!resolved.startsWith(path.resolve(ad) + path.sep)) return null;
-  const mp = path.join(ad, runId, 'metadata.json');
-  if (!fs.existsSync(mp)) return null;
+  const mp = resolveContainedExisting(archiveDir(), path.join(runId, 'metadata.json'), 'file');
+  if (!mp) return null;
   try {
-    const raw = JSON.parse(fs.readFileSync(mp, 'utf-8')) as ArchiveMetadata;
-    if (!raw.displayName) {
-      raw.displayName = deriveDisplayName({
-        requirementTitle: raw.requirementTitle,
-        requirementPath: raw.requirementPath,
-        appEnv: raw.appEnv,
-        ranAt: raw.ranAt,
+    const raw = JSON.parse(fs.readFileSync(mp, 'utf-8')) as Record<string, unknown>;
+    validateArchiveMetadata(raw, runId);
+    const metadata = raw as unknown as ArchiveMetadata;
+    if (!metadata.displayName) {
+      metadata.displayName = deriveDisplayName({
+        requirementTitle: metadata.requirementTitle,
+        requirementPath: metadata.requirementPath,
+        appEnv: metadata.appEnv,
+        ranAt: metadata.ranAt,
       });
     }
-    if (!raw.testSeriesId) {
-      raw.testSeriesId = deriveTestSeriesId({
-        requirementId: raw.requirementId,
-        requirementPath: raw.requirementPath,
-        requirementTitle: raw.requirementTitle,
+    if (!metadata.testSeriesId) {
+      metadata.testSeriesId = deriveTestSeriesId({
+        requirementId: metadata.requirementId,
+        requirementPath: metadata.requirementPath,
+        requirementTitle: metadata.requirementTitle,
       });
     }
-    return raw;
+    return metadata;
   } catch {
     return null;
   }
@@ -322,13 +462,8 @@ export function deleteArchivedReport(runId: string): boolean {
     throw new Error(`Invalid runId: "${runId}". RunId must match pattern run-YYYYMMDD-HHmmss-SSS.`);
   }
   const ad = archiveDir();
-  const runDir = path.join(ad, runId);
-  // Verify the resolved path is inside archiveDir() (defense-in-depth)
-  const resolved = path.resolve(runDir);
-  if (!resolved.startsWith(path.resolve(ad) + path.sep)) {
-    throw new Error(`Refusing to delete outside archive directory.`);
-  }
-  if (!fs.existsSync(runDir)) return false;
+  const runDir = resolveContainedExisting(ad, runId, 'directory');
+  if (!runDir) return false;
   try {
     fs.rmSync(runDir, { recursive: true, force: true });
     return true;
@@ -345,29 +480,38 @@ export function updateArchivedMetadata(
   runId: string,
   updates: Partial<SaveRunOptions>,
 ): ArchiveMetadata | null {
+  validateMetadataUpdates(updates);
   if (!isValidRunId(runId)) {
     throw new Error(`Invalid runId: "${runId}". RunId must match pattern run-YYYYMMDD-HHmmss-SSS.`);
   }
   const ad = archiveDir();
-  const runDir = path.join(ad, runId);
-  const resolved = path.resolve(runDir);
-  if (!resolved.startsWith(path.resolve(ad) + path.sep)) {
-    throw new Error(`Refusing to access outside archive directory.`);
-  }
-  if (!fs.existsSync(runDir)) return null;
+  const runDir = resolveContainedExisting(ad, runId, 'directory');
+  if (!runDir) return null;
 
   const metadataPath = path.join(runDir, 'metadata.json');
   let existingMeta: ArchiveMetadata | null = null;
-  if (fs.existsSync(metadataPath)) {
+  const existingMetadataPath = resolveContainedExisting(runDir, 'metadata.json', 'file');
+  if (existingMetadataPath) {
     try {
-      existingMeta = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+      const raw = JSON.parse(fs.readFileSync(existingMetadataPath, 'utf-8')) as Record<
+        string,
+        unknown
+      >;
+      validateArchiveMetadata(raw, runId);
+      existingMeta = raw as unknown as ArchiveMetadata;
     } catch {
       existingMeta = null;
     }
   }
 
-  if (!existingMeta?.qaDecision && updates.qaDecision === undefined) {
-    throw new Error('qaDecision is required; metadata cannot imply APPROVE.');
+  const nextDecision = updates.qaDecision ?? existingMeta?.qaDecision;
+  if (!isQaDecision(nextDecision)) {
+    throw new Error(
+      `Invalid qaDecision: ${String(nextDecision)}. Must be one of: ${QA_DECISIONS.join(', ')}`,
+    );
+  }
+  if (updates.displayName !== undefined && !updates.displayName.trim()) {
+    throw new Error('displayName must not be empty.');
   }
 
   const updatedMeta: ArchiveMetadata = {
@@ -383,7 +527,7 @@ export function updateArchivedMetadata(
       updates.requirementTitle !== undefined
         ? updates.requirementTitle
         : existingMeta?.requirementTitle,
-    qaDecision: updates.qaDecision ?? existingMeta!.qaDecision,
+    qaDecision: nextDecision,
     qaNotes: updates.qaNotes !== undefined ? updates.qaNotes : (existingMeta?.qaNotes ?? ''),
     savedAt: existingMeta?.savedAt ?? new Date().toISOString(),
     ranAt: existingMeta?.ranAt ?? new Date().toISOString(),
@@ -399,6 +543,9 @@ export function updateArchivedMetadata(
     reportMode: existingMeta?.reportMode ?? 'general',
   };
 
+  if (!isContainedPath(runDir, metadataPath)) {
+    throw new Error('Refusing to write metadata outside archive directory.');
+  }
   fs.writeFileSync(metadataPath, JSON.stringify(updatedMeta, null, 2), 'utf-8');
 
   return updatedMeta;
@@ -432,11 +579,13 @@ export function listArchivedRunIds(): string[] {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (!isValidRunId(entry.name)) continue;
-    const hasSummary = fs.existsSync(path.join(ad, entry.name, 'summary.json'));
-    const hasMetadata = fs.existsSync(path.join(ad, entry.name, 'metadata.json'));
+    const runDir = resolveContainedExisting(ad, entry.name, 'directory');
+    if (!runDir) continue;
+    const hasSummary = Boolean(resolveContainedExisting(runDir, 'summary.json', 'file'));
+    const hasMetadata = Boolean(resolveContainedExisting(runDir, 'metadata.json', 'file'));
     if (!hasSummary || !hasMetadata) continue;
 
-    const stat = fs.statSync(path.join(ad, entry.name));
+    const stat = fs.statSync(runDir);
     runIds.push({ runId: entry.name, mtime: stat.mtimeMs });
   }
 

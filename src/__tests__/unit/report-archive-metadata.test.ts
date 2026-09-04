@@ -91,6 +91,25 @@ test.describe('updateArchivedMetadata', () => {
     }).toThrow(/Invalid runId/);
   });
 
+  test('rejects invalid decisions and empty labels at the archive boundary', () => {
+    expect(() => updateArchivedMetadata(RUN_ID, { qaDecision: 'NOT_A_DECISION' as never })).toThrow(
+      /Invalid qaDecision/,
+    );
+    expect(() => updateArchivedMetadata(RUN_ID, { displayName: '   ' })).toThrow(/displayName/);
+  });
+
+  test('rejects invalid metadata instead of silently treating it as approved', () => {
+    const metadataPath = path.join(TMP_ARCHIVE_DIR, RUN_ID, 'metadata.json');
+    const original = fs.readFileSync(metadataPath, 'utf-8');
+    fs.writeFileSync(
+      metadataPath,
+      JSON.stringify({ runId: RUN_ID, qaDecision: 'invalid' }),
+      'utf-8',
+    );
+    expect(loadArchivedMetadata(RUN_ID)).toBeNull();
+    fs.writeFileSync(metadataPath, original, 'utf-8');
+  });
+
   test('returns null for nonexistent runId', () => {
     const res = updateArchivedMetadata('run-20990101-000000-000', {
       displayName: 'Does not exist',

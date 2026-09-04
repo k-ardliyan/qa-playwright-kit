@@ -14,11 +14,21 @@ import {
 export interface TestRowProps {
   test: CollectedTestData;
   rowKey: string;
+  runId?: string;
 }
 
 const UNHEALTHY = new Set(['failed', 'timedOut', 'interrupted']);
 
-export function TestRow({ test, rowKey }: TestRowProps) {
+export function getDataScope(
+  test: Pick<CollectedTestData, 'filePath'>,
+): 'DEMO' | 'FIXTURE' | 'GENERAL' {
+  const path = (test.filePath || '').toLowerCase().replace(/\\/g, '/');
+  if (/(^|\/)demo(\/|$)/.test(path)) return 'DEMO';
+  if (/(^|\/)(fixture|fixtures|test-fixture)(\/|$)/.test(path)) return 'FIXTURE';
+  return 'GENERAL';
+}
+
+export function TestRow({ test, rowKey, runId }: TestRowProps) {
   const hasTrace = (test.hasTrace ?? test.attachments.some((a) => a.kind === 'trace')) ? '1' : '0';
   const hasScreenshot = test.attachments.some((a) => a.kind === 'screenshot') ? '1' : '0';
   const hasVideo = test.attachments.some((a) => a.kind === 'video') ? '1' : '0';
@@ -42,7 +52,8 @@ export function TestRow({ test, rowKey }: TestRowProps) {
 
   const status = String(test.status || '');
   const priority = String(test.priority || 'medium').toLowerCase();
-  const role = test.role || '';
+  const role = (test.role || '').trim() || 'GENERAL / UNSCOPED';
+  const scope = getDataScope(test);
   const moduleName = test.module || '';
   const featureName = test.feature || '';
   const unhealthy = UNHEALTHY.has(status) ? '1' : '0';
@@ -55,6 +66,7 @@ export function TestRow({ test, rowKey }: TestRowProps) {
       data-status={status}
       data-priority={priority}
       data-role={role}
+      data-scope={scope}
       data-module={moduleName}
       data-feature={featureName}
       data-layers={layers}
@@ -70,7 +82,10 @@ export function TestRow({ test, rowKey }: TestRowProps) {
       </td>
       <td class="tbl-module" data-col="module">
         <span class="module-chip" safe>
-          {test.module || 'general'}
+          {test.module || 'GENERAL'}
+        </span>
+        <span class="scope-tag" data-scope-label={scope}>
+          {scope}
         </span>
       </td>
       <td class="tbl-feature" data-col="feature">
@@ -103,7 +118,7 @@ export function TestRow({ test, rowKey }: TestRowProps) {
         <FailureSourceCell test={test} />
       </td>
       <td class="tbl-notes" data-col="notes">
-        <NotesCell test={test} />
+        <NotesCell test={test} runId={runId} />
       </td>
     </tr>
   );

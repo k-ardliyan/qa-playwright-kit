@@ -175,6 +175,8 @@ export function HistoryPage({
           if (!displayName) {
             if (feedback) {
               feedback.textContent = 'Please enter a Run Label.';
+              feedback.setAttribute('role', 'alert');
+              feedback.setAttribute('aria-live', 'assertive');
               feedback.style.display = 'block';
             }
             return;
@@ -204,6 +206,8 @@ export function HistoryPage({
               } else {
                 if (feedback) {
                   feedback.textContent = 'Save failed: ' + (d.error || 'Unknown error');
+                  feedback.setAttribute('role', 'alert');
+                  feedback.setAttribute('aria-live', 'assertive');
                   feedback.style.display = 'block';
                 }
               }
@@ -212,6 +216,8 @@ export function HistoryPage({
               if (btn) btn.disabled = false;
               if (feedback) {
                 feedback.textContent = 'Network error: ' + e.message;
+                feedback.setAttribute('role', 'alert');
+                feedback.setAttribute('aria-live', 'assertive');
                 feedback.style.display = 'block';
               }
             });

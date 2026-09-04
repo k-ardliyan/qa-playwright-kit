@@ -23,7 +23,7 @@ export function StatusPill({ status, showIcon = false }: StatusPillProps) {
   const iconText = isUnhealthy ? '✕' : isSkipped ? '⊘' : '✓';
 
   return (
-    <span class={`status-pill ${toneCls}`}>
+    <span class={`status-pill ${toneCls}`} role="img" aria-label={`Status: ${normalized}`}>
       {showIcon && (
         <span class="status-pill__icon" aria-hidden="true">
           {iconText}

@@ -41,10 +41,16 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   // 1. Build LatestRunSummary
   let latestRun: LatestRunSummary | null = null;
   if (info || summary) {
+    const runMeta = (summary?.runMeta as Record<string, unknown> | undefined) ?? {};
     const ranAt = (summary?.timestamp as string) || info?.timestamp || new Date().toISOString();
     const appEnv =
-      (summary?.appEnv as string) || (process.env.APP_ENV as string) || info?.appEnv || 'local';
-    const requirementPath = (summary?.requirementPath as string) || '';
+      (runMeta.appEnv as string) ||
+      (summary?.appEnv as string) ||
+      info?.appEnv ||
+      (process.env.APP_ENV as string) ||
+      'local';
+    const requirementPath =
+      (runMeta.requirementPath as string) || (summary?.requirementPath as string) || '';
     const requirementTitle = (summary?.requirementTitle as string) || '';
     const requirementId = (summary?.requirementId as string) || '';
 
@@ -57,7 +63,14 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
       ((summary?.runMeta as Record<string, unknown> | undefined)?.totalDurationMs as number) ??
       info?.totalDurationMs;
 
-    const runId = info?.runId || (isArchived && history[0]?.runId) || 'latest';
+    const runId =
+      info?.runId ||
+      (summary?.runId as string | undefined) ||
+      (runMeta.runId as string | undefined) ||
+      (isArchived
+        ? history.find((entry) => entry.ranAt === ranAt || entry.savedAt === ranAt)?.runId
+        : undefined) ||
+      'latest';
 
     const displayName = deriveDisplayName({
       requirementTitle,
@@ -85,20 +98,27 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
       skipped,
       durationMs,
       isArchived,
-      qaDecision: isArchived ? history[0]?.qaDecision : undefined,
+      qaDecision: isArchived
+        ? history.find((entry) => entry.runId === runId || entry.ranAt === ranAt)?.qaDecision
+        : undefined,
     };
   }
 
   // 2. Metrics Calculation
   const totalArchived = history.length;
+  const latestIsAlreadyArchived = Boolean(
+    latestRun &&
+    history.some((entry) => entry.runId === latestRun.runId || entry.ranAt === latestRun.ranAt),
+  );
   const allRates = history.map((h) => h.passRate);
-  if (latestRun) allRates.push(latestRun.passRate);
+  if (latestRun && !latestIsAlreadyArchived) allRates.push(latestRun.passRate);
 
   const avgPassRate =
     allRates.length > 0 ? Math.round(allRates.reduce((a, b) => a + b, 0) / allRates.length) : 0;
 
   const totalTestsRun =
-    history.reduce((sum, h) => sum + h.totalTests, 0) + (latestRun?.totalTests ?? 0);
+    history.reduce((sum, h) => sum + h.totalTests, 0) +
+    (latestRun && !latestIsAlreadyArchived ? latestRun.totalTests : 0);
   const approvedCount = history.filter((h) => h.qaDecision === 'APPROVE').length;
   const activeSeries = new Set(history.map((h) => h.testSeriesId).filter(Boolean)).size;
 

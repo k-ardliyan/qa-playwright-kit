@@ -12,6 +12,9 @@ export function TrendChart({ history, width = 360, height = 48 }: TrendChartProp
 
   const data = [...history].reverse().slice(-20); // chronological order
   const rates = data.map((d) => d.passRate);
+  const chartSummary = data
+    .map((entry) => `${entry.displayName || entry.runId}: ${entry.passRate}% pass rate`)
+    .join('. ');
   const minRate = Math.max(0, Math.min(...rates) - 5);
   const maxRate = Math.min(100, Math.max(...rates) + 5);
   const range = maxRate - minRate || 1;
@@ -28,12 +31,19 @@ export function TrendChart({ history, width = 360, height = 48 }: TrendChartProp
 
   return (
     <div class="history-trend" id="history-trend">
-      <span class="trend-label">Pass Rate Trend</span>
+      <span class="trend-label" id="history-trend-label">
+        Pass Rate Trend
+      </span>
+      <p class="trend-summary" id="history-trend-summary" safe>
+        {chartSummary}
+      </p>
       <svg
         class="trend-sparkline"
         viewBox={`0 0 ${width} ${height}`}
         style="max-width:100%;height:auto;display:block;"
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-labelledby="history-trend-label history-trend-summary"
       >
         <polyline
           fill="none"
