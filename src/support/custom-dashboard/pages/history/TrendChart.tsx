@@ -14,7 +14,7 @@ export function TrendChart({ history, width = 200, height = 32 }: TrendChartProp
   const rates = data.map((d) => d.passRate);
   const latestRate = rates[rates.length - 1] ?? 0;
   const delta = latestRate - (rates[0] ?? latestRate);
-  const deltaText = `${delta > 0 ? '+' : ''}${delta} pp`;
+  const safeDeltaText = `${delta > 0 ? '+' : ''}${delta} pp`;
   const chartSummary = data
     .map((entry) => `${entry.displayName || entry.runId}: ${entry.passRate}% pass rate`)
     .join('. ');
@@ -37,10 +37,10 @@ export function TrendChart({ history, width = 200, height = 32 }: TrendChartProp
       <div class="trend-meta">
         <span class="trend-title">Pass Rate</span>
         <span class="trend-metric">{latestRate}%</span>
-        <span class={`trend-delta ${delta >= 0 ? 'positive' : 'negative'}`}>{deltaText}</span>
+        <span class={`trend-delta ${delta >= 0 ? 'positive' : 'negative'}`}>{safeDeltaText}</span>
       </div>
       <span class="trend-label sr-only" id="history-trend-label">
-        Pass Rate Trend · {data.length} runs · Latest {latestRate}% · {deltaText}
+        Pass Rate Trend · {data.length} runs · Latest {latestRate}% · {safeDeltaText}
       </span>
       <p class="trend-summary sr-only" id="history-trend-summary" safe>
         {chartSummary}
