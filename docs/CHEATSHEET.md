@@ -60,6 +60,22 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 ---
 
+## Codegen (rekam test via browser)
+
+```bash
+npm run codegen                              # BASE_URL + AUTH_LOGIN_URL_PATH dari env aktif
+npm run codegen -- /dashboard --role=user    # dengan session role (.auth/<env>/<role>.json)
+npm run codegen -- https://other-domain.com  # URL absolut dipakai apa adanya
+```
+
+- URL otomatis dari `BASE_URL` (`config/environments/{APP_ENV}.env`); default route = `AUTH_LOGIN_URL_PATH`, fallback `/login`. Fail-fast kalau `BASE_URL` kosong tanpa URL absolut.
+- Runner codegen default di-pin `playwright@1.58` (Chromium 145) karena build Chromium terbaru (bundel Playwright ≥1.62) bisa blank-screen di beberapa GPU Windows meski DOM tetap hidup. Override via env:
+  - `CODEGEN_PW_VERSION=repo` → pakai Playwright versi repo (skip pin)
+  - `CODEGEN_PW_VERSION=1.61` → pin semver lain
+  - `CODEGEN_BLOCK_SW=1` → opt-in `--block-service-workers`
+
+---
+
 ## Discovery & Requirement Synthesis Workflow (Phase -0.5)
 
 ```

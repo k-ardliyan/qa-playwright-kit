@@ -65,6 +65,7 @@
     "auth:setup:headed": "npx playwright test tests/auth.setup.ts --project=setup --workers=1 --headed",
     "qa:run": "tsx tools/scripts/qa-run.ts",
     "manual:check": "tsx tools/scripts/manual-check.ts",
+    "codegen": "tsx tools/scripts/codegen.ts",
     "health:check": "tsx tools/scripts/health-check-cli.ts",
     "archive:save": "tsx src/cli/archive-cli.ts save",
     "archive:view": "tsx src/cli/archive-cli.ts view",
