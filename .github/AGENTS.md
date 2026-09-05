@@ -151,6 +151,8 @@ Planner table with columns:
 
 Generated files must include `// spec:` and `// seed:` traceability headers (see generator agent).
 
+Generated specs must never log in inside the test body — auth comes exclusively from `test.use({ storageState: authStatePath('<role>') })` provisioned by the setup project (exception: the requirement itself tests login, `authState: unauthenticated`).
+
 ### Metadata Mapping
 
 See [`.github/agents/generator.agent.md`](agents/generator.agent.md) for `metadata` → `test.describe` / `test.use` / `test.skip` mapping rules.
@@ -166,6 +168,8 @@ See [`.github/agents/generator.agent.md`](agents/generator.agent.md) for `metada
 ### Role Description
 
 Diagnoses and repairs failing tests using structured failure payloads.
+
+**Auth failures (401 / redirected to login / session expired):** never healed by patching tests. Follow the Auth Recovery Protocol (CC-AUTH-RECOVERY) in the root [`AGENTS.md`](../AGENTS.md) — re-run `npm run auth:setup` (real UI login, max 1 cycle per role per run); storage-state injection is banned.
 
 ### Input Format
 

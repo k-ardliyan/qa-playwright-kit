@@ -1,3 +1,8 @@
+/**
+ * AUTO-SYNCED from src/shared/mcp/auth-probe.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 

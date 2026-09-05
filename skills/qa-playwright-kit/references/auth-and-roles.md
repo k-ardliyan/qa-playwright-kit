@@ -94,6 +94,23 @@ Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Skenario fitur biasa yang memb
 
 ---
 
+## Auth Recovery Protocol (CC-AUTH-RECOVERY)
+
+Trigger: 401/403, `unauthorized`, `session expired`, test redirect ke `/login`, atau trace/screenshot menunjukkan page berakhir di halaman login.
+
+1. **Stop healing file tersebut.** Auth failure = `failureSource: 'env'`, `isHealable: false`. Patch locator saat page nyangkut di login = korupsi test.
+2. **Re-login asli via setup project:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). Ini satu-satunya pembuat sesi — login UI sungguhan yang menulis cookie + localStorage + sessionStorage sekaligus. Sesi yang masih valid otomatis di-reuse (murah, tidak login ulang).
+3. **Re-run spec file yang terdampak saja**, lanjutkan phase.
+4. **Maks 1 siklus re-auth per role per run.** 401 kambuh setelah login baru = masalah TTL sesi server / multi-layer session → laporkan ke QA sebagai FIX ENVIRONMENT, jangan loop diam-diam.
+
+### Hard bans
+
+- **DILARANG inject storage state**: `browser_set_storage_state`, `context.addCookies`, `localStorage.setItem` token, edit manual `.auth/*.json`. Login asli menulis banyak lapisan storage sekaligus; inject cuma nebak satu lapisan → sesi palsu yang terlihat hijau.
+- **DILARANG login di dalam spec** (`tests/*.spec.ts` mengisi form login). Auth hanya lewat `test.use({ storageState: authStatePath('<role>') })` dari setup project. Pengecualian: requirement-nya memang skenario login (`authState: unauthenticated`) — langkah login adalah subjek test, bukan provisioning sesi.
+- **DILARANG duplikat/rename file sesi jadi role palsu** (mis. `cp user.json user-2.json` lalu `authStatePath('user-2')`). Role eksis HANYA jika kredensialnya terdaftar di `config/environments/{APP_ENV}.env` (`<ROLE>_PASSWORD` + identity) dan sesinya dibuat `npm run auth:setup`. File `.auth/` tanpa backing env = orphan → ditandai `auth:verify` dan ditolak `validate_generated_tests`. Butuh akun lain: `npm run env:edit` → tambah role → `npm run auth:setup`.
+
+---
+
 ## Complex Login Flow Recipes (`src/support/auth.setup.ts`)
 
 `auth.setup.ts` is modular and designed to be customized when an app has extra login interactions beyond simple username + password. Add custom steps directly in `src/support/auth.setup.ts` (add `// CUSTOM_AUTH_FLOW` at the top to protect from wizard overwrite).
@@ -158,4 +175,7 @@ await test.step('Konfirmasi disclaimer/persetujuan setelah login', async () => {
 - `general` is a pipeline mode (non-role-aware), NEVER a role name. The sole default role is `user` (with `TEST_USER_*` credentials and `.auth/{APP_ENV}/user.json`). Never output `Role: general` or `role: 'general'`.
 - Single role that is not `user` → wizard offers to mirror to `TEST_USER` — answer Yes to keep the general pipeline mode working.
 - Auth file valid but redirects to `/login` → the app stores session in localStorage, not cookies. Check that `origins[0].localStorage` is non-empty in `.auth/{APP_ENV}/user.json`.
+- Session expired mid-run (401 / redirected to login) → Auth Recovery Protocol di atas. Jangan heal locator, jangan inject storage state.
+- Specs never log in inside the test body — provisioning sesi hanya lewat setup project.
+- Role hanya dari env: file `.auth/*.json` yang tidak ada kredensialnya di env adalah orphan (artefak duplikasi), bukan role sah — `auth:verify` menandainya, `validate_generated_tests` menolak spec yang memakainya.
 - Do not share one account across multiple QA members on a shared environment — create isolated accounts per team member.

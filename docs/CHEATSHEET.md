@@ -50,6 +50,7 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 | `npm run env:edit`              | Ganti password / role / browser / OTP-CAPTCHA                        |
 | `npm run auth:setup`            | Refresh session (mode paralel)                                       |
 | `npm run auth:setup:headed`     | Session + OTP/CAPTCHA di browser (workers=1)                         |
+| `npm run auth:verify`           | Live-check sesi per role (401/redirect → re-login asli via auth:setup) |
 | `npm run manual:check`          | List semua skenario `(@manual)`                                      |
 | `list_requirement_status` (MCP) | Peta: requirement → plan → tests → manual                            |
 | `pipeline_status` (MCP)         | Cek fase pipeline, resume safety, staleness requirement              |

@@ -1,6 +1,7 @@
-import type { TestInfo } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
 import { logger } from '@/utils/logger';
 import { isTestQuarantined } from '../support/flaky/flaky-detector';
+import { sessionGuardFixture } from '../support/session-guard';
 
 /**
  * Framework-level fixtures every fork inherits via base.fixture assembly.
@@ -10,6 +11,8 @@ export type FrameworkFixtures = {
   logger: typeof logger;
   /** Auto fixture: logs test lifecycle start/finish to logger. */
   testTrace: void;
+  /** Auto fixture: fast-fail authenticated specs whose session redirects to login. */
+  sessionGuard: void;
 };
 
 /** Single source for framework fixture wiring — consumed by both assembly points. */
@@ -18,6 +21,22 @@ export const frameworkFixtureExtend = {
   logger: async ({}, use: (value: typeof logger) => Promise<void>) => {
     await use(logger);
   },
+  sessionGuard: [
+    async (
+      {
+        page,
+        storageState,
+      }: { page: Page; storageState?: string | { cookies: unknown[]; origins: unknown[] } },
+      use: (value: void) => Promise<void>,
+    ) => {
+      // storageState via fixture deps = RESOLVED value (honours test.use overrides);
+      // testInfo.project.use.storageState does not reflect them.
+      await sessionGuardFixture(page, storageState, async () => {
+        await use();
+      });
+    },
+    { auto: true },
+  ],
   testTrace: [
     async (
       { logger: log }: { logger: typeof logger },

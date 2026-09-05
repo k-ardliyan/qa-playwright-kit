@@ -65,8 +65,8 @@ const SEEDS: SeedDef[] = [
       strategy: 'add_state_setup',
       beforePattern: 'test.describe(',
       afterTemplate:
-        "test.use({ storageState: `.auth/${process.env.APP_ENV || 'local'}/<role>.json` });\n// ensure setup project ran: npm run auth:setup  (OTP/CAPTCHA: npm run auth:setup:headed)\ntest.describe(",
-      requiredImports: [],
+        "test.use({ storageState: authStatePath('<role>') });\n// Ensure a VALID session exists: npm run auth:setup (real UI login — the ONLY session producer).\n// If the failure is 401/session-expired/redirect-to-login, do NOT patch this spec further:\n// re-run auth:setup then re-run this file (Auth Recovery Protocol, max 1 re-auth cycle per role).\n// NEVER inject storage state manually (browser_set_storage_state / addCookies / localStorage.setItem).\ntest.describe(",
+      requiredImports: ["import { authStatePath } from '@/support/auth-paths';"],
     },
     tags: ['auth', 'env', 'power'],
   },

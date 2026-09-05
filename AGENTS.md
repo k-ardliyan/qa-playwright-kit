@@ -192,11 +192,28 @@ List every tool explicitly by server:
 - If `roleFilter` is set, scope the run to matching files: `tests/<feature>-<role>.spec.ts`.
 - Prefer scoped runs (single file or `--grep` tag) when healing.
 
+#### Auth Recovery Protocol (CC-AUTH-RECOVERY)
+
+Applies when the run hits auth failures — classification `auth`, `failureSource: 'env'`, error text matching `401|403|unauthorized|session expired|redirected to login|storageState` — or any failure whose trace/screenshot shows the page landed on the login page:
+
+1. **STOP healing the affected file.** Auth failures are `isHealable: false`; patching locators against a login-redirect page corrupts tests.
+2. **Re-run the real login flow once for the affected roles:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). This performs a genuine UI login in the setup project and refreshes `.auth/{APP_ENV}/<role>.json` — cookies AND localStorage AND sessionStorage in one pass. Sessions whose live check still passes are reused automatically (cheap no-op).
+3. **Re-run only the affected spec files**, then resume the phase.
+4. **Max 1 re-auth cycle per role per run.** If 401 recurs after a fresh login, the session TTL or a multi-layer session is the problem — classify `failureSource: 'env'`, surface to QA as FIX ENVIRONMENT. Do not loop silently.
+
+**Hard bans (no exceptions):**
+
+- NEVER hand-inject storage state: no `browser_set_storage_state`, no `context.addCookies`, no `localStorage.setItem` token pasting, no hand-editing `.auth/*.json`. A real login writes cookies + localStorage + sessionStorage (+ server-side grants) in one flow; injection guesses one layer and yields false-green sessions.
+- NEVER duplicate, rename, or copy auth session files to fake a role (e.g. `cp user.json user-2.json` then `authStatePath('user-2')`). A role EXISTS only when its credentials are registered in `config/environments/{APP_ENV}.env` (`<ROLE>_PASSWORD` + identity via `npm run env:edit`) and its session is produced by `npm run auth:setup`. Files under `.auth/` without env backing are orphans — `validate_generated_tests` rejects specs referencing them.
+- The ONLY session producer is the UI login in `src/support/auth.setup.ts` (setup project).
+- Specs must NEVER log in inside a test (no filling login forms or inline credentials + submit in `tests/*.spec.ts`). Auth comes exclusively from `test.use({ storageState: authStatePath('<role>') })` provisioned by the setup project. Exception: the requirement IS a login scenario (`authState: unauthenticated` / `@auth` feature) — the login steps are then the test subject, not session provisioning.
+
 ### Phase 4: Heal
 
 - Call `get_test_failures` on **qa-playwright-kit** to retrieve structured failure data.
 - Use `prioritizeFailures()` to rank failures by fix likelihood (known patterns first, shared fixtures prioritized, healability order respected).
 - Use `tracePath` and `screenshotPath` from failure payload when present.
+- **Before healing any `locator` failure:** check the trace/screenshot final URL. If the page is the login page (session died mid-run), reclassify as `auth` and apply the Auth Recovery Protocol above instead of patching locators.
 - For each prioritized failure: lookup known pattern → apply or diagnose → fix → store outcome.
 - Classify failures that cannot be healed with a `failureSource`: `app | test | requirement | env | ai_generation`.
 - Re-run `validate_generated_tests`, then `run_tests` for affected files.

@@ -8,6 +8,8 @@ You diagnose and repair failing Playwright tests using structured failure data a
 >
 > - Max 3 heal cycles per file; after 3 same-root-error → classify as `cannotFix`
 > - Every failure must consume structured `failureSource`: `app | test | requirement | env | ai_generation`
+> - **Auth failures (401/403/session expired/redirect-to-login) are NEVER healed by patching tests** — follow the Auth Recovery Protocol (CC-AUTH-RECOVERY) in root `AGENTS.md`: stop healing → `npm run auth:setup` (real UI login; max 1 re-auth cycle per role per run) → re-run affected specs. Storage-state injection (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) is banned.
+> - **NEVER create or duplicate auth roles/sessions yourself** (e.g. `cp user.json user-2.json`, referencing unregistered roles). Roles come ONLY from `config/environments/{APP_ENV}.env`; sessions ONLY from `npm run auth:setup`.
 > - Consume failure classification, traceability state (`trace_requirement`), and selector catalog evidence (`artifacts/selector-catalog/`) before changing tests
 > - **Healing Policy by Failure Source (CC-0906):**
 >   - `app` → DO NOT rewrite test logic to make it green (document product bug, file defect)
@@ -213,7 +215,8 @@ Pattern storage behavior:
 9. **Network failures** (`rootCause: network`, Failed to fetch, 5xx): prefer `mockJson` / `mockServerError` / `unmockAll` from `@/support/pw` rather than lengthening timeouts.
 10. **`@network-assert` flake** (timeout waiting for response / wrong body): prefer `waitAndAssertApi` / ensure `waitForApi` (or `waitForResponse`) is registered **before** the UI trigger; tighten `urlIncludes` + `method` + `status`; if Service Worker swallows events use `test.use({ serviceWorkers: 'block' })`; for contract failures re-read scenario Input Data / Hasil keys — partial match only, never invent endpoints or full-body snapshots.
 11. **Missing seed / empty list / 404 test data** (`data_state`): prefer hybrid `apiSeed` + cleanup via `request` fixture when the requirement documents an API.
-12. **Auth / storageState missing**: ensure `dependencies: ['setup']` and `test.use({ storageState: authStatePath('<role>') })` (or `.auth/{APP_ENV}/<role>.json`); re-run setup project — do not skip auth checks.
+12. **Auth / storageState missing or expired**: ensure `dependencies: ['setup']` and `test.use({ storageState: authStatePath('<role>') })` (or `.auth/{APP_ENV}/<role>.json`); re-run setup project — do not skip auth checks.
+    **Reclassify before healing locators:** if the trace/screenshot final URL is the login page, or the error is `SESSION EXPIRED for role ...` (session-guard fast-fail), the failure is `auth`/`env`, NOT `locator`. Do not patch locators against a login-redirected page; apply the Auth Recovery Protocol instead.
 13. If service worker swallows routes, suggest `test.use({ serviceWorkers: 'block' })`.
 14. **Download timeout / no Download event**: ensure `page.waitForEvent('download')` (or `downloadAndSave` / `downloadFile`) is registered **before** the click that triggers the download.
 15. **ENOENT fixture / missing upload file**: fix path to a committed file under `tests/data/`; use `uploadFixture` / `uploadViaChooser` / `setInputFiles` — never introduce `page.pause()` for OS file pick.

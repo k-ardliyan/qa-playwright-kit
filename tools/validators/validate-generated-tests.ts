@@ -2,11 +2,15 @@
 
 import { validateGeneratedTests } from '../mcp/src/tools/validate-generated-tests';
 import { findRepoRoot } from '../mcp/src/utils/safety';
+import { bootstrapMcpEnvironment } from '../mcp/src/utils/mcp-env-bootstrap';
 
 function main(): void {
   // Anchor cwd at the repo root so the validator scans the right tree even
-  // when invoked from a subdirectory.
-  process.chdir(findRepoRoot(__dirname));
+  // when invoked from a subdirectory, and load the active env contract —
+  // the role-vs-env auth rule needs ROLE_* credentials registered in env.
+  const root = findRepoRoot(__dirname);
+  process.chdir(root);
+  bootstrapMcpEnvironment(__dirname);
   const output = validateGeneratedTests();
 
   if (output.status === 'error') {

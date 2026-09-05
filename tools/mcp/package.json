@@ -16,11 +16,11 @@
   "dependencies": {
     "@dotenvx/dotenvx": "^2.23.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@playwright/test": "^1.62.1",
-    "playwright": "^1.62.1"
+    "@playwright/test": "^1.63.0",
+    "playwright": "^1.63.0"
   },
   "devDependencies": {
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "exceljs": "^4.4.0",
     "pdf-parse": "^2.4.5",
     "typescript": "^6.0.3"

@@ -58,6 +58,14 @@ export const MCP_GENERATED_PAIRS: SyncPair[] = [
     source: 'src/contracts/versions.ts',
     dest: 'tools/mcp/src/contracts/versions.ts',
   },
+  {
+    source: 'src/shared/mcp/auth-probe.ts',
+    dest: 'tools/mcp/src/utils/auth-probe.ts',
+  },
+  {
+    source: 'src/shared/utils/role-credentials.ts',
+    dest: 'tools/mcp/src/utils/role-credentials.ts',
+  },
 ];
 
 const BANNER_RE =

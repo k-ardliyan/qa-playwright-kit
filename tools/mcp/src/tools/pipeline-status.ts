@@ -13,6 +13,7 @@ import { getRepoRoot } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
 import { readTextFile } from '../utils/file-reader';
 import { safeJsonParse } from '../utils/json-parser';
+import { probeAuthRoles, type AuthRoleStatus } from '../utils/auth-probe';
 import { computeSourceHash } from '../contracts';
 
 interface AppEnvResolution {
@@ -110,7 +111,15 @@ export interface PipelineStatusOutput {
   environment?: {
     appEnv: string;
     authDir: string | null;
+    /** Role names present in `.auth/{appEnv}/` (filename listing). */
     authRoles: string[];
+    /**
+     * Static per-role readiness (cookie TTL / structural probe). `null` = unknown —
+     * session lives in localStorage (no TTL on disk); verify with `auth:verify`
+     * or a live check before trusting it. `false` = expired/malformed → re-run
+     * `npm run auth:setup` (real UI login — never inject storage state).
+     */
+    authRoleStatus: AuthRoleStatus[];
   };
 }
 
@@ -156,18 +165,31 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
   });
   const appEnv = resolved.appEnv;
   const authDir = path.join(repoRoot, '.auth', appEnv);
-  const authRoles = fs.existsSync(authDir)
-    ? fs
-        .readdirSync(authDir)
-        .filter((f) => f.endsWith('.json'))
-        .map((f) => f.replace(/\.json$/, ''))
-    : [];
+  const authRoleStatus = probeAuthRoles(authDir);
+  const authRoles = authRoleStatus.map((r) => r.role);
 
   const environment: PipelineStatusOutput['environment'] = {
     appEnv,
     authDir: authRoles.length > 0 ? path.relative(repoRoot, authDir).replace(/\\/g, '/') : null,
     authRoles,
+    authRoleStatus,
   };
+
+  // Auth readiness warnings apply in every branch — a pre-flight "no_state"
+  // read is exactly when an agent decides whether sessions are usable.
+  const authWarnings: string[] = [];
+  const notReadyRoles = authRoleStatus.filter((r) => r.ready === false);
+  const unknownRoles = authRoleStatus.filter((r) => r.ready === null);
+  if (notReadyRoles.length > 0) {
+    authWarnings.push(
+      `Auth session expired/malformed for role(s): ${notReadyRoles.map((r) => r.role).join(', ')} — re-run: npm run auth:setup (real UI login; never inject storage state).`,
+    );
+  }
+  if (unknownRoles.length > 0) {
+    authWarnings.push(
+      `Auth readiness unknown for role(s): ${unknownRoles.map((r) => r.role).join(', ')} — session may live in localStorage (no cookie TTL on disk); verify with: npm run auth:verify.`,
+    );
+  }
 
   // ── Pipeline state ──────────────────────────────────────────────────────
   const reportsDir = resolveReportsDir(repoRoot);
@@ -176,6 +198,7 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
     return {
       status: 'no_state',
       message:
+        (authWarnings.length > 0 ? `${authWarnings.join(' ')} ` : '') +
         'No pipeline state found. Start a fresh run: Plan phase for your requirement (see AGENTS.md pipeline).',
       lastRun: null,
       environment,
@@ -245,7 +268,7 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
   }
 
   // ── Actionable guidance ─────────────────────────────────────────────────
-  const nextSteps: string[] = [];
+  const nextSteps: string[] = [...authWarnings];
   if (state.status === 'running' || state.status === 'paused') {
     if (state.missingArtifacts.length > 0) {
       nextSteps.push(

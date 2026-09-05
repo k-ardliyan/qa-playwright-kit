@@ -1,4 +1,12 @@
+import * as fs from 'node:fs';
 import { test as setup, test } from '@playwright/test';
+import {
+  parseRolesFromEnvMap,
+  roleCredentialKeys,
+  isPlaceholderCredential,
+  type RoleCredentialRef,
+} from '../shared/utils/role-credentials';
+import type { Page } from '@playwright/test';
 import { setTestMetadata, captureActualResult } from './test-metadata';
 import { isSessionValid, saveSessionState, resolveRoleCredentials } from './auth-helpers';
 import {
@@ -8,18 +16,11 @@ import {
   resolveChallengeTimeoutMs,
 } from './human-challenge';
 import { resolveAppUrl } from './app-url';
-import type { Page } from '@playwright/test';
-import {
-  parseRolesFromEnvMap,
-  roleCredentialKeys,
-  isPlaceholderCredential,
-  type RoleCredentialRef,
-} from '../shared/utils/role-credentials';
 
 /**
  * Auth Setup — modular, customizable login runner.
  *
- * Roles in scope: discovered from the loaded environment (fully role-aware — no hardcoded role list)
+ * Roles in scope: user (fully role-aware — no general/user mode)
  *
  * Runs once during setup project to materialize .auth/{APP_ENV}/<role>.json.
  * If your app requires extra login steps (profile picker, tenant selector, 2-step login),
@@ -29,11 +30,20 @@ import {
  */
 
 // ─── Shared login helper — satu implementasi untuk semua role ─────────────────
+
+/**
+ * Optional per-role URL overrides (customizable without being overwritten).
+ * Shape: { [roleName]: { loginUrl?: string; successUrl?: string } }
+ */
+const ROLE_URL_OVERRIDES: Record<string, { loginUrl?: string; successUrl?: string } | undefined> =
+  {};
+
 async function loginRole(roleName: string, page: Page): Promise<void> {
   const cred = resolveRoleCredentials(roleName);
   const authFile = cred.authFile; // scoped: .auth/{APP_ENV}/<role>.json
-  const roleLoginUrl = cred.loginUrl || '/login';
-  const roleSuccessUrl = cred.successUrl || '/dashboard';
+  const overrides = ROLE_URL_OVERRIDES[roleName] ?? null;
+  const roleLoginUrl = cred.loginUrl || (overrides?.loginUrl ?? '/login');
+  const roleSuccessUrl = cred.successUrl || (overrides?.successUrl ?? '/dashboard');
   console.log(`ℹ [Auth] Menyiapkan session untuk role: "${roleName}"...`);
 
   setTestMetadata({
@@ -52,9 +62,7 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
 
   const roleRef = roleCredentialKeys(roleName);
   const missing = [] as string[];
-  if (isPlaceholderCredential(process.env[roleRef.passwordKey])) {
-    missing.push(roleRef.passwordKey);
-  }
+  if (isPlaceholderCredential(process.env[roleRef.passwordKey])) missing.push(roleRef.passwordKey);
   if (
     [roleRef.emailKey, roleRef.usernameKey, roleRef.phoneKey].every((key) =>
       isPlaceholderCredential(process.env[key]),
@@ -84,8 +92,24 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
     }
   }
 
-  // 2. Fresh Login Flow
+  // 2. Fresh Login Flow — must start from a CLEAN context: the setup test may
+  // carry the role's previous session (setup.use({ storageState })), and apps
+  // redirect /login back to the app for browser sessions they consider alive,
+  // so the login form would never render.
   await test.step('Buka halaman login', async () => {
+    await page.goto(resolveAppUrl(roleLoginUrl));
+  });
+
+  await test.step('Bersihkan sisa sesi lama di context', async () => {
+    await page.context().clearCookies();
+    try {
+      await page.evaluate(() => {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+      });
+    } catch {
+      // Page never reached the app origin — nothing was seeded to clear.
+    }
     await page.goto(resolveAppUrl(roleLoginUrl));
   });
 
@@ -143,7 +167,6 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
 }
 
 // ─── Setup blocks per role ─────────────────────────────────────────────────────
-
 function configuredRoles(): RoleCredentialRef[] {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
@@ -155,7 +178,15 @@ function configuredRoles(): RoleCredentialRef[] {
 }
 
 for (const role of configuredRoles()) {
-  setup(`authenticate:${role.name}`, async ({ page }) => {
-    await loginRole(role.name, page);
+  // Load the role's EXISTING session into this setup test's context so the
+  // reuse gate (isSessionValid) can actually see it — without this, the setup
+  // page is always unauthenticated and every run does a fresh login.
+  const cred = resolveRoleCredentials(role.name);
+  const existingSession = fs.existsSync(cred.authFile) ? cred.authFile : undefined;
+  setup.describe(`role:${role.name}`, () => {
+    setup.use({ storageState: existingSession });
+    setup(`authenticate:${role.name}`, async ({ page }) => {
+      await loginRole(role.name, page);
+    });
   });
 }

@@ -7,6 +7,7 @@ import {
 } from '../utils/playwright-paths';
 import { getRepoRoot } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
+import { probeAuthRoles } from '../utils/auth-probe';
 
 export interface HealthCheckItem {
   name: string;
@@ -402,8 +403,8 @@ function checkAuthStorageState(): HealthCheckItem {
     };
   }
 
-  const stateFiles = fs.readdirSync(authDir).filter((f) => f.endsWith('.json'));
-  if (stateFiles.length === 0) {
+  const roleStatus = probeAuthRoles(authDir);
+  if (roleStatus.length === 0) {
     return {
       name: 'auth_storage',
       status: 'warn',
@@ -411,10 +412,33 @@ function checkAuthStorageState(): HealthCheckItem {
     };
   }
 
+  // Static probe: cookie TTL is knowable from the file; localStorage-only
+  // sessions have no TTL on disk → unknown (needs live check via auth:verify).
+  const expired = roleStatus.filter((r) => r.ready === false);
+  const unknown = roleStatus.filter((r) => r.ready === null);
+  const valid = roleStatus.filter((r) => r.ready === true);
+
+  if (expired.length === roleStatus.length) {
+    return {
+      name: 'auth_storage',
+      status: 'fail',
+      message: `.auth/${appEnv}/ all session(s) expired: ${expired.map((r) => `${r.role} (${r.reason})`).join('; ')} — re-run: npm run auth:setup (real UI login; never inject storage state)`,
+    };
+  }
+
+  const parts: string[] = [];
+  if (valid.length > 0) parts.push(`ready: ${valid.map((r) => r.role).join(', ')}`);
+  if (expired.length > 0)
+    parts.push(`EXPIRED: ${expired.map((r) => r.role).join(', ')} — re-run npm run auth:setup`);
+  if (unknown.length > 0)
+    parts.push(
+      `unknown (localStorage session, verify with npm run auth:verify): ${unknown.map((r) => r.role).join(', ')}`,
+    );
+
   return {
     name: 'auth_storage',
-    status: 'ok',
-    message: `.auth/${appEnv}/ has ${stateFiles.length} storage state file(s): ${stateFiles.join(', ')}`,
+    status: expired.length > 0 ? 'warn' : 'ok',
+    message: `.auth/${appEnv}/ — ${parts.join('; ')}`,
   };
 }
 

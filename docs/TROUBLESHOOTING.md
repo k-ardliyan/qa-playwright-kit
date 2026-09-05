@@ -140,6 +140,22 @@ npm run auth:setup:headed
 
 Jika `health_check` / `npm run health:check` melaporkan **`auth_storage` warn** (`.auth/{APP_ENV}/` missing atau kosong), jalankan `npm run auth:setup` untuk environment aktif. Tanpa file storage state, test authenticated akan gagal di auth setup / empty session.
 
+Jika `auth_storage` melaporkan **EXPIRED** (semua cookie sesi kedaluwarsa) → `npm run auth:setup`. Jika status **unknown** (sesi hidup di localStorage, tidak ada TTL cookie di disk) → verifikasi live dengan `npm run auth:verify` (navigate ke success URL per role; redirect ke login = sesi mati).
+
+---
+
+### Error #5b-2: 401 / Session Expired di Tengah Run
+
+**Gejala:** Test authenticated tiba-tiba gagal — error `SESSION EXPIRED for role "<role>"`, `401`, atau trace/screenshot menunjukkan page berakhir di halaman login (sering menyamar jadi locator timeout).
+
+**Fix (Auth Recovery Protocol — CC-AUTH-RECOVERY):**
+
+1. STOP healing file tersebut — jangan patch locator saat page nyangkut di login.
+2. Jalankan `npm run auth:setup` (login UI asli; sesi valid otomatis di-reuse).
+3. Re-run spec file yang terdampak saja.
+4. Maks **1 siklus re-auth per role per run** — 401 kambuh = masalah TTL sesi server → eskalasi ke QA (FIX ENVIRONMENT).
+5. **DILARANG** inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, edit manual `.auth/*.json`) dan **DILARANG** login di dalam spec — login UI via setup project adalah satu-satunya pembuat sesi.
+
 ---
 
 ### Error #5c: Auth stuck di OTP / CAPTCHA

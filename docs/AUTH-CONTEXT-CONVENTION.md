@@ -112,6 +112,26 @@ Implementasi: `src/support/human-challenge.ts` dipanggil dari `tests/auth.setup.
 
 ---
 
+## Deteksi sesi mati (Session Guard & reuse gate)
+
+Framework mendeteksi sesi mati lewat 4 layer, dari yang paling universal. **Semua otomatis — tanpa env key app-specific**:
+
+| Layer | Mekanisme | Cocok untuk | Env (opsional) |
+| ----- | --------- | ----------- | -------------- |
+| 0 | **Scan TTL statis dari file sesi** (JWT `exp` claim RFC 7519 + rekam kadaluarsa `{loginTime, expiresIn}` / `{exp|expiresAt}` di cookie & localStorage) | Semua app yang menyimpan token standar | — otomatis |
+| 1 | Redirect ke halaman login | App tradisional / session cookie | — (pakai `*_LOGIN_URL_PATH`) |
+| 2 | Respons 401/403 saat navigasi awal | SPA yang fetch data | — |
+| 3 | **Probe hook kustom per-role** (`src/support/auth.probe.ts`) — assertion Playwright apa pun (DOM, API `/me`, storage) yang harus lulus saat sesi hidup | App paling diam (tanpa redirect, tanpa 401, tanpa bukti TTL) | — opsional, kode di repo |
+
+- Layer 0 berjalan **tanpa navigasi** dan konservatif: semakin banyak bukti TTL, semakin akurat; **semua** bukti expired → sesi mati; ada yang hidup → dianggap hidup (layer 1–2 yang menangkap 401/redirect nyata); tanpa bukti → layer lain memutuskan. Tidak ada false positive.
+- **Probe hook (layer 3) opsional dan jarang perlu** — mayoritas app terdeteksi layer 0–2 tanpa konfigurasi apa pun. Ia hanya untuk app yang benar-benar tidak memberi sinyal (tanpa redirect, tanpa 401, tanpa bukti TTL) — kasus yang secara teori tidak mungkin dideteksi otomatis. Definisikan check per role di `src/support/auth.probe.ts`; check yang gagal (throw) = sesi mati, timeout = tidak pasti (dilewati — tanpa false positive).
+- **Gerbang reuse kini benar-benar hidup**: tiap setup test memuat sesi lama rolenya (`setup.use({ storageState })` per role), jadi `auth:setup` me-reuse sesi yang masih hidup dan hanya login fresh saat perlu.
+- Layer 0 juga dipakai gerbang reuse di `auth:setup` (`isSessionValid`) — file yang terbukti expired langsung login fresh tanpa navigasi — dan oleh `pipeline_status`/`health_check` (sesi localStorage yang expired kini terdeteksi statis, tidak lagi `unknown`).
+- Guard dipasang sebagai auto fixture (`sessionGuard`) dan hanya aktif untuk spec yang punya `storageState` string. Sesi mati → fail cepat `SESSION EXPIRED for role "<role>"` (kena classifier auth → `failureSource: env`, bukan locator timeout).
+- Escape hatch: `AUTH_FORCE_LOGIN=true` memaksa login fresh (skip gerbang reuse) — dipakai saat reuse gate tertipu oleh app yang menelan token kadaluarsa.
+
+---
+
 ## Multi-role credentials
 
 Lihat [CREDENTIALS.md](CREDENTIALS.md) — skema seragam per role; multi N=1 mirror ke `TEST_USER` opsional.

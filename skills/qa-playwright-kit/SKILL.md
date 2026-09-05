@@ -117,6 +117,10 @@ Completion: no ephemeral refs; no credential leakage in step titles; every test 
 
 Execute via `playwright-test:run_tests`. Heal max 3 cycles per file (`.github/agents/healer.agent.md`). Reporter (`.github/agents/reporter.agent.md`) writes `artifacts/reports/pipeline-report-<runId>.md`; after QA chooses a decision, call `qa-playwright-kit:archive_report` with explicit `qaDecision`. State file disimpan di `artifacts/reports/pipeline-state.json` (dan marker `.latest-run` menunjuk ke path laporan yang sama).
 
+**Auth failure mid-run (401 / redirected to login / session expired):** stop healing that file, re-run `npm run auth:setup` (real UI login — the ONLY session producer), re-run the affected spec files. Max 1 re-auth cycle per role per run. NEVER inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) and NEVER log in inside a spec — see [auth-and-roles.md](references/auth-and-roles.md).
+
+**NEVER duplicate/rename `.auth/*.json` to fake a role** (e.g. `user-2.json`): roles exist ONLY when registered in `config/environments/{APP_ENV}.env`; sessions are produced ONLY by `npm run auth:setup`. Need another account → `npm run env:edit` → `npm run auth:setup`. `validate_generated_tests` fails specs referencing unregistered roles.
+
 Completion: dashboard Table View matches [report-column-contract.md](references/report-column-contract.md).
 
 ### 7. QA Decision
@@ -140,6 +144,8 @@ Completion: report handed to QA; zero diffs under protected paths.
 - `captureActualResult` never runs on fail (assertion throws first). Reporter uses the error message — do not invent a fake actual on failure.
 - Pass fallback in `custom-reporter.ts` is `Sesuai dengan expected result` (hardcoded). Still call `captureActualResult` with the exact `expectedResult` string so Actual equals Expected.
 - Email / password / IDs belong in Input Data, never in `test.step` titles.
+- Auth session expired mid-run (401 / redirected to login) → do NOT heal locators and do NOT inject storage state. Re-run `npm run auth:setup`, then re-run the affected specs (max 1 re-auth cycle per role per run). See [auth-and-roles.md](references/auth-and-roles.md).
+- Never log in inside a spec (`tests/*.spec.ts` filling login forms). Auth = `test.use({ storageState: authStatePath('<role>') })` from the setup project only. Exception: the requirement itself tests login (`authState: unauthenticated`).
 - Do not write `toBeVisible` / `fill` / `getByRole` into the requirement or test-plan Steps column.
 - Humans type `npm run qa:run` / `validate:requirement` / `setup:local` / `env:use:staging` — no npm `--`. Agents use `npx tsx …` with a positional path. `--` inside a script value is Playwright, not something QA types.
 - "Fix the dashboard / reporter / MCP so QA is happier" is a maintainer task. Patching `src/support/custom-reporter.ts` from this skill is out of bounds.

@@ -13,6 +13,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Page } from '@playwright/test';
 import { roleCredentialKeys, canonicalRoleName } from '../shared/utils/role-credentials';
+import { authStateFileExpiryVerdict } from '../shared/mcp/auth-probe';
+import { pathRoleFromStatePath, runAuthProbeCheck } from './session-guard';
 
 export interface SessionValidationOptions {
   authFile: string;
@@ -22,7 +24,11 @@ export interface SessionValidationOptions {
 
 /**
  * Check whether an existing saved session file is still valid.
- * Navigates to checkUrl; if the browser does not redirect to loginUrl, the session is reused.
+ * First a static TTL scan of the session file itself (JWT exp claims and
+ * client expiry records — zero config, see auth-probe's expiry scanner):
+ * proven-expired files short-circuit to a fresh login without any navigation.
+ * Then a live navigation: if the browser does not redirect to loginUrl, the
+ * session is reused.
  * Returns true if session is still valid, false if expired or missing.
  */
 export async function isSessionValid(
@@ -31,6 +37,12 @@ export async function isSessionValid(
 ): Promise<boolean> {
   const { authFile, checkUrl, loginUrl } = options;
   if (!fs.existsSync(authFile)) {
+    return false;
+  }
+
+  // Static evidence: JWT exp / expiry records in the file prove death without
+  // a browser round-trip (SPA apps that never redirect and swallow 401s).
+  if (authStateFileExpiryVerdict(authFile) === true) {
     return false;
   }
 
@@ -44,6 +56,16 @@ export async function isSessionValid(
     const currentUrl = page.url();
     // If current URL does not contain the login path, session is still active
     if (!currentUrl.includes(loginUrl)) {
+      // Layer 3: workspace probe check (if defined for this role) — the last
+      // say on session health for silent apps. Timeout is inconclusive.
+      const role = pathRoleFromStatePath(authFile) ?? 'user';
+      const probe = await runAuthProbeCheck(page, role, {
+        successUrl: checkUrl,
+        loginUrl,
+      });
+      if (probe.outcome === 'failed') {
+        return false;
+      }
       await page.context().storageState({ path: authFile });
       return true;
     }

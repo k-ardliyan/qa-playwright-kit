@@ -123,11 +123,68 @@ test.describe('pipeline_status tool', () => {
     try {
       withProcessEnv({ APP_ENV: undefined, CI: undefined }, () => {
         const out = pipelineStatus({ repoRoot: isolate });
+        // finance.json has empty cookies+origins → structurally malformed → unknown readiness
         expect(out.environment).toEqual({
           appEnv: 'staging',
           authDir: '.auth/staging',
           authRoles: ['finance'],
+          authRoleStatus: [
+            {
+              role: 'finance',
+              status: 'malformed',
+              ready: null,
+              reason: 'Storage state contains neither cookies nor origin storage',
+            },
+          ],
         });
+      });
+    } finally {
+      fs.rmSync(isolate, { recursive: true, force: true });
+    }
+  });
+
+  test('flags expired session cookies as not-ready and hints re-login', () => {
+    const isolate = makeStatusWorkspace('dev');
+    fs.mkdirSync(path.join(isolate, '.auth', 'dev'), { recursive: true });
+    const past = Math.floor(Date.now() / 1000) - 3600;
+    fs.writeFileSync(
+      path.join(isolate, '.auth', 'dev', 'finance.json'),
+      JSON.stringify({
+        cookies: [
+          { name: 'sid', value: 'x', expires: past },
+          { name: 'csrf', value: 'y', expires: past },
+        ],
+        origins: [],
+      }),
+      'utf-8',
+    );
+    try {
+      withProcessEnv({ APP_ENV: undefined, CI: undefined }, () => {
+        const out = pipelineStatus({ repoRoot: isolate });
+        expect(out.environment?.authRoleStatus[0]).toMatchObject({ role: 'finance', ready: false });
+        expect(out.message).toContain('npm run auth:setup');
+      });
+    } finally {
+      fs.rmSync(isolate, { recursive: true, force: true });
+    }
+  });
+
+  test('reports unknown readiness for localStorage-only sessions', () => {
+    const isolate = makeStatusWorkspace('local');
+    fs.mkdirSync(path.join(isolate, '.auth', 'local'), { recursive: true });
+    fs.writeFileSync(
+      path.join(isolate, '.auth', 'local', 'user.json'),
+      JSON.stringify({
+        cookies: [],
+        origins: [{ origin: 'https://app.test', localStorage: [{ name: 'token', value: 't' }] }],
+      }),
+      'utf-8',
+    );
+    try {
+      withProcessEnv({ APP_ENV: undefined, CI: undefined }, () => {
+        const out = pipelineStatus({ repoRoot: isolate });
+        expect(out.environment?.authRoleStatus[0]).toMatchObject({ role: 'user', ready: null });
+        expect(out.message).toContain('npm run auth:verify');
       });
     } finally {
       fs.rmSync(isolate, { recursive: true, force: true });
@@ -140,10 +197,19 @@ test.describe('pipeline_status tool', () => {
     fs.writeFileSync(path.join(isolate, '.auth', 'local', 'admin.json'), '{}', 'utf-8');
     try {
       withProcessEnv({ APP_ENV: undefined, CI: undefined }, () => {
-        expect(pipelineStatus({ repoRoot: isolate }).environment).toEqual({
+        const out = pipelineStatus({ repoRoot: isolate });
+        expect(out.environment).toEqual({
           appEnv: 'local',
           authDir: '.auth/local',
           authRoles: ['admin'],
+          authRoleStatus: [
+            {
+              role: 'admin',
+              status: 'malformed',
+              ready: null,
+              reason: 'Storage state contains neither cookies nor origin storage',
+            },
+          ],
         });
       });
     } finally {
@@ -157,11 +223,10 @@ test.describe('pipeline_status tool', () => {
     fs.writeFileSync(path.join(isolate, '.auth', 'production', 'ops.json'), '{}', 'utf-8');
     try {
       withProcessEnv({ APP_ENV: 'production', CI: undefined }, () => {
-        expect(pipelineStatus({ repoRoot: isolate }).environment).toEqual({
-          appEnv: 'production',
-          authDir: '.auth/production',
-          authRoles: ['ops'],
-        });
+        const out = pipelineStatus({ repoRoot: isolate });
+        expect(out.environment?.appEnv).toBe('production');
+        expect(out.environment?.authRoles).toEqual(['ops']);
+        expect(out.environment?.authRoleStatus[0]).toMatchObject({ role: 'ops', ready: null });
       });
     } finally {
       fs.rmSync(isolate, { recursive: true, force: true });

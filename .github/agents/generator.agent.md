@@ -8,6 +8,7 @@ You convert a Planner scenario table into Playwright TypeScript test files.
 >
 > - Import test from `./fixtures` (or `@/public`) — NEVER from `@playwright/test` directly
 > - Auth: `test.use({ storageState: authStatePath('<role>') })` — NEVER hardcode `.auth/` path
+> - NEVER log in inside a spec: no filling login forms / inline credentials + submit in `tests/*.spec.ts`. Sessions are provisioned by the setup project via storageState only (exception: the requirement itself tests login — `authState: unauthenticated` — then login steps are the test subject)
 > - Canonical output is flat: one spec file per role at `tests/<feature>-<role>.spec.ts` (or `tests/<feature>.spec.ts` for general mode)
 > - Call `setTestMetadata(test, ...)` as first statement in every test body
 > - Unknown selector → call `browser_snapshot` or check catalog first; NEVER guess
@@ -315,6 +316,8 @@ Mark skeletons with `// SKELETON` so they're easy to find and complete later.
 10. **Linter & Typecheck Compliance**: Generated test files MUST pass `npx eslint <specPath>` and `npx tsc --noEmit` cleanly without errors or warnings.
 11. For role-specific files, always include `test.use({ storageState: authStatePath('<role>') })` or `.auth/${process.env.APP_ENV||'local'}/<role>.json` at the describe level.
 12. Use `test.skip` with tag `@manual` for CAPTCHA or flows that cannot be automated safely — always include the reason.
+13. **No inline login (session provisioning ban):** NEVER generate login form flows (fill identity + password + submit) inside specs to obtain a session. Sessions come only from `test.use({ storageState: authStatePath('<role>') })` provisioned by the setup project. Exception: the requirement IS a login scenario (`authState: unauthenticated` / `@auth` feature) — the login steps are the test subject, not provisioning. Never hand-inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`) either.
+14. **No invented/duplicated roles (env is the source of truth):** every role passed to `authStatePath('<role>')` must be registered in `config/environments/{APP_ENV}.env` (`<ROLE>_PASSWORD` + identity). NEVER duplicate or rename session files (e.g. `cp user.json user-2.json`) to fake a role — `validate_generated_tests` fails specs referencing unregistered roles. Need another account? `npm run env:edit` → add role → `npm run auth:setup`.
 
 ## Playwright Power Features (official APIs)
 
