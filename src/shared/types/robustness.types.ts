@@ -153,7 +153,11 @@ export interface FixTemplate {
 // ─── Observability Types ───────────────────────────────────────────────────────
 
 export type ErrorCategory =
-  'infrastructure' | 'configuration' | 'application' | 'test_logic' | 'transient';
+  | 'infrastructure'
+  | 'configuration'
+  | 'application'
+  | 'test_logic'
+  | 'transient';
 
 export type ErrorSeverity = 'critical' | 'high' | 'medium' | 'low';
 
@@ -199,7 +203,12 @@ export interface PlanValidationIssue {
  * Ordered by healability: locator (most healable) → product_bug (least healable).
  */
 export type RootCauseCategory =
-  'locator' | 'timing' | 'data_state' | 'network' | 'auth' | 'product_bug';
+  | 'locator'
+  | 'timing'
+  | 'data_state'
+  | 'network'
+  | 'auth'
+  | 'product_bug';
 
 /**
  * A test failure consumed by healer, executor, and other agents.

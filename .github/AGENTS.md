@@ -245,4 +245,3 @@ Pipeline context from Orchestrator plus `get_test_summary`, `trace_requirement`,
 ### Example Prompt
 
 - "Generate the pipeline report for the current run and write it to `artifacts/reports/pipeline-report-<runId>.md`."
-

@@ -124,9 +124,10 @@ export async function extractPdfText(filePath: string, maxChars?: number): Promi
   const absolute = path.resolve(filePath);
   const data = new Uint8Array(fs.readFileSync(absolute));
   // pdf-parse v2 class API
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { PDFParse } = require('pdf-parse') as {
-    PDFParse: new (opts: { data: Uint8Array }) => {
+    PDFParse: new (opts: {
+      data: Uint8Array;
+    }) => {
       getText: () => Promise<{ text?: string }>;
       destroy?: () => Promise<void>;
     };
@@ -157,7 +158,6 @@ export async function readExcelSummary(
   filePath: string,
   options?: { sheet?: string | number; maxRows?: number },
 ): Promise<ExcelSummary> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const ExcelJS = require('exceljs') as typeof import('exceljs');
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(path.resolve(filePath));

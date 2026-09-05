@@ -36,7 +36,12 @@ export function isQaDecision(value: unknown): value is QaDecision {
 
 /** Who triggered the save. */
 export type TriggerSource =
-  'cli' | 'cli-auto' | 'dashboard-button' | 'mcp-tool' | 'pipeline-runner' | 'test-fixture';
+  | 'cli'
+  | 'cli-auto'
+  | 'dashboard-button'
+  | 'mcp-tool'
+  | 'pipeline-runner'
+  | 'test-fixture';
 
 const TRIGGER_SOURCES: readonly TriggerSource[] = [
   'cli',
@@ -346,7 +351,8 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
   // fall back to latestRun.totalDurationMs (written by .latest-run marker).
   const durationMs =
     ((summary.runMeta as Record<string, unknown> | undefined)?.totalDurationMs as
-      number | undefined) ?? (latestRun.totalDurationMs as number | undefined);
+      | number
+      | undefined) ?? (latestRun.totalDurationMs as number | undefined);
 
   const appEnv = (process.env.APP_ENV as string) || (latestRun.appEnv as string) || 'local';
   const requirementPath = (summary.requirementPath as string) || '';

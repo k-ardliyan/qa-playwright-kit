@@ -182,7 +182,8 @@ test('archive preserves rich fields and exposes archive and fragment evidence li
   });
 
   const archivedSummary = loadArchivedSummary(archive.runId);
-  const archivedCase = (archivedSummary?.testCases as Array<Record<string, unknown>>)[0];
+  if (!archivedSummary) throw new Error('Archive summary is missing');
+  const archivedCase = (archivedSummary.testCases as Array<Record<string, unknown>>)[0];
   expect(archivedCase.fullTitle).toBe('Evidence > Rich evidence record');
   expect(archivedCase.inputData).toEqual({ period: 'Q1-2026' });
   expect(archivedCase.expectedResult).toBe('Evidence remains available');

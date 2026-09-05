@@ -44,7 +44,6 @@ Untuk QA pemula: **mulai dari Path A**. POM adalah optimasi, bukan keharusan.
 - [ ] Jika multi-role, sediakan tabel `## Access Matrix`
 - [ ] (Disarankan) setiap skenario isi `- **Layer terdampak:** FE` / `BE` / `DB` / `API`
 
-
 ---
 
 ## Tipe Skenario
@@ -204,6 +203,7 @@ Detail: [GUIDE — troubleshooting validate_requirement](GUIDE.md#troubleshootin
 Untuk menjaga konsistensi dan kemudahan baca baik oleh manusia, GitHub preview, maupun AI Agent, gunakan panduan standar berikut:
 
 ### 1. Struktur Dasar Wajib
+
 Gunakan pipe (`|`) di awal dan akhir setiap baris serta baris separator (`---`):
 
 ```md
@@ -213,6 +213,7 @@ Gunakan pipe (`|`) di awal dan akhir setiap baris serta baris separator (`---`):
 ```
 
 ### 2. Alignment Kolom
+
 Gunakan titik dua (`:`) pada baris separator untuk mengatur perataan:
 
 ```md
@@ -221,12 +222,15 @@ Gunakan titik dua (`:`) pada baris separator untuk mengatur perataan:
 | `testId` | 25       | Passed   | Rata kiri  |
 | `auth`   | 10       | Failed   | Rata kanan |
 ```
+
 - `:---` → Rata kiri (default)
 - `---:` → Rata kanan (angka / metrik)
 - `:---:` → Rata tengah (status / boolean / tag)
 
 ### 3. Escape Karakter Pipe (`|`)
+
 Jika isi sel mengandung karakter pipe, wajib di-escape dengan backslash:
+
 ```md
 | Input | Expected |
 | ----- | -------- |
@@ -234,7 +238,9 @@ Jika isi sel mengandung karakter pipe, wajib di-escape dengan backslash:
 ```
 
 ### 4. Line Break dalam Satu Sel
+
 Gunakan tag `<br>` untuk baris baru di dalam sel yang sama:
+
 ```md
 | Skenario | Langkah |
 | -------- | ------- |
@@ -242,5 +248,5 @@ Gunakan tag `<br>` untuk baris baru di dalam sel yang sama:
 ```
 
 ### 5. Hindari Colspan / Rowspan
-Markdown/GFM standar **tidak mendukung** `colspan` atau `rowspan`. Jika butuh struktur bertingkat kompleks, gunakan HTML `<table>` murni atau pecah menjadi sub-tabel/prose.
 
+Markdown/GFM standar **tidak mendukung** `colspan` atau `rowspan`. Jika butuh struktur bertingkat kompleks, gunakan HTML `<table>` murni atau pecah menjadi sub-tabel/prose.

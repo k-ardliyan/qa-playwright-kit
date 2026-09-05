@@ -8,7 +8,12 @@ export interface ArchiveReportInput {
   reportPath: string;
   jsonReportPath?: string;
   qaDecision:
-    'APPROVE' | 'FILE_BUG' | 'REVISE_REQUIREMENT' | 'FIX_TEST' | 'FIX_ENV' | 'MARK_BLOCKED';
+    | 'APPROVE'
+    | 'FILE_BUG'
+    | 'REVISE_REQUIREMENT'
+    | 'FIX_TEST'
+    | 'FIX_ENV'
+    | 'MARK_BLOCKED';
   qaNotes?: string;
 }
 

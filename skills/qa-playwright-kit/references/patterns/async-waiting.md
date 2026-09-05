@@ -18,13 +18,15 @@ await expect.poll(async () => {
 
 ## 2. Dynamic Web Assertions over Bare Sleeping
 
-* ❌ **Salah:**
+- ❌ **Salah:**
+
   ```ts
   await page.waitForTimeout(3000);
   expect(await page.locator('.toast').isVisible()).toBeTruthy();
   ```
 
-* ✅ **Benar (Auto-retrying assertion):**
+- ✅ **Benar (Auto-retrying assertion):**
+
   ```ts
   await expect(page.locator('.toast')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('.toast')).toHaveText(/berhasil disimpan/i);

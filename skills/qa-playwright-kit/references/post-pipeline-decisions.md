@@ -8,10 +8,10 @@ Load when the pipeline has finished and QA needs to read the report and choose a
 
 | Artefact                                       | Required | How to open                                                                                                             |
 | ---------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `artifacts/reports/custom-dashboard.html`      | ✅        | Open manually in a browser, or run `npm run dashboard`. Auto-open via `qa:run --open-dashboard` is opt-in (default OFF) |
-| `specs/{feature}-test-plan.md`                 | ✅        | Text editor / VS Code                                                                                                   |
-| `tests/{feature}*.spec.ts`                     | ✅        | Text editor / VS Code                                                                                                   |
-| `artifacts/reports/pipeline-report-{runId}.md` | ✅        | Text editor / VS Code                                                                                                   |
+| `artifacts/reports/custom-dashboard.html`      | ✅       | Open manually in a browser, or run `npm run dashboard`. Auto-open via `qa:run --open-dashboard` is opt-in (default OFF) |
+| `specs/{feature}-test-plan.md`                 | ✅       | Text editor / VS Code                                                                                                   |
+| `tests/{feature}*.spec.ts`                     | ✅       | Text editor / VS Code                                                                                                   |
+| `artifacts/reports/pipeline-report-{runId}.md` | ✅       | Text editor / VS Code                                                                                                   |
 
 If the dashboard does not open automatically: locate `artifacts/reports/custom-dashboard.html` and open it in a browser, or run `npm run dashboard`.
 
@@ -42,7 +42,7 @@ After reading the report choose **one**:
 
 | Decision                  | When                                                        | Action                                                                  |
 | ------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
-| ✅ **APPROVE**             | All pass, Test Step is business language, Actual = Expected | `npm run archive:save` or `qa-playwright-kit:archive_report` via Hermes |
+| ✅ **APPROVE**            | All pass, Test Step is business language, Actual = Expected | `npm run archive:save` or `qa-playwright-kit:archive_report` via Hermes |
 | 🐛 **FILE BUG**           | `failureSource: app` — the application is wrong             | Create a defect ticket; keep the test as a regression guard             |
 | 📝 **REVISE REQUIREMENT** | `failureSource: requirement` — requirement is ambiguous     | Edit `requirements/*.md`; restart from Plan                             |
 | 🔧 **FIX TEST/GENERATOR** | `failureSource: test` or `ai_generation`                    | Heal or regenerate `tests/*.spec.ts`; do not edit `src/`                |

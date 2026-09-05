@@ -7,7 +7,10 @@ import { type TestPlanSchemaVersion } from './versions';
 import { type Diagnostic } from './diagnostics';
 
 export type AssertionProvenance =
-  'requirement' | 'live-verification' | 'framework-derived' | 'planner-assumption';
+  | 'requirement'
+  | 'live-verification'
+  | 'framework-derived'
+  | 'planner-assumption';
 
 export interface PlanAssertion {
   description: string;

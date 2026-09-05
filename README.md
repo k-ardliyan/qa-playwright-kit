@@ -231,6 +231,7 @@ qa-playwright-kit/
 ├─ config/              Environment credentials & Playwright configs
 ├─ docs/                Operational & architectural documentation
 ```
+
 </details>
 
 ---

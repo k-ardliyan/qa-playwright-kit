@@ -13,11 +13,13 @@
     "test-accelerator"
   ],
   "scripts": {
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write . && tsx tools/scripts/format-markdown-tables.ts",
-    "format:tables": "tsx tools/scripts/format-markdown-tables.ts",
-    "format:check": "prettier --check .",
+    "lint": "biome lint . && npm run lint:playwright",
+    "lint:fix": "biome lint --write . && npm run lint:playwright:fix",
+    "lint:playwright": "eslint --config eslint.playwright.config.mjs tests/**/*.spec.ts",
+    "lint:playwright:fix": "eslint --config eslint.playwright.config.mjs tests/**/*.spec.ts --fix",
+    "format": "biome format --write . && tsx tools/scripts/format-markdown.ts",
+    "format:markdown": "tsx tools/scripts/format-markdown.ts",
+    "format:check": "biome format . && tsx tools/scripts/format-markdown.ts --check",
     "typecheck": "tsc --noEmit",
     "validate": "tsx tools/validators/validate-generated-tests.ts",
     "validate:requirement": "tsx tools/validators/validate-requirement.ts",
@@ -77,8 +79,8 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.12",
     "@dotenvx/dotenvx": "^2.23.0",
-    "@eslint/js": "^10.0.1",
     "@kitajs/html": "^4.2.13",
     "@kitajs/ts-html-plugin": "^4.1.4",
     "@playwright/mcp": "^0.0.80",
@@ -94,20 +96,17 @@
     "pdf-parse": "^2.4.5",
     "playwright": "1.63.0",
     "playwright-core": "1.63.0",
-    "prettier": "^3.9.6",
     "prompts": "^2.4.2",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.69.0"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
+    "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css,html}": [
+      "biome check --write --no-errors-on-unmatched"
     ],
-    "*.{json,md,yml,css}": [
-      "prettier --write"
-    ]
+    "tests/**/*.spec.ts": ["eslint --config eslint.playwright.config.mjs --fix"],
+    "*.md": ["tsx tools/scripts/format-markdown.ts"]
   },
   "engines": {
     "node": ">=20.19.0"

@@ -1,7 +1,14 @@
 import type { NormalizedNetworkEvidence } from '../types/network-evidence.types';
 
 export type ExtendedFailureCategory =
-  'locator' | 'auth' | 'network' | 'timing' | 'application' | 'environment' | 'visual' | 'unknown';
+  | 'locator'
+  | 'auth'
+  | 'network'
+  | 'timing'
+  | 'application'
+  | 'environment'
+  | 'visual'
+  | 'unknown';
 
 export interface NormalizedConsoleEntry {
   type: 'error' | 'warning' | 'info' | 'log';

@@ -6,7 +6,8 @@ Pencegahan flakiness pada aplikasi Single Page Apps (SPA) & Server-Side Renderin
 
 Pada web SSR, tombol HTML bisa muncul sebelum JavaScript event listener terpasang. Klik AI yang terlalu cepat bisa tidak memicu aksi apapun.
 
-* ✅ **Pola Pencegahan:**
+- ✅ **Pola Pencegahan:**
+
   ```ts
   // Pastikan form sudah responsif sebelum klik submit
   const submitBtn = page.getByRole('button', { name: /submit/i });

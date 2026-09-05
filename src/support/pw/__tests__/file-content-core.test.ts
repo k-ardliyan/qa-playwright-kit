@@ -121,7 +121,6 @@ test('dropFixture helper is exported and callable on locator mockup', async () =
       droppedFiles = files;
     },
   };
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { dropFixture } = require('../files') as {
     dropFixture: (locator: unknown, relPath: string) => Promise<void>;
   };

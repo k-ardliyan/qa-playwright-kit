@@ -16,7 +16,13 @@ export type ReportComparison = DomainReportComparison;
 export type { ComparisonCompatibility, ComparisonRunIdentity, CompatibilityLevel };
 
 export type ComparisonStatus =
-  'passed' | 'failed' | 'timedOut' | 'interrupted' | 'healed' | 'skipped' | 'not-generated';
+  | 'passed'
+  | 'failed'
+  | 'timedOut'
+  | 'interrupted'
+  | 'healed'
+  | 'skipped'
+  | 'not-generated';
 
 export interface ComparisonScenarioItem {
   scenarioId: string;

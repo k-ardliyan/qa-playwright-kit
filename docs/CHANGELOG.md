@@ -6,7 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Toolchain hybrid Biome + ESLint (Prettier dihapus) — 2026-09-05
+
+- **Biome 2.5.12 menggantikan Prettier** sebagai formatter + core linter; ESLint 10 dipersempit khusus aturan spec Playwright via `eslint.playwright.config.mjs` (typescript-eslint parser + `eslint-plugin-playwright`, hanya `tests/**/*.spec.ts` & `examples/**/*.spec.ts`) — toolchain hybrid.
+- **Script baru `lint:playwright` / `lint:playwright:fix`:** ESLint hanya untuk spec Playwright. `lint` = `biome lint .` + `lint:playwright`; `lint:fix` = padanannya dengan `--write`/`--fix`.
+- **`format` / `format:check` kini memakai Biome:** `format` = `biome format --write .` + `format:markdown` — markdown tetap ditangani script kustom (Biome tidak mendukung format Markdown, plugin-nya pun lint-only).
+- **Script `tools/scripts/format-markdown.ts` (rename dari `format-markdown-tables.ts`, script `format:tables` → `format:markdown`):** formatter markdown lengkap — align tabel markdown, normalisasi heading ATX (`#Title` → `# Title`, strip closing `##`), bullet `*`/`+` → `-`, ordered list `)` → `.`, collapse baris kosong berlebih, blank line konsisten di sekeliling heading/tabel/code fence, EOF newline tunggal. Hard-break dua spasi dipreservasi, isi fenced code block tidak tersentuh. Plus mode `--check` (dipakai `format:check` sehingga gate kini juga memvalidasi markdown), dukungan argumen path file/direktori untuk run ter-target, skip direktori AI-state lokal (`.zcode`, `.hermes`), dan pelestarian EOL (`\r\n`/`\n`).
+- **lint-staged (husky pre-commit):** `biome check --write --no-errors-on-unmatched` untuk file kode ter-stage + `eslint --config eslint.playwright.config.mjs --fix` untuk spec Playwright ter-stage + `format-markdown.ts` untuk `.md` ter-stage.
+- **Dihapus:** `.prettierrc`, `.prettierignore`, `eslint.config.mjs`, dan dependensi `prettier`. `typecheck` (`tsc --noEmit`) tidak berubah — Biome tidak menggantikan TypeScript compiler.
+
 ### MCP hardening, `pipeline_status` tool & docs sinkronisasi — 2026-09-03
+
 - **Tool baru `pipeline_status`:** orientasi satu panggilan — fase pipeline saat ini, resume safety, staleness requirement (via `computeSourceHash`), missing artifacts, dan hasil run terakhir. Terdaftar read-only, diekspos ke profil `planner`/`reporter`/`all`.
 - **Hardening write path MCP:** `synthesize_requirement` kini memvalidasi `outputPath` via `resolveAllowedPath('requirements')` dan `generate_page_object` ke `tests/pages/` — blokir path traversal, `_TEMPLATE`/README, dan path di luar repo. HTTP server dibatasi bind loopback + body size limit.
 - **Report dir resolver konsisten:** `report-builder.ts` tidak lagi hardcode `reports/` — memakai kontrak resolver yang sama dengan `state.ts` (`QA_REPORT_DIR` → `artifacts/reports/`). Markdown pipeline report kini selalu mendarat di lokasi yang dijanjikan `qa:run` dan wizard (`artifacts/reports/pipeline-report-<runId>.md`).
@@ -14,12 +24,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Unit tests baru** (`mcp-hardening.test.ts`): registry profile, parsing state, dan penolakan out-of-bounds output; test synthesize disesuaikan menulis di dalam repo sesuai guard baru.
 
 ### Per-role login & redirect paths — 2026-09-02
+
 - **Per-Role Login & Redirect Flow:** `promptRoleCredentials` di wizard kini menyatukan input kredensial, path halaman login (`{ROLE}_LOGIN_URL_PATH`, default `/login`), dan path redirect sukses (`{ROLE}_SUCCESS_URL_PATH`, default `/dashboard`) dalam satu konteks per-role. `BASE_URL` terpisah murni sebagai host server.
 - **Dynamic Multi-Role Setup:** Setup wizard menerima daftar role kustom apa pun (`admin,guru,murid`, `buyer,seller`, dll.) tanpa menyisipkan role `user` siluman jika tidak didefinisikan.
 - **Auth Setup Per-Role:** `src/support/auth.setup.ts` men-generate blok otentikasi per-role yang membaca path login & redirect milik masing-masing role secara terisolasi (`process.env.${envPrefix}_LOGIN_URL_PATH` dan `process.env.${envPrefix}_SUCCESS_URL_PATH`).
 - **`env:edit` Per-Role Paths:** Aksi edit role dan tambah role di `npm run env:edit` kini menyertakan input path login & redirect per role.
 
 ### Login & success redirect paths, one-shot Hermes prompt & setup overhaul — 2026-09-02
+
 - **Prompt login & redirect di wizard (Opsi C):** Step 3 wizard kini menanyakan path halaman login (`AUTH_LOGIN_URL_PATH`, default `/login`) dan path redirect setelah login sukses (`AUTH_SUCCESS_URL_PATH`, default `/dashboard`) dengan prefill, validasi leading-slash, dan normalisasi URL-ke-pathname (`normalizeAppPath`). Nilai masuk ke env bersih section "URL Aplikasi", `src/support/auth.setup.ts`, `requirements/login.md`, pratinjau, dan summary.
 - **Menu env:edit:** `npm run env:edit` menu "Edit BASE_URL / browser / OTP-CAPTCHA" kini menyertakan field `AUTH_LOGIN_URL_PATH` dan `AUTH_SUCCESS_URL_PATH`; tabel kredensial menampilkan keduanya.
 - **Terminal terpisah untuk auth:setup:** setelah summary, jika target reachable, wizard menawarkan membuka terminal baru untuk menjalankan `npm run auth:setup` (atau `:headed`) via `src/setup/terminal.ts` — session `.auth/{APP_ENV}/` bisa langsung dibuat tanpa keluar wizard.
@@ -27,6 +39,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Cleanup:** artefak `src/support/auth.setup.ts.bak` dihapus dari repo; `auth.setup.ts` di-regenerate membaca login/redirect path nyata.
 
 ### Wizard UX, real verification & robust auth scenarios — 2026-09-02
+
 - **Wizard end-to-end UX:** banner pembuka + ringkasan `6 langkah`, header `[n/6]` per fase (Bahasa → Environment → URL → Kredensial → Challenge → Konfirmasi), section `Menulis file` / `Verifikasi artefak` yang konsisten, pratinjau per-role yang lebih kompak, dan deteksi config existing kini menampilkan state saat ini (BASE_URL, roles + status terenkripsi, challenge) sebelum prompt update/keep.
 - **Verifikasi artefak nyata** (`src/setup/verify-setup.ts`): setelah menulis, wizard mengecek **bukan sekadar asumsi** — node_modules, config Playwright, Chromium, file env + BASE_URL, secret ciphertext di disk, keberadaan file kunci dotenvx, **decrypt roundtrip asli** via dotenvx CLI, requirements/login.md, agent skills, MCP configs (.cursor/.kiro/.codex/claude), dan file sesi `.auth/{APP_ENV}/<role>.json`. Check kritis gagal → `npm run setup` exit non-zero.
 - **Prompt Hermes akhir diperbaiki:** dicetak sebagai blok bersih (tanpa prefix `>>>` per baris) agar gampang disalin; kini meminta `health_check` sebagai aksi pertama sebelum Plan, dan menambahkan reminder `npm run auth:setup` otomatis ketika requirement terdeteksi punya challenge (OTP/CAPTCHA) — mode dibaca dari `AUTH_CHALLENGE_MODE=` di requirement.
@@ -34,6 +47,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **`EnvWriteResult.warnings`:** warning normalisasi role kini mengalir ke output wizard (bukan `console.warn` di dalam writer).
 
 ### Clean generated env files — 2026-09-01
+
 - **Generator, bukan salinan:** `buildEnvFileContent` tidak lagi menyalin `*.env.example` verbatim. Wizard **generate** `{APP_ENV}.env` minimal via `src/utils/env-clean.ts`: hanya key aktif, dikelompokkan per section (URL Aplikasi / Role / Browser / Challenge / Playwright / Lainnya), tanpa komentar placeholder dan tanpa key opsional ter-comment (`# FINANCE_*`, `# AUTH_OTP_*`, dst). `.env.example` tetap dokumentasi ber-komentar.
 - **Upsert sadar-komentar:** `upsertEnvContent` kini mengenali `# KEY=...` — nilai di-uncomment-replace di posisinya (tidak lagi di-append di akhir file, duplikat ter-comment dibuang).
 - **Banner dotenvx ternormalisasi:** setelah encrypt, box ASCII `#/---/`, komentar `-fk <path>` machine-specific, dan marker `# <filename>` dibuang; baris `DOTENV_PUBLIC_KEY_*` fungsional tetap.
@@ -44,6 +58,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Isolasi dotenvx child:** child `dotenvx` tidak mewarisi nilai env untuk key milik file target (dotenvx mem-merge env di atas file — polusi `process.env` bisa ter-enkripsi ke file atau bocor ke output decrypt). `playwright-mcp-launch` kini memanggil `bootstrapMcpEnvironment` hanya di `main()` — import modul tidak lagi memuat env asli (side-effect import yang pernah mengotori worker test).
 
 ### Setup auto-encrypts secrets from .env.example — 2026-09-01
+
 - **Encrypt pairing:** `encryptSecretKeysInFile` no longer injects `DOTENV_PRIVATE_KEY*` into the dotenvx child env (stale inherited keys + newly minted public key caused `DECRYPTION_FAILED` after a successful encrypt). Uses `-fk` against `~/.dotenvx-keys/<project>/.env.keys` when present; restores plaintext if decrypt-verify fails.
 - **Writer:** `writeEnvFile` copies `config/environments/{APP_ENV}.env.example` (comments + every template key), upserts wizard values, then encrypts **secret keys only** (`*_PASSWORD` / `*_SECRET` / `*_TOKEN` / `API_KEY`). URL, flags, identifiers stay plaintext — edit the file without `env:edit`.
 - **Shared helper:** `src/utils/env-secrets.ts` used by setup **and** `env:edit` (no more whole-file encrypt).
@@ -52,9 +67,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Dotenv text helpers** moved to `src/utils/env-text.ts` (env:edit re-exports).
 
 ### Honesty: setup does not auto-encrypt — 2026-09-01
+
 - **Superseded** by “Setup auto-encrypts secrets from .env.example” (same day). Historical: first honesty pass deleted orphan `tools/validators/setup-check.ts` and stopped docs from claiming whole-file auto-encrypt.
 
 ### Login catalogs match AUTH_CHALLENGE_MODE — 2026-09-01
+
 - **Setup writes `requirements/login.md`:** after env write, wizard renders a real login requirement from BASE_URL + roles + `AUTH_CHALLENGE_MODE` and prints a ready-to-paste Hermes prompt (`>>> `). File is gitignored (per-project).
 - **Five committed catalogs** under `requirements/auth/login-<mode>.md` matching wizard choices 1:1: `none`, `auto`, `otp-browser`, `otp-stdin`, `captcha-browser`. OTP/CAPTCHA scenarios stay `(@manual)`.
 - **Removed format-demo samples:** `sample-login-empty-fields.md`, `sample-network-hybrid.md`, `sample-network-assert.md`. Tests/docs/quality gate retargeted to `login-none.md` (traceability manual case → `login-otp-browser.md`).
@@ -62,15 +79,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Login catalogs: negatives first:** empty identifier/password/both → whitespace → malformed format → fictional user, then success (or OTP/CAPTCHA `@manual` last). No wrong-password on a real account (anti-lockout).
 
 ### Script de-clutter — 2026-09-01
+
 - **Removed unused npm scripts (no callers in CI, docs, or code):** `test:smart-shard`, `test:failed-only` (core logic still unit-tested via `test:unit`), `manifest:generate` (manifest still generated at build/runtime; `agent-manifest.json` remains gitignored), duplicate `dashboard:serve` (identical to `dashboard`). 64 → 60 scripts.
 
 ### Harden 8.5 — 2026-08-26
+
 - **Dead wizard removed:** unused `tools/scripts/setup-wizard.ts` deleted. Canonical entry remains `src/setup/index.ts` (`npm run setup`). `wizard-auth-template.ts` kept (used by `env:edit`).
 - **CLI rename:** `npm run setup:wizard` → `npm run setup`. `setup:check` unchanged. No alias.
 - **Contract SoT:** `src/contracts/` is canonical; `tools/mcp/src/contracts/` is AUTO-SYNCED via `npm run sync:mcp-generated` (`--check` in quality gate). `CoverageStateBreakdown` ported onto `qa.traceability/v1` as optional fields.
 - **CI summary truth:** quality/mcp-compat workflow summaries no longer hardcode stale unit/property counts.
 
 ### Setup Wizard — 2026-08-24
+
 - **Setup wizard fixes:** `--env` honored in interactive mode; single `checkReachable`/`isReachableStatus` predicate (304 included on both sides); encrypted (dotenvx `encrypted:`) values no longer leak into prompts/validation — `setup:check` reports `Encrypted roles` instead of false "ready"/fake "unreachable"; password confirm + `isPlaceholderCredential` rejection at prompt; preview (masked `p***t`) + confirm before write; `HEADLESS` managed for all challenge modes (symmetric `true`/`false`); `resolveEnvPath` deduped into `wizard-writer.ts`. New: `src/__tests__/unit/wizard.test.ts` (reachability + `isEncryptedValue`).
 - **Setup wizard UX (type-then-Enter):** numeric selectors (`APP_ENV`, challenge mode, login-id) switched from auto-submit-on-keypress `select` to type-then-Enter `text` via `parseNumberedChoice` (trim, leading zeros, bounds 1..N; empty/out-of-range/decimals rejected). Prompt text is now Bahasa Indonesia for a lay-user audience.
 - **Setup wizard UX (simplified credentials):** per-role flow collapsed from 3 yes/no + 3 optional fields + optional pref to **1 method pick (Email/Username/Phone) → fill value → password + confirm**. Fewer prompts, no redundant confirm taps; pre-fills existing loginIdPref→email→username→phone.

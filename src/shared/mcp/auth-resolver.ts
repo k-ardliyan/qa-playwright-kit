@@ -15,11 +15,7 @@ export interface ResolvedMcpAuthState {
  * Resolve the storage state path for MCP sessions and provide diagnostic hints if missing.
  */
 export function resolveMcpAuthState(
-  options: {
-    role?: string;
-    environment?: string;
-    repoRoot?: string;
-  } = {},
+  options: { role?: string; environment?: string; repoRoot?: string } = {},
 ): ResolvedMcpAuthState {
   const rawRole = options.role?.trim();
   const role = (rawRole && rawRole.length > 0 ? rawRole : 'user').toLowerCase();

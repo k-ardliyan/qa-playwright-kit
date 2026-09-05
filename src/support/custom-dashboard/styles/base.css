@@ -6,7 +6,7 @@ html {
   background: var(--bg);
 }
 
-html[data-theme='dark'] {
+html[data-theme="dark"] {
   background: var(--bg);
 }
 
@@ -69,7 +69,7 @@ pre,
     radial-gradient(ellipse 40% 35% at 100% 100%, rgba(16, 185, 129, 0.05), transparent 60%);
 }
 
-html[data-theme='dark'] .page-backdrop {
+html[data-theme="dark"] .page-backdrop {
   background:
     radial-gradient(ellipse 50% 40% at 0% 0%, rgba(59, 130, 246, 0.08), transparent 60%),
     radial-gradient(ellipse 40% 35% at 100% 100%, rgba(52, 211, 153, 0.06), transparent 60%);
@@ -152,7 +152,7 @@ a {
   text-decoration: none;
 }
 
-html[data-theme='dark'] a {
+html[data-theme="dark"] a {
   color: var(--accent);
 }
 
@@ -160,7 +160,7 @@ a:hover {
   color: var(--accent);
 }
 
-html[data-theme='dark'] a:hover {
+html[data-theme="dark"] a:hover {
   color: var(--accent-strong);
 }
 
@@ -177,15 +177,15 @@ summary:focus-visible,
   outline-offset: 2px;
 }
 
-html[data-theme='dark'] a:focus-visible,
-html[data-theme='dark'] button:focus-visible,
-html[data-theme='dark'] input:focus-visible,
-html[data-theme='dark'] select:focus-visible,
-html[data-theme='dark'] textarea:focus-visible,
-html[data-theme='dark'] summary:focus-visible,
-html[data-theme='dark'] [tabindex]:focus-visible,
-html[data-theme='dark'] .btn:focus-visible,
-html[data-theme='dark'] .theme-toggle:focus-visible {
+html[data-theme="dark"] a:focus-visible,
+html[data-theme="dark"] button:focus-visible,
+html[data-theme="dark"] input:focus-visible,
+html[data-theme="dark"] select:focus-visible,
+html[data-theme="dark"] textarea:focus-visible,
+html[data-theme="dark"] summary:focus-visible,
+html[data-theme="dark"] [tabindex]:focus-visible,
+html[data-theme="dark"] .btn:focus-visible,
+html[data-theme="dark"] .theme-toggle:focus-visible {
   outline-color: var(--accent);
 }
 
@@ -264,13 +264,13 @@ html[data-theme='dark'] .theme-toggle:focus-visible {
   color: var(--on-accent);
 }
 
-html[data-theme='dark'] .btn--primary {
+html[data-theme="dark"] .btn--primary {
   background: var(--accent);
   color: var(--on-accent);
   box-shadow: 0 10px 18px rgba(212, 165, 116, 0.18);
 }
 
-html[data-theme='dark'] .btn--primary:hover {
+html[data-theme="dark"] .btn--primary:hover {
   background: var(--accent-strong);
   color: var(--on-accent);
 }
@@ -286,13 +286,13 @@ html[data-theme='dark'] .btn--primary:hover {
   background: var(--surface-muted);
 }
 
-html[data-theme='dark'] .btn--ghost {
+html[data-theme="dark"] .btn--ghost {
   background: var(--surface);
   color: var(--text);
   border-color: var(--border-strong);
 }
 
-html[data-theme='dark'] .btn--ghost:hover {
+html[data-theme="dark"] .btn--ghost:hover {
   background: var(--surface-muted);
   border-color: var(--accent);
   color: var(--text);
@@ -301,75 +301,75 @@ html[data-theme='dark'] .btn--ghost:hover {
 /* Dark `a { color: var(--accent) }` is 0-1-2 and beats .btn / .btn-primary.
    Re-assert ink on filled chrome and body text on ghost so <a class="btn">
    is not gold-on-gold (Open Detailed Report, View trace). */
-html[data-theme='dark'] a.btn,
-html[data-theme='dark'] a.btn--ghost,
-html[data-theme='dark'] a.btn-sm {
+html[data-theme="dark"] a.btn,
+html[data-theme="dark"] a.btn--ghost,
+html[data-theme="dark"] a.btn-sm {
   color: var(--text);
 }
 
-html[data-theme='dark'] a.btn--primary,
-html[data-theme='dark'] a.btn-primary,
-html[data-theme='dark'] a.btn-save,
-html[data-theme='dark'] a.btn-save-primary,
-html[data-theme='dark'] a.btn-primary-action {
+html[data-theme="dark"] a.btn--primary,
+html[data-theme="dark"] a.btn-primary,
+html[data-theme="dark"] a.btn-save,
+html[data-theme="dark"] a.btn-save-primary,
+html[data-theme="dark"] a.btn-primary-action {
   color: var(--on-accent);
 }
 
-html[data-theme='dark'] a.btn:hover,
-html[data-theme='dark'] a.btn--ghost:hover,
-html[data-theme='dark'] a.btn-sm:hover {
+html[data-theme="dark"] a.btn:hover,
+html[data-theme="dark"] a.btn--ghost:hover,
+html[data-theme="dark"] a.btn-sm:hover {
   color: var(--text);
 }
 
-html[data-theme='dark'] a.btn--primary:hover,
-html[data-theme='dark'] a.btn-primary:hover,
-html[data-theme='dark'] a.btn-save:hover,
-html[data-theme='dark'] a.btn-save-primary:hover,
-html[data-theme='dark'] a.btn-primary-action:hover {
+html[data-theme="dark"] a.btn--primary:hover,
+html[data-theme="dark"] a.btn-primary:hover,
+html[data-theme="dark"] a.btn-save:hover,
+html[data-theme="dark"] a.btn-save-primary:hover,
+html[data-theme="dark"] a.btn-primary-action:hover {
   color: var(--on-accent);
 }
 
 /* Chrome that is an <a> but not .btn — inherit body/muted, not gold link. */
-html[data-theme='dark'] a.attachment-chip,
-html[data-theme='dark'] a.evidence-link,
-html[data-theme='dark'] a.artifacts-link,
-html[data-theme='dark'] a.artifacts-card__file,
-html[data-theme='dark'] a.recent-run-item,
-html[data-theme='dark'] a.attention-item,
-html[data-theme='dark'] a.btn-swap-action {
+html[data-theme="dark"] a.attachment-chip,
+html[data-theme="dark"] a.evidence-link,
+html[data-theme="dark"] a.artifacts-link,
+html[data-theme="dark"] a.artifacts-card__file,
+html[data-theme="dark"] a.recent-run-item,
+html[data-theme="dark"] a.attention-item,
+html[data-theme="dark"] a.btn-swap-action {
   color: var(--text);
 }
 
-html[data-theme='dark'] a.attachment-chip--trace {
+html[data-theme="dark"] a.attachment-chip--trace {
   color: var(--accent-strong);
 }
 
-html[data-theme='dark'] a.breadcrumb__link {
+html[data-theme="dark"] a.breadcrumb__link {
   color: var(--muted);
 }
 
-html[data-theme='dark'] a.breadcrumb__link:hover {
+html[data-theme="dark"] a.breadcrumb__link:hover {
   color: var(--accent);
 }
 
-html[data-theme='dark'] a.panel-link {
+html[data-theme="dark"] a.panel-link {
   color: var(--accent);
 }
 
-html[data-theme='dark'] a.app-nav__link,
-html[data-theme='dark'] a.hash-nav__link {
+html[data-theme="dark"] a.app-nav__link,
+html[data-theme="dark"] a.hash-nav__link {
   color: var(--muted);
 }
 
-html[data-theme='dark'] a.app-nav__link:hover,
-html[data-theme='dark'] a.hash-nav__link:hover {
+html[data-theme="dark"] a.app-nav__link:hover,
+html[data-theme="dark"] a.hash-nav__link:hover {
   color: var(--text);
 }
 
-html[data-theme='dark'] a.app-nav__link.is-active,
-html[data-theme='dark'] a.app-nav__link.is-active:hover,
-html[data-theme='dark'] a.hash-nav__link--active,
-html[data-theme='dark'] a.hash-nav__link--active:hover {
+html[data-theme="dark"] a.app-nav__link.is-active,
+html[data-theme="dark"] a.app-nav__link.is-active:hover,
+html[data-theme="dark"] a.hash-nav__link--active,
+html[data-theme="dark"] a.hash-nav__link--active:hover {
   color: var(--on-accent);
 }
 

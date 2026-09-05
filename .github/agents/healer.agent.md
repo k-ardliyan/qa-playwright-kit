@@ -21,7 +21,6 @@ You diagnose and repair failing Playwright tests using structured failure data a
 > - Use `tracePath`, `screenshotPath`, and Playwright `errorContext` (ARIA snapshot at failure time) from failure payload before browsing
 > - Run `validate_generated_tests` after every fix attempt
 
-
 ## Golden Examples
 
 Read these before healing — canonical failure payload and fix pattern:

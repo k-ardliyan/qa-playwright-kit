@@ -154,7 +154,8 @@ function normalizeTestCases(
       affectedLayer:
         (t['affectedLayer'] as import('../support/custom-dashboard/types').AffectedLayer[]) || [],
       failureSource: t['failureSource'] as
-        import('../support/custom-dashboard/types').FailureSource | undefined,
+        | import('../support/custom-dashboard/types').FailureSource
+        | undefined,
       // Fields not in CollectedTestCase — safe defaults for serve mode
       fullTitle: (t['fullTitle'] as string) || (t['title'] as string) || '',
       filePath: (t['filePath'] as string) || '',
@@ -369,7 +370,7 @@ function renderLatestDetailPage(): string {
   return String(
     ReportDetailPage({
       mode: 'local',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: runtime-validated report payload
       summary: summary as any,
       collectedTests,
       displayName,
@@ -390,7 +391,7 @@ function renderArchivedDetailPage(runId: string): string | null {
 
   const rawSummary = (summary ?? {}) as Record<string, unknown>;
   const tc = Array.isArray(rawSummary.testCases)
-    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ? // biome-ignore lint/suspicious/noExplicitAny: runtime-validated report payload
       normalizeTestCases(rawSummary.testCases as any[], runId)
     : [];
 
@@ -412,13 +413,13 @@ function renderArchivedDetailPage(runId: string): string | null {
         failed: (rawSummary.failed as number) ?? 0,
         skipped: (rawSummary.skipped as number) ?? 0,
         passRate: (rawSummary.passRate as number) ?? 0,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: runtime-validated report payload
         reportMode: (rawSummary.reportMode as any) ?? metadata?.reportMode ?? 'general',
         timestamp: metadata?.ranAt ?? (rawSummary.timestamp as string) ?? '',
         rolesInScope: (rawSummary.rolesInScope as string[]) ?? [],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: runtime-validated report payload
         testCases: (rawSummary.testCases as any) ?? [],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: runtime-validated report payload
         runMeta: (rawSummary.runMeta as any) ?? {
           appEnv: metadata?.appEnv ?? 'local',
           ci: false,
@@ -645,7 +646,7 @@ function validationError(
 }
 
 function hasOwn(body: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(body, key);
+  return Object.hasOwn(body, key);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1270,7 +1271,8 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
       const updated = updateArchivedMetadata(runId, {
         displayName: (parsedBody['displayName'] ?? parsedBody['label']) as string | undefined,
         qaDecision: (parsedBody['qaDecision'] ?? parsedBody['decision']) as
-          import('../agents/reporter/report-archive').QaDecision | undefined,
+          | import('../agents/reporter/report-archive').QaDecision
+          | undefined,
         qaNotes: (parsedBody['qaNotes'] ?? parsedBody['notes']) as string | undefined,
         testSeriesId: (parsedBody['testSeriesId'] ?? parsedBody['series']) as string | undefined,
         requirementId: parsedBody['requirementId'] as string | undefined,

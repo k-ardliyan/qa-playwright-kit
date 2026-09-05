@@ -12,6 +12,7 @@ Jangan berasumsi bahwa:
 - Fitur live UI exploration tidak dapat dilakukan dan harus di-skip atau diubah jadi `@manual`.
 
 ### Penyebab Nyata
+
 Error `net::ERR_BLOCKED_BY_CLIENT` pada tool MCP `@playwright/mcp` (`browser_navigate`) **BUKAN** karena firewall server web target atau blokir dari web tujuan. Error ini dibangkitkan secara lokal oleh Chromium karena adanya flag keamanan `--allowed-origins`:
 - Flag `--allowed-origins=<url>` diinisialisasi oleh MCP wrapper saat peluncuran.
 - Jika URL target melakukan redirect, memuat resource dari domain lain, atau origin-nya berbeda sedikit pun dari daftar yang didaftarkan, Chromium lokal menolak request tersebut dengan kode status `net::ERR_BLOCKED_BY_CLIENT`.
@@ -24,7 +25,9 @@ Error `net::ERR_BLOCKED_BY_CLIENT` pada tool MCP `@playwright/mcp` (`browser_nav
 Jika menemui kendala `ERR_BLOCKED_BY_CLIENT` atau kegagalan `browser_navigate`:
 
 ### Jalur 1 (Utama & Teruji): `qa-playwright-kit:snapshot_page`
+
 Gunakan tool MCP internal kit terlebih dahulu:
+
 ```json
 {
   "featureName": "auth",
@@ -33,6 +36,7 @@ Gunakan tool MCP internal kit terlebih dahulu:
   "force": true
 }
 ```
+
 *(Ganti URL target sesuai `BASE_URL` aktif aplikasi Anda).*
 
 **Keunggulan:**
@@ -41,7 +45,9 @@ Gunakan tool MCP internal kit terlebih dahulu:
 - Selalu berhasil mengekstrak locator semantik (`getByRole`, `getByLabel`, dsb) tanpa terganggu oleh error client blocker.
 
 ### Jalur 2: CLI Smoke Test / Verifikasi Langsung
+
 Jika perlu melakukan cek navigasi cepat tanpa MCP browser:
+
 ```bash
 npx tsx -e "
 import { chromium } from 'playwright';
@@ -55,6 +61,7 @@ import { chromium } from 'playwright';
 ```
 
 ### Jalur 3: Penyesuaian `allowed-origins` pada `@playwright/mcp`
+
 Jika ingin menggunakan live interactive MCP `@playwright/mcp`:
 1. Pastikan `BASE_URL` di environment terkonfigurasi dengan benar (misal: `http://localhost:3000` atau URL staging Anda).
 2. Jangan menggunakan protokol kustom seperti `chrome://` di Windows; gunakan instance browser standar.

@@ -145,7 +145,7 @@
 
 **Input Data:**
 
-- identifier: literal:   
+- identifier: literal:  
 - password: credential:user.password
 
 **Langkah:**

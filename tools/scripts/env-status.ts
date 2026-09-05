@@ -73,7 +73,6 @@ function main(): void {
     try {
       // Always load env profile so challenge/HEADLESS/roles reflect active file
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { loadEnvironment } = require('../../src/utils/env-loader') as {
           loadEnvironment: () => void;
         };

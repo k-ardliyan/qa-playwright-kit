@@ -135,7 +135,8 @@ export function archiveState(state: PipelineState): void {
  * 7. Return the updated state and the phase to resume from
  */
 export function resumeState():
-  { state: PipelineState; resumePhase: PipelinePhase } | { error: string } {
+  | { state: PipelineState; resumePhase: PipelinePhase }
+  | { error: string } {
   const state = loadState();
 
   if (!state) {

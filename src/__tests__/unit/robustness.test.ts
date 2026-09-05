@@ -165,7 +165,8 @@ test.describe('durationMs extraction logic', () => {
 
     const durationMs =
       ((summary.runMeta as Record<string, unknown> | undefined)?.totalDurationMs as
-        number | undefined) ?? (latestRun.totalDurationMs as number | undefined);
+        | number
+        | undefined) ?? (latestRun.totalDurationMs as number | undefined);
 
     expect(durationMs).toBe(8500);
   });
@@ -176,7 +177,8 @@ test.describe('durationMs extraction logic', () => {
 
     const durationMs =
       ((summary.runMeta as Record<string, unknown> | undefined)?.totalDurationMs as
-        number | undefined) ?? (latestRun.totalDurationMs as number | undefined);
+        | number
+        | undefined) ?? (latestRun.totalDurationMs as number | undefined);
 
     expect(durationMs).toBe(5000);
   });
@@ -187,7 +189,8 @@ test.describe('durationMs extraction logic', () => {
 
     const durationMs =
       ((summary.runMeta as Record<string, unknown> | undefined)?.totalDurationMs as
-        number | undefined) ?? (latestRun.totalDurationMs as number | undefined);
+        | number
+        | undefined) ?? (latestRun.totalDurationMs as number | undefined);
 
     expect(durationMs).toBeUndefined();
   });

@@ -57,7 +57,8 @@ export interface AgentProtocolResponse {
  * Validation result: either a validated request or an error response.
  */
 export type ValidationResult =
-  { valid: true; request: AgentProtocolRequest } | { valid: false; error: AgentProtocolResponse };
+  | { valid: true; request: AgentProtocolRequest }
+  | { valid: false; error: AgentProtocolResponse };
 
 /**
  * Validates an incoming protocol request.

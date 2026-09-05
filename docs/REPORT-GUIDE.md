@@ -211,6 +211,7 @@ Jika `reportMode: 'role-aware'` di `test-summary.json`:
 1. Buka `artifacts/reports/custom-dashboard.html`
 2. Toggle ke **Table View**
 3. Table akan grouped by **ROLE** dengan section header berwarna teal:
+
    ```
    ═══ ROLE: FINANCE ═══
    [table rows untuk role finance]
@@ -218,6 +219,7 @@ Jika `reportMode: 'role-aware'` di `test-summary.json`:
    ═══ ROLE: SUPER-ADMIN ═══
    [table rows untuk role super-admin]
    ```
+
 4. Review pass rate per role — role mana yang paling stabil?
 5. Export per role jika perlu (filter manual via Excel setelah export)
 

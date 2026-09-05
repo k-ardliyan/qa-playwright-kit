@@ -61,6 +61,25 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 ---
 
+## Kualitas Kode (Lint & Format)
+
+> Toolchain hybrid: **Biome** = formatter + core linter; **ESLint** khusus aturan spec Playwright — hanya `tests/**/*.spec.ts` / `examples/**/*.spec.ts` via `eslint.playwright.config.mjs`.
+>
+> Catatan: Biome **tidak** mendukung format Markdown (file `.md` di-ignored, plugin Biome pun lint-only), makanya markdown ditangani script kustom `tools/scripts/format-markdown.ts` — align tabel, normalisasi heading/list, spasi baris kosong, dengan hard-break dua spasi tetap dipreservasi. File `.md` yang di-stage otomatis diformat lint-staged (pre-commit).
+
+| Command                       | Fungsi                                                        |
+| ----------------------------- | ------------------------------------------------------------- |
+| `npm run lint`                | Biome lint + ESLint spec Playwright                           |
+| `npm run lint:fix`            | Perbaiki otomatis (Biome + ESLint spec Playwright)            |
+| `npm run lint:playwright`     | ESLint spec Playwright saja (`eslint.playwright.config.mjs`)  |
+| `npm run lint:playwright:fix` | Sama + `--fix`                                                |
+| `npm run format`              | Biome format + format markdown lengkap (`format:markdown`)    |
+| `npm run format:markdown`     | Format markdown saja (script kustom, bukan Biome)             |
+| `npm run format:check`        | Cek format Biome + markdown, tanpa menulis                    |
+| `npm run typecheck`           | `tsc --noEmit` — Biome tidak menggantikan TypeScript compiler |
+
+---
+
 ## Codegen (rekam test via browser)
 
 ```bash
@@ -164,14 +183,14 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 
 ## Keputusan Setelah Report
 
-| Kondisi                    | Keputusan                            |
-| -------------------------- | ------------------------------------ |
+| Kondisi                    | Keputusan                             |
+| -------------------------- | ------------------------------------- |
 | Semua pass                 | ✅ APPROVE — archive sebagai baseline |
-| Failure: app salah         | 🐛 FILE BUG — buat defect ticket     |
-| Failure: requirement kabur | 📝 REVISE REQUIREMENT                |
-| Failure: test/AI salah     | 🔧 FIX TEST/GENERATOR                |
-| Failure: auth/env/data     | 🔧 FIX ENVIRONMENT                   |
-| Tidak bisa diselesaikan    | 🚫 MARK BLOCKED                      |
+| Failure: app salah         | 🐛 FILE BUG — buat defect ticket      |
+| Failure: requirement kabur | 📝 REVISE REQUIREMENT                 |
+| Failure: test/AI salah     | 🔧 FIX TEST/GENERATOR                 |
+| Failure: auth/env/data     | 🔧 FIX ENVIRONMENT                    |
+| Tidak bisa diselesaikan    | 🚫 MARK BLOCKED                       |
 
 ---
 

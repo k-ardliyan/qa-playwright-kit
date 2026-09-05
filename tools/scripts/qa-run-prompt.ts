@@ -210,12 +210,12 @@ export function buildAgentPrompt(
       `- Zero \`any\` (gunakan \`Page\`/\`Locator\`). Import wajib dari \`./fixtures\` / \`@/support/test-metadata\` (bukan \`../src/\`).\n` +
       `- Tanpa \`if/catch\` kondisional di assertion (wajib deterministik \`expect(locator).toBeVisible()\`).\n` +
       `- Tanpa helper global \`any\` — pakai locator semantik (\`getByRole\`, \`getByLabel\`) atau POM.\n` +
-      `- Kode wajib lolos \`npx eslint <spec>\` dan \`npx tsc --noEmit\` bersih.`,
+      `- Kode wajib lolos \`npx biome check <spec>\`, \`npx eslint --config eslint.playwright.config.mjs <spec>\`, dan \`npx tsc --noEmit\` bersih.`,
     `[CODE QUALITY]\n` +
       `- Zero \`any\` (use \`Page\`/\`Locator\`). Import strictly from \`./fixtures\` / \`@/support/test-metadata\` (no \`../src/\`).\n` +
       `- No conditional \`if/catch\` inside assertions (must be deterministic \`expect(locator).toBeVisible()\`).\n` +
       `- No loose \`any\` helpers — use semantic locators (\`getByRole\`, \`getByLabel\`) or POM.\n` +
-      `- Generated code must pass \`npx eslint <spec>\` and \`npx tsc --noEmit\` cleanly.`,
+      `- Generated code must pass \`npx biome check <spec>\`, \`npx eslint --config eslint.playwright.config.mjs <spec>\`, and \`npx tsc --noEmit\` cleanly.`,
   );
 
   const reporting = t(

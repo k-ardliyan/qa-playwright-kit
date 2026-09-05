@@ -6,7 +6,6 @@ type LoadEnvironmentFn = (options?: { adapterEnv?: { dir: string; name: string }
 function getLoadEnvironment(repoRoot: string): LoadEnvironmentFn {
   // env-loader lives in template core, outside the mcp-server package.
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require(path.join(repoRoot, 'src/utils/env-loader')) as {
       loadEnvironment: LoadEnvironmentFn;
     };
@@ -28,7 +27,6 @@ export function bootstrapMcpEnvironment(startDir: string): string {
 
   let resolved = { appEnv: process.env.APP_ENV || 'local', source: 'default' };
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require(path.join(repoRoot, 'src/utils/app-env')) as {
       resolveAppEnv: (opts: { repoRoot: string }) => {
         appEnv: string;

@@ -26,10 +26,9 @@
 # Config files
 .gitignore text eol=lf
 .gitattributes text eol=lf
-.prettierignore text eol=lf
+.biome.json text eol=lf
+.biome.jsonc text eol=lf
 .claudeignore text eol=lf
-.eslintrc* text eol=lf
-.prettierrc* text eol=lf
 tsconfig.json text eol=lf
 
 # Binary files

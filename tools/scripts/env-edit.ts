@@ -331,7 +331,6 @@ async function actionEditBase(content: string, map: Record<string, string>): Pro
   if (ans.baseUrl === undefined) return content;
 
   const mode = String(ans.challengeMode ?? 'none');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { challengeModeEnvUpserts } = require('../../src/support/human-challenge') as {
     challengeModeEnvUpserts: (
       m: string,

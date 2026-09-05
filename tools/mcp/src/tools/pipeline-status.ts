@@ -73,7 +73,6 @@ function fallbackResolveAppEnv(options: AppEnvResolverOptions): AppEnvResolution
 function loadAppEnvResolver(workspaceRoot: string): AppEnvResolver {
   try {
     // Keep nested MCP package buildable without importing root-only runtime code.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require(path.join(workspaceRoot, 'src', 'utils', 'app-env')) as {
       resolveAppEnv?: AppEnvResolver;
     };

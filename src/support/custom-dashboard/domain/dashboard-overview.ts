@@ -108,7 +108,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   const totalArchived = history.length;
   const latestIsAlreadyArchived = Boolean(
     latestRun &&
-    history.some((entry) => entry.runId === latestRun.runId || entry.ranAt === latestRun.ranAt),
+      history.some((entry) => entry.runId === latestRun.runId || entry.ranAt === latestRun.ranAt),
   );
   const allRates = history.map((h) => h.passRate);
   if (latestRun && !latestIsAlreadyArchived) allRates.push(latestRun.passRate);

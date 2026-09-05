@@ -35,7 +35,7 @@ You run the end-to-end sequence:
 Your goal is to transform a requirement file into executable tests, run those tests, heal failures when possible, return a final run summary, and surface a clear QA decision.
 
 ## Sub-Agents & Skills
- 
+
  When executing the pipeline, you must consult the in-repo skill pack and read the specialized instructions for each phase from the following files:
 
 - **Skill Pack:** [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) (or `.agents/skills/qa-playwright-kit/SKILL.md`)
@@ -251,7 +251,7 @@ After Report is produced, one of these decisions must be taken. See `AGENTS.md` 
 
 | Decision                  | Condition                                    | Follow-up action                                    |
 | ------------------------- | -------------------------------------------- | --------------------------------------------------- |
-| ✅ **APPROVE**             | All scenarios pass, no unresolved failures   | Call `archive_report`, mark as baseline             |
+| ✅ **APPROVE**            | All scenarios pass, no unresolved failures   | Call `archive_report`, mark as baseline             |
 | 🐛 **FILE BUG**           | `failureSource: 'app'`                       | Create defect ticket, keep test as regression guard |
 | 📝 **REVISE REQUIREMENT** | `failureSource: 'requirement'`               | Update requirement → plan → generate → rerun        |
 | 🔧 **FIX TEST/GENERATOR** | `failureSource: 'test'` or `'ai_generation'` | Fix test code or generator input, rerun             |

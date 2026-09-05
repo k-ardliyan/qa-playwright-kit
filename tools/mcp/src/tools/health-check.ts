@@ -167,7 +167,6 @@ function checkEnvironmentFile(): HealthCheckItem {
   try {
     // Prefer pre-load resolve when APP_ENV_SOURCE not yet stamped
     if (!process.env.APP_ENV_SOURCE) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { resolveAppEnv } = require(path.join(getRepoRoot(), 'src/utils/app-env')) as {
         resolveAppEnv: (o: { repoRoot: string }) => { appEnv: string; source: string };
       };
@@ -385,7 +384,6 @@ function checkAuthStorageState(): HealthCheckItem {
   const root = getRepoRoot();
   let appEnv = 'local';
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require(path.join(root, 'src/utils/app-env')) as {
       resolveAppEnv: (o: { repoRoot: string }) => { appEnv: string };
     };

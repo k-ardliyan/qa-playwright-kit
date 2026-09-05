@@ -314,7 +314,7 @@ Mark skeletons with `// SKELETON` so they're easy to find and complete later.
 7. **Verbatim Actual Result**: Call `captureActualResult(<exact expectedResult string>)` once after the last assertion succeeds.
 8. **Web-First Assertions**: Prefer `toBeVisible`, `toHaveURL`, `toHaveText`. Never use `page.$`, `page.$$`, or fixed `waitForTimeout` sleeps.
 9. **Locator Priority**: `getByRole` → `getByLabel` → `getByText` → `getByTestId` → CSS last resort.
-10. **Linter & Typecheck Compliance**: Generated test files MUST pass `npx eslint <specPath>` and `npx tsc --noEmit` cleanly without errors or warnings.
+10. **Linter & Typecheck Compliance**: Generated test files MUST pass `npx biome check <specPath>`, `npx eslint --config eslint.playwright.config.mjs <specPath>`, and `npx tsc --noEmit` cleanly without errors or warnings.
 11. For role-specific files, always include `test.use({ storageState: authStatePath('<role>') })` or `.auth/${process.env.APP_ENV||'local'}/<role>.json` at the describe level.
 12. Use `test.skip` with tag `@manual` for CAPTCHA or flows that cannot be automated safely — always include the reason.
 13. **No inline login (session provisioning ban):** NEVER generate login form flows (fill identity + password + submit) inside specs to obtain a session. Sessions come only from `test.use({ storageState: authStatePath('<role>') })` provisioned by the setup project. Exception: the requirement IS a login scenario (`authState: unauthenticated` / `@auth` feature) — the login steps are the test subject, not provisioning. Never hand-inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`) either.

@@ -17,7 +17,13 @@ export type FailureRootCause = 'app' | 'test' | 'requirement' | 'env' | 'ai_gene
 export interface CoverageStateBreakdown {
   design: 'planned' | 'unplanned';
   automation:
-    'automated' | 'manual' | 'mixed' | 'unautomated' | 'generated' | 'not-generated' | 'blocked';
+    | 'automated'
+    | 'manual'
+    | 'mixed'
+    | 'unautomated'
+    | 'generated'
+    | 'not-generated'
+    | 'blocked';
   execution: 'executed' | 'not-executed' | 'passed' | 'failed' | 'skipped' | 'timed-out';
   verification:
     | 'unverified'

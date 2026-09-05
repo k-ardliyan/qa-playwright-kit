@@ -312,7 +312,7 @@ function collectErrors(result: TestResult): CollectedError[] {
 
 /** Strip ANSI terminal escape codes (color/dim/bold sequences). */
 function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape stripping requires ESC
   return str.replace(/\x1b\[[0-9;]*m/g, '');
 }
 

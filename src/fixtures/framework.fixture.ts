@@ -17,7 +17,7 @@ export type FrameworkFixtures = {
 
 /** Single source for framework fixture wiring — consumed by both assembly points. */
 export const frameworkFixtureExtend = {
-  // eslint-disable-next-line no-empty-pattern -- Playwright fixture with no dependencies
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright fixture has no dependencies
   logger: async ({}, use: (value: typeof logger) => Promise<void>) => {
     await use(logger);
   },

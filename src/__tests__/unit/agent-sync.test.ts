@@ -78,7 +78,6 @@ test.describe('syncAgentSkillsAndMcp', () => {
       fs.mkdirSync(path.join(hermesDir, 'profiles', 'custom-qa', 'skills'), { recursive: true });
       fs.writeFileSync(path.join(hermesDir, 'active_profile'), 'custom-qa', 'utf8');
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { resolveHermesActiveSkillsDir } = require('@/setup/agent-sync');
       const resolved = resolveHermesActiveSkillsDir();
       expect(resolved).toContain('custom-qa');

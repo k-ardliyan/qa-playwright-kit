@@ -93,6 +93,7 @@ npm run setup 2>&1 | head -20
 
 1. **Opsi A** — Minta kunci dari anggota tim yang punya akses (share `.env.keys` via 1Password/Vault yang aman). Simpan ke `~/.dotenvx-keys/qa-playwright-kit/.env.keys`
 2. **Opsi B** — Buat ulang dari nol:
+
    ```bash
    rm config/environments/local.env
    cp config/environments/local.env.example config/environments/local.env
@@ -185,16 +186,20 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 
 1. Buka `src/support/auth.setup.ts` yang baru di-generate
 2. Ganti selector dengan selector aplikasi Anda. Contoh untuk React app:
+
    ```typescript
    await page.fill('[data-testid="email-input"]', email);
    await page.fill('[data-testid="password-input"]', password);
    await page.click('[data-testid="login-button"]');
    ```
+
 3. **Atau minta Hermes Agent:**
+
    ```
    Tolong perbaiki src/support/auth.setup.ts untuk login page di https://staging.myapp.com/login.
    Pakai snapshot_page dulu untuk lihat selector yang ada.
    ```
+
 4. Jalankan ulang: `npm run auth:setup` / `npm run auth:setup:headed`
 
 ---
@@ -210,11 +215,13 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 **Fix (berurutan):**
 
 1. Pastikan `mcp:build` sukses:
+
    ```bash
    ls tools/mcp/dist/index-mcp.js  # harus ada
    # Jika tidak ada:
    npm run mcp:build
    ```
+
 2. Restart VS Code **sepenuhnya** (bukan hanya reload window) — `Ctrl+Shift+P` → "Reload Window"
 3. Cek lagi status bar: `MCP ● 3 servers`
 4. Jika masih 0: klik status bar → "Reload MCP Servers"
@@ -274,10 +281,12 @@ Anatomy / cara baca: [REPORT-GUIDE.md](REPORT-GUIDE.md).
 1. Cek manual di browser: buka `BASE_URL` (lihat di `config/environments/local.env`)
 2. Jika down → tunggu aplikasi up lagi
 3. Jika salah URL → edit:
+
    ```bash
    npm run env:edit
    # Update BASE_URL, save, tutup editor
    ```
+
 4. Jika firewall (umum di kantor) → hubungi IT untuk whitelist
 
 ---

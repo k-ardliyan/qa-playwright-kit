@@ -19,14 +19,18 @@ tests/
 ## 🚀 Konvensi Penulisan Tes
 
 1. **Import via Adapter**:
+
    ```ts
    import { test, expect } from './fixtures';
    import { LoginPage } from './pages/auth/login.page';
    ```
+
 2. **Traceability Header**:
+
    ```ts
    // req: requirements/<feature>.md
    // spec: specs/<feature>-plan.md
    // seed: tests/seed.spec.ts
    ```
+
 3. **Committed Source**: Seluruh file tes di dalam `tests/` adalah committed source code, bukan artefak sementara.

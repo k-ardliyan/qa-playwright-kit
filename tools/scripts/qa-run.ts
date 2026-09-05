@@ -261,7 +261,6 @@ function validateRequirementFile(repoRoot: string, relPath: string): ValidationR
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { compileRequirementFromText } = require('../mcp/src/tools/compile-requirement') as {
     compileRequirementFromText: (
       text: string,

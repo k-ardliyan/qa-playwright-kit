@@ -16,8 +16,8 @@
 
 ## Metadata
 
-| Field               | Wajib?       | Contoh nilai                                 | Keterangan                                                                                                |
-| ------------------- | ------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Field               | Wajib?        | Contoh nilai                                 | Keterangan                                                                                                |
+| ------------------- | ------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `Tags`              | ✅ Ya         | `#smoke #regression #ui`                     | Pisahkan dengan spasi. Dipakai filter test.                                                               |
 | `Prioritas`         | ✅ Ya         | `high` / `medium` / `low`                    | Prioritas bisnis default untuk semua skenario.                                                            |
 | `Auth state`        | ✅ Ya         | `unauthenticated` / `authenticated`          | Butuh login atau tidak.                                                                                   |

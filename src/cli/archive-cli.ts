@@ -281,7 +281,8 @@ async function viewCommand(args: Record<string, string | boolean>): Promise<void
     }
 
     const summaryByRole = summary.summaryByRole as
-      Record<string, { passing: number; failing: number; skipped: number }> | undefined;
+      | Record<string, { passing: number; failing: number; skipped: number }>
+      | undefined;
     if (summaryByRole && Object.keys(summaryByRole).length > 0) {
       console.log('\n  By Role:');
       for (const [role, data] of Object.entries(summaryByRole)) {
@@ -377,8 +378,9 @@ async function deleteCommand(args: Record<string, string | boolean>): Promise<vo
 // ─── Compare Command ──────────────────────────────────────────────────────────
 
 async function compareCommand(args: Record<string, string | boolean>): Promise<void> {
-  const { compareLatestVsPrevious, compareReports, generateComparisonSummary } =
-    await import('../agents/reporter/report-compare');
+  const { compareLatestVsPrevious, compareReports, generateComparisonSummary } = await import(
+    '../agents/reporter/report-compare'
+  );
 
   const baseline = args['baseline'] as string | undefined;
   const current = args['current'] as string | undefined;

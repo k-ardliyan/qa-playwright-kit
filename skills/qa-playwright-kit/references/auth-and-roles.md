@@ -116,6 +116,7 @@ Trigger: 401/403, `unauthorized`, `session expired`, test redirect ke `/login`, 
 `auth.setup.ts` is modular and designed to be customized when an app has extra login interactions beyond simple username + password. Add custom steps directly in `src/support/auth.setup.ts` (add `// CUSTOM_AUTH_FLOW` at the top to protect from wizard overwrite).
 
 ### Recipe 1: Post-Login Profile / Tenant / Branch Selector
+
 When submitting credentials keeps the user on the same page to pick a user profile, account, or branch before redirecting:
 
 ```typescript
@@ -140,6 +141,7 @@ await test.step('Pilih profil pengguna setelah login', async () => {
 ```
 
 ### Recipe 2: 2-Step Login (Identifier -> Next -> Password)
+
 When the application asks for email/username on screen 1, clicks "Next", then shows the password input on screen 2:
 
 ```typescript
@@ -157,6 +159,7 @@ await test.step('Isi password dan submit', async () => {
 ```
 
 ### Recipe 3: Post-Login Terms / Disclaimer Modal
+
 When a modal dialog appears after password verification requiring acceptance before reaching the dashboard:
 
 ```typescript

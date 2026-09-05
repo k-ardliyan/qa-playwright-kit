@@ -103,7 +103,11 @@ export function buildTraceabilityMatrix(
   // Map Scenarios with exact identity first (CF-201, CF-202)
   const scenarioNodes: TraceabilityScenarioNode[] = req.scenarios.map((sc) => {
     let linkageType:
-      'exact-test-id' | 'exact-scenario-id' | 'requirement-id' | 'heuristic-fallback' | undefined;
+      | 'exact-test-id'
+      | 'exact-scenario-id'
+      | 'requirement-id'
+      | 'heuristic-fallback'
+      | undefined;
     let heuristicDiagnostic: { reason: string; confidence: number } | undefined;
 
     // 1. Exact testId match
