@@ -514,6 +514,17 @@ html[data-sticky-left='off'] .qa-report-table .col-sticky-0 {
   margin-right: 4px;
 }
 
+.step-subtitle-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: var(--bg-hover);
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  margin-left: 4px;
+  font-family: var(--mono);
+}
+
 .input-flat .key {
   color: var(--accent);
   font-weight: 600;

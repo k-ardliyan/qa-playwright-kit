@@ -55,6 +55,7 @@ export function buildPlaywrightSharedDefaults(): Partial<PlaywrightTestConfig> {
   return {
     fullyParallel: true,
     retries: process.env.CI ? 2 : 0,
+    retryStrategy: 'isolated',
     workers: process.env.CI ? 1 : undefined,
     timeout: 30_000,
     expect: {
@@ -66,7 +67,14 @@ export function buildPlaywrightSharedDefaults(): Partial<PlaywrightTestConfig> {
       launchOptions: {
         slowMo: resolveSlowMo(),
       },
-      trace: 'on-first-retry',
+      trace: {
+        mode: 'on-first-retry',
+        snapshots: {
+          dom: true,
+          aria: true,
+          screen: true,
+        },
+      },
       screenshot: 'only-on-failure',
       video: 'retain-on-failure',
     },

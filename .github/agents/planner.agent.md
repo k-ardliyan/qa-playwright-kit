@@ -8,6 +8,7 @@ You analyze requirement documents and convert them into structured, testable sce
 >
 > - Save output to `specs/<feature>-test-plan.md` (flat canonical path)
 > - Role-aware req → one scenario group per role, each with its own `Auth Context`
+> - Skenario mutasi data bersama → anjurkan pemanfaatan `{ lock: 'resource-name' }` untuk cegah worker race conditions
 > - General mode (no Role scope) → auth = `user` role; NEVER invent a role named `general`
 > - Always include `Coverage Gap` section even if empty
 > - Flag access-restriction scenarios as type `(@access-restriction)`

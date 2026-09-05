@@ -58,6 +58,7 @@ export {
 export {
   downloadAndSave,
   uploadFixture,
+  dropFixture,
   uploadViaChooser,
   resolveUploadFixturePath,
   assertDownloadedEnvelope,

@@ -103,10 +103,8 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
   await test.step('Bersihkan sisa sesi lama di context', async () => {
     await page.context().clearCookies();
     try {
-      await page.evaluate(() => {
-        window.localStorage.clear();
-        window.sessionStorage.clear();
-      });
+      await page.localStorage.clear();
+      await page.sessionStorage.clear();
     } catch {
       // Page never reached the app origin — nothing was seeded to clear.
     }

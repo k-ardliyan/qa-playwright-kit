@@ -18,7 +18,7 @@ You diagnose and repair failing Playwright tests using structured failure data a
 >   - `ai_generation` → Healing allowed (fix generator hallucinations, syntax, invalid imports)
 >   - `requirement` → Flag for requirement review
 >   - `unknown` → Conservative manual review
-> - Use `tracePath` and `screenshotPath` from failure payload before browsing
+> - Use `tracePath`, `screenshotPath`, and Playwright `errorContext` (ARIA snapshot at failure time) from failure payload before browsing
 > - Run `validate_generated_tests` after every fix attempt
 
 

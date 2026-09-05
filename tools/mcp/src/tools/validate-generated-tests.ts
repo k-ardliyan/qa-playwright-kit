@@ -210,8 +210,10 @@ function validateCapabilityPowerRules(
   const hasUploadApi =
     /\bsetInputFiles\b/.test(content) ||
     /\buploadFixture\b/.test(content) ||
+    /\bdropFixture\b/.test(content) ||
     /\buploadViaChooser\b/.test(content) ||
-    /\buploadFile\b/.test(content);
+    /\buploadFile\b/.test(content) ||
+    /\bdropFile\b/.test(content);
   const hasFileContentApi =
     /\bassertPdfContains\b/.test(content) ||
     /\bassertPdfMatches\b/.test(content) ||
@@ -333,7 +335,7 @@ function validateCapabilityPowerRules(
       filePath,
       lineNumber: 1,
       ruleName:
-        'Capability rule (@upload): must use setInputFiles or uploadFixture/uploadViaChooser/uploadFile',
+        'Capability rule (@upload): must use setInputFiles or uploadFixture/dropFixture/uploadViaChooser/uploadFile/dropFile',
     });
   }
 
@@ -556,6 +558,7 @@ export function validateSpecFile(filePath: string, relativePath?: string): Valid
   violations.push(...validateMetadataRule(content, filePath, rel));
   violations.push(...validateNoInlineAuth(content, filePath, rel));
   violations.push(...validateAuthRolesRegistered(content, filePath, rel));
+  violations.push(...validateNoVisiblePseudoClass(content, filePath, rel));
 
   return violations;
 }
@@ -695,6 +698,36 @@ export function validateNoDataInStepTitles(
         severity: 'warning',
       });
     }
+  }
+
+  return violations;
+}
+
+/**
+ * ARCH-014 / Playwright 2026: Discourage deprecated `:visible` pseudo-class.
+ * Recommend native `locator.visible()` instead.
+ */
+export function validateNoVisiblePseudoClass(
+  content: string,
+  filePath: string,
+  relativePath: string,
+): ValidationViolation[] {
+  if (isTraceabilityExempt(relativePath)) {
+    return [];
+  }
+
+  const violations: ValidationViolation[] = [];
+  const visiblePseudoPattern = /locator\s*\(\s*['"`](?:[^'"`]*?:visible)['"`]\s*\)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = visiblePseudoPattern.exec(content)) !== null) {
+    violations.push({
+      filePath,
+      lineNumber: getLineNumberFromIndex(content, match.index),
+      ruleName:
+        'Selector rule: deprecated CSS pseudo-class ":visible" detected. Use native Playwright locator.visible() instead.',
+      severity: 'warning',
+    });
   }
 
   return violations;

@@ -129,7 +129,7 @@ export function InputDataCell({ inputData }: { inputData?: Record<string, string
   );
 }
 
-export function StepsCell({ steps }: { steps?: Array<{ title: string }> }) {
+export function StepsCell({ steps }: { steps?: Array<{ title: string; subtitle?: string }> }) {
   if (!steps || steps.length === 0) return <span class="muted">-</span>;
   const visible = steps.filter(
     (s) => !s.title.startsWith('Before') && !s.title.startsWith('After'),
@@ -141,6 +141,11 @@ export function StepsCell({ steps }: { steps?: Array<{ title: string }> }) {
       {visible.map((s, i) => (
         <div class="steps-flat__item">
           <span class="steps-flat__n">{i + 1}.</span> <span safe>{s.title}</span>
+          {s.subtitle ? (
+            <span class="step-subtitle-badge" safe>
+              {s.subtitle}
+            </span>
+          ) : null}
         </div>
       ))}
     </div>

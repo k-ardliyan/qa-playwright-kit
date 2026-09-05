@@ -16,7 +16,7 @@
  * @module src/support/session-guard
  */
 import * as path from 'node:path';
-import type { Page } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import { authStateFileExpiryVerdict } from '../shared/mcp/auth-probe';
 import { authProbeChecks, type AuthProbeCheck } from './auth.probe';
 
@@ -172,19 +172,19 @@ export async function sessionGuardFixture(
   // test instantly with zero network cost.
   const stateFile = path.isAbsolute(statePath) ? statePath : path.resolve(statePath);
   if (authStateFileExpiryVerdict(stateFile) === true) {
-    throw new Error(sessionExpiredMessage(role, loginUrl));
+    test.abort(sessionExpiredMessage(role, loginUrl));
   }
 
   const { redirectedToLogin } = await checkSessionRedirect(page, checkUrl);
   if (redirectedToLogin) {
-    throw new Error(sessionExpiredMessage(role, loginUrl));
+    test.abort(sessionExpiredMessage(role, loginUrl));
   }
 
   // Layer 3: workspace-defined probe check (stronger & customizable successor
   // of the old text marker — real Playwright assertions, per role).
   const probe = await runAuthProbeCheck(page, role, { successUrl: checkUrl, loginUrl });
   if (probe.outcome === 'failed') {
-    throw new Error(
+    test.abort(
       `${sessionExpiredMessage(role, loginUrl)} (auth probe: ${probe.reason ?? 'check failed'})`,
     );
   }

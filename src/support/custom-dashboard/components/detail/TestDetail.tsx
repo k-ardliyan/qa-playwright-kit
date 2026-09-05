@@ -103,6 +103,14 @@ function ErrorsSection({ errors }: { errors: CollectedError[] }) {
             <pre class="test-error-view error-block" safe>
               {full}
             </pre>
+            {error.errorContext ? (
+              <details class="test-error-context-details">
+                <summary class="test-error-context-summary">Error Context (ARIA Snapshot)</summary>
+                <pre class="test-error-context-view error-block" safe>
+                  {error.errorContext}
+                </pre>
+              </details>
+            ) : null}
           </div>
         );
       })}

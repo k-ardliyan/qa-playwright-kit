@@ -258,13 +258,29 @@ function normalizeCollectedRoles(tests: CollectedTestData[]): void {
 // ---------------------------------------------------------------------------
 
 function collectSteps(steps: TestStep[]): CollectedStep[] {
-  return steps.map((step) => ({
-    title: step.title,
-    status: step.error ? 'failed' : 'passed',
-    duration: step.duration,
-    errorMessage: step.error?.message,
-    steps: collectSteps(step.steps ?? []),
-  }));
+  return steps.map((step) => {
+    // Playwright v1.63+ exposes subtitle and params on testStep
+    const stepAny = step as unknown as {
+      subtitle?: string;
+      params?: Record<string, unknown>;
+    };
+    const subtitle =
+      typeof stepAny.subtitle === 'string' && stepAny.subtitle.trim()
+        ? stepAny.subtitle.trim()
+        : undefined;
+    const params =
+      stepAny.params && typeof stepAny.params === 'object' ? stepAny.params : undefined;
+
+    return {
+      title: step.title,
+      status: step.error ? 'failed' : 'passed',
+      duration: step.duration,
+      errorMessage: step.error?.message,
+      subtitle,
+      params,
+      steps: collectSteps(step.steps ?? []),
+    };
+  });
 }
 
 function collectErrors(result: TestResult): CollectedError[] {
@@ -280,9 +296,14 @@ function collectErrors(result: TestResult): CollectedError[] {
       continue;
     }
 
+    const rawContext = (error as unknown as { errorContext?: string }).errorContext;
+    const errorContext =
+      typeof rawContext === 'string' && rawContext.trim() ? rawContext.trim() : undefined;
+
     errors.push({
       message: message.trim() || stack || 'Unknown Playwright error',
       stack,
+      errorContext,
     });
   }
 
@@ -591,20 +612,30 @@ export default class CustomReporter implements Reporter {
   }
 
   onStepBegin(test: TestCase, _result: TestResult, step: TestStep): void {
+    const rawSubtitle = (step as unknown as { subtitle?: string }).subtitle;
+    const stepSubtitle =
+      typeof rawSubtitle === 'string' && rawSubtitle.trim() ? rawSubtitle.trim() : undefined;
+
     streamTelemetryEvent({
       type: 'STEP_START',
       testId: test.id,
       testTitle: test.title,
       stepTitle: step.title,
+      stepSubtitle,
     });
   }
 
   onStepEnd(test: TestCase, _result: TestResult, step: TestStep): void {
+    const rawSubtitle = (step as unknown as { subtitle?: string }).subtitle;
+    const stepSubtitle =
+      typeof rawSubtitle === 'string' && rawSubtitle.trim() ? rawSubtitle.trim() : undefined;
+
     streamTelemetryEvent({
       type: 'STEP_END',
       testId: test.id,
       testTitle: test.title,
       stepTitle: step.title,
+      stepSubtitle,
       durationMs: step.duration,
       error: step.error?.message,
     });

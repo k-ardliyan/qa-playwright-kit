@@ -229,6 +229,8 @@ export interface TestFailure {
   tracePath?: string;
   /** Optional path to the screenshot */
   screenshotPath?: string;
+  /** Optional diagnostic error context (e.g. receiver ARIA snapshot from Playwright v1.60+) */
+  errorContext?: string;
 }
 
 /**

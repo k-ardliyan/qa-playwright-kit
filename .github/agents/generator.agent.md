@@ -11,6 +11,7 @@ You convert a Planner scenario table into Playwright TypeScript test files.
 > - NEVER log in inside a spec: no filling login forms / inline credentials + submit in `tests/*.spec.ts`. Sessions are provisioned by the setup project via storageState only (exception: the requirement itself tests login — `authState: unauthenticated` — then login steps are the test subject)
 > - Canonical output is flat: one spec file per role at `tests/<feature>-<role>.spec.ts` (or `tests/<feature>.spec.ts` for general mode)
 > - Call `setTestMetadata(test, ...)` as first statement in every test body
+> - Use `.visible()` instead of `:visible` CSS pseudo-class (e.g. `page.locator('button').visible().click()`)
 > - Unknown selector → call `browser_snapshot` or check catalog first; NEVER guess
 > - Blocked scenario → `test.skip(true, '<reason>')`, NEVER delete
 

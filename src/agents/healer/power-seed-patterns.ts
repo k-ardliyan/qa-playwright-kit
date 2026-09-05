@@ -100,6 +100,20 @@ const SEEDS: SeedDef[] = [
     },
     tags: ['upload', 'file', 'power'],
   },
+  {
+    signature: {
+      errorType: 'locator',
+      errorPattern: 'dropzone|drag and drop|DataTransfer|locator.drop',
+    },
+    fix: {
+      strategy: 'replace_locator',
+      beforePattern: 'dropFixture',
+      afterTemplate:
+        "await dropFixture(page.locator('.dropzone'), 'documents/sample.pdf');\n// uses native Playwright locator.drop() synthetic DataTransfer\n",
+      requiredImports: ["import { dropFixture } from '@/support/pw';"],
+    },
+    tags: ['upload', 'drop', 'power'],
+  },
 ];
 
 /**

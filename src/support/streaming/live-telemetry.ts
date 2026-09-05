@@ -6,6 +6,7 @@ export interface LiveTelemetryEvent {
   testId?: string;
   testTitle?: string;
   stepTitle?: string;
+  stepSubtitle?: string;
   status?: string;
   durationMs?: number;
   error?: string;

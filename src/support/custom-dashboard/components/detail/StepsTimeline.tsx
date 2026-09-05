@@ -53,6 +53,11 @@ function StepTitleRow({
       <span class="tree-item__label" safe>
         {step.title}
       </span>
+      {step.subtitle ? (
+        <span class="tree-item__subtitle" safe>
+          {step.subtitle}
+        </span>
+      ) : null}
       <span class="tree-item__duration">{step.duration}ms</span>
     </div>
   );
@@ -79,6 +84,21 @@ function StepTree({ steps, level = 0 }: { steps: CollectedStep[]; level?: number
             >
               <StepTitleRow step={step} indentPx={indentPx} hasChildren={hasChildren} />
               <StepErrorBlock step={step} />
+              {step.params && Object.keys(step.params).length > 0 ? (
+                <div class="step-params-strip" style={`padding-left:${indentPx + 24}px`}>
+                  {Object.entries(step.params).map(([k, v]) => (
+                    <span class="step-param-tag">
+                      <span class="param-k" safe>
+                        {k}
+                      </span>
+                      :{' '}
+                      <span class="param-v" safe>
+                        {String(v)}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           );
         }
@@ -95,6 +115,11 @@ function StepTree({ steps, level = 0 }: { steps: CollectedStep[]; level?: number
               <span class="tree-item__label" safe>
                 {step.title}
               </span>
+              {step.subtitle ? (
+                <span class="tree-item__subtitle" safe>
+                  {step.subtitle}
+                </span>
+              ) : null}
               <span class="tree-item__duration">{step.duration}ms</span>
             </summary>
             <div class="tree-item__body">

@@ -4,6 +4,7 @@ import {
   validateNoHardcodedWaits,
   validateNoInlineAuth,
   validateAuthRolesRegistered,
+  validateNoVisiblePseudoClass,
   extractAuthRolesFromSpec,
   looksLikeClonedRoleName,
 } from '../../../tools/mcp/src/tools/validate-generated-tests';
@@ -155,5 +156,30 @@ test.describe('validate-generated-tests role-vs-env rule (CC-AUTH-RECOVERY)', ()
   test('passes for specs without auth references', () => {
     const src = "await page.getByRole('button', { name: 'Go' }).click();";
     expect(validateAuthRolesRegistered(src, 'x', 'tests/browse.spec.ts')).toEqual([]);
+  });
+});
+
+test.describe('validate-generated-tests :visible pseudo-class rule (Playwright 2026)', () => {
+  test('flags :visible in locator string with warning severity', () => {
+    const src = "await page.locator('button:visible').click();";
+    const violations = validateNoVisiblePseudoClass(
+      src,
+      'tests/sample.spec.ts',
+      'tests/sample.spec.ts',
+    );
+    expect(violations.length).toBe(1);
+    expect(violations[0].severity).toBe('warning');
+    expect(violations[0].ruleName).toContain(':visible');
+    expect(violations[0].ruleName).toContain('locator.visible()');
+  });
+
+  test('passes for native locator.visible()', () => {
+    const src = "await page.locator('button').visible().click();";
+    const violations = validateNoVisiblePseudoClass(
+      src,
+      'tests/sample.spec.ts',
+      'tests/sample.spec.ts',
+    );
+    expect(violations.length).toBe(0);
   });
 });

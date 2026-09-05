@@ -42,6 +42,7 @@ export interface CollectedAttachment {
 export interface CollectedError {
   message: string;
   stack?: string;
+  errorContext?: string;
 }
 
 export interface CollectedStep {
@@ -49,6 +50,8 @@ export interface CollectedStep {
   status: StepStatus;
   duration: number;
   errorMessage?: string;
+  subtitle?: string;
+  params?: Record<string, unknown>;
   steps: CollectedStep[];
 }
 

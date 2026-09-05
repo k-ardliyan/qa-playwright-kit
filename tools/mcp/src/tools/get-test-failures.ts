@@ -58,6 +58,8 @@ export interface TestFailure {
   stackTrace?: string;
   tracePath?: string;
   screenshotPath?: string;
+  /** Diagnostic error context (e.g. receiver ARIA snapshot at failure time from Playwright v1.60+) */
+  errorContext?: string;
   // === Table View metadata (from test.info().annotations) ===
   /** Test ID from annotation — TC-XXX-NNN */
   testId?: string;
@@ -285,6 +287,16 @@ function traverseSuites(
         failure.screenshotPath = screenshotPath;
       }
 
+      // Playwright v1.60+ surfaces errorContext (e.g. ARIA snapshot of matcher target)
+      const errorObj = result.error as { errorContext?: string } | undefined;
+      const errorContext =
+        typeof errorObj?.errorContext === 'string' && errorObj.errorContext.trim()
+          ? errorObj.errorContext.trim()
+          : undefined;
+      if (errorContext) {
+        failure.errorContext = errorContext;
+      }
+
       failures.push(failure);
 
       // Cross-reference with test-summary.json to enrich annotation fields.
@@ -348,6 +360,9 @@ function parsePlaywrightResult(
         }
         if (typeof row.screenshotPath === 'string') {
           mapped.screenshotPath = row.screenshotPath;
+        }
+        if (typeof row.errorContext === 'string') {
+          mapped.errorContext = row.errorContext;
         }
         if (typeof row.testId === 'string') {
           mapped.testId = row.testId;

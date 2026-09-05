@@ -229,6 +229,7 @@ function extractSelectorType(errorMessage: string): string | undefined {
     [/getByText/i, 'getByText'],
     [/getByLabel/i, 'getByLabel'],
     [/getByPlaceholder/i, 'getByPlaceholder'],
+    [/locator\([^)]*\)\.visible\(\)/i, 'visible'],
     [/locator\(/i, 'css'],
     [/css=/i, 'css'],
     [/xpath=/i, 'xpath'],

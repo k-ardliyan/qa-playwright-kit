@@ -95,10 +95,18 @@ export class BasePage {
 
   /**
    * Mengunggah file ke input secara aman.
-   * Prefer `uploadFixture` from `@/support/pw` for paths under tests/data/.
+   * Prefer `uploadFixture` or `dropFixture` from `@/support/pw` for paths under tests/data/.
    */
   async uploadFile(locator: Locator, filePath: string): Promise<void> {
     await locator.setInputFiles(filePath);
+  }
+
+  /**
+   * Simulasikan drop file ke target element (dropzone).
+   * Menggunakan Playwright locator.drop() synthetic DataTransfer.
+   */
+  async dropFile(locator: Locator, filePath: string): Promise<void> {
+    await locator.drop({ files: [filePath] });
   }
 
   // ── MENUNGGU ELEMEN ASYNC GLOBAL ───────────────────────────────────────────

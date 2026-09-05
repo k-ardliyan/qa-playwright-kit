@@ -98,6 +98,25 @@ export async function uploadFixture(locator: Locator, relativeFixturePath: strin
 }
 
 /**
+ * Simulate external drag-and-drop of a test fixture file onto a target element (e.g. dropzone).
+ * Uses Playwright's native locator.drop() API with synthetic DataTransfer.
+ */
+export async function dropFixture(
+  locator: Locator,
+  relativeFixturePath: string | string[],
+): Promise<void> {
+  const paths = (
+    Array.isArray(relativeFixturePath) ? relativeFixturePath : [relativeFixturePath]
+  ).map((p) => resolveUploadFixturePath(p));
+  for (const p of paths) {
+    if (!fs.existsSync(p)) {
+      throw new Error(`Upload fixture not found: ${p}`);
+    }
+  }
+  await locator.drop({ files: paths });
+}
+
+/**
  * Click a control that opens the browser file chooser, then set fixture file(s).
  * Prefer this when the real `<input type=file>` is hidden behind a button.
  */

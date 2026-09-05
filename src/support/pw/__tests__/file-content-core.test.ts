@@ -114,6 +114,22 @@ test('invalid empty fails minBytes', () => {
   );
 });
 
+test('dropFixture helper is exported and callable on locator mockup', async () => {
+  let droppedFiles: string[] = [];
+  const fakeLocator = {
+    drop: async ({ files }: { files: string[] }) => {
+      droppedFiles = files;
+    },
+  };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { dropFixture } = require('../files') as {
+    dropFixture: (locator: unknown, relPath: string) => Promise<void>;
+  };
+  await dropFixture(fakeLocator, 'pdf/sample-text.pdf');
+  assert.equal(droppedFiles.length, 1);
+  assert.match(droppedFiles[0], /sample-text\.pdf$/);
+});
+
 (async () => {
   const g = globalThis as unknown as { __fileCoreTests?: Array<() => Promise<void>> };
   const tests = g.__fileCoreTests ?? [];

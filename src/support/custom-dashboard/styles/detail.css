@@ -341,6 +341,22 @@ html[data-theme='dark'] details.test-card[data-status='interrupted'] {
   border-radius: 0;
 }
 
+.test-error-context-details {
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+.test-error-context-summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  padding: 4px 0;
+}
+
+.test-error-context-view {
+  margin-top: 4px;
+}
+
 html[data-theme='dark'] .test-error-view,
 html[data-theme='dark'] .error-block {
   color: #ffd8df;
@@ -484,6 +500,17 @@ details.tree-item--branch[open] > summary.tree-item__title::before {
   color: var(--text);
 }
 
+.tree-item__subtitle {
+  flex: none;
+  font-size: 0.74rem;
+  color: var(--muted);
+  background: var(--bg-hover);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  margin-left: 6px;
+  font-family: var(--mono);
+}
+
 .tree-item__duration {
   flex: none;
   margin-left: auto;
@@ -495,6 +522,34 @@ details.tree-item--branch[open] > summary.tree-item__title::before {
 
 .tree-item__body {
   padding: 0 0 8px;
+}
+
+.step-params-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 6px;
+  font-size: 0.74rem;
+}
+
+.step-param-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-family: var(--mono);
+}
+
+.step-param-tag .param-k {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.step-param-tag .param-v {
+  color: var(--text);
 }
 
 .tree-item__children {

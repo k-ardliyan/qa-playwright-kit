@@ -65,7 +65,7 @@ Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<fe
 | Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md)                                |
 | Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                  |
 | Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                         |
-| Resolusi `ERR_BLOCKED_BY_CLIENT` & Browser MCP Checklist     | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                 |
+| Resolusi `ERR_BLOCKED_BY_CLIENT` & Browser MCP Checklist    | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                 |
 | Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                     |
 | SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                         |
 | Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                              |

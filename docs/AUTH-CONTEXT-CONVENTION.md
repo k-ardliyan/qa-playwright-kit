@@ -116,12 +116,12 @@ Implementasi: `src/support/human-challenge.ts` dipanggil dari `tests/auth.setup.
 
 Framework mendeteksi sesi mati lewat 4 layer, dari yang paling universal. **Semua otomatis — tanpa env key app-specific**:
 
-| Layer | Mekanisme | Cocok untuk | Env (opsional) |
-| ----- | --------- | ----------- | -------------- |
-| 0 | **Scan TTL statis dari file sesi** (JWT `exp` claim RFC 7519 + rekam kadaluarsa `{loginTime, expiresIn}` / `{exp|expiresAt}` di cookie & localStorage) | Semua app yang menyimpan token standar | — otomatis |
-| 1 | Redirect ke halaman login | App tradisional / session cookie | — (pakai `*_LOGIN_URL_PATH`) |
-| 2 | Respons 401/403 saat navigasi awal | SPA yang fetch data | — |
-| 3 | **Probe hook kustom per-role** (`src/support/auth.probe.ts`) — assertion Playwright apa pun (DOM, API `/me`, storage) yang harus lulus saat sesi hidup | App paling diam (tanpa redirect, tanpa 401, tanpa bukti TTL) | — opsional, kode di repo |
+| Layer | Mekanisme                                                                                                                                              | Cocok untuk                                                  | Env (opsional)                         |            |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------- | ---------- |
+| 0     | **Scan TTL statis dari file sesi** (JWT `exp` claim RFC 7519 + rekam kadaluarsa `{loginTime, expiresIn}` / `{exp                                       | expiresAt}` di cookie & localStorage)                        | Semua app yang menyimpan token standar | — otomatis |
+| 1     | Redirect ke halaman login                                                                                                                              | App tradisional / session cookie                             | — (pakai `*_LOGIN_URL_PATH`)           |            |
+| 2     | Respons 401/403 saat navigasi awal                                                                                                                     | SPA yang fetch data                                          | —                                      |            |
+| 3     | **Probe hook kustom per-role** (`src/support/auth.probe.ts`) — assertion Playwright apa pun (DOM, API `/me`, storage) yang harus lulus saat sesi hidup | App paling diam (tanpa redirect, tanpa 401, tanpa bukti TTL) | — opsional, kode di repo               |            |
 
 - Layer 0 berjalan **tanpa navigasi** dan konservatif: semakin banyak bukti TTL, semakin akurat; **semua** bukti expired → sesi mati; ada yang hidup → dianggap hidup (layer 1–2 yang menangkap 401/redirect nyata); tanpa bukti → layer lain memutuskan. Tidak ada false positive.
 - **Probe hook (layer 3) opsional dan jarang perlu** — mayoritas app terdeteksi layer 0–2 tanpa konfigurasi apa pun. Ia hanya untuk app yang benar-benar tidak memberi sinyal (tanpa redirect, tanpa 401, tanpa bukti TTL) — kasus yang secara teori tidak mungkin dideteksi otomatis. Definisikan check per role di `src/support/auth.probe.ts`; check yang gagal (throw) = sesi mati, timeout = tidak pasti (dilewati — tanpa false positive).

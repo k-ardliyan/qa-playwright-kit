@@ -65,11 +65,13 @@ function formatInputData(inputData: Record<string, string>): string {
 
 const STEP_NOISE = ['Before', 'After', 'Worker Cleanup', 'worker', 'Fixture'];
 
-function formatSteps(steps: Array<{ title: string }>): string {
+function formatSteps(steps: Array<{ title: string; subtitle?: string }>): string {
   if (steps.length === 0) return '-';
   const filtered = steps.filter((s) => !STEP_NOISE.some((prefix) => s.title.startsWith(prefix)));
   if (filtered.length === 0) return '-';
-  return filtered.map((s, i) => `${i + 1}. ${s.title}`).join('\n');
+  return filtered
+    .map((s, i) => `${i + 1}. ${s.title}${s.subtitle ? ` (${s.subtitle})` : ''}`)
+    .join('\n');
 }
 
 function formatNotes(test: CollectedTestData): string {
@@ -581,7 +583,14 @@ export function buildExportScript(
 
       function formatSteps(steps) {
         if (!steps || !steps.length) return '-';
-        return steps.map(function (s, i) { return (i + 1) + '. ' + s; }).join('\\n');
+        return steps
+          .map(function (s, i) {
+            if (typeof s === 'object' && s !== null) {
+              return (i + 1) + '. ' + (s.title || '') + (s.subtitle ? ' (' + s.subtitle + ')' : '');
+            }
+            return (i + 1) + '. ' + s;
+          })
+          .join('\\n');
       }
 
       function formatInput(input) {
