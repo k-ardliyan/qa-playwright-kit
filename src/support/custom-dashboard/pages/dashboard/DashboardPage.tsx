@@ -7,6 +7,7 @@ import { QualityOverview } from './QualityOverview';
 import { QualityTrend } from './QualityTrend';
 import { RecentRuns } from './RecentRuns';
 import { AttentionPanel } from './AttentionPanel';
+import { AiInsightsPanel } from './AiInsightsPanel';
 import { SaveRunModal } from '../history/SaveRunModal';
 import { ConfirmDeleteModal } from '../history/ConfirmDeleteModal';
 import { buildHistoryJs } from '../../build-history-view';
@@ -47,6 +48,19 @@ export function DashboardPage({
         </div>
 
         <LatestRunCard latestRun={overview.latestRun} />
+        {overview.latestRun?.analysisVerdict ? (
+          <div class="analysis-status-banner" role="status">
+            <span
+              class={`analysis-badge analysis-badge--${overview.latestRun.analysisVerdict}`}
+              safe
+            >
+              AI ANALYSIS: {overview.latestRun.analysisVerdict.toUpperCase()}
+            </span>
+            {!overview.latestRun.analysisVerified ? (
+              <span class="muted">Review gate evidence before APPROVE.</span>
+            ) : null}
+          </div>
+        ) : null}
 
         <QualityOverview metrics={overview.metrics} />
 
@@ -58,6 +72,7 @@ export function DashboardPage({
 
           <div class="dashboard-grid-sidebar">
             <AttentionPanel recurringFailures={overview.recurringFailures} />
+            <AiInsightsPanel insights={overview.aiRunInsights} />
           </div>
         </div>
       </section>

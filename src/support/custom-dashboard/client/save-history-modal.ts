@@ -328,3 +328,156 @@ export function buildSaveHistoryModalJs(): string {
   })();
   `;
 }
+
+/**
+ * Per-test QA note dialog for the NOTES cell and detail views.
+ * Serve mode persists via the notes API and patches the row in place;
+ * static (file://) mode copies the equivalent `npm run note:set` CLI command.
+ */
+export function buildQaNotesJs(): string {
+  return `
+  (function () {
+    var sourceBtn = null;
+
+    function modal() { return document.getElementById('qa-note-modal'); }
+
+    window.openQaNoteModal = function (btn) {
+      var m = modal();
+      if (!m || !btn) return;
+      sourceBtn = btn;
+      var scenarioId = btn.getAttribute('data-scenario-id') || '';
+      var testId = btn.getAttribute('data-test-id') || '';
+      var role = btn.getAttribute('data-role') || '';
+      var runId = btn.getAttribute('data-run-id') || '';
+      var label = btn.getAttribute('data-test-label') || testId || scenarioId || 'test';
+
+      var labelEl = document.getElementById('qa-note-test-label');
+      if (labelEl) labelEl.textContent = label;
+      var sidInput = document.getElementById('qa-note-scenario-id');
+      if (sidInput) sidInput.value = scenarioId;
+      var tidInput = document.getElementById('qa-note-test-id');
+      if (tidInput) tidInput.value = testId;
+      var roleInput = document.getElementById('qa-note-role');
+      if (roleInput) roleInput.value = role;
+      var runInput = document.getElementById('qa-note-run-id');
+      if (runInput) runInput.value = runId;
+
+      var ta = document.getElementById('qa-note-input');
+      if (ta) ta.value = btn.getAttribute('data-note') || '';
+      var feedback = document.getElementById('qa-note-feedback');
+      if (feedback) feedback.textContent = '';
+      var save = document.getElementById('btn-qa-note-save');
+      if (save) { save.disabled = false; }
+
+      m.hidden = false;
+      m.removeAttribute('hidden');
+      m.style.display = 'flex';
+      m.classList.add('modal--open');
+      m.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      if (typeof window.__qaModalOpened === 'function') window.__qaModalOpened(m, ta);
+    };
+
+    window.closeQaNoteModal = function () {
+      var m = modal();
+      if (!m) return;
+      m.hidden = true;
+      m.setAttribute('hidden', '');
+      m.style.display = 'none';
+      m.classList.remove('modal--open');
+      m.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (typeof window.__qaModalClosed === 'function') window.__qaModalClosed(m);
+      sourceBtn = null;
+    };
+
+    function announce(msg) {
+      if (typeof window.__dashboardAnnounce === 'function') window.__dashboardAnnounce(msg);
+      var feedback = document.getElementById('qa-note-feedback');
+      if (feedback) feedback.textContent = String(msg || '');
+    }
+
+    // Reflect the saved note back into the row the dialog was opened from —
+    // works for table rows, accordion cards, and archived detail fragments.
+    function applyQaNoteToDom(note) {
+      if (!sourceBtn) return;
+      sourceBtn.setAttribute('data-note', note || '');
+      var scope =
+        sourceBtn.closest('tr') ||
+        sourceBtn.closest('.test-card') ||
+        sourceBtn.closest('.detail-expand-content') ||
+        document;
+      var span = scope.querySelector('.qa-note');
+      if (note && !span) {
+        var row = document.createElement('div');
+        row.className = 'notes-row notes-row--qa';
+        span = document.createElement('span');
+        span.className = 'qa-note';
+        span.title = 'Catatan QA';
+        row.appendChild(span);
+        var timeRow = scope.querySelector('.notes-row--time');
+        (timeRow && timeRow.parentNode || scope).insertBefore(row, timeRow || null);
+      }
+      if (span) {
+        span.textContent = note || '';
+        span.style.display = note ? '' : 'none';
+      }
+    }
+
+    window.saveQaNoteModal = function () {
+      var m = modal();
+      if (!m) return;
+      var ta = document.getElementById('qa-note-input');
+      var note = ta ? ta.value : '';
+      var scenarioId = (document.getElementById('qa-note-scenario-id') || {}).value || '';
+      var testId = (document.getElementById('qa-note-test-id') || {}).value || '';
+      var role = (document.getElementById('qa-note-role') || {}).value || '';
+      var runId = (document.getElementById('qa-note-run-id') || {}).value || '';
+      var save = document.getElementById('btn-qa-note-save');
+
+      if (window.__SERVE_MODE__) {
+        if (save) { save.disabled = true; }
+        var url = runId
+          ? '/api/archive/' + encodeURIComponent(runId) + '/notes'
+          : '/api/notes/latest';
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenarioId: scenarioId,
+            testId: testId,
+            role: role || undefined,
+            qaNotes: note
+          })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d.ok) {
+              applyQaNoteToDom(note);
+              window.closeQaNoteModal();
+              announce('Catatan QA tersimpan.');
+            } else {
+              if (save) { save.disabled = false; }
+              announce((d && d.error) || 'Gagal menyimpan catatan.');
+            }
+          })
+          .catch(function (e) {
+            if (save) { save.disabled = false; }
+            announce('Network error: ' + e.message);
+          });
+      } else {
+        var Q = String.fromCharCode(34);
+        var B = String.fromCharCode(92);
+        var sn = note.split(Q).join(B + Q);
+        var cmd = 'npm run note:set -- '
+          + (scenarioId ? '--scenario=' + Q + scenarioId + Q : '--test-id=' + Q + testId + Q)
+          + (role ? ' --role=' + Q + role + Q : '')
+          + ' --note=' + Q + sn + Q;
+        if (typeof copyTextToClipboard === 'function') copyTextToClipboard(cmd, null, 'Copied');
+        window.closeQaNoteModal();
+        announce('Mode file://: perintah CLI disalin \\u2014 paste di terminal, lalu rebuild report.');
+      }
+    };
+  })();
+  `;
+}

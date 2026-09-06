@@ -221,10 +221,32 @@ export function NotesCell({ test, runId }: { test: CollectedTestData; runId?: st
           </code>
         </div>
       ) : null}
+      {test.qaNotes ? (
+        <div class="notes-row notes-row--qa">
+          <span class="qa-note" title="Catatan QA" safe>
+            {test.qaNotes}
+          </span>
+        </div>
+      ) : null}
       <div class="notes-row notes-row--time">
         <span class="duration" title="Duration" safe>
           {formatDuration(test.duration)}
         </span>
+        <button
+          type="button"
+          class="qa-note-edit"
+          data-action="edit-qa-note"
+          data-scenario-id={test.scenarioId || ''}
+          data-test-id={test.testId || ''}
+          data-role={test.role || ''}
+          data-note={test.qaNotes || ''}
+          data-run-id={runId || ''}
+          data-test-label={test.testId || test.title}
+          title="Tulis / edit catatan QA"
+          aria-label={`Edit QA note for ${test.testId || test.title}`}
+        >
+          ✎
+        </button>
       </div>
       {screenshots.length > 0 ? (
         <div class="notes-row notes-row--screenshot">
@@ -284,6 +306,63 @@ export function NotesCell({ test, runId }: { test: CollectedTestData; runId?: st
           <LayerBadges layers={test.affectedLayer} />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+const AI_NOTE_LINE = /^\[(healer|generator|reporter|analyzer)\]\s*(.*)$/;
+const AI_NOTE_LABEL = /^(Observasi|Bukti|Dampak|Rekomendasi|Next Action|Jenis)\s*:\s*(.*)$/;
+
+/**
+ * AI NOTES cell — agent-authored narrative lines (prefixed with their source)
+ * plus deterministic auto analysis lines, one per row. Structured insight
+ * lines (Observasi/Bukti/…:) get a styled label prefix.
+ */
+export function AiNotesCell({ test }: { test: CollectedTestData }) {
+  const text = (test.aiNotes || '').trim();
+  if (!text) return <span class="muted">-</span>;
+  const lines = text
+    .split(/\r\n|\n|\r/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  return (
+    <div class="ai-notes-cell">
+      {lines.map((line, i) => {
+        const agent = line.match(AI_NOTE_LINE);
+        const body = agent ? agent[2]! : line;
+        const labeled = body.match(AI_NOTE_LABEL);
+        if (labeled) {
+          return (
+            <div class={`ai-note ai-note--${agent ? 'agent' : 'auto'}`}>
+              {agent ? (
+                <span class={`ai-note-src ai-note-src--${agent[1]}`} safe>
+                  {agent[1]}
+                </span>
+              ) : null}
+              <span class="ai-note-label" safe>
+                {labeled[1]}
+              </span>
+              <span safe>{labeled[2]}</span>
+            </div>
+          );
+        }
+        if (agent) {
+          return (
+            <div class="ai-note ai-note--agent">
+              <span class={`ai-note-src ai-note-src--${agent[1]}`} safe>
+                {agent[1]}
+              </span>
+              <span safe>{agent[2]}</span>
+            </div>
+          );
+        }
+        return (
+          <div class={`ai-note ai-note--auto${i === 0 ? ' ai-note--first' : ''}`} safe>
+            {line}
+          </div>
+        );
+      })}
     </div>
   );
 }

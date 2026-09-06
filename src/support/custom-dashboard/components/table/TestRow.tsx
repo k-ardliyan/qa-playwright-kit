@@ -2,6 +2,7 @@
 import type { CollectedTestData } from '../../types';
 import {
   ActualResultCell,
+  AiNotesCell,
   FailureSourceCell,
   InputDataCell,
   MultilineTextCell,
@@ -44,6 +45,8 @@ export function TestRow({ test, rowKey, runId }: TestRowProps) {
     test.actualResult,
     test.errorMessage,
     test.failureSource || '',
+    test.qaNotes || '',
+    test.aiNotes || '',
   ]
     .join(' ')
     .toLowerCase()
@@ -119,6 +122,9 @@ export function TestRow({ test, rowKey, runId }: TestRowProps) {
       </td>
       <td class="tbl-notes" data-col="notes">
         <NotesCell test={test} runId={runId} />
+      </td>
+      <td class="tbl-ai-notes" data-col="aiNotes">
+        <AiNotesCell test={test} />
       </td>
     </tr>
   );

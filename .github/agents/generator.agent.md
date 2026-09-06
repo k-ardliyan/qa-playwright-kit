@@ -53,14 +53,17 @@ Also read metadata from the source requirement via `compile_requirement` (or `no
 
 ## MCP Dependencies
 
-| Server              | Tool                       | Purpose                                                            |
-| ------------------- | -------------------------- | ------------------------------------------------------------------ |
-| `qa-playwright-kit` | `compile_requirement`      | Read typed RequirementContractV1 metadata including roles and auth |
-| `qa-playwright-kit` | `compile_test_plan`        | Read canonical TestPlanContractV1 metadata                         |
-| `qa-playwright-kit` | `validate_generated_tests` | Validate generated spec files after generation                     |
-| `qa-playwright-kit` | `snapshot_page`            | Capture ARIA + selector catalog for a specific page                |
-| `qa-playwright-kit` | `list_test_fixtures`       | List test fixture bank files under tests/data/                     |
-| `qa-playwright-kit` | `inspect_file`             | Inspect test fixture envelope details                              |
+| Server              | Tool                       | Purpose                                                                                                                                                 |
+| ------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `qa-playwright-kit` | `compile_requirement`      | Read typed RequirementContractV1 metadata including roles and auth                                                                                      |
+| `qa-playwright-kit` | `compile_test_plan`        | Read canonical TestPlanContractV1 metadata                                                                                                              |
+| `qa-playwright-kit` | `validate_generated_tests` | Validate generated spec files after generation                                                                                                          |
+| `qa-playwright-kit` | `snapshot_page`            | Capture ARIA + selector catalog for a specific page                                                                                                     |
+| `qa-playwright-kit` | `list_test_fixtures`       | List test fixture bank files under tests/data/                                                                                                          |
+| `qa-playwright-kit` | `inspect_file`             | Inspect test fixture envelope details                                                                                                                   |
+| `qa-playwright-kit` | `record_ai_note`           | Record provenance-checked, structured generation insights (skeleton/blocked/data gaps) into the notes sidecar; supports pending `pipelineRunId` binding |
+
+**Generation insights (`record_ai_note`, source: `generator`):** this dependency is mandatory for generation gaps. When a scenario is generated as a skeleton or blocked with `test.skip`, or generation requires assumptions the requirement did not specify, call `record_ai_note` with `source: "generator"`, `scope: "test"`, and key it by `scenarioId` (plus `testId`/`role` when available). Write a concise Indonesian note explaining why the skeleton/block exists, what assumption or data gap was used, and what must be added before implementation. Use canonical structured fields from `skills/qa-playwright-kit/references/ai-insight-format.md`: `kind: "coverage"` for skipped/skeleton scenarios, `kind: "data"` for seed/data assumptions, plus `observation`, `evidence`, `impact`, `recommendation`, `priority`, `confidence`, `nextAction`, and `status`. Notes without an explicit `runId` bind to the pending `pipelineRunId` while one pipeline is active; do not overlap pipelines. Provenance and canonical `kind`/scope values are validated by the tool.
 
 ### POM Decision (Before Generating Spec)
 

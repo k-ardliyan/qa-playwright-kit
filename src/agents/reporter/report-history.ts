@@ -68,6 +68,12 @@ export interface ReportHistoryEntry {
     string,
     { features: Record<string, { passing: number; failing: number; skipped: number }> }
   >;
+  /** Canonical Analyze verdict persisted at archive time. */
+  analysisVerdict?: import('./analysis-gate').AnalysisVerdict;
+  /** True only when declaration/evidence agree. */
+  analysisVerified?: boolean;
+  /** Gate issues, when verdict is not complete. */
+  analysisIssues?: string[];
 }
 
 export interface ReportHistoryQuery {
@@ -201,6 +207,9 @@ function buildEntry(
     rolesInScope: summary.rolesInScope as string[] | undefined,
     summaryByRole: summary.summaryByRole as ReportHistoryEntry['summaryByRole'],
     summaryByModule: summary.summaryByModule as ReportHistoryEntry['summaryByModule'],
+    analysisVerdict: metadata?.analysisVerdict,
+    analysisVerified: metadata?.analysisVerified,
+    analysisIssues: metadata?.analysisIssues,
   };
 }
 

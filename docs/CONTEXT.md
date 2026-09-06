@@ -15,7 +15,7 @@
 ## Pipeline
 
 - **Orchestration Model** — Supports both prompt-driven (`manual` mode — QA User invokes pipeline steps via prompts) and fully automated (`automatic` mode — AI agent executes all phases sequentially without pausing). Automatic mode includes pipeline state persistence and resume capability via `artifacts/reports/pipeline-state.json`. Multi-platform AI client support through the Universal Agent Integration Layer (`src/agents/integration/`).
-- **Pipeline Phases** — Pre-flight → Validate → Plan → Generate → Execute → Heal → Report. Each phase maps to an _Agent Role_.
+- **Pipeline Phases** — Pre-flight → Validate → Plan → Generate → Execute → Heal → Report(Analyze). Report mencakup sub-phase Analyze yang wajib, bukan phase keenam; `pipelineRunId` adalah identitas pending sebelum run dan `archiveRunId` ID arsip kanonik, sedangkan catatan AI/QA mengikuti lifecycle sidecar. Untuk pipeline run, `APPROVE` hanya sah jika `analysisVerdict=complete` dan `analysisVerified=true`; satu workspace hanya mendukung satu pipeline aktif.
 - **Agent Role** — One of five logical roles: _Orchestrator_, _Planner_, _Generator_, _Healer_, _Reporter_. These instruction sets are structured for multi-AI-client compatibility, with the root `AGENTS.md` defining the Orchestrator guidelines and instructing agents on how to read and delegate tasks to the specific sub-agent instructions located in `.github/agents/`.
 - **Selector Discovery** — AI-first. The _Generator_ auto-discovers selectors for unknown pages via `browser_snapshot` without waiting for a _Framework Maintainer_ to pre-build a _Page Object_. Pre-built _Page Objects_ are optional optimizations, not prerequisites for test generation.
 

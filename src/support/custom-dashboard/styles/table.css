@@ -403,6 +403,13 @@ html[data-theme="dark"] .tbl-row--interrupted td {
   text-align: left;
 }
 
+.qa-report-table .tbl-ai-notes,
+.qa-report-table th[data-col="aiNotes"] {
+  min-width: 200px;
+  max-width: 320px;
+  text-align: left;
+}
+
 .qa-report-table .col-sticky-0 {
   position: sticky;
   left: 0;
@@ -884,4 +891,121 @@ html[data-theme="dark"] .role-section-header {
 
 .detail-kv-val {
   word-break: break-word;
+}
+
+/* === Per-test QA notes (NOTES cell) === */
+
+.notes-row--time {
+  gap: 6px;
+}
+
+.notes-row--qa {
+  align-items: stretch;
+  gap: 0;
+  max-width: 100%;
+}
+
+.qa-note {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text);
+  border-left: 3px solid var(--accent, #c4956a);
+  padding: 1px 0 1px 8px;
+  max-width: 280px;
+}
+
+.qa-note-edit {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: var(--radius-xs);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.qa-note-edit:hover,
+.qa-note-edit:focus-visible {
+  color: var(--accent, #c4956a);
+  border-color: var(--border);
+  background: var(--surface-muted);
+  opacity: 1;
+}
+
+/* === AI NOTES column === */
+
+.ai-notes-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text);
+  text-align: left;
+  max-width: 320px;
+}
+
+.ai-note {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-note--auto {
+  color: var(--muted);
+}
+
+.ai-note--agent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ai-note-src {
+  display: inline-block;
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.ai-note-src--healer {
+  color: var(--accent-2, #7aa2f7);
+  border-color: currentColor;
+}
+
+.ai-note-src--generator,
+.ai-note-src--reporter,
+.ai-note-src--analyzer {
+  color: var(--muted);
+  border-color: currentColor;
+}
+
+/* Structured insight labels (Observasi/Bukti/Rekomendasi/…) */
+.ai-note-label {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 2px;
 }

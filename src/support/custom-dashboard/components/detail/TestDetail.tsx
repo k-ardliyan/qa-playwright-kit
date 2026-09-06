@@ -374,6 +374,47 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
           </section>
         ) : null}
 
+        {testData.qaNotes || testData.aiNotes ? (
+          <section class="detail-section">
+            <h3 class="subheading">Catatan</h3>
+            <div class="detail-note detail-note--qa">
+              <span class="detail-note__label">QA</span>
+              <div class="notes-row--qa detail-note__row">
+                {testData.qaNotes ? (
+                  <span class="qa-note" title="Catatan QA" safe>
+                    {testData.qaNotes}
+                  </span>
+                ) : (
+                  <span class="muted">—</span>
+                )}
+                <button
+                  type="button"
+                  class="qa-note-edit"
+                  data-action="edit-qa-note"
+                  data-scenario-id={testData.scenarioId || ''}
+                  data-test-id={testData.testId || ''}
+                  data-role={testData.role || ''}
+                  data-note={testData.qaNotes || ''}
+                  data-run-id={runId || ''}
+                  data-test-label={testData.testId || testData.title}
+                  title="Tulis / edit catatan QA"
+                  aria-label={`Edit QA note for ${testData.testId || testData.title}`}
+                >
+                  ✎
+                </button>
+              </div>
+            </div>
+            {testData.aiNotes ? (
+              <div class="detail-note detail-note--ai">
+                <span class="detail-note__label">AI</span>
+                <div class="detail-note__text ai-notes-cell" safe>
+                  {testData.aiNotes}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         {errorCount > 0 ? (
           <details class="chip detail-chip" open>
             <summary class="chip-header">

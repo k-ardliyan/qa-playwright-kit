@@ -32,7 +32,9 @@ Configure all three in [`.mcp.json`](../.mcp.json) as the project MCP config. Ke
 ### Role Description
 
 Coordinates the full pipeline:
-**Pre-flight → Validate → Plan → Generate → Execute → Heal → Report**.
+**Pre-flight → Validate → Plan → Generate → Execute → Heal → Report(Analyze)**.
+
+`Report(Analyze)` is a mandatory Analyze sub-phase, not a sixth phase. One workspace supports one active pipeline; `pipelineRunId` is the pending identity for pre-run Plan/Generator notes and `archiveRunId` is the canonical archive ID.
 
 ### Input Format
 
@@ -54,6 +56,15 @@ Coordinates the full pipeline:
     "testsHealed": 0,
     "testsSkipped": 0
   },
+  "analysis": {
+    "completed": true,
+    "runInsightsRecorded": 0,
+    "passedScenariosReviewed": 0,
+    "skippedForInsufficientEvidence": 0
+  },
+  "analysisVerdict": "complete",
+  "analysisVerified": true,
+  "qaDecision": null,
   "unresolvedFailures": [
     {
       "stage": "planner | generator | healer",
@@ -67,7 +78,7 @@ Coordinates the full pipeline:
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `health_check`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `archive_report`, `generate_page_object`
+- `qa-playwright-kit`: `health_check`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `archive_report`, `generate_page_object`, `record_ai_note`, `set_test_note`
 - `playwright-test`: `run_tests`
 - `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`, `browser_file_upload`; see root [`AGENTS.md`](../AGENTS.md)
 
@@ -230,12 +241,19 @@ Pipeline context from Orchestrator plus `get_test_summary`, `trace_requirement`,
 
 ### Output Format
 
-- Structured JSON `PipelineReport` with summary, coverage, `summaryByRole`, and unresolved failures
+- Structured JSON `PipelineReport` with summary, coverage, `summaryByRole`, unresolved failures, and mandatory `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }`
+- `analysisVerdict` (`complete` | `incomplete` | `inconsistent` | `unverifiable` | `not-applicable`) and `analysisVerified` fields
 - Markdown report at `artifacts/reports/pipeline-report-<runId>.md`
+
+Reporter Analyze uses structured evidence-based notes via `record_ai_note` for failed and passed scenarios; passed-scenario UI/UX, flow, or data insights are recorded only when evidence supports them and are not automatic UX approval. QA remarks use `set_test_note`.
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `trace_requirement`, `get_test_summary`, `get_test_failures`, `list_requirement_status`, `archive_report`, `list_artifacts`
+- `qa-playwright-kit`: `trace_requirement`, `get_test_summary`, `get_test_failures`, `list_requirement_status`, `record_ai_note`, `set_test_note`, `archive_report`, `list_artifacts`
+
+### Report(Analyze) and Archive Gate
+
+Analyze is mandatory inside Report. `archive_report` permits `APPROVE` only when `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact counts match sidecar evidence, a Reporter Analyze run insight exists, and there are no unresolved failures. `ANALYSIS_INCOMPLETE`, `ANALYSIS_UNVERIFIABLE`, and `ANALYSIS_EVIDENCE_MISMATCH` reject APPROVE before writing. Other decisions archive with their verdict and warning.
 
 ### Orchestration Mode Behavior
 

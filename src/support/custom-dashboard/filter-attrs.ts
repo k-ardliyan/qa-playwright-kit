@@ -22,6 +22,8 @@ export function buildFilterDataAttrs(test: CollectedTestData, rowKey: string): s
     test.actualResult,
     test.errorMessage,
     test.failureSource || '',
+    test.qaNotes || '',
+    test.aiNotes || '',
   ]
     .join(' ')
     .toLowerCase()
@@ -81,6 +83,8 @@ export function toExportPayload(tests: CollectedTestData[]): unknown[] {
         actualResult: t.actualResult || '-',
         failureSource: t.failureSource || '',
         affectedLayer: t.affectedLayer || [],
+        qaNotes: t.qaNotes || '',
+        aiNotes: t.aiNotes || '',
         hasTrace: t.hasTrace ?? t.attachments.some((a) => a.kind === 'trace'),
         hasScreenshot: t.attachments.some((a) => a.kind === 'screenshot'),
         hasVideo: t.attachments.some((a) => a.kind === 'video'),

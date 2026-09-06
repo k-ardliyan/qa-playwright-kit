@@ -71,6 +71,9 @@ export function TableColumnPicker() {
           <label class="column-picker__item">
             <input type="checkbox" data-col-toggle="notes" checked /> Notes
           </label>
+          <label class="column-picker__item">
+            <input type="checkbox" data-col-toggle="aiNotes" checked /> AI Notes
+          </label>
 
           <div class="column-picker__title column-picker__title--section">Pin / sticky</div>
           <label

@@ -126,6 +126,20 @@
     "readOnly": false
   },
   {
+    "name": "record_ai_note",
+    "description": "Append an AI-authored insight — to one test row (scope=test, default; shown in the AI NOTES column) or to the whole run (scope=run; shown in the overview AI Run Insights panel). Structured fields (kind/observation/evidence/impact/recommendation/priority/confidence/nextAction/status) render in the canonical insight format; a plain message also works. Cover failure root causes AND insights on passed scenarios (UI/UX suggestions, flow A vs B comparison, data/seed tips). Write in Indonesian. Notes are additive; targets the latest run unless an archived runId is given.",
+    "stability": "experimental",
+    "profiles": ["generator", "healer", "reporter", "debug", "all"],
+    "readOnly": false
+  },
+  {
+    "name": "set_test_note",
+    "description": "Set or clear the QA free-text note for one test row in the report notes sidecar (NOTES column). Replaces the previous QA note for that row; targets the latest run unless an archived runId is given.",
+    "stability": "experimental",
+    "profiles": ["reporter", "author", "debug", "all"],
+    "readOnly": false
+  },
+  {
     "name": "generate_page_object",
     "description": "Generate TypeScript POM scaffold from selector catalog JSON. Never overwrites existing files unless force=true. Returns scaffold with grouped locators, TODO markers for business methods, and warnings for fragile selectors.",
     "stability": "experimental",

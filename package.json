@@ -76,7 +76,9 @@
     "archive:clean": "tsx src/cli/archive-cli.ts clean",
     "archive:compare": "tsx src/cli/archive-cli.ts compare",
     "dashboard": "tsx src/cli/dashboard-server.ts --no-idle",
-    "prepare": "husky"
+    "prepare": "husky",
+    "note:set": "tsx src/cli/notes-cli.ts set",
+    "note:list": "tsx src/cli/notes-cli.ts list"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

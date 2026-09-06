@@ -58,6 +58,8 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 | `npm run test:smoke`            | Cuma smoke test                                                        |
 | `npm run test:contract`         | Validasi Golden Contract CI offline                                    |
 | `npm run health:check`          | Cek MCP + env                                                          |
+| `npm run note:set`              | Tulis/hapus catatan QA per test (--scenario, --note; kosong = hapus)   |
+| `npm run note:list`             | Lihat semua catatan per run (opsional --run untuk run terarsip)        |
 
 ---
 
@@ -183,14 +185,16 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 
 ## Keputusan Setelah Report
 
-| Kondisi                    | Keputusan                             |
-| -------------------------- | ------------------------------------- |
-| Semua pass                 | ✅ APPROVE — archive sebagai baseline |
-| Failure: app salah         | 🐛 FILE BUG — buat defect ticket      |
-| Failure: requirement kabur | 📝 REVISE REQUIREMENT                 |
-| Failure: test/AI salah     | 🔧 FIX TEST/GENERATOR                 |
-| Failure: auth/env/data     | 🔧 FIX ENVIRONMENT                    |
-| Tidak bisa diselesaikan    | 🚫 MARK BLOCKED                       |
+| Kondisi                                                 | Keputusan                             |
+| ------------------------------------------------------- | ------------------------------------- |
+| Semua pass + Analyze complete/verified + evidence match | ✅ APPROVE — archive sebagai baseline |
+| Failure: app salah                                      | 🐛 FILE BUG — buat defect ticket      |
+| Failure: requirement kabur                              | 📝 REVISE REQUIREMENT                 |
+| Failure: test/AI salah                                  | 🔧 FIX TEST/GENERATOR                 |
+| Failure: auth/env/data                                  | 🔧 FIX ENVIRONMENT                    |
+| Tidak bisa diselesaikan                                 | 🚫 MARK BLOCKED                       |
+
+> **Catatan per test di dashboard:** QA bisa menulis catatan lewat tombol **✎ di kolom NOTES** (membuka dialog Catatan QA di `npm run dashboard`; mode file:// menyalin perintah CLI `npm run note:set`) dan membaca analisa AI di kolom **AI NOTES** (tag `Jenis:`, analisa otomatis untuk gagal **dan** passed — flaky, false-green, durasi lambat — plus narasi agent terstruktur: saran UI/UX, perbandingan flow, tips data). Panel **AI Run Insights** di halaman overview merangkum pola lintas skenario. Agent pipeline mengisi catatan AI via MCP tool `record_ai_note` (dipanggil saat Heal/Report; `scope: "run"` untuk insight lintas skenario); `set_test_note` untuk set/hapus catatan QA.
 
 ---
 

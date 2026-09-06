@@ -77,6 +77,25 @@ export function ReportDetailPage({
 
       {serveMode && <Breadcrumb items={defaultBreadcrumbs} />}
 
+      {summary.analysisVerdict ? (
+        <div class="analysis-status-banner" role="status">
+          <span
+            class={`analysis-badge analysis-badge--${summary.analysisVerdict}`}
+            title={
+              summary.analysisVerified
+                ? 'Analysis evidence verified'
+                : 'Analysis incomplete or not verified'
+            }
+            safe
+          >
+            AI ANALYSIS: {summary.analysisVerdict.toUpperCase()}
+          </span>
+          {!summary.analysisVerified ? (
+            <span class="muted">Review gate evidence before APPROVE.</span>
+          ) : null}
+        </div>
+      ) : null}
+
       {hasLatestRun && !isArchived && (
         <div class="save-banner-top" id="save-banner">
           <div class="save-banner-top__content">

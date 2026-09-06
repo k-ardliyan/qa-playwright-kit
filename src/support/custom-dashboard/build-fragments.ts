@@ -108,6 +108,40 @@ export function buildHistoryPage(options: {
 }
 
 /** Detail fragment — server-rendered from an archived run. */
+export interface DetailScenario {
+  testId?: string;
+  scenarioId?: string;
+  title?: string;
+  status?: string;
+  role?: string;
+  module?: string;
+  feature?: string;
+  priority?: string;
+  duration?: number;
+  failureSource?: string;
+  errorMessage?: string;
+  inputData?: Record<string, string>;
+  expectedResult?: string;
+  actualResult?: string;
+  affectedLayer?: string[];
+  attachmentCount?: number;
+  hasTrace?: boolean;
+  qaNotes?: string;
+  aiNotes?: string;
+  errors?: Array<{ message: string; stack?: string }>;
+  steps?: Array<{
+    title: string;
+    status: string;
+    duration: number;
+    errorMessage?: string;
+    steps?: unknown[];
+  }>;
+  attachments?: Array<{ name: string; contentType?: string; relativePath: string; kind: string }>;
+  fullTitle?: string;
+  filePath?: string;
+  retry?: number;
+}
+
 export function buildDetailPage(options: {
   runId: string;
   summary?: Record<string, unknown> | null;
@@ -125,39 +159,29 @@ export function buildDetailPage(options: {
     ranAt?: string;
     durationMs?: number;
   } | null;
-  scenarios?: Array<{
-    testId?: string;
-    scenarioId?: string;
-    title?: string;
+  runInsights?: Array<{
+    text: string;
+    source: string;
+    kind?: string;
     status?: string;
-    role?: string;
-    module?: string;
-    feature?: string;
     priority?: string;
-    duration?: number;
-    failureSource?: string;
-    errorMessage?: string;
-    inputData?: Record<string, string>;
-    expectedResult?: string;
-    actualResult?: string;
-    affectedLayer?: string[];
-    attachmentCount?: number;
-    hasTrace?: boolean;
-    errors?: Array<{ message: string; stack?: string }>;
-    steps?: Array<{
-      title: string;
-      status: string;
-      duration: number;
-      errorMessage?: string;
-      steps?: unknown[];
-    }>;
-    attachments?: Array<{ name: string; contentType?: string; relativePath: string; kind: string }>;
-    fullTitle?: string;
-    filePath?: string;
-    retry?: number;
+    confidence?: string;
+    at?: string;
   }>;
+  scenarios?: DetailScenario[];
 }): string {
   const { runId, summary, metadata, scenarios } = options;
+  const runInsights = options.runInsights ?? [];
+
+  // Analyze-phase badge — make an unproven Analyze sub-phase visible to QA
+  // right at the top of the archived run detail.
+  const rawAnalysis = summary?.['analysis'] as { completed?: boolean } | undefined;
+  const analysisBadge =
+    rawAnalysis && typeof rawAnalysis === 'object' && 'completed' in rawAnalysis
+      ? rawAnalysis['completed'] === true
+        ? `<p class="muted"><span class="analysis-badge analysis-badge--complete">✓ AI Analysis completed</span></p>`
+        : `<p class="muted"><span class="analysis-badge analysis-badge--incomplete" title="Analyze sub-phase tidak terbukti berjalan — insight AI naratif mungkin tidak tersedia">⚠ AI Analysis incomplete</span></p>`
+      : '';
   const total = (summary?.total as number) ?? 0;
   const passed = (summary?.passed as number) ?? 0;
   const failed = (summary?.failed as number) ?? 0;
@@ -199,7 +223,8 @@ export function buildDetailPage(options: {
           <td class="tbl-status" data-col="status">${renderStatusBadge(status)}</td>
           <td class="tbl-priority" data-col="priority">${renderPriorityBadge(s.priority ?? 'medium')}</td>
           <td class="tbl-source" data-col="source">${renderFailureSourceCell({ status, failureSource: s.failureSource as FailureSource | undefined, errorMessage: s.errorMessage })}</td>
-          <td class="tbl-notes" data-col="notes">${s.duration ? s.duration + 'ms' : '—'}${retry > 0 ? ` · retry ×${retry}` : ''}${trace ? ` · <a href="${escapeHtml(encodeEvidenceUrl(trace.relativePath, runId))}" target="_blank" rel="noopener">trace</a>` : ''}${screenshot ? ` · <a href="${escapeHtml(encodeEvidenceUrl(screenshot.relativePath, runId))}" target="_blank" rel="noopener">screenshot</a>` : ''}</td>
+          <td class="tbl-notes" data-col="notes">${s.duration ? s.duration + 'ms' : '—'}${retry > 0 ? ` · retry ×${retry}` : ''}${trace ? ` · <a href="${escapeHtml(encodeEvidenceUrl(trace.relativePath, runId))}" target="_blank" rel="noopener">trace</a>` : ''}${screenshot ? ` · <a href="${escapeHtml(encodeEvidenceUrl(screenshot.relativePath, runId))}" target="_blank" rel="noopener">screenshot</a>` : ''}${s.qaNotes ? ` · <span class="qa-note">QA: ${escapeHtml(s.qaNotes)}</span>` : ''}</td>
+          <td class="tbl-ai-notes" data-col="aiNotes">${s.aiNotes ? `<div class="ai-notes-cell">${escapeHtml(s.aiNotes)}</div>` : '<span class="muted">—</span>'}</td>
         </tr>`;
 
       if (!isExpandable) return mainRow;
@@ -214,7 +239,7 @@ export function buildDetailPage(options: {
 
       const detailRow = `
         <tr class="detail-expand-row" id="detail-expand-${idx}" style="display:none">
-          <td colspan="8">
+          <td colspan="9">
             <div class="detail-expand-content">
               <div class="detail-expand-grid">
                 <div class="detail-expand-block">
@@ -238,6 +263,14 @@ export function buildDetailPage(options: {
                   <h4>Affected Layer</h4>
                   <p>${layers}</p>
                 </div>
+                <div class="detail-expand-block">
+                  <h4>Catatan QA</h4>
+                  <div class="notes-row--qa">${s.qaNotes ? `<span class="qa-note">${escapeHtml(s.qaNotes)}</span>` : '<span class="muted">—</span>'}<button type="button" class="qa-note-edit" data-action="edit-qa-note" data-scenario-id="${escapeHtml(s.scenarioId ?? '')}" data-test-id="${escapeHtml(s.testId ?? '')}" data-role="${escapeHtml(s.role ?? '')}" data-note="${escapeHtml(s.qaNotes ?? '')}" data-run-id="${escapeHtml(runId)}" data-test-label="${escapeHtml(s.testId || s.title || '')}" title="Tulis / edit catatan QA" aria-label="Edit QA note for ${escapeHtml(s.testId || s.title || 'test')}">✎</button></div>
+                </div>
+                <div class="detail-expand-block">
+                  <h4>Catatan AI</h4>
+                  ${s.aiNotes ? `<div class="ai-notes-cell">${escapeHtml(s.aiNotes)}</div>` : '<span class="muted">—</span>'}
+                </div>
               </div>
               ${s.errors && s.errors.length > 0 ? s.errors.map((error) => `<div class="detail-expand-error"><h4>Error</h4><pre>${escapeHtml([error.message, error.stack].filter(Boolean).join('\n\n'))}</pre></div>`).join('') : ''}
               ${s.errorMessage && (!s.errors || s.errors.length === 0) ? `<div class="detail-expand-error"><h4>Full Error</h4><pre>${escapeHtml(s.errorMessage)}</pre></div>` : ''}
@@ -255,6 +288,7 @@ export function buildDetailPage(options: {
         <button class="btn-back" onclick="window.location.hash='#/history'">← Back to History</button>
         <h2>Run Detail: <code>${escapeHtml(runId)}</code> ${statusIcon}</h2>
         <p class="muted">${metadata?.qaDecision ? `Decision: <strong>${escapeHtml(metadata.qaDecision)}</strong>` : 'No QA decision saved'}</p>
+        ${analysisBadge}
       </div>
 
       <div class="archive-detail__summary" id="detail-summary">
@@ -271,6 +305,8 @@ export function buildDetailPage(options: {
 
       ${metadata?.qaNotes ? `<div class="muted">Notes: ${escapeHtml(metadata.qaNotes)}</div>` : ''}
 
+      ${runInsights.length > 0 ? `<div class="panel ai-insights-panel detail-run-insights"><div class="panel-header"><h3 class="panel-title">AI Run Insights</h3></div><ul class="ai-insights-list">${runInsights.map((insight) => `<li class="ai-insight-item"><div class="ai-insight-meta"><span class="ai-note-src ai-note-src--${escapeHtml(insight.source)}">${escapeHtml(insight.source === 'analyzer' ? 'auto' : insight.source)}</span>${insight.priority ? `<span class="insight-priority insight-priority--${escapeHtml(insight.priority)}">${escapeHtml(insight.priority)}</span>` : ''}${insight.status ? `<span class="insight-status">${escapeHtml(insight.status)}</span>` : ''}</div><div class="ai-insight-text">${escapeHtml(insight.text).replace(/\r\n|\n|\r/g, '<br>')}</div></li>`).join('')}</ul></div>` : ''}
+
       <div class="table-wrapper" data-scroll-hint="Scroll horizontally to view all columns">
         <table class="qa-report-table data-table detail-table">
           <caption class="sr-only">Archived run test details</caption>
@@ -284,9 +320,10 @@ export function buildDetailPage(options: {
               <th scope="col" data-col="priority">PRIORITY</th>
               <th scope="col" data-col="source">SOURCE</th>
               <th scope="col" data-col="notes">DURATION</th>
+              <th scope="col" data-col="aiNotes">AI NOTES</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="8" class="muted">No test cases recorded for this run.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="9" class="muted">No test cases recorded for this run.</td></tr>'}</tbody>
         </table>
       </div>
     </section>

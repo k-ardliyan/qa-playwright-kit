@@ -8,7 +8,7 @@
 
 Markdown requirement → test plan → Playwright test → self-heal → dashboard triage.
 
-Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 23 MCP tools · quality-gated CI
+Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MCP tools · quality-gated CI
 
 [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
@@ -47,11 +47,11 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 23 MC
 |                       | Fitur                                                   | Apa artinya                                        |
 | --------------------- | ------------------------------------------------------- | -------------------------------------------------- |
 | **Requirement-first** | QA tulis Markdown, AI generate test                     | Tidak perlu tahu Playwright API untuk menulis test |
-| **5-Phase Pipeline**  | Plan → Generate → Execute → Heal → Report               | Satu perintah, hasil lengkap                       |
+| **5-Phase Pipeline**  | Plan → Generate → Execute → Heal → Report(Analyze)      | Satu perintah, hasil lengkap                       |
 | **Self-healing**      | Test gagal → AI fix → re-snapshot → rerun               | Locator berubah? Framework memperbaiki sendiri     |
 | **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                |
 | **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi            |
-| **23 MCP tools**      | Validate, compile, snapshot, POM, health check          | Terintegrasi penuh dengan AI agent                 |
+| **25 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                 |
 | **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                 |
 | **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                     |
 | **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                   |
@@ -71,12 +71,12 @@ requirements/*.md          QA tulis requirement
    AI Generator ──────►  tests/<feature>[-<role>].spec.ts
        │
        ▼
-   Execute ──►  Healer  ──►  Reporter
-   (run test)  (fix+re-     (custom-dashboard.html)
+   Execute ──►  Healer  ──►  Reporter (Analyze)
+   (run test)  (fix+re-     (evidence + custom-dashboard.html)
                 snapshot)
-       │                        │
-       ▼                        ▼
-  pass / fail            triage Table/Accordion
+       │                              │
+       ▼                              ▼
+  pass / fail                 triage Table/Accordion
 ```
 
 > Diorkestrasi oleh **Hermes Agent** via 5 sub-agent — lihat [AGENTS.md](AGENTS.md).
@@ -99,12 +99,14 @@ npm run setup                 # generate clean .env → encrypt secrets
 #    OTP/CAPTCHA: npm run auth:setup (atau auth:setup:headed)
 
 # 2) Paste prompt ke Hermes Agent
-#    Pipeline: snapshot → Plan → Generate → Execute → Heal → Report
+#    Pipeline: snapshot → Plan → Generate → Execute → Heal → Report(Analyze)
 
 # atau: npm run qa:run
 ```
 
 > Detail pasca-pipeline → [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)
+>
+> **Archive gate:** `Report(Analyze)` wajib menghasilkan analisis berbasis bukti. `APPROVE` hanya sah bila `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, jumlah insight persis cocok dengan bukti sidecar, insight Reporter tersedia, dan tidak ada unresolved failures. Verdict lain (`incomplete`, `inconsistent`, `unverifiable`, `not-applicable`) diarsipkan dengan warning; `record_ai_note` dan `set_test_note` mengelola catatan analisis dan QA.
 
 ---
 

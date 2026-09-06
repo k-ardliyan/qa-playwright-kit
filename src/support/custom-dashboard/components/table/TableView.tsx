@@ -67,6 +67,9 @@ function HeaderRow() {
       <th scope="col" data-col="notes">
         NOTES
       </th>
+      <th scope="col" data-col="aiNotes">
+        AI NOTES
+      </th>
     </tr>
   );
 }
@@ -74,7 +77,7 @@ function HeaderRow() {
 function TableEmptyFilterRow() {
   return (
     <tr class="tbl-empty-row" id="tbl-filter-empty" hidden>
-      <td colspan="12" class="tbl-empty-cell">
+      <td colspan="13" class="tbl-empty-cell">
         <div class="empty-state">
           <p class="empty-state__msg">No tests match these filters</p>
         </div>

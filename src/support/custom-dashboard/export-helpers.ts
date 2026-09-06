@@ -20,6 +20,7 @@ type ExportRow = {
   priority: string;
   source: string;
   notes: string;
+  aiNotes: string;
 };
 
 const GENERAL_HEADERS = [
@@ -35,6 +36,7 @@ const GENERAL_HEADERS = [
   'PRIORITY',
   'SOURCE',
   'NOTES',
+  'AI NOTES',
 ];
 
 const ROLE_HEADERS = [
@@ -50,6 +52,7 @@ const ROLE_HEADERS = [
   'PRIORITY',
   'SOURCE',
   'NOTES',
+  'AI NOTES',
 ];
 
 function formatDuration(ms: number): string {
@@ -85,7 +88,13 @@ function formatNotes(test: CollectedTestData): string {
   const ssCount = test.attachments.filter((a) => a.kind === 'screenshot').length;
   if (traceCount > 0) parts.push(`${traceCount} trace`);
   if (ssCount > 0) parts.push(`${ssCount} screenshot`);
+  if (test.qaNotes && test.qaNotes.trim()) parts.push(`QA: ${test.qaNotes.trim()}`);
   return parts.join(' · ');
+}
+
+function formatAiNotes(test: CollectedTestData): string {
+  const text = (test.aiNotes || '').trim();
+  return text || '-';
 }
 
 function buildRow(test: CollectedTestData): ExportRow {
@@ -102,6 +111,7 @@ function buildRow(test: CollectedTestData): ExportRow {
     priority: (test.priority || '').toUpperCase(),
     source: (test.failureSource || '').toUpperCase() || '-',
     notes: formatNotes(test),
+    aiNotes: formatAiNotes(test),
   };
 }
 
@@ -119,6 +129,7 @@ function exportRowValues(role: string | null, row: ExportRow): string[] {
     row.priority,
     row.source,
     row.notes,
+    row.aiNotes,
   ];
   return role == null ? base : [role, ...base];
 }
@@ -405,6 +416,7 @@ function confluenceRowCells(r: ExportRow, bg: string): string {
       bg,
       `color:${CONF.muted};font-size:11px;white-space:nowrap`,
     ),
+    htmlCell(confluenceMultilineHtml(r.aiNotes), bg, `color:${CONF.muted};font-size:11px`),
   ].join('');
 }
 
@@ -607,6 +619,7 @@ export function buildExportScript(
         if (r.affectedLayer && r.affectedLayer.length) {
           parts.push(r.affectedLayer.map(function (l) { return '[' + l + ']'; }).join(''));
         }
+        if (r.qaNotes && String(r.qaNotes).trim()) parts.push('QA: ' + String(r.qaNotes).trim());
         return parts.length ? parts.join(' · ') : '-';
       }
 
@@ -679,8 +692,8 @@ export function buildExportScript(
       function visibleColumnKeys() {
         var LOCKED = { testId: true, status: true };
         var ORDER = MODE === 'role-aware'
-          ? ['role','testId','description','steps','input','expected','actual','status','priority','source','notes']
-          : ['testId','description','steps','input','expected','actual','status','priority','source','notes'];
+          ? ['role','testId','description','steps','input','expected','actual','status','priority','source','notes','aiNotes']
+          : ['testId','description','steps','input','expected','actual','status','priority','source','notes','aiNotes'];
         var state = null;
 
         // 1) Prefer live checkboxes in column picker
@@ -740,7 +753,8 @@ export function buildExportScript(
           status: 'STATUS',
           priority: 'PRIORITY',
           source: 'SOURCE',
-          notes: 'NOTES'
+          notes: 'NOTES',
+          aiNotes: 'AI NOTES'
         };
         return map[key] || key.toUpperCase();
       }
@@ -757,6 +771,7 @@ export function buildExportScript(
         if (key === 'priority') return String(r.priority || '').toUpperCase();
         if (key === 'source') return (r.failureSource || '').toUpperCase() || '-';
         if (key === 'notes') return formatNotesClient(r);
+        if (key === 'aiNotes') return String(r.aiNotes || '').trim() || '-';
         return '';
       }
 
@@ -772,6 +787,7 @@ export function buildExportScript(
         if (key === 'priority') return confPriorityHtml(r.priority);
         if (key === 'source') return confSourceHtml(r.failureSource);
         if (key === 'notes') return confEsc(formatNotesClient(r));
+        if (key === 'aiNotes') return confMultiline(String(r.aiNotes || '').trim() || '-');
         return confEsc(cellValue(r, key));
       }
 
@@ -1024,62 +1040,4 @@ export function renderMultilineTextCell(text: string, className: string): string
   const full = text || '-';
   const html = escapeHtml(full).replace(/\r\n|\n|\r/g, '<br>');
   return `<div class="${className}">${html}</div>`;
-}
-
-export function renderNotesCell(test: CollectedTestData): string {
-  const rows: string[] = [];
-
-  // 0) Scenario ID (only when present) — surfaces traceability in the table
-  if (test.scenarioId) {
-    rows.push(
-      `<div class="notes-row notes-row--scenario"><code class="notes-scenario" title="Scenario ID">${escapeHtml(test.scenarioId)}</code></div>`,
-    );
-  }
-
-  // 1) Time
-  rows.push(
-    `<div class="notes-row notes-row--time"><span class="duration" title="Duration">${formatDuration(test.duration)}</span></div>`,
-  );
-
-  // 2) Screenshot(s)
-  const screenshots = test.attachments.filter((a) => a.kind === 'screenshot' && a.relativePath);
-  if (screenshots.length > 0) {
-    const ss = screenshots[0];
-    const more =
-      screenshots.length > 1
-        ? `<span class="evidence-more" title="${screenshots.length - 1} more screenshots">+${screenshots.length - 1}</span>`
-        : '';
-    rows.push(
-      `<div class="notes-row notes-row--screenshot"><a href="${escapeHtml(ss.relativePath)}" target="_blank" rel="noopener noreferrer" class="evidence-thumb" title="Screenshot"><img src="${escapeHtml(ss.relativePath)}" alt="screenshot" loading="lazy" onerror="this.closest('a')?.classList.add('evidence-missing')"></a>${more}</div>`,
-    );
-  }
-
-  // 3) Video
-  const videos = test.attachments.filter((a) => a.kind === 'video' && a.relativePath);
-  if (videos.length > 0) {
-    const v = videos[0];
-    rows.push(
-      `<div class="notes-row notes-row--video"><a class="evidence-link" href="${escapeHtml(v.relativePath)}" target="_blank" rel="noopener noreferrer" title="Video">video</a></div>`,
-    );
-  }
-
-  // 4) Trace
-  const trace = test.attachments.find((a) => a.kind === 'trace' && a.relativePath);
-  if (trace) {
-    rows.push(
-      `<div class="notes-row notes-row--trace"><a class="evidence-link" href="${escapeHtml(trace.relativePath)}" target="_blank" rel="noopener noreferrer" title="Trace">trace</a></div>`,
-    );
-  }
-
-  // 5) Layer badges (FE/BE/…)
-  if (test.affectedLayer?.length) {
-    const badges = test.affectedLayer
-      .map(
-        (l) => `<span class="layer-badge layer-badge--${l.toLowerCase()}">${escapeHtml(l)}</span>`,
-      )
-      .join('');
-    rows.push(`<div class="notes-row notes-row--badges">${badges}</div>`);
-  }
-
-  return `<div class="notes-cell">${rows.join('')}</div>`;
 }

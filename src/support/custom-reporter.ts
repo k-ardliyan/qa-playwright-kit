@@ -12,7 +12,26 @@ import path from 'node:path';
 import { buildCiHtml } from './custom-dashboard/build-ci-html';
 import { buildLocalHtml } from './custom-dashboard/build-local-html';
 import { listReportHistory } from '../agents/reporter/report-history';
-import { generateRunId, listArchivedRunIds } from '../agents/reporter/report-archive';
+import {
+  generateRunId,
+  listArchivedRunIds,
+  loadArchivedSummary,
+} from '../agents/reporter/report-archive';
+import {
+  bakeAutoAiNotes,
+  buildRunInsights,
+  historyKey,
+  type RunHistoryContext,
+} from '../agents/reporter/ai-notes';
+import {
+  emptyTestNotesFile,
+  isStaleSidecar,
+  loadLatestTestNotes,
+  mergeTestNotes,
+  resetLatestTestNotes,
+  stampLatestTestNotesRunId,
+} from '../agents/reporter/test-notes';
+import { clearPendingRun, readPendingRun } from '../agents/reporter/run-context';
 import type {
   AffectedLayer,
   AttachmentKind,
@@ -182,6 +201,36 @@ function buildRunMeta(tests: CollectedTestData[]): RunMeta {
     totalDurationMs: tests.reduce((sum, t) => sum + (t.duration || 0), 0),
     generatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Load the latest archived run (excluding the current one) as trend context —
+ * status per scenario key + pass rate. Non-blocking: any failure yields
+ * undefined and the run insights simply skip cross-run trend signals.
+ */
+function loadRunHistory(currentRunId: string): RunHistoryContext | undefined {
+  try {
+    const prevId = listArchivedRunIds().find((id) => id !== currentRunId);
+    if (!prevId) return undefined;
+    const prevSummary = loadArchivedSummary(prevId);
+    if (!prevSummary || !Array.isArray(prevSummary.testCases)) return undefined;
+    const statusByKey: Record<string, string> = {};
+    for (const tc of prevSummary.testCases as Array<Record<string, unknown>>) {
+      const key = historyKey(
+        typeof tc['scenarioId'] === 'string' ? (tc['scenarioId'] as string) : undefined,
+        typeof tc['testId'] === 'string' ? (tc['testId'] as string) : undefined,
+        typeof tc['role'] === 'string' ? (tc['role'] as string) : undefined,
+      );
+      if (key.startsWith('::')) continue;
+      statusByKey[key] = (tc['status'] as string) || '';
+    }
+    return {
+      previousPassRate: (prevSummary['passRate'] as number) ?? undefined,
+      previousStatusByKey: Object.keys(statusByKey).length > 0 ? statusByKey : undefined,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -728,6 +777,37 @@ export default class CustomReporter implements Reporter {
       materializeAttachments(this.collectedTests);
       normalizeCollectedRoles(this.collectedTests);
 
+      // Bake deterministic AI notes (per-test signals + run-relative context
+      // such as slow-passed detection), then overlay sidecar notes (QA
+      // free-text + agent AI notes). A stale sidecar — stamped with an older
+      // run identity, or holding unattributable content without one — is
+      // reset so a fresh run starts clean and notes never leak across runs.
+      // A pending pipeline run id (created at pipeline start so Generator/
+      // Plan notes bind to THIS run) is adopted here as the canonical id.
+      const runMeta = buildRunMeta(this.collectedTests);
+      const pendingRun = readPendingRun();
+      if (pendingRun) {
+        runMeta.generatedAt = pendingRun.ranAt;
+      }
+      const canonicalRunId = generateRunId(runMeta.generatedAt);
+      bakeAutoAiNotes(this.collectedTests);
+      let notesFile = emptyTestNotesFile();
+      try {
+        const sidecar = loadLatestTestNotes();
+        if (isStaleSidecar(sidecar, canonicalRunId)) {
+          resetLatestTestNotes();
+        } else {
+          notesFile = sidecar;
+          stampLatestTestNotesRunId(canonicalRunId);
+        }
+      } catch {
+        // Non-blocking — render with deterministic notes only
+      }
+      if (pendingRun && pendingRun.runId === canonicalRunId) {
+        clearPendingRun();
+      }
+      const mergedTests = mergeTestNotes(this.collectedTests, notesFile);
+
       const reportMode: ReportMode = this.collectedTests.some((t) => t.role && t.role.length > 0)
         ? 'role-aware'
         : 'general';
@@ -736,7 +816,7 @@ export default class CustomReporter implements Reporter {
         ...new Set(this.collectedTests.map((t) => t.role).filter((r): r is string => !!r)),
       ];
 
-      const testCases: CollectedTestCase[] = this.collectedTests.map((t) => ({
+      const testCases: CollectedTestCase[] = mergedTests.map((t) => ({
         logicalKey: t.logicalKey,
         testId: t.testId,
         scenarioId: t.scenarioId,
@@ -754,6 +834,8 @@ export default class CustomReporter implements Reporter {
         attachmentCount: t.attachments.length,
         hasTrace: t.attachments.some((a) => a.kind === 'trace'),
         failureSource: t.failureSource,
+        qaNotes: t.qaNotes,
+        aiNotes: t.aiNotes,
         retry: t.retry,
         attempts: t.attempts,
         metadataIncomplete: t.metadataIncomplete,
@@ -764,7 +846,6 @@ export default class CustomReporter implements Reporter {
         attachments: t.attachments,
       }));
 
-      const runMeta = buildRunMeta(this.collectedTests);
       const total = this.collectedTests.length;
       const passed = this.collectedTests.filter((t) => t.status === 'passed').length;
       const skipped = this.collectedTests.filter((t) => t.status === 'skipped').length;
@@ -813,6 +894,13 @@ export default class CustomReporter implements Reporter {
         testCases,
         summaryByRole,
         summaryByModule,
+        // Cross-scenario AI insights for the overview panel and MCP summaries
+        // — enriched with trend signals vs the latest archived run
+        aiInsights: buildRunInsights(this.collectedTests, loadRunHistory(canonicalRunId)),
+        // Plain test execution has no Reporter Analyze declaration; the archive
+        // path will bridge a pipeline-report JSON declaration when available.
+        analysisVerdict: process.env.REQUIREMENT_PATH ? 'unverifiable' : 'not-applicable',
+        analysisVerified: false,
         runMeta,
       };
 
@@ -840,8 +928,8 @@ export default class CustomReporter implements Reporter {
       };
 
       const html = isCiMode
-        ? buildCiHtml(summary, this.collectedTests, reportHistory, dashboardOptions)
-        : buildLocalHtml(summary, this.collectedTests, reportHistory, dashboardOptions);
+        ? buildCiHtml(summary, mergedTests, reportHistory, dashboardOptions)
+        : buildLocalHtml(summary, mergedTests, reportHistory, dashboardOptions);
 
       fs.writeFileSync(dashboardPath(), html, 'utf-8');
       fs.writeFileSync(summaryPath(), JSON.stringify(summary, null, 2), 'utf-8');
@@ -870,6 +958,8 @@ export default class CustomReporter implements Reporter {
         const latestRunMarker = path.join(reportDir(), '.latest-run');
         const markerPayload = JSON.stringify({
           runId: summary.runId,
+          // Canonical archive id for note tooling (record_ai_note etc.)
+          archiveRunId: generateRunId(summary.timestamp),
           timestamp: summary.timestamp,
           summaryPath: path.relative(process.cwd(), summaryPath()),
           total: summary.total,

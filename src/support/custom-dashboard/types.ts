@@ -88,6 +88,10 @@ export interface CollectedTestData {
   affectedLayer: AffectedLayer[];
   /** Present on unhealthy tests; optional on passed/skipped. */
   failureSource?: FailureSource;
+  /** QA free-text note for this row — merged from the test-notes sidecar. */
+  qaNotes?: string;
+  /** AI note for this row — agent narrative + deterministic auto analysis. */
+  aiNotes?: string;
   /** Mirror of flat summary metadata — useful for evidence fallback. */
   attachmentCount?: number;
   hasTrace?: boolean;
@@ -118,6 +122,10 @@ export interface CollectedTestCase {
   attachmentCount: number;
   hasTrace: boolean;
   failureSource?: FailureSource;
+  /** QA free-text note for this row — merged from the test-notes sidecar. */
+  qaNotes?: string;
+  /** AI note for this row — agent narrative + deterministic auto analysis. */
+  aiNotes?: string;
   /** Richer runtime data for detail inspection (accordion/exports). Optional — populated
    *  by the custom reporter so the dashboard can render error/step/evidence. */
   errorMessage?: string;
@@ -168,6 +176,12 @@ export interface TestSummary {
   /** Explicit breakdowns built from the same logical test cases as totals. */
   summaryByRole?: Record<string, ResultBreakdown>;
   summaryByModule?: Record<string, ModuleBreakdown>;
+  /** Deterministic cross-scenario AI insights (baked by the reporter onEnd). */
+  aiInsights?: string[];
+  /** Canonical archive/Analyze verdict persisted by archive paths. */
+  analysisVerdict?: string;
+  analysisVerified?: boolean;
+  analysisIssues?: string[];
   runMeta: RunMeta;
 }
 

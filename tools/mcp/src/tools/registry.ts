@@ -17,6 +17,8 @@ import { validateRequirement } from './validate-requirement';
 import { discoverPages } from './discover-pages';
 import { snapshotPage } from './snapshot-page';
 import { archiveReport } from './archive-report';
+import { recordAiNote } from './record-ai-note';
+import { setTestNote } from './set-test-note';
 import { generatePageObject } from './generate-page-object';
 import { inspectFile } from './inspect-file';
 import { extractPdfTextTool } from './extract-pdf-text';
@@ -595,6 +597,211 @@ export const TOOL_REGISTRY: ToolEntry[] = [
             | 'FIX_ENV'
             | 'MARK_BLOCKED';
           qaNotes?: string;
+        },
+      ),
+  },
+  {
+    name: 'record_ai_note',
+    description:
+      'Append an AI-authored insight — to one test row (scope=test, default; shown in the AI NOTES column) or to the whole run (scope=run; shown in the overview AI Run Insights panel). Structured fields (kind/observation/evidence/impact/recommendation/priority/confidence/nextAction/status) render in the canonical insight format; a plain message also works. Cover failure root causes AND insights on passed scenarios (UI/UX suggestions, flow A vs B comparison, data/seed tips). Write in Indonesian. Notes are additive; targets the latest run unless an archived runId is given.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          description:
+            'Free-form insight in Indonesian, max 4000 chars (e.g. "Login gagal karena token expired di localStorage; cek TTL auth" or "Flow B lebih cepat dari flow A — pertimbangkan jadi default"). Required unless structured fields are used.',
+        },
+        scope: {
+          type: 'string',
+          enum: ['test', 'run'],
+          description:
+            'test (default) = attach to one test row; run = cross-scenario insight for the whole run (scenarioId/testId/role ignored).',
+        },
+        kind: {
+          type: 'string',
+          enum: [
+            'ui-ux',
+            'flow',
+            'data',
+            'stability',
+            'security',
+            'test-quality',
+            'root-cause',
+            'coverage',
+            'trend',
+          ],
+          description:
+            'Insight kind (Jenis) — canonical taxonomy; invalid values are rejected with INVALID_KIND.',
+        },
+        affectedTests: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Test ids the run insight affects (scope=run traceability).',
+        },
+        affectedModules: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Modules the run insight affects (scope=run traceability).',
+        },
+        affectedRoles: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Roles the run insight affects (scope=run traceability).',
+        },
+        observation: {
+          type: 'string',
+          description: 'What was actually observed from the test (Indonesian, max 1000 chars).',
+        },
+        evidence: {
+          type: 'string',
+          description: 'Evidence: scenario, step, trace, screenshot, network (Indonesian).',
+        },
+        impact: {
+          type: 'string',
+          description: 'Impact on user, business, or test suite (Indonesian).',
+        },
+        recommendation: {
+          type: 'string',
+          description: 'Concrete recommendation (Indonesian).',
+        },
+        nextAction: {
+          type: 'string',
+          description: 'Concrete next action for QA (Indonesian).',
+        },
+        priority: {
+          type: 'string',
+          enum: ['high', 'medium', 'low'],
+          description: 'Insight priority.',
+        },
+        confidence: {
+          type: 'string',
+          enum: ['high', 'medium', 'low'],
+          description: 'Confidence — mark low when QA should validate manually.',
+        },
+        status: {
+          type: 'string',
+          enum: ['observed', 'inferred', 'recommendation'],
+          description:
+            'Evidence label: observed (fact from the run), inferred (deduction), recommendation (suggestion).',
+        },
+        scenarioId: {
+          type: 'string',
+          description: 'Requirement scenario id (e.g. SC-01) — preferred row key (scope=test).',
+        },
+        testId: {
+          type: 'string',
+          description:
+            'Fallback test id (e.g. TC-LOGIN-001) when scenarioId is unknown (scope=test).',
+        },
+        role: { type: 'string', description: 'Role slug for role-aware runs (optional).' },
+        source: {
+          type: 'string',
+          enum: ['healer', 'generator', 'reporter', 'analyzer'],
+          description: 'Which agent authored the note (default analyzer).',
+        },
+        runId: {
+          type: 'string',
+          description:
+            'Archived runId (run-YYYYMMDD-HHmmss-SSS) to annotate instead of the latest run.',
+        },
+      },
+    },
+    stability: 'experimental',
+    readOnly: false,
+    profiles: ['generator', 'healer', 'reporter', 'debug', 'all'],
+    handler: (args) => {
+      const a = args as {
+        message?: string;
+        scenarioId?: string;
+        testId?: string;
+        role?: string;
+        source?: 'healer' | 'generator' | 'reporter' | 'analyzer';
+        runId?: string;
+        scope?: 'test' | 'run';
+        kind?:
+          | 'ui-ux'
+          | 'flow'
+          | 'data'
+          | 'stability'
+          | 'security'
+          | 'test-quality'
+          | 'root-cause'
+          | 'coverage'
+          | 'trend';
+        observation?: string;
+        evidence?: string;
+        impact?: string;
+        recommendation?: string;
+        nextAction?: string;
+        priority?: 'high' | 'medium' | 'low';
+        confidence?: 'high' | 'medium' | 'low';
+        status?: 'observed' | 'inferred' | 'recommendation';
+        affectedTests?: string[];
+        affectedModules?: string[];
+        affectedRoles?: string[];
+      };
+      // Provenance guard: when the server runs under a single agent-critical
+      // profile, the source must match it — a caller cannot forge another
+      // agent's badge (e.g. Reporter claiming `source: healer`).
+      const profile = getActiveMcpProfile();
+      const profileSource =
+        profile === 'healer'
+          ? 'healer'
+          : profile === 'reporter'
+            ? 'reporter'
+            : profile === 'generator'
+              ? 'generator'
+              : undefined;
+      if (profileSource && a.source && a.source !== profileSource) {
+        return {
+          status: 'error',
+          code: 'INVALID_SOURCE',
+          message: `source "${a.source}" does not match the active MCP profile "${profile}" (expected "${profileSource}").`,
+        };
+      }
+      return recordAiNote({ ...a, source: a.source ?? profileSource });
+    },
+  },
+  {
+    name: 'set_test_note',
+    description:
+      'Set or clear the QA free-text note for one test row in the report notes sidecar (NOTES column). Replaces the previous QA note for that row; targets the latest run unless an archived runId is given.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        note: {
+          type: 'string',
+          description: 'QA note text (max 4000 chars); empty string clears the note.',
+        },
+        scenarioId: {
+          type: 'string',
+          description: 'Requirement scenario id (e.g. SC-01) — preferred row key.',
+        },
+        testId: {
+          type: 'string',
+          description: 'Fallback test id (e.g. TC-LOGIN-001) when scenarioId is unknown.',
+        },
+        role: { type: 'string', description: 'Role slug for role-aware runs (optional).' },
+        runId: {
+          type: 'string',
+          description:
+            'Archived runId (run-YYYYMMDD-HHmmss-SSS) to annotate instead of the latest run.',
+        },
+      },
+      required: ['note'],
+    },
+    stability: 'experimental',
+    readOnly: false,
+    profiles: ['reporter', 'author', 'debug', 'all'],
+    handler: (args) =>
+      setTestNote(
+        args as {
+          note: string;
+          scenarioId?: string;
+          testId?: string;
+          role?: string;
+          runId?: string;
         },
       ),
   },

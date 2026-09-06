@@ -16,6 +16,7 @@ import { PipelinePhase, ProtocolError, PhaseResult } from './types';
 import { HookRegistry, PipelineEvent, EventType } from './hooks';
 import { PipelineState, saveState } from './state';
 import { AgentProtocolResponse, createSuccessResponse, createErrorResponse } from './protocol';
+import { ensurePendingRun } from '../reporter/run-context';
 
 // Re-export PhaseResult from types for consumers importing from orchestrator
 export type { PhaseResult } from './types';
@@ -114,6 +115,14 @@ export class Orchestrator {
   async run(): Promise<AgentProtocolResponse> {
     if (this.config.dryRun) {
       return this.runDryRun();
+    }
+
+    // Bind pre-run notes (Generator/Plan insights) to the run identity the
+    // reporter will adopt — otherwise they are reset as stale on onEnd.
+    try {
+      ensurePendingRun();
+    } catch {
+      // Non-blocking — notes fall back to latest-run attribution
     }
 
     let lastResult: PhaseResult | undefined;

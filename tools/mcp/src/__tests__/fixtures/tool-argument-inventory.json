@@ -64,6 +64,34 @@
     "reads": ["runId", "reportPath", "jsonReportPath", "qaDecision", "qaNotes"]
   },
   {
+    "name": "record_ai_note",
+    "reads": [
+      "message",
+      "scope",
+      "kind",
+      "observation",
+      "evidence",
+      "impact",
+      "recommendation",
+      "nextAction",
+      "priority",
+      "confidence",
+      "status",
+      "affectedTests",
+      "affectedModules",
+      "affectedRoles",
+      "scenarioId",
+      "testId",
+      "role",
+      "source",
+      "runId"
+    ]
+  },
+  {
+    "name": "set_test_note",
+    "reads": ["note", "scenarioId", "testId", "role", "runId"]
+  },
+  {
     "name": "generate_page_object",
     "reads": ["featureName", "pageName", "className", "outputPath", "force"]
   },

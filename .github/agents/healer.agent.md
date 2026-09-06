@@ -50,13 +50,14 @@ Obtain failures via **qa-playwright-kit** `get_test_failures` after **playwright
 
 ## MCP Dependencies
 
-| MCP Server          | Tool Name                                            |
-| ------------------- | ---------------------------------------------------- |
-| `qa-playwright-kit` | `get_test_failures`                                  |
-| `qa-playwright-kit` | `validate_generated_tests`                           |
-| `qa-playwright-kit` | `snapshot_page` (refresh catalog after locator heal) |
-| `playwright-test`   | `run_tests`                                          |
-| `playwright`        | See **Browser Interaction Tools** below              |
+| MCP Server          | Tool Name                                                     |
+| ------------------- | ------------------------------------------------------------- |
+| `qa-playwright-kit` | `get_test_failures`                                           |
+| `qa-playwright-kit` | `validate_generated_tests`                                    |
+| `qa-playwright-kit` | `snapshot_page` (refresh catalog after locator heal)          |
+| `qa-playwright-kit` | `record_ai_note` (append structured AI note per scenario/run) |
+| `playwright-test`   | `run_tests`                                                   |
+| `playwright`        | See **Browser Interaction Tools** below                       |
 
 ## Browser Interaction Tools (`playwright` MCP)
 
@@ -260,6 +261,7 @@ Pattern storage behavior:
 - Return at least one of `fixes` or `cannotFix`.
 - `cannotFix` entries must include a concrete reason.
 - `healerStats` is optional and reports pattern database usage for observability.
+- **AI notes (`record_ai_note`, source: `healer`):** after each heal attempt cycle, call `record_ai_note` (qa-playwright-kit) for each affected scenario with a concise Indonesian insight — apa penyebab error, apa yang diubah atau direkomendasikan. Use the canonical structured format from `skills/qa-playwright-kit/references/ai-insight-format.md`: valid `kind` (`root-cause|stability|test-quality|ui-ux|flow|data|security|coverage|trend`), `observation`, evidence (trace/screenshot/step/URL/network), `impact`, `recommendation`, `priority`, `confidence`, `nextAction`, and `status: observed|inferred|recommendation`. Key the note by `scenarioId` (or `testId`), with `role` when role-aware; preserve `pipelineRunId` for pending pre-run identity. For `cannotFix` entries, include the reason and evidence in the note. For a pattern affecting multiple scenarios, also record one structured `scope: "run"` insight with `affectedTests`, `affectedModules`, and `affectedRoles`. Notes are additive and validated/deduplicated — do not repeat identical notes for the same scenario in one run.
 
 ## File / PDF / Excel failure patterns
 

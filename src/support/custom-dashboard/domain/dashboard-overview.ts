@@ -30,6 +30,8 @@ export interface BuildDashboardOptions {
   latestSummary?: Record<string, unknown> | null;
   latestRunArchived?: boolean;
   history?: ReportHistoryEntry[];
+  /** Notes sidecar — agent-authored runInsights feed the AI Run Insights panel. */
+  testNotes?: unknown;
 }
 
 export function buildDashboardOverview(options: BuildDashboardOptions): DashboardOverviewData {
@@ -98,6 +100,15 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
       skipped,
       durationMs,
       isArchived,
+      analysisVerdict:
+        (summary?.analysisVerdict as string | undefined) ||
+        (isArchived ? history.find((entry) => entry.runId === runId)?.analysisVerdict : undefined),
+      analysisVerified:
+        (summary?.analysisVerified as boolean | undefined) ??
+        (isArchived ? history.find((entry) => entry.runId === runId)?.analysisVerified : undefined),
+      analysisIssues:
+        (summary?.analysisIssues as string[] | undefined) ??
+        (isArchived ? history.find((entry) => entry.runId === runId)?.analysisIssues : undefined),
       qaDecision: isArchived
         ? history.find((entry) => entry.runId === runId || entry.ranAt === ranAt)?.qaDecision
         : undefined,
@@ -202,5 +213,56 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     passRateTrend: trendPoints,
     recurringFailures,
     recentQaDecisions,
+    aiRunInsights: buildAiRunInsights(summary, options.testNotes),
   };
+}
+
+/**
+ * Cross-scenario AI insights for the overview panel: deterministic insights
+ * baked by the reporter (`summary.aiInsights`) first, then agent-authored
+ * run insights from the notes sidecar (newest last).
+ */
+function buildAiRunInsights(
+  summary: Record<string, unknown> | null | undefined,
+  testNotes: unknown,
+): DashboardOverviewData['aiRunInsights'] {
+  const entries: DashboardOverviewData['aiRunInsights'] = [];
+  const deterministic =
+    summary && Array.isArray(summary['aiInsights'])
+      ? (summary['aiInsights'] as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+  for (const text of deterministic) {
+    entries.push({ text, source: 'analyzer' });
+  }
+  if (testNotes && typeof testNotes === 'object') {
+    const runInsights = (testNotes as { runInsights?: unknown }).runInsights;
+    if (Array.isArray(runInsights)) {
+      for (const entry of runInsights) {
+        if (!entry || typeof entry !== 'object') continue;
+        const e = entry as Record<string, unknown>;
+        if (typeof e['text'] !== 'string' || typeof e['source'] !== 'string') continue;
+        const affected = e['affected'] as
+          | { tests?: string[]; modules?: string[]; roles?: string[] }
+          | undefined;
+        entries.push({
+          text: e['text'],
+          source: e['source'],
+          kind: typeof e['kind'] === 'string' ? e['kind'] : undefined,
+          status: typeof e['status'] === 'string' ? e['status'] : undefined,
+          priority: typeof e['priority'] === 'string' ? e['priority'] : undefined,
+          confidence: typeof e['confidence'] === 'string' ? e['confidence'] : undefined,
+          at: typeof e['at'] === 'string' ? e['at'] : undefined,
+          affected:
+            affected && typeof affected === 'object'
+              ? {
+                  tests: Array.isArray(affected.tests) ? affected.tests : undefined,
+                  modules: Array.isArray(affected.modules) ? affected.modules : undefined,
+                  roles: Array.isArray(affected.roles) ? affected.roles : undefined,
+                }
+              : undefined,
+        });
+      }
+    }
+  }
+  return entries;
 }

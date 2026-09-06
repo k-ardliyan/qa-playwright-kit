@@ -5,7 +5,7 @@
 ## Apa ini?
 
 Framework Playwright TypeScript untuk AI-driven E2E testing. AI agent (Hermes, Cursor, Codex, Kiro)
-menggerakkan pipeline: Requirement → Plan → Generate → Execute → Heal → Report.
+menggerakkan pipeline: Requirement → Plan → Generate → Execute → Heal → Report(Analyze). Report mencakup sub-phase Analyze yang wajib; identitas `pipelineRunId` dipakai sebelum run dan `archiveRunId` menjadi ID arsip kanonik, dengan catatan yang hidup di sidecar.
 
 ## Layer Diagram
 
@@ -54,4 +54,6 @@ import { mockJson, waitAndAssertApi } from '@/support/pw';
 - Contract schemas: `qa.requirement/v1`, `qa.test-plan/v1`, `qa.traceability/v1`, `qa.mcp-result/v1`, `qa.selector-catalog/v1`
 - Ephemeral browser references (`tw-XXXX`, ephemeral ref IDs) must NEVER be persisted in test files or selector catalogs (ARCH-013)
 - Specs with unknown selectors → call `browser_snapshot` first, NEVER guess
+- `Report(Analyze)` is a mandatory Analyze sub-phase inside Report; APPROVE is gated by `analysisVerdict=complete` and `analysisVerified=true`
+- One workspace supports one active pipeline run; `pipelineRunId` binds pre-run notes and `archiveRunId` identifies the canonical archive
 - Blocked scenario → `test.skip(true, '<reason>')`, NEVER delete

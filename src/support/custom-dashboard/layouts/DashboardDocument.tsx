@@ -3,6 +3,7 @@ import type { Children } from '@kitajs/html';
 import { getDashboardStyles } from '../styles';
 import { renderChartScript, renderInteractiveScript, renderThemeScript } from '../shared';
 import { buildClientBootstrapJs } from '../client';
+import { QaNoteModal } from '../pages/history/QaNoteModal';
 import { RepoFooter } from './RepoFooter';
 import type { TestSummary } from '../types';
 
@@ -51,6 +52,7 @@ export function DashboardDocument({
             <main class="page">{children}</main>
           </div>
           <RepoFooter />
+          <QaNoteModal />
           {safeThemeScript}
           {safeChartScript}
           {safeInteractiveScript}

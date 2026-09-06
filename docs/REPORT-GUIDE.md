@@ -1,4 +1,4 @@
-# Panduan Report QA — QA Playwright Kit
+﻿# Panduan Report QA — QA Playwright Kit
 
 Dokumen ini menjelaskan **3 jenis report** yang dihasilkan framework setiap kali test dijalankan, format data yang tersedia, dan cara membacanya untuk keperluan QA.
 
@@ -45,8 +45,8 @@ Playwright Test Run
 ### 4. **Pipeline Report Markdown** (`artifacts/reports/pipeline-report-<runId>.md`)
 
 - **Sumber:** Reporter agent (`.github/agents/reporter.agent.md`), ditulis oleh `report-builder.ts` ke `artifacts/reports/` sesuai workspace manifest
-- **Isi:** Markdown narrative dari full pipeline run (Plan → Generate → Execute → Heal → Report)
-- **Kapan digunakan:** Review end-to-end pipeline result, audit trail, QA decision tracking
+- **Isi:** Markdown narrative dari full pipeline run (Plan → Generate → Execute → Heal → Report(Analyze)); Report includes the mandatory Analyze sub-phase and `## AI Analysis` contract section
+- **Kapan digunakan:** Review end-to-end pipeline result, audit trail, QA decision tracking; APPROVE is valid only when `analysisVerdict=complete` and `analysisVerified=true`
 
 ---
 
@@ -60,6 +60,7 @@ Playwright Test Run
    - **Copy for Confluence** — rich HTML table (Atlassian palette) via clipboard `text/html`; plain fallback = Confluence wiki markup (`||header||` / `|cell|`)
    - **Copy Data (TSV)** — tab-separated for Sheets/Excel; multi-line cells flattened with `|`
    - **Download CSV** — RFC4180 + BOM UTF-8; multi-line preserved inside quotes
+   - Semua format menyertakan kolom **AI NOTES** (setelah NOTES); catatan QA ikut di kolom NOTES dengan prefix `QA:`
    - All three respect **filtered rows** + **Filter columns** visibility
 4. **Section head** — “Detailed test records” + Table ⇄ Accordion toggle
 5. **View toolbars** (sibling of `.report-layout`, show/hide per view)
@@ -72,16 +73,19 @@ Playwright Test Run
 
 #### **Table View** (Default)
 
-| Aspek              | Perilaku sekarang                                                                                                 |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Kolom              | Test ID, Description, Test Step, Input Data, Expected, Actual, Status, Priority, **SOURCE**, Notes                |
-| Steps / Input      | Multi-line blocks (`1. step…`, `key: value` per baris) — **bukan** join inline `·`, **tanpa** ellipsis truncate   |
-| SOURCE (gagal)     | Stack **Cause** (badge) → **Do** (decision: FILE BUG / FIX TEST / …) → **blurb** singkat; hover = tooltip lengkap |
-| SOURCE (pass/skip) | `-` saja                                                                                                          |
-| Notes              | Stack kiri: **time → screenshot → video → trace → layer badge**                                                   |
-| Sticky             | Header optional; **sticky left hanya Test ID** (pin lewat Filter columns)                                         |
-| Export             | Di alert, **bukan** di table toolbar; menghormati **row filter + kolom visible**                                  |
-| Density            | Fixed dense — **tidak ada** picker                                                                                |
+| Aspek              | Perilaku sekarang                                                                                                                                                                                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kolom              | 13 kolom — Test ID, Module, Feature, Description, Test Step, Input Data, Expected, Actual, Status, Priority, **SOURCE**, Notes, **AI NOTES**                                                                                                                                                             |
+| Steps / Input      | Multi-line blocks (`1. step…`, `key: value` per baris) — **bukan** join inline `·`, **tanpa** ellipsis truncate                                                                                                                                                                                          |
+| SOURCE (gagal)     | Stack **Cause** (badge) → **Do** (decision: FILE BUG / FIX TEST / …) → **blurb** singkat; hover = tooltip lengkap                                                                                                                                                                                        |
+| SOURCE (pass/skip) | `-` saja                                                                                                                                                                                                                                                                                                 |
+| Notes              | chip scenarioId, **CATATAN QA** (free-text, editable QA via tombol ✎), durasi, thumbnail screenshot, link video/trace, badge layer                                                                                                                                                                       |
+| AI NOTES           | Catatan AI untuk QA/programmer, 2 lapis: auto-deterministik (selalu ada; bahasa Indonesia; gagal **dan** passed — mis. deteksi lambat, flaky) + naratif agent (badge sumber `[healer]`/`[generator]`/`[reporter]`/`[analyzer]`; saran UI/UX, perbandingan flow, tips data — termasuk di scenario passed) |
+| Sticky             | Header optional; **sticky left hanya Test ID** (pin lewat Filter columns)                                                                                                                                                                                                                                |
+| Export             | Di alert, **bukan** di table toolbar; menghormati **row filter + kolom visible**                                                                                                                                                                                                                         |
+| Density            | Fixed dense — **tidak ada** picker                                                                                                                                                                                                                                                                       |
+
+Kolom tetap tidak pernah di-hide via media query — layar sempit memakai **horizontal scroll**. Tombol ✎ di cell NOTES membuka dialog Catatan QA (detail di [Catatan per Test](#catatan-per-test-qa-notes--notes-from-ai) di bawah).
 
 #### **Accordion View**
 
@@ -161,6 +165,10 @@ interface CollectedTestCase {
   hasTrace?: boolean;
   /** Unhealthy only (annotation wins over heuristic) */
   failureSource?: 'app' | 'test' | 'requirement' | 'env' | 'ai_generation' | 'unknown';
+  /** Catatan QA free-text (sidecar test-notes.json — diedit via ✎ di dashboard, API, CLI, atau MCP). */
+  qaNotes?: string;
+  /** Catatan AI untuk QA/programmer — 2 lapis: auto-deterministik dari custom reporter + naratif agent (badge sumber). */
+  aiNotes?: string;
 }
 ```
 
@@ -191,6 +199,7 @@ interface CollectedTestCase {
    - **CSV** → Import ke Excel/Google Sheets
    - **TSV** → Import ke tools yang butuh tab-separated
    - **Confluence** → Paste langsung ke Confluence page (sudah dalam format wiki markup)
+5. Hasil export menyertakan kolom **AI NOTES** (setelah NOTES) — analisa penyebab gagal dari AI; catatan QA ikut di kolom NOTES dengan prefix `QA:`
 
 ### Scenario 3: Triage Failed Test — Tentukan Root Cause
 
@@ -222,6 +231,45 @@ Jika `reportMode: 'role-aware'` di `test-summary.json`:
 
 4. Review pass rate per role — role mana yang paling stabil?
 5. Export per role jika perlu (filter manual via Excel setelah export)
+
+---
+
+## Catatan per Test (QA Notes & Notes from AI)
+
+Setiap baris test punya 2 kolom catatan di Table View: **NOTES** (berisi CATATAN QA + evidence) dan **AI NOTES** (catatan dari AI untuk dibaca QA/programmer). Catatan tidak disimpan di dalam `test-summary.json` karena ditulis **setelah** run (review QA, narasi healer) — summary dimiliki reporter — melainkan di **sidecar terpisah** yang di-merge saat render.
+
+### Storage — sidecar `test-notes.json`
+
+- **Lokasi:** `artifacts/reports/test-notes.json` (latest run) — schema `qa.test-notes/v1`.
+- **Key:** `<scenarioId>::<role>` (fallback `testId`; role `general` untuk run general-mode; `user` dan `general` saling dianggap ekuivalen saat membaca — konvensi generator memakai role `user` di general mode).
+- **Field per key:** `qaNotes`, `aiNotes`, `qaUpdatedAt`, `aiUpdatedAt`, plus `runId` run pemilik. Maks **4000 karakter** per field.
+- **Keamanan:** semua teks note (QA maupun AI) di-redact otomatis sebelum disimpan — Bearer token, JWT, `password=/token=/api_key=`, cookie, dan AWS key diganti `[REDACTED]`.
+- **Idempoten:** insight AI identik (teks ternormalisasi sama dari source yang sama) tidak disimpan dua kali — aman terhadap retry agent.
+- **Reset per-run:** saat run disimpan ke history (`archive:save` / tombol Save di dashboard serve-mode / MCP `archive_report`), sidecar ikut disalin ke `artifacts/reports/archive/<runId>/test-notes.json` lalu sidecar latest di-reset — run baru mulai bersih. Sidecar yang tidak terikat run (tanpa `runId` tapi berisi catatan) juga dianggap stale saat run baru dimulai.
+- **Pending pipeline run:** saat pipeline aktif (Orchestrator start / `pipeline_status` dengan state `running`), marker `.pending-run.json` mencatat identitas run yang AKAN datang — catatan Generator/Plan terikat ke run itu dan di-adopsi reporter saat onEnd (TTL 24 jam). **Batasan: satu workspace = satu pipeline aktif**; jalankan pipeline secara berurutan. Identitas pending terekspos sebagai `pipelineRunId` di `pipeline_status` dan `get_test_summary`.
+- **Run terarsip:** catatan permanen dan tetap bisa diedit (dialog Catatan QA di dashboard / API).
+
+### Isi kolom AI NOTES — 2 lapis
+
+1. **Auto-deterministik (selalu ada):** analisa berbahasa Indonesia yang di-bake custom reporter ke `testCases[].aiNotes` di `test-summary.json`, dengan tag `Jenis:` dari taxonomy kanonik. Untuk scenario **gagal**: "Jenis: Root Cause — Analisa: Elemen tidak muncul tepat waktu…", "Diduga penyebab: bug aplikasi — siapkan defect ticket", "Berhenti di langkah …", "Gagal konsisten di N attempt — bukan flake". Untuk scenario **passed**: "Jenis: Stability — Flaky: lulus setelah retry ×N", "Jenis: Test Quality — Tidak ada assertion (expect) terdeteksi … (false-green risk)", deteksi durasi lambat relatif terhadap median run (bukan threshold hardcode), dan pengingat actual-result belum diisi generator.
+2. **Naratif agent (saat pipeline jalan):** Healer/Generator/Reporter agent memanggil MCP tool `record_ai_note`; tiap baris diawali badge sumber `[healer]` / `[generator]` / `[reporter]` / `[analyzer]`. Catatan AI **tidak hanya untuk error** — pada scenario passed agent bisa menulis saran UI/UX ("filter belum punya empty state"), perbandingan flow ("flow B lebih sederhana dari flow A untuk kasus X"), atau tips data/seed.
+
+**Format insight kanonik** — agent menulis insight terstruktur via field `record_ai_note` (`kind`/`observation`/`evidence`/`impact`/`recommendation`/`priority`/`confidence`/`nextAction`/`status`), dirender dengan label `Jenis / Observasi / Bukti / Dampak / Rekomendasi / Prioritas / Confidence / Next Action` dan label bukti `observed|inferred|recommendation`. Detail taxonomy + guardrails ada di `skills/qa-playwright-kit/references/ai-insight-format.md`.
+
+### AI Run Insights (panel overview)
+
+Halaman overview (`/`) menampilkan panel **AI Run Insights** — pola lintas skenario dari dua sumber:
+
+1. **Deterministik** (di-bake reporter ke `test-summary.json → aiInsights`): modul dengan failure terbanyak, role paling sering gagal, test flaky, pola error berulang (error fingerprint), flow paling lambat vs rata-rata, cluster test passed tanpa assertion, skipped coverage besar.
+2. **Agent-authored** (sidecar `runInsights`, ditulis via `record_ai_note` dengan `scope: "run"`): ringkasan naratif reporter/healer, rekomendasi smoke/regression minimum, verdict perbandingan flow. Panel kosong = run kecil & bersih (anti-noise).
+
+### Cara menulis & membaca catatan
+
+- **Dashboard:** tombol **✎** di cell NOTES membuka **dialog Catatan QA**. Serve mode (`npm run dashboard`) → tersimpan otomatis via API (+ SSE `notes-updated` untuk auto-refresh). Mode file:// statis → dialog menyalin perintah CLI untuk dijalankan di terminal.
+- **API dashboard:** `GET`/`POST /api/notes/latest` (alias `/api/runs/latest/notes`) dan `GET`/`POST /api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`). POST body `{scenarioId | testId, role?, qaNotes}` — `qaNotes` string ≤4000 char, string kosong = hapus catatan.
+- **CLI:** `npm run note:set -- --scenario=SC-03 [--role=finance] [--test-id=TC-X] --note="teks"` (`--note=""` untuk hapus; `--run=run-…` untuk run terarsip) dan `npm run note:list [--run=run-…]`.
+- **MCP tools (total 25):** `record_ai_note` {`message` **atau** field terstruktur (`kind`, `observation`, `evidence`, `impact`, `recommendation`, `nextAction`, `priority`, `confidence`, `status`), `scope?: test|run`, `scenarioId?`, `testId?`, `role?`, `source?: healer|generator|reporter|analyzer`, `runId?`} — additive (catatan AI lama dipertahankan); `set_test_note` {`note` wajib (string kosong menghapus), `scenarioId?`, `testId?`, `role?`, `runId?`}. Tanpa `runId` → latest run; dengan `runId` → run terarsip.
+- **Detail views:** accordion TestDetail, detail run terarsip, dan expandable row di daftar arsip menampilkan section **"Catatan"** (Catatan QA + Catatan AI).
 
 ---
 
@@ -281,7 +329,7 @@ Jika annotation tidak ada, framework fallback ke:
 
 ## Pipeline Report — Markdown Format
 
-Saat test dijalankan via **Orchestrator pipeline** (Plan → Generate → Execute → Heal → Report), Reporter agent menghasilkan markdown report di `artifacts/reports/pipeline-report-<runId>.md`.
+Saat test dijalankan via **Orchestrator pipeline** (Plan → Generate → Execute → Heal → Report(Analyze)), Reporter agent menghasilkan markdown report di `artifacts/reports/pipeline-report-<runId>.md`. Report memiliki sub-phase Analyze wajib dan section `## AI Analysis`; untuk pipeline run, `APPROVE` hanya sah bila `analysisVerdict=complete` dan `analysisVerified=true`.
 
 ### Structure
 
@@ -406,6 +454,16 @@ Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard
 ---
 
 ## Changelog (dashboard)
+
+### v0.4.0 (2026-09-06 — Per-test QA Notes & AI Notes)
+
+- ✅ Kolom ke-13 **AI NOTES** di Table View — 2 lapis: auto-deterministik dari custom reporter (analisa penyebab gagal, bahasa Indonesia) + naratif agent dengan badge sumber `[healer]`/`[generator]`/`[reporter]`/`[analyzer]`
+- ✅ Kolom NOTES berisi **CATATAN QA** editable — tombol ✎ membuka dialog Catatan QA: serve mode (`npm run dashboard`) tersimpan via API; mode file:// salin perintah CLI
+- ✅ Sidecar `artifacts/reports/test-notes.json` (schema `qa.test-notes/v1`, key `<scenarioId>::<role>`) — ikut disalin ke `archive/<runId>/` saat run di-save lalu sidecar latest di-reset; run baru mulai bersih, catatan run terarsip permanen & tetap bisa diedit
+- ✅ API GET/POST `/api/notes/latest` (alias `/api/runs/latest/notes`) & `/api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`) + SSE event `notes-updated`
+- ✅ MCP tools baru `record_ai_note` & `set_test_note` (total 25); CLI `npm run note:set` / `npm run note:list`
+- ✅ Export TSV/CSV/Confluence menambah kolom AI NOTES (setelah NOTES); catatan QA di kolom NOTES dengan prefix `QA:` — tetap respect row filter + Filter columns
+- ✅ Detail views (accordion TestDetail, detail run terarsip, expandable row arsip) menampilkan section "Catatan" (QA + AI)
 
 ### v0.3.0 (Current — Monitor/Operate triage board)
 

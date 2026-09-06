@@ -19,16 +19,18 @@ If the dashboard does not open automatically: locate `artifacts/reports/custom-d
 
 ## Reading Table View columns
 
-| Column         | Content                            | What to check                                         |
-| -------------- | ---------------------------------- | ----------------------------------------------------- |
-| Test ID        | `TC-XXX`                           | Matches the SC in the requirement                     |
-| Description    | Scenario name                      | Same as the SC heading                                |
-| **Test Step**  | Numbered business-language steps   | Must be plain language — never `toBeVisible()`        |
-| **Input Data** | `key: value` pairs                 | No literal password or email values here              |
-| **Expected**   | Expected result text               | Verbatim from the requirement                         |
-| **Actual**     | Actual result                      | Pass: equals Expected. Fail: Playwright error message |
-| Status         | PASSED / FAILED / SKIPPED          | —                                                     |
-| SOURCE         | Failure classification (fail only) | `app / test / requirement / env / ai_generation`      |
+| Column         | Content                                                                                           | What to check                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Test ID        | `TC-XXX`                                                                                          | Matches the SC in the requirement                                      |
+| Description    | Scenario name                                                                                     | Same as the SC heading                                                 |
+| **Test Step**  | Numbered business-language steps                                                                  | Must be plain language — never `toBeVisible()`                         |
+| **Input Data** | `key: value` pairs                                                                                | No literal password or email values here                               |
+| **Expected**   | Expected result text                                                                              | Verbatim from the requirement                                          |
+| **Actual**     | Actual result                                                                                     | Pass: equals Expected. Fail: Playwright error message                  |
+| Status         | PASSED / FAILED / SKIPPED                                                                         | —                                                                      |
+| SOURCE         | Failure classification (fail only)                                                                | `app / test / requirement / env / ai_generation`                       |
+| NOTES          | Duration, evidence links + QA free-text note                                                      | QA note editable via the ✎ dialog; per-run                             |
+| AI NOTES       | AI-authored insight: deterministic analysis (fail AND pass) + agent suggestions with source badge | Baca dugaan penyebab, saran UI/UX, atau perbandingan flow (Indonesian) |
 
 ### Sign of a generator problem in Test Step
 
@@ -40,14 +42,14 @@ If Test Step shows `Expect "getByRole(...)..." to be visible` or any Playwright 
 
 After reading the report choose **one**:
 
-| Decision                  | When                                                        | Action                                                                  |
-| ------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
-| ✅ **APPROVE**            | All pass, Test Step is business language, Actual = Expected | `npm run archive:save` or `qa-playwright-kit:archive_report` via Hermes |
-| 🐛 **FILE BUG**           | `failureSource: app` — the application is wrong             | Create a defect ticket; keep the test as a regression guard             |
-| 📝 **REVISE REQUIREMENT** | `failureSource: requirement` — requirement is ambiguous     | Edit `requirements/*.md`; restart from Plan                             |
-| 🔧 **FIX TEST/GENERATOR** | `failureSource: test` or `ai_generation`                    | Heal or regenerate `tests/*.spec.ts`; do not edit `src/`                |
-| 🔧 **FIX ENVIRONMENT**    | `failureSource: env` — auth / credentials / seed missing    | `npm run env:edit` → `npm run auth:setup` → re-run Execute              |
-| 🚫 **MARK BLOCKED**       | Cannot resolve now                                          | Archive trace and screenshot; file a maintainer report                  |
+| Decision                  | When                                                                                                                                                                                 | Action                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| ✅ **APPROVE**            | All pass **plus** `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact sidecar evidence match, Reporter Analyze insight, and no unresolved failures | `npm run archive:save` or `qa-playwright-kit:archive_report` via Hermes; otherwise gate rejects before writing |
+| 🐛 **FILE BUG**           | `failureSource: app` — the application is wrong                                                                                                                                      | Create a defect ticket; keep the test as a regression guard                                                    |
+| 📝 **REVISE REQUIREMENT** | `failureSource: requirement` — requirement is ambiguous                                                                                                                              | Edit `requirements/*.md`; restart from Plan                                                                    |
+| 🔧 **FIX TEST/GENERATOR** | `failureSource: test` or `ai_generation`                                                                                                                                             | Heal or regenerate `tests/*.spec.ts`; do not edit `src/`                                                       |
+| 🔧 **FIX ENVIRONMENT**    | `failureSource: env` — auth / credentials / seed missing                                                                                                                             | `npm run env:edit` → `npm run auth:setup` → re-run Execute                                                     |
+| 🚫 **MARK BLOCKED**       | Cannot resolve now                                                                                                                                                                   | Archive trace and screenshot; file a maintainer report                                                         |
 
 ---
 
@@ -63,13 +65,17 @@ After reading the report choose **one**:
 
 ---
 
-## Archive (APPROVE)
+## Archive after QA decision (APPROVE is gated)
 
 ```bash
 npm run archive:save   # interactive: select run → enter decision and notes
 ```
 
-Or via Hermes Agent: call `qa-playwright-kit:archive_report` after the APPROVE decision.
+Or via Hermes Agent: call `qa-playwright-kit:archive_report` after the QA decision. For a pipeline run, APPROVE is accepted only when the Analyze declaration and sidecar evidence produce `analysisVerdict=complete` and `analysisVerified=true`; missing analysis, missing sidecar, runId mismatch, missing Reporter insight, or exact count mismatch returns `ANALYSIS_INCOMPLETE`, `ANALYSIS_UNVERIFIABLE`, or `ANALYSIS_EVIDENCE_MISMATCH` before any archive directory is written. Non-APPROVE decisions remain archivable with the verdict/warning visible.
+
+Canonical verdicts are `complete`, `incomplete`, `inconsistent`, `unverifiable`, and `not-applicable`. `pipelineRunId` binds pre-run Generator/Plan notes; `archiveRunId` identifies the saved archive. One workspace supports one active pipeline run — execute pipelines sequentially.
+
+Per-test notes travel with the run: archiving copies the `test-notes.json` sidecar (QA `qaNotes` + AI `aiNotes` + run-level insights) into `artifacts/reports/archive/<runId>/test-notes.json`, making the notes permanent. The live sidecar is then reset — the next run starts with empty notes.
 
 ---
 

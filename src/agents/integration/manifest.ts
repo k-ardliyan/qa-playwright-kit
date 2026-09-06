@@ -209,6 +209,18 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     description:
       'Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Requires an explicit QA decision and never overwrites an existing archive. Call this after the Reporter produces the final pipeline report and QA decides.',
   },
+  record_ai_note: {
+    server: 'qa-playwright-kit',
+    name: 'record_ai_note',
+    description:
+      'Append an AI-authored insight — to one test row (scope=test, default; shown in the AI NOTES column) or to the whole run (scope=run; shown in the overview AI Run Insights panel). Structured fields (kind/observation/evidence/impact/recommendation/priority/confidence/nextAction/status) render in the canonical insight format; a plain message also works. Cover failure root causes AND insights on passed scenarios (UI/UX suggestions, flow A vs B comparison, data/seed tips). Write in Indonesian. Notes are additive; targets the latest run unless an archived runId is given.',
+  },
+  set_test_note: {
+    server: 'qa-playwright-kit',
+    name: 'set_test_note',
+    description:
+      'Set or clear the QA free-text note for one test row in the report notes sidecar (NOTES column). Replaces the previous QA note for that row; targets the latest run unless an archived runId is given.',
+  },
 };
 
 // ─── Phase Definitions ───────────────────────────────────────────────────────
@@ -267,6 +279,7 @@ const PHASE_DEFINITIONS: Record<
       'generate_page_object',
       'list_test_fixtures',
       'inspect_file',
+      'record_ai_note',
     ],
   },
   execute: {
@@ -279,7 +292,13 @@ const PHASE_DEFINITIONS: Record<
     description: 'Diagnose and fix test failures using trace and screenshot data',
     agentFile: '.github/agents/healer.agent.md',
     mcpServers: ['qa-playwright-kit', 'playwright-test', 'playwright'],
-    toolNames: ['get_test_failures', 'validate_generated_tests', 'snapshot_page', 'inspect_file'],
+    toolNames: [
+      'get_test_failures',
+      'validate_generated_tests',
+      'snapshot_page',
+      'inspect_file',
+      'record_ai_note',
+    ],
   },
   report: {
     description: 'Aggregate test results into a structured pipeline report',
@@ -292,6 +311,8 @@ const PHASE_DEFINITIONS: Record<
       'list_artifacts',
       'list_requirement_status',
       'archive_report',
+      'record_ai_note',
+      'set_test_note',
     ],
   },
 };

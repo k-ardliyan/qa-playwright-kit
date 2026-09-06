@@ -8,6 +8,7 @@
  * Storage per run:
  *   artifacts/reports/archive/<runId>/summary.json   — copy of test-summary.json
  *   artifacts/reports/archive/<runId>/metadata.json  — QA decision, notes, timestamps
+ *   artifacts/reports/archive/<runId>/test-notes.json — per-test QA/AI notes sidecar
  *
  * @module src/agents/reporter/report-archive
  */
@@ -16,6 +17,19 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { deriveDisplayName, deriveTestSeriesId } from '../../support/custom-dashboard/domain/run';
 import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
+import {
+  archiveTestNotesSnapshot,
+  latestTestNotesPath,
+  withLatestTestNotesLock,
+} from './test-notes';
+import {
+  countAgentRunInsights,
+  countReporterRunInsights,
+  evaluateAnalysisGate,
+  isAnalysisVerdict,
+  isPipelineContext,
+  type AnalysisDeclaration,
+} from './analysis-gate';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -109,6 +123,19 @@ export interface ArchiveMetadata {
   /** Where the save was triggered from. */
   triggerSource: TriggerSource;
   files?: string[];
+  /** Canonical Analyze verdict persisted at archive time. */
+  analysisVerdict?: import('./analysis-gate').AnalysisVerdict;
+  /** True only when declaration/evidence agree. */
+  analysisVerified?: boolean;
+  /** Gate issues for incomplete/non-approved runs. */
+  analysisIssues?: string[];
+  /** Detailed declaration copied from the Reporter pipeline report, if any. */
+  analysis?: {
+    completed?: unknown;
+    runInsightsRecorded?: unknown;
+    passedScenariosReviewed?: unknown;
+    reviewedPassedScenarioIds?: unknown;
+  };
 }
 
 /** Result of a successful save. */
@@ -117,6 +144,9 @@ export interface ArchiveSaveResult {
   archivePath: string;
   summaryPath: string;
   metadataPath: string;
+  analysisVerdict?: import('./analysis-gate').AnalysisVerdict;
+  analysisVerified?: boolean;
+  notesArchived: boolean;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -136,6 +166,47 @@ function summaryPath(): string {
 }
 function latestRunPath(): string {
   return path.join(reportDir(), '.latest-run');
+}
+
+/**
+ * Resolve the Reporter Analyze declaration for the latest pipeline run. The
+ * custom reporter owns test-summary.json, while the Reporter agent owns
+ * pipeline-report-<id>.json; saveLatestRun bridges the two by selecting the
+ * newest JSON with the same requirement identity.
+ */
+function loadLatestPipelineAnalysis(
+  summary: Record<string, unknown>,
+): AnalysisDeclaration | undefined {
+  const requirementPath =
+    typeof summary['requirementPath'] === 'string' ? (summary['requirementPath'] as string) : '';
+  const candidates: Array<{ mtime: number; analysis: AnalysisDeclaration }> = [];
+  try {
+    for (const entry of fs.readdirSync(reportDir(), { withFileTypes: true })) {
+      if (!entry.isFile() || !/^pipeline-report-.+\.json$/i.test(entry.name)) continue;
+      const filePath = path.join(reportDir(), entry.name);
+      try {
+        const payload = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+        if (!payload['analysis'] || typeof payload['analysis'] !== 'object') continue;
+        if (
+          requirementPath &&
+          typeof payload['requirementPath'] === 'string' &&
+          payload['requirementPath'] !== requirementPath
+        ) {
+          continue;
+        }
+        candidates.push({
+          mtime: fs.statSync(filePath).mtimeMs,
+          analysis: payload['analysis'] as AnalysisDeclaration,
+        });
+      } catch {
+        // Ignore an unrelated/corrupt historical pipeline report
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  candidates.sort((a, b) => b.mtime - a.mtime);
+  return candidates[0]?.analysis;
 }
 
 function isContainedPath(root: string, candidate: string): boolean {
@@ -200,6 +271,15 @@ function validateArchiveMetadata(raw: Record<string, unknown>, runId: string): v
   if (!isTriggeredBy(raw.triggeredBy)) {
     throw new Error('Invalid archived metadata: triggeredBy is invalid.');
   }
+  if (raw.analysisVerdict !== undefined && !isAnalysisVerdict(raw.analysisVerdict)) {
+    throw new Error('Invalid archived metadata: analysisVerdict is invalid.');
+  }
+  if (raw.analysisVerified !== undefined && typeof raw.analysisVerified !== 'boolean') {
+    throw new Error('Invalid archived metadata: analysisVerified must be a boolean.');
+  }
+  if (raw.analysisIssues !== undefined && !Array.isArray(raw.analysisIssues)) {
+    throw new Error('Invalid archived metadata: analysisIssues must be an array.');
+  }
 }
 
 function validateMetadataUpdates(updates: Partial<SaveRunOptions>): void {
@@ -247,10 +327,10 @@ export function generateRunId(isoTimestamp?: string): string {
 /**
  * Save the latest test run to the archive.
  *
- * Reads `artifacts/reports/test-summary.json` + `artifacts/reports/.latest-run`,
- * copies the summary, and writes enriched metadata.
- *
- * Returns the save result or throws on validation failure.
+ * The latest notes sidecar is locked for the complete operation: snapshot →
+ * Analyze gate → staging archive → atomic sidecar carry → final commit →
+ * latest reset. Dashboard Save and CLI archive:save therefore have exactly the
+ * same gate and evidence semantics as the MCP archive path.
  */
 export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
   const {
@@ -274,33 +354,28 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
   if (!isTriggerSource(triggerSource)) {
     throw new Error(`Invalid triggerSource: ${String(triggerSource)}.`);
   }
-  if (typeof qaNotes !== 'string') {
-    throw new Error('qaNotes must be a string.');
-  }
+  if (typeof qaNotes !== 'string') throw new Error('qaNotes must be a string.');
   if (customDisplayName !== undefined && !customDisplayName.trim()) {
     throw new Error('displayName must not be empty.');
   }
 
-  // 1. Validate test-summary.json exists
-  if (!fs.existsSync(summaryPath())) {
+  const summaryFile = summaryPath();
+  if (!fs.existsSync(summaryFile)) {
     throw new Error('No test-summary.json found. Run tests first before saving.');
   }
 
-  // 2. Read test-summary.json
   let summary: Record<string, unknown>;
   try {
-    summary = JSON.parse(fs.readFileSync(summaryPath(), 'utf-8'));
+    summary = JSON.parse(fs.readFileSync(summaryFile, 'utf-8')) as Record<string, unknown>;
   } catch {
     throw new Error('Failed to parse test-summary.json. File may be corrupted.');
   }
 
-  // 3. Read .latest-run marker for metadata
   let latestRun: Record<string, unknown> = {};
   if (fs.existsSync(latestRunPath())) {
     try {
-      latestRun = JSON.parse(fs.readFileSync(latestRunPath(), 'utf-8'));
+      latestRun = JSON.parse(fs.readFileSync(latestRunPath(), 'utf-8')) as Record<string, unknown>;
     } catch {
-      // Warn — corrupt marker means reportMode and appEnv fall back to defaults
       process.stderr.write(
         `[archive] Warning: .latest-run marker is corrupt or unreadable — ` +
           `reportMode and appEnv will use fallback values. ` +
@@ -309,105 +384,183 @@ export function saveLatestRun(options: SaveRunOptions): ArchiveSaveResult {
     }
   }
 
-  // 4. Generate runId from ranAt timestamp
   const ranAt =
-    (summary.timestamp as string) || (latestRun.timestamp as string) || new Date().toISOString();
+    (summary['timestamp'] as string) ||
+    (latestRun['timestamp'] as string) ||
+    new Date().toISOString();
   const runId = generateRunId(ranAt);
-
-  // 5. Validate runId doesn't already exist
   const archiveRoot = ensureArchiveRoot();
   const runDir = path.join(archiveRoot, runId);
+  const reportAnalysis =
+    (summary['analysis'] as AnalysisDeclaration | undefined) ?? loadLatestPipelineAnalysis(summary);
   if (!isContainedPath(archiveRoot, runDir)) {
     throw new Error('Refusing to write outside archive directory.');
   }
-  if (fs.existsSync(runDir)) {
-    throw new Error(`Archive for run ${runId} already exists. Will not overwrite.`);
-  }
 
-  // 6. Create archive directory
-  fs.mkdirSync(runDir, { recursive: true });
+  return withLatestTestNotesLock((notesSnapshot) => {
+    const effectiveSummary = {
+      ...summary,
+      // CLI/dashboard metadata overrides are part of context too; MCP and save
+      // paths must gate a requirementId-only run identically.
+      ...(customRequirementId && !summary['requirementId']
+        ? { requirementId: customRequirementId }
+        : {}),
+    };
+    const pipelineContext = isPipelineContext(effectiveSummary);
+    const passedTests = Array.isArray(summary['testCases'])
+      ? (summary['testCases'] as Array<Record<string, unknown>>).filter(
+          (tc) => tc['status'] === 'passed',
+        )
+      : [];
+    const passedScenarioIds = passedTests
+      .map((tc) => (typeof tc['scenarioId'] === 'string' ? (tc['scenarioId'] as string) : ''))
+      .filter(Boolean);
 
-  // 7. Write summary.json (copy from test-summary.json)
-  const archiveSummaryPath = path.join(runDir, 'summary.json');
-  fs.writeFileSync(archiveSummaryPath, JSON.stringify(summary, null, 2), 'utf-8');
+    const gate = evaluateAnalysisGate({
+      qaDecision,
+      pipelineContext,
+      declaration: reportAnalysis,
+      evidence: {
+        sidecarAvailable: notesSnapshot !== null,
+        sidecarRunId: notesSnapshot?.runId,
+        expectedRunId: runId,
+        runInsightsCount: notesSnapshot?.runInsights?.length,
+        agentRunInsightsCount: notesSnapshot ? countAgentRunInsights(notesSnapshot) : 0,
+        reporterRunInsightsCount: notesSnapshot ? countReporterRunInsights(notesSnapshot) : 0,
+        passedCount:
+          typeof summary['passed'] === 'number' ? (summary['passed'] as number) : undefined,
+        passedScenarioIds,
+      },
+    });
 
-  // 7b. Snapshot attachments directory if exists
-  try {
-    const srcAttachmentsResolved = resolveContainedExisting(
-      reportDir(),
-      'attachments',
-      'directory',
-    );
-    if (srcAttachmentsResolved) {
-      const destAttachments = path.join(runDir, 'attachments');
-      fs.cpSync(srcAttachmentsResolved, destAttachments, { recursive: true });
+    if (!gate.allowed) {
+      const error = new Error(
+        `${gate.code}: ${gate.issues.join('; ')}. ` +
+          'Run the Analyze sub-phase or choose a non-APPROVE decision.',
+      ) as Error & { code?: string };
+      error.code = gate.code;
+      throw error;
     }
-  } catch {
-    // Non-blocking attachment snapshot
-  }
+    if (fs.existsSync(runDir)) {
+      throw new Error(`Archive for run ${runId} already exists. Will not overwrite.`);
+    }
 
-  // 8. Write metadata.json
-  // durationMs: prefer summary.runMeta.totalDurationMs (set by custom reporter),
-  // fall back to latestRun.totalDurationMs (written by .latest-run marker).
-  const durationMs =
-    ((summary.runMeta as Record<string, unknown> | undefined)?.totalDurationMs as
-      | number
-      | undefined) ?? (latestRun.totalDurationMs as number | undefined);
+    // Stage every archive file, then commit by one directory rename. A failed
+    // carry or metadata write cannot leave a final-looking partial archive.
+    const stagingDir = `${runDir}.staging-${process.pid}-${Date.now()}`;
+    fs.mkdirSync(stagingDir, { recursive: true });
+    let notesArchived = false;
+    try {
+      const archiveSummaryPath = path.join(stagingDir, 'summary.json');
+      fs.writeFileSync(archiveSummaryPath, JSON.stringify(effectiveSummary, null, 2), 'utf-8');
 
-  const appEnv = (process.env.APP_ENV as string) || (latestRun.appEnv as string) || 'local';
-  const requirementPath = (summary.requirementPath as string) || '';
-  const requirementTitle = customRequirementTitle || (summary.requirementTitle as string) || '';
-  const requirementId = customRequirementId || (summary.requirementId as string) || '';
+      try {
+        const srcAttachmentsResolved = resolveContainedExisting(
+          reportDir(),
+          'attachments',
+          'directory',
+        );
+        if (srcAttachmentsResolved) {
+          fs.cpSync(srcAttachmentsResolved, path.join(stagingDir, 'attachments'), {
+            recursive: true,
+          });
+        }
+      } catch {
+        // Evidence attachment snapshot is best-effort; notes are strict.
+      }
 
-  const displayName = deriveDisplayName({
-    displayName: customDisplayName,
-    requirementTitle,
-    requirementPath,
-    appEnv,
-    ranAt,
+      if (notesSnapshot) {
+        notesArchived = archiveTestNotesSnapshot(stagingDir, notesSnapshot);
+        if (!notesArchived) {
+          throw new Error(
+            'NOTES_ARCHIVE_FAILED: could not atomically carry test-notes.json; latest sidecar was kept.',
+          );
+        }
+      }
+
+      const summaryWithAnalysis = {
+        ...effectiveSummary,
+        analysisVerdict: gate.verdict,
+        analysisVerified: gate.analysisVerified,
+        analysisIssues: gate.issues.length > 0 ? gate.issues : undefined,
+      };
+      fs.writeFileSync(archiveSummaryPath, JSON.stringify(summaryWithAnalysis, null, 2), 'utf-8');
+
+      const durationMs =
+        ((summary['runMeta'] as Record<string, unknown> | undefined)?.['totalDurationMs'] as
+          | number
+          | undefined) ?? (latestRun['totalDurationMs'] as number | undefined);
+      const appEnv = (process.env.APP_ENV as string) || (latestRun['appEnv'] as string) || 'local';
+      const requirementPath = (summary['requirementPath'] as string) || '';
+      const requirementTitle =
+        customRequirementTitle || (summary['requirementTitle'] as string) || '';
+      const requirementId = customRequirementId || (summary['requirementId'] as string) || '';
+      const displayName = deriveDisplayName({
+        displayName: customDisplayName,
+        requirementTitle,
+        requirementPath,
+        appEnv,
+        ranAt,
+      });
+      const testSeriesId = deriveTestSeriesId({
+        testSeriesId: customTestSeriesId,
+        requirementId,
+        requirementPath,
+        requirementTitle,
+      });
+      const metadata: ArchiveMetadata = {
+        schemaVersion: 2,
+        runId,
+        displayName,
+        testSeriesId,
+        requirementId,
+        requirementTitle,
+        savedAt: new Date().toISOString(),
+        ranAt,
+        durationMs,
+        appEnv,
+        baseUrl: process.env.BASE_URL,
+        requirementPath,
+        branch: customBranch || (process.env.GIT_BRANCH as string) || undefined,
+        buildRef: customBuildRef || (process.env.BUILD_REF as string) || undefined,
+        gitSha: customGitSha || (process.env.GIT_SHA as string) || undefined,
+        reportMode:
+          (summary['reportMode'] as string) || (latestRun['reportMode'] as string) || 'general',
+        qaDecision,
+        qaNotes,
+        triggeredBy: 'manual',
+        triggerSource,
+        analysisVerdict: gate.verdict,
+        analysisVerified: gate.analysisVerified,
+        analysisIssues: gate.issues.length > 0 ? gate.issues : undefined,
+        analysis: reportAnalysis,
+      };
+      const metadataPath = path.join(stagingDir, 'metadata.json');
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+
+      fs.renameSync(stagingDir, runDir);
+      // Source lock remains held through this reset, so no latest write can be
+      // deleted between snapshot transfer and reset.
+      if (notesSnapshot) fs.rmSync(latestTestNotesPath(), { force: true });
+
+      return {
+        runId,
+        archivePath: runDir,
+        summaryPath: path.join(runDir, 'summary.json'),
+        metadataPath: path.join(runDir, 'metadata.json'),
+        analysisVerdict: gate.verdict,
+        analysisVerified: gate.analysisVerified,
+        notesArchived,
+      };
+    } catch (error) {
+      try {
+        fs.rmSync(stagingDir, { recursive: true, force: true });
+      } catch {
+        // Best-effort staging cleanup
+      }
+      throw error;
+    }
   });
-
-  const testSeriesId = deriveTestSeriesId({
-    testSeriesId: customTestSeriesId,
-    requirementId,
-    requirementPath,
-    requirementTitle,
-  });
-
-  const metadata: ArchiveMetadata = {
-    schemaVersion: 2,
-    runId,
-    displayName,
-    testSeriesId,
-    requirementId,
-    requirementTitle,
-    savedAt: new Date().toISOString(),
-    ranAt,
-    durationMs,
-    appEnv,
-    baseUrl: process.env.BASE_URL,
-    requirementPath,
-    branch: customBranch || (process.env.GIT_BRANCH as string) || undefined,
-    buildRef: customBuildRef || (process.env.BUILD_REF as string) || undefined,
-    gitSha: customGitSha || (process.env.GIT_SHA as string) || undefined,
-    reportMode: (summary.reportMode as string) || (latestRun.reportMode as string) || 'general',
-    qaDecision,
-    qaNotes,
-    triggeredBy: 'manual',
-    triggerSource,
-  };
-  const metadataPath = path.join(runDir, 'metadata.json');
-  if (!isContainedPath(archiveRoot, metadataPath)) {
-    throw new Error('Refusing to write metadata outside archive directory.');
-  }
-  fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
-
-  return {
-    runId,
-    archivePath: runDir,
-    summaryPath: archiveSummaryPath,
-    metadataPath,
-  };
 }
 
 /**
@@ -547,6 +700,10 @@ export function updateArchivedMetadata(
     buildRef: updates.buildRef ?? existingMeta?.buildRef,
     gitSha: updates.gitSha ?? existingMeta?.gitSha,
     reportMode: existingMeta?.reportMode ?? 'general',
+    analysisVerdict: existingMeta?.analysisVerdict,
+    analysisVerified: existingMeta?.analysisVerified,
+    analysisIssues: existingMeta?.analysisIssues,
+    analysis: existingMeta?.analysis,
   };
 
   if (!isContainedPath(runDir, metadataPath)) {

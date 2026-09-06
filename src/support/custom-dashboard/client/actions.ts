@@ -38,7 +38,9 @@ export function buildActionsJs(): string {
         ? window.closeSaveModal
         : modal.id === 'edit-run-modal'
           ? window.closeEditModal
-          : window.closeConfirmDelete || window.closeDeleteModal;
+          : modal.id === 'qa-note-modal'
+            ? window.closeQaNoteModal
+            : window.closeConfirmDelete || window.closeDeleteModal;
       if (typeof close === 'function') close();
     };
     window.__dashboardAnnounce = function (message) {
@@ -163,6 +165,11 @@ export function buildActionsJs(): string {
         e.preventDefault();
         var packet = el.getAttribute('data-copy-packet') || '';
         copyTextToClipboard(packet, el, 'Copied');
+        break;
+
+      case 'edit-qa-note':
+        e.preventDefault();
+        if (typeof window.openQaNoteModal === 'function') window.openQaNoteModal(el);
         break;
 
       case 'reset-filters':

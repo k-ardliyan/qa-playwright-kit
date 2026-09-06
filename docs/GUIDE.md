@@ -38,11 +38,11 @@ npm run health:check        # pastikan MCP server siap
 
 ## Konfigurasi MCP di IDE
 
-| Server              | Fungsi                                                                                                                                                                              |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `playwright`        | Eksplorasi UI (`browser_navigate`, `browser_snapshot`)                                                                                                                              |
-| `playwright-test`   | Menjalankan tes (`run_tests`)                                                                                                                                                       |
-| `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, `snapshot_page`, `discover_pages`, `synthesize_requirement`, `generate_page_object` |
+| Server              | Fungsi                                                                                                                                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `playwright`        | Eksplorasi UI (`browser_navigate`, `browser_snapshot`)                                                                                                                                                                           |
+| `playwright-test`   | Menjalankan tes (`run_tests`)                                                                                                                                                                                                    |
+| `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, catatan (`record_ai_note`, `set_test_note`), `snapshot_page`, `discover_pages`, `synthesize_requirement`, `generate_page_object` |
 
 **Hermes:** `.mcp.json` di root project dibaca langsung oleh Hermes. Tidak perlu generate config tambahan. `npm run mcp:config` sudah support multi-platform (claude/cursor/kiro) tapi tidak di-surface ke QA di alur default.
 
@@ -135,7 +135,9 @@ Pipeline mengikuti kontrak di [AGENTS.md](../AGENTS.md):
 5. `validate_generated_tests` — atau CLI: `npm run validate`
 6. `run_tests` (playwright-test)
 7. Jika gagal: `get_test_failures` → Healer → `run_tests` (scoped)
-8. `get_test_summary` → Reporter → `archive_report`
+8. `get_test_summary` → Reporter(Analyze) → QA decision → `archive_report`
+
+`Reporter(Analyze)` wajib menulis `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }` dan catatan terstruktur berbasis bukti. Insight untuk skenario gagal maupun lulus (UI/UX, perbandingan flow, atau data) hanya boleh dicatat jika bukti mendukungnya; catatan bukan persetujuan UX otomatis.
 
 ---
 
@@ -147,9 +149,8 @@ Sebelum jalankan pipeline AI, cek format requirement:
 npm run validate:requirement
 ```
 
-- `status: success` → lanjut pipeline
-- `error` → perbaiki dulu (lihat Troubleshooting)
-- `warn` → bisa lanjut, tapi review saran perbaikan
+- `validate_requirement` menghasilkan status yang hanya berlaku untuk validasi requirement: `success` → lanjut pipeline, `error` → perbaiki dulu, `warn` → bisa lanjut setelah review.
+- `pipeline_status` adalah pemeriksaan terpisah untuk orientasi fase, keamanan resume, artefak, dan hasil run terakhir; statusnya tidak menggantikan status `validate_requirement`.
 
 Warning baru yang mungkin muncul setelah upgrade:
 
@@ -205,8 +206,10 @@ Jalankan pipeline lengkap untuk requirements/nama-fitur.md sesuai kontrak AGENTS
 5. Validasi generated tests sebelum eksekusi.
 6. Jalankan tests lewat playwright-test.
 7. Jika gagal, ambil failure dari JSON hasil run aktif, heal, validasi ulang, lalu re-run scoped.
-8. Buat pipeline report dan archive ke artifacts/reports/archive/<runId>/.
-9. Return summary akhir dan unresolved failures jika ada.
+8. Reporter menjalankan Analyze wajib dan menghasilkan blok `analysis` berbasis bukti.
+9. Buat pipeline report, minta QA decision, lalu archive ke `artifacts/reports/archive/<archiveRunId>/`.
+10. `APPROVE` hanya boleh diarsipkan bila `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, jumlah hitungan persis cocok dengan bukti sidecar, insight Reporter ada, dan tidak ada unresolved failures. `incomplete`, `inconsistent`, `unverifiable`, atau `not-applicable` diarsipkan dengan verdict/warning; `ANALYSIS_INCOMPLETE`, `ANALYSIS_UNVERIFIABLE`, dan `ANALYSIS_EVIDENCE_MISMATCH` menolak APPROVE sebelum penulisan arsip.
+11. Return summary akhir dan unresolved failures jika ada.
 
 Untuk situs publik, boleh gunakan discover_pages/snapshot_page agar selector-catalog bisa dipakai ulang.
 ```

@@ -2,6 +2,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getRepoRoot, resolveAllowedPath } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
+import {
+  mcpCountAgentRunInsights,
+  mcpCountReporterRunInsights,
+  mcpEvaluateAnalysisGate,
+  mcpIsPipelineContext,
+} from '../utils/analysis-gate';
+import { acquireLatestNotesLock, archiveNotesSnapshot } from '../utils/test-notes';
 
 export interface ArchiveReportInput {
   runId: string;
@@ -19,15 +26,32 @@ export interface ArchiveReportInput {
 
 export interface ArchiveReportOutput {
   status: 'success' | 'error';
+  code?: string;
   archivePath?: string;
   archivedFiles?: string[];
+  /** Canonical verdict from the unified Analyze gate. */
+  analysisVerdict?: string;
+  analysisComplete?: boolean;
+  analysisVerified?: boolean;
+  analysisIssues?: string[];
+  notesArchived?: boolean;
   message: string;
+}
+
+/** Analysis block shape expected in a pipeline-report JSON. */
+interface PipelineAnalysis {
+  completed?: boolean;
+  runInsightsRecorded?: number;
+  passedScenariosReviewed?: number;
 }
 
 /**
  * Archive a pipeline report (Markdown + JSON summary + metadata + attachments) to artifacts/reports/archive/<runId>/.
  * Uses canonical schema (metadata.json + summary.json) matching custom-dashboard standards.
  * Requires an explicit QA decision and never overwrites an existing archive.
+ * Analyze-phase gate: APPROVE requires proof of the Analyze sub-phase
+ * (declaration complete + sidecar evidence consistent — same contract as
+ * saveLatestRun via src/agents/reporter/analysis-gate.ts).
  */
 export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
   const { runId, reportPath, jsonReportPath, qaDecision, qaNotes = '' } = input;
@@ -99,6 +123,80 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
     resolvedJsonPath = resolvedJson.absolutePath;
   }
 
+  // ── Analyze-phase verdict — computed BEFORE any write ────────────────────
+  // Target flow: read report JSON + summary + sidecar evidence, evaluate the
+  // verdict, THEN either reject APPROVE (no partial archive on disk) or
+  // archive with the verdict surfaced.
+  let analysisComplete: boolean | undefined;
+  let analysis: PipelineAnalysis | undefined;
+  let summaryData: Record<string, unknown> = {};
+  let latestNotesSnapshot: {
+    runId?: string;
+    runInsights?: Array<{ source?: string }>;
+  } | null = null;
+
+  if (!resolvedJsonPath) {
+    const defaultSummary = path.join(mcpWorkspace.reportsDir, 'test-summary.json');
+    if (fs.existsSync(defaultSummary)) {
+      resolvedJsonPath = defaultSummary;
+    }
+  }
+  if (resolvedJsonPath && resolvedJsonPath.endsWith('.json') && fs.existsSync(resolvedJsonPath)) {
+    try {
+      summaryData = JSON.parse(fs.readFileSync(resolvedJsonPath, 'utf-8')) as Record<
+        string,
+        unknown
+      >;
+      analysis = summaryData['analysis'] as PipelineAnalysis | undefined;
+      if (analysis && typeof analysis === 'object') {
+        analysisComplete = analysis.completed === true;
+      }
+    } catch {
+      // Unreadable JSON — no analysis verdict
+    }
+  }
+
+  // Sidecar evidence — acquire the source lock BEFORE reading. The lock stays
+  // held through gate evaluation and archive sidecar carry, so evidence and
+  // archived notes are the same snapshot.
+  const latestLock = acquireLatestNotesLock();
+  latestNotesSnapshot = latestLock.snapshot;
+  let runInsightsCount: number | undefined;
+  let agentRunInsightsCount: number | undefined;
+  let reporterRunInsightsCount: number | undefined;
+  if (latestNotesSnapshot && Array.isArray(latestNotesSnapshot.runInsights)) {
+    runInsightsCount = latestNotesSnapshot.runInsights.length;
+    agentRunInsightsCount = mcpCountAgentRunInsights(latestNotesSnapshot);
+    reporterRunInsightsCount = mcpCountReporterRunInsights(latestNotesSnapshot);
+  }
+
+  const gate = mcpEvaluateAnalysisGate({
+    qaDecision,
+    pipelineContext: mcpIsPipelineContext(summaryData),
+    declaration: analysis,
+    evidence: {
+      sidecarAvailable: latestNotesSnapshot !== null,
+      sidecarRunId: latestNotesSnapshot?.runId,
+      expectedRunId: runId,
+      runInsightsCount,
+      agentRunInsightsCount,
+      reporterRunInsightsCount,
+      passedCount: summaryData['passed'] as number | undefined,
+    },
+  });
+
+  if (!gate.allowed) {
+    latestLock.release();
+    return {
+      status: 'error',
+      code: gate.code,
+      message:
+        `${gate.code}: ${gate.issues.join('; ')}. ` +
+        'Run the Analyze sub-phase (record_ai_note scope=run) and rebuild the report, ' +
+        'or choose a non-APPROVE decision.',
+    };
+  }
+
   try {
     fs.mkdirSync(archiveDir, { recursive: true });
 
@@ -109,25 +207,11 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
     fs.copyFileSync(absoluteReportPath, mdDest);
     archivedFiles.push(path.relative(repoRoot, mdDest).replace(/\\/g, '/'));
 
-    // 2. Resolve summary.json (from jsonReportPath or default artifacts/reports/test-summary.json)
-    let summaryData: Record<string, unknown> = {};
-
-    if (!resolvedJsonPath) {
-      const defaultSummary = path.join(mcpWorkspace.reportsDir, 'test-summary.json');
-      if (fs.existsSync(defaultSummary)) {
-        resolvedJsonPath = defaultSummary;
-      }
-    }
-
+    // 2. Write summary.json (copy from the resolved JSON — parsed pre-gate)
     if (resolvedJsonPath && fs.existsSync(resolvedJsonPath)) {
-      try {
-        summaryData = JSON.parse(fs.readFileSync(resolvedJsonPath, 'utf-8'));
-        const jsonDest = path.join(archiveDir, 'summary.json');
-        fs.writeFileSync(jsonDest, JSON.stringify(summaryData, null, 2), 'utf-8');
-        archivedFiles.push(path.relative(repoRoot, jsonDest).replace(/\\/g, '/'));
-      } catch {
-        // Non-blocking parse error
-      }
+      const jsonDest = path.join(archiveDir, 'summary.json');
+      fs.writeFileSync(jsonDest, JSON.stringify(summaryData, null, 2), 'utf-8');
+      archivedFiles.push(path.relative(repoRoot, jsonDest).replace(/\\/g, '/'));
     }
 
     // 3. Write canonical metadata.json (schema v2)
@@ -150,11 +234,51 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
       qaNotes,
       triggeredBy: 'pipeline',
       triggerSource: 'mcp-tool',
+      analysisVerdict: gate.verdict,
+      analysisVerified: gate.analysisVerified,
+      analysisIssues: gate.issues.length > 0 ? gate.issues : undefined,
       files: archivedFiles,
     };
     const metaDest = path.join(archiveDir, 'metadata.json');
     fs.writeFileSync(metaDest, JSON.stringify(metadata, null, 2), 'utf-8');
     archivedFiles.push(path.relative(repoRoot, metaDest).replace(/\\/g, '/'));
+
+    // 3b. Carry the exact sidecar snapshot used by the gate. The destination
+    // is written atomically under its lock; latest is reset only after the
+    // archive sidecar is committed. A copy failure is fatal for APPROVE.
+    if (latestNotesSnapshot) {
+      const notesDest = path.join(archiveDir, 'test-notes.json');
+      const destinationLock = `${notesDest}.lock`;
+      try {
+        if (fs.existsSync(notesDest)) throw new Error('archive notes destination already exists');
+        fs.mkdirSync(destinationLock);
+        if (fs.existsSync(notesDest)) throw new Error('archive notes destination already exists');
+        const tmp = `${notesDest}.${process.pid}.tmp`;
+        fs.writeFileSync(tmp, JSON.stringify(latestNotesSnapshot, null, 2), 'utf-8');
+        fs.renameSync(tmp, notesDest);
+        archivedFiles.push(path.relative(repoRoot, notesDest).replace(/\\/g, '/'));
+        fs.rmSync(path.join(mcpWorkspace.reportsDir, 'test-notes.json'), { force: true });
+      } catch (err) {
+        try {
+          fs.rmSync(`${notesDest}.${process.pid}.tmp`, { force: true });
+        } catch {
+          // Best-effort temp cleanup
+        }
+        if (qaDecision === 'APPROVE') {
+          return {
+            status: 'error',
+            code: 'NOTES_ARCHIVE_FAILED',
+            message: `NOTES_ARCHIVE_FAILED: could not carry test-notes.json: ${err instanceof Error ? err.message : String(err)}`,
+          };
+        }
+      } finally {
+        try {
+          fs.rmSync(destinationLock, { recursive: true, force: true });
+        } catch {
+          // Best-effort lock release
+        }
+      }
+    }
 
     // 4. Snapshot attachments folder if exists
     const srcAttachments = path.join(mcpWorkspace.reportsDir, 'attachments');
@@ -170,13 +294,39 @@ export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
 
     const archivePath = path.relative(repoRoot, archiveDir).replace(/\\/g, '/');
 
+    const warnings: string[] = [];
+    if (gate.verdict === 'incomplete') {
+      warnings.push(
+        'WARNING: pipeline report has no completed AI analysis (analysis.completed !== true).',
+      );
+    }
+    if (gate.verdict === 'inconsistent') {
+      warnings.push(
+        `WARNING: analysis counts do not match archived evidence: ${gate.issues.join('; ')}.`,
+      );
+    }
+    if (gate.verdict === 'unverifiable') {
+      warnings.push(
+        'WARNING: AI analysis could not be verified (no analysis block, no agent run insights).',
+      );
+    }
+    const notesArchived = archivedFiles.some((file) => file.endsWith('/test-notes.json'));
+    latestLock.release();
     return {
       status: 'success',
       archivePath,
       archivedFiles,
-      message: `Report archived to ${archivePath} (${archivedFiles.length} item(s)).`,
+      analysisVerdict: gate.verdict,
+      analysisComplete: analysisComplete ?? gate.verdict === 'complete',
+      analysisVerified: gate.analysisVerified,
+      analysisIssues: gate.issues.length > 0 ? gate.issues : undefined,
+      notesArchived,
+      message:
+        `Report archived to ${archivePath} (${archivedFiles.length} item(s)).` +
+        `${warnings.length > 0 ? ` ${warnings.join(' ')}` : ''}`,
     };
   } catch (error) {
+    latestLock.release();
     const message = error instanceof Error ? error.message : 'Unknown error archiving report';
     return { status: 'error', message };
   }

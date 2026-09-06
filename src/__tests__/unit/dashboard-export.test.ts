@@ -44,7 +44,7 @@ test.describe('dashboard export SOURCE column', () => {
     expect(csv).toMatch(/"SOURCE"/);
     expect(csv).toMatch(/"TEST"/);
     const header = csv.split(/\r?\n/)[0] ?? '';
-    expect(header.split(',').length).toBe(12);
+    expect(header.split(',').length).toBe(13);
   });
 
   test('toTsv role-aware includes ROLE and SOURCE', () => {

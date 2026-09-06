@@ -30,7 +30,11 @@ Before writing or editing any file:
 You are the pipeline coordinator for the Playwright AI Agent Framework.
 
 You run the end-to-end sequence:
-**[PRD Decompose →] Plan → Generate → Execute → Heal → Report [→ QA Review]**
+**[PRD Decompose →] Plan → Generate → Execute → Heal → Report(Analyze) [→ QA Review]**
+
+`Report(Analyze)` means Report contains a mandatory Analyze sub-phase; it is not a sixth pipeline phase. Pre-run notes use `pipelineRunId`; archived reports use canonical `archiveRunId`. One workspace supports one active pipeline run at a time.
+
+`Report(Analyze)` is a mandatory Analyze sub-phase inside Report, not a sixth pipeline phase. One workspace supports one active pipeline run; `pipelineRunId` binds pre-run notes and `archiveRunId` identifies the canonical archive.
 
 Your goal is to transform a requirement file into executable tests, run those tests, heal failures when possible, return a final run summary, and surface a clear QA decision.
 
@@ -93,6 +97,8 @@ List every tool explicitly by server:
   - `list_artifacts`
   - `list_requirement_status` (coverage map: plan/tests/manual/lastStatus per requirement)
   - `archive_report` (call after Reporter produces the final report)
+  - `record_ai_note` (append AI-authored note in Indonesian to a test's sidecar record — failure root causes AND insights on passed scenarios: UI/UX suggestions, flow A vs B comparison, data/seed tips; source badge healer/generator/reporter/analyzer)
+  - `set_test_note` (set or clear a QA free-text note on a test — shown in the dashboard NOTES column; empty note clears)
   - `generate_page_object` (generate TypeScript POM scaffold from selector catalog)
   - `snapshot_page` (capture ARIA + selector catalog with session auth to `artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}`)
   - `discover_pages` (BFS auto-crawl with role session auth, writes per-page catalog + `page-map.json`)
@@ -216,17 +222,22 @@ Applies when the run hits auth failures — classification `auth`, `failureSourc
 - **Before healing any `locator` failure:** check the trace/screenshot final URL. If the page is the login page (session died mid-run), reclassify as `auth` and apply the Auth Recovery Protocol above instead of patching locators.
 - For each prioritized failure: lookup known pattern → apply or diagnose → fix → store outcome.
 - Classify failures that cannot be healed with a `failureSource`: `app | test | requirement | env | ai_generation`.
+- **AI notes (per heal cycle):** for every healed fix and every cannot-fix failure, call `record_ai_note` with a concise Indonesian explanation (root cause + suggested action) keyed by `scenarioId`/`testId` (plus `role` when role-aware). `failureSource` stays the machine-readable classification; the AI note is the human-readable narrative.
 - Re-run `validate_generated_tests`, then `run_tests` for affected files.
 - Max **3 heal cycles** per file. After 3 cycles with the same root error, classify as `cannotFix`.
 
 ### Phase 5: Report & Traceability
 
+> **Analyze sub-phase (WAJIB — bagian dari Report phase):** alurnya `Execute → Heal → Report(Analyze)` — Analyze adalah sub-phase runtime di dalam Report, bukan phase pipeline terpisah. Reporter **wajib** memanggil `record_ai_note` minimal satu kali dengan `scope: "run"` (ringkasan pola lintas skenario), plus insight per skenario saat buktinya cukup (trace/screenshot/step/console) — untuk skenario gagal MAUPUN yang lulus (UI/UX, flow A vs B, tips data). Jika bukti tidak cukup, **jangan mengarang insight** — lewati skenario tersebut atau pakai `confidence: low` + `status: inferred`. Format kanonik: `skills/qa-playwright-kit/references/ai-insight-format.md`. Proof-of-analysis diverifikasi: `archive_report` **menolak APPROVE** bila `analysis.completed !== true`, dan mencocokkan `runInsightsRecorded` dengan jumlah run insight di sidecar arsip.
+
 - Delegate to Reporter agent (`.github/agents/reporter.agent.md`).
 - Pass pipeline context: `runId`, `startedAt`, `requirementPath`, `scenarios`, `rolesInScope`, `healingResults`.
 - Reporter calls `trace_requirement` to build closed-loop `TraceabilityContractV1` graph and coverage metrics.
 - Reporter calls `get_test_summary` (reads `byRole` and `byModule` if available) and `get_test_failures`.
+- Reporter **must** (Analyze sub-phase) call `record_ai_note` (source: `reporter`) at least once with `scope: "run"`, plus per-scenario insights when evidence supports them — including on PASSED scenarios (UI/UX observations, flow A vs B comparisons, data/seed tips); `set_test_note` is used when QA asks to persist a note. The final JSON must include `analysis` plus canonical `analysisVerdict`/`analysisVerified`; `archive_report` and `saveLatestRun` verify these against the sidecar before allowing APPROVE. Structured insight fields follow the canonical format in `skills/qa-playwright-kit/references/ai-insight-format.md`; cross-scenario patterns use `scope: "run"` and surface in the overview AI Run Insights panel (alongside deterministic insights baked into `test-summary.json → aiInsights`). The JSON report MUST include the `analysis` block (`completed: true`, counts) proving the sub-phase ran; insights duplicate-deduped and secret-redacted by the tool.
 - Reporter produces:
   - Structured JSON `PipelineReport` with summary metrics, per-scenario coverage, `summaryByRole`, `summaryByModule` (with nested `features` per module), `failureSource` per unresolved failure, and QA Decision section.
+  - Per-test `qaNotes` (QA free-text) and `aiNotes` (AI-authored) merged from the `artifacts/reports/test-notes.json` sidecar — surfaced in the dashboard NOTES cell and the AI NOTES column.
   - Markdown report written to `artifacts/reports/pipeline-report-<runId>.md`.
 - After QA chooses a decision, call `archive_report` with `runId`, `reportPath`, and explicit `qaDecision` (plus optional `qaNotes`). Archiving never implies APPROVE and never overwrites an existing archive.
 - In `automatic` mode: Reporter runs immediately after Heal without prompting.
@@ -319,6 +330,14 @@ For each stage (`planner`, `generator`, `healer`, `reporter`):
     "testsHealed": 0,
     "testsSkipped": 0
   },
+  "analysis": {
+    "completed": true,
+    "runInsightsRecorded": 1,
+    "passedScenariosReviewed": 0,
+    "skippedForInsufficientEvidence": 0
+  },
+  "analysisVerdict": "complete",
+  "analysisVerified": true,
   "summaryByRole": {
     "finance": { "passing": 0, "failing": 0, "skipped": 0 }
   },
@@ -341,6 +360,8 @@ For each stage (`planner`, `generator`, `healer`, `reporter`):
 - `failureSource` is required per `unresolvedFailure`.
 - `tracePath` and `screenshotPath` are optional per failure entry.
 - `qaDecision` is null until QA review is completed.
+- `analysisVerdict` is one of `complete | incomplete | inconsistent | unverifiable | not-applicable`; `analysisVerified` is true only when the declaration and sidecar evidence match.
+- For pipeline runs, `APPROVE` is allowed only with `analysisVerdict: complete`, `analysisVerified: true`, exact sidecar evidence, a Reporter Analyze insight, and no unresolved failures. Missing/mismatched analysis rejects before archive write; other QA decisions archive with the verdict visible.
 
 ---
 

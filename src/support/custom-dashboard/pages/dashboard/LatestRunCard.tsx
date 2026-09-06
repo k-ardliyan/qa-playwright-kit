@@ -56,6 +56,21 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
             <span safe>· Duration: {durationSec}</span>
             {latestRun.testSeriesId ? <span safe>· Series: {latestRun.testSeriesId}</span> : null}
           </div>
+          {latestRun.analysisVerdict ? (
+            <div class="latest-run-card__analysis">
+              <span
+                class={`analysis-badge analysis-badge--${latestRun.analysisVerdict}`}
+                title={
+                  latestRun.analysisVerified
+                    ? 'Analysis evidence verified'
+                    : 'Analysis incomplete or not verified'
+                }
+                safe
+              >
+                AI ANALYSIS: {latestRun.analysisVerdict.toUpperCase()}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <div class={`latest-run-card__gauge ${passRateClass}`}>

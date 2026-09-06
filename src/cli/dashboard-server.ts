@@ -40,6 +40,17 @@ import {
 import { compareLatestVsPrevious, compareReports } from '../agents/reporter/report-compare';
 import type { ReportComparison } from '../agents/reporter/report-compare';
 import {
+  loadLatestTestNotes,
+  loadArchivedTestNotes,
+  upsertLatestTestNote,
+  upsertArchivedTestNote,
+  testNoteKey,
+  composeAiNotes,
+  mergeTestNotes,
+  MAX_TEST_NOTE_LENGTH,
+} from '../agents/reporter/test-notes';
+import type { CollectedTestCase } from '../support/custom-dashboard/types';
+import {
   buildComparePage,
   buildHistoryPage,
   buildDetailPage,
@@ -52,6 +63,8 @@ import { ComparePage } from '../support/custom-dashboard/pages/compare';
 import { ReportDetailPage } from '../support/custom-dashboard/pages/report-detail';
 import { deriveDisplayName } from '../support/custom-dashboard/domain/run';
 import { resolveWorkspaceReportDir } from '../shared/workspace-paths';
+import { resolveCurrentRunIdentity } from '../agents/reporter/run-context';
+import { noteKeyCandidates } from '../agents/reporter/test-notes';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -60,6 +73,17 @@ const HEARTBEAT_TIMEOUT_MS = 20_000; // server shuts down if no heartbeat for 20
 
 function getSummaryPath(): string {
   return path.join(resolveWorkspaceReportDir(), 'test-summary.json');
+}
+
+/**
+ * Canonical archive runId of the latest run (run-YYYYMMDD-HHmmss-SSS from the
+ * run timestamp) — the same identity the archiver will use. A pending
+ * pipeline run (active pipeline, pre-run notes) takes precedence. Null when
+ * neither exists. Notes written for the latest run are stamped with this so
+ * they can never leak into a subsequent run.
+ */
+function canonicalLatestArchiveRunId(): string | null {
+  return resolveCurrentRunIdentity()?.runId ?? null;
 }
 
 // ─── Arg parsing ─────────────────────────────────────────────────────────────
@@ -115,6 +139,9 @@ function normalizeTestCases(
   testCases: unknown[],
   archivedRunId?: string,
 ): import('../support/custom-dashboard/types').CollectedTestData[] {
+  // Per-test notes live in the sidecar — latest sidecar for the latest run,
+  // archived sidecar for archived runs. Missing/corrupt file reads as empty.
+  const notes = archivedRunId ? loadArchivedTestNotes(archivedRunId) : loadLatestTestNotes();
   return testCases.map((tc) => {
     const t = tc as Record<string, unknown>;
     const rawAttachments = Array.isArray(t['attachments'])
@@ -135,7 +162,7 @@ function normalizeTestCases(
         relativePath: `/api/archive/${encodeURIComponent(archivedRunId)}/${encodedPath}`,
       };
     });
-    return {
+    const base: import('../support/custom-dashboard/types').CollectedTestData = {
       // Fields present in CollectedTestCase
       testId: (t['testId'] as string) || '',
       scenarioId: (t['scenarioId'] as string) || '',
@@ -156,6 +183,9 @@ function normalizeTestCases(
       failureSource: t['failureSource'] as
         | import('../support/custom-dashboard/types').FailureSource
         | undefined,
+      // Per-test notes: baked aiNotes from the summary, sidecar overlay below
+      qaNotes: typeof t['qaNotes'] === 'string' ? (t['qaNotes'] as string) : undefined,
+      aiNotes: typeof t['aiNotes'] === 'string' ? (t['aiNotes'] as string) : undefined,
       // Fields not in CollectedTestCase — safe defaults for serve mode
       fullTitle: (t['fullTitle'] as string) || (t['title'] as string) || '',
       filePath: (t['filePath'] as string) || '',
@@ -174,6 +204,22 @@ function normalizeTestCases(
           ? (t['attachments'] as Array<{ kind?: string }>).some((a) => a.kind === 'trace')
           : false),
     };
+
+    // Overlay sidecar notes (QA free-text; AI agent narrative composed over
+    // the baked deterministic notes). Alias-aware: `user` ↔ `general`.
+    try {
+      for (const key of noteKeyCandidates(base.scenarioId, base.testId, base.role)) {
+        const entry = notes.notes[key];
+        if (!entry) continue;
+        base.qaNotes = entry.qaNotes.trim() ? entry.qaNotes : undefined;
+        const ai = composeAiNotes(base.aiNotes, entry.aiNotes);
+        base.aiNotes = ai || undefined;
+        break;
+      }
+    } catch {
+      // Missing ids — row simply has no notes key
+    }
+    return base;
   });
 }
 
@@ -269,6 +315,7 @@ function renderDashboardOverviewPage(): string {
     latestSummary,
     latestRunArchived,
     history,
+    testNotes: loadLatestTestNotes(),
   });
 
   return String(
@@ -893,51 +940,73 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
         }
         const summary = loadArchivedSummary(runId);
         const metadata = loadArchivedMetadata(runId);
-        const scenarios = Array.isArray((summary as Record<string, unknown> | null)?.testCases)
+        const rawScenarios = Array.isArray((summary as Record<string, unknown> | null)?.testCases)
           ? ((summary as Record<string, unknown>).testCases as Array<Record<string, unknown>>)
           : [];
+        // Overlay the archived run's per-test notes sidecar (QA + AI notes)
+        const mergedScenarios = mergeTestNotes(
+          rawScenarios as unknown as CollectedTestCase[],
+          loadArchivedTestNotes(runId),
+        ) as unknown as Array<Record<string, unknown>>;
+        const scenarios = mergedScenarios.map(
+          (s: Record<string, unknown>) =>
+            ({
+              testId: (s['testId'] as string) ?? '',
+              scenarioId: (s['scenarioId'] as string) ?? '',
+              title: (s['title'] as string) ?? '',
+              fullTitle: (s['fullTitle'] as string) ?? (s['title'] as string) ?? '',
+              filePath: (s['filePath'] as string) ?? '',
+              retry: (s['retry'] as number) ?? 0,
+              status: (s['status'] as string) ?? 'skipped',
+              role: (s['role'] as string) ?? '',
+              module: (s['module'] as string) ?? '',
+              feature: (s['feature'] as string) ?? '',
+              priority: (s['priority'] as string) ?? 'medium',
+              duration: (s['duration'] as number) ?? undefined,
+              failureSource: (s['failureSource'] as string) ?? '',
+              errorMessage: (s['errorMessage'] as string) ?? '',
+              inputData: (s['inputData'] as Record<string, string>) ?? {},
+              expectedResult: (s['expectedResult'] as string) ?? '',
+              actualResult: (s['actualResult'] as string) ?? '',
+              affectedLayer: (s['affectedLayer'] as string[]) ?? [],
+              attachmentCount: (s['attachmentCount'] as number) ?? 0,
+              hasTrace: (s['hasTrace'] as boolean) ?? false,
+              qaNotes: (s['qaNotes'] as string) ?? '',
+              aiNotes: (s['aiNotes'] as string) ?? '',
+              errors: (s['errors'] as Array<{ message: string; stack?: string }>) ?? [],
+              steps:
+                (s['steps'] as Array<{
+                  title: string;
+                  status: string;
+                  duration: number;
+                  errorMessage?: string;
+                  steps?: unknown[];
+                }>) ?? [],
+              attachments:
+                (s['attachments'] as Array<{
+                  name: string;
+                  contentType?: string;
+                  relativePath: string;
+                  kind: string;
+                }>) ?? [],
+            }) as Record<string, unknown>,
+        );
         fragmentHtml = buildDetailPage({
           runId,
           summary,
           metadata,
-          scenarios: scenarios.map((s) => ({
-            testId: (s['testId'] as string) ?? '',
-            scenarioId: (s['scenarioId'] as string) ?? '',
-            title: (s['title'] as string) ?? '',
-            fullTitle: (s['fullTitle'] as string) ?? (s['title'] as string) ?? '',
-            filePath: (s['filePath'] as string) ?? '',
-            retry: (s['retry'] as number) ?? 0,
-            status: (s['status'] as string) ?? 'skipped',
-            role: (s['role'] as string) ?? '',
-            module: (s['module'] as string) ?? '',
-            feature: (s['feature'] as string) ?? '',
-            priority: (s['priority'] as string) ?? 'medium',
-            duration: (s['duration'] as number) ?? undefined,
-            failureSource: (s['failureSource'] as string) ?? '',
-            errorMessage: (s['errorMessage'] as string) ?? '',
-            inputData: (s['inputData'] as Record<string, string>) ?? {},
-            expectedResult: (s['expectedResult'] as string) ?? '',
-            actualResult: (s['actualResult'] as string) ?? '',
-            affectedLayer: (s['affectedLayer'] as string[]) ?? [],
-            attachmentCount: (s['attachmentCount'] as number) ?? 0,
-            hasTrace: (s['hasTrace'] as boolean) ?? false,
-            errors: (s['errors'] as Array<{ message: string; stack?: string }>) ?? [],
-            steps:
-              (s['steps'] as Array<{
-                title: string;
-                status: string;
-                duration: number;
-                errorMessage?: string;
-                steps?: unknown[];
-              }>) ?? [],
-            attachments:
-              (s['attachments'] as Array<{
-                name: string;
-                contentType?: string;
-                relativePath: string;
-                kind: string;
-              }>) ?? [],
-          })),
+          // Deterministic insights baked into the archived summary + agent
+          // insights from the archived sidecar — both, clearly sourced.
+          runInsights: [
+            ...(Array.isArray((summary as Record<string, unknown> | null)?.['aiInsights'])
+              ? ((summary as Record<string, unknown>)['aiInsights'] as unknown[])
+                  .filter((v): v is string => typeof v === 'string')
+                  .map((text) => ({ text, source: 'analyzer' }))
+              : []),
+            ...(loadArchivedTestNotes(runId).runInsights ?? []),
+          ],
+          scenarios:
+            scenarios as import('../support/custom-dashboard/build-fragments').DetailScenario[],
         });
       } else {
         jsonResponse(res, 404, { error: `Unknown fragment: ${view}` });
@@ -971,6 +1040,7 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
       latestSummary,
       latestRunArchived,
       history,
+      testNotes: loadLatestTestNotes(),
     });
     jsonResponse(res, 200, overview);
     return;
@@ -1027,6 +1097,13 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     }
     try {
       const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
+      // Overlay per-test sidecar notes for consumers reading testCases
+      if (Array.isArray(summary?.testCases)) {
+        summary.testCases = mergeTestNotes(
+          summary.testCases as CollectedTestCase[],
+          loadLatestTestNotes(),
+        );
+      }
       const latestRun = getLatestRunInfo();
       jsonResponse(res, 200, {
         summary,
@@ -1092,6 +1169,149 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
       });
     }
     return;
+  }
+
+  // ── Per-test notes API — sidecar read/write (QA + AI notes) ──────────────
+  // GET  /api/notes/latest | /api/runs/latest/notes
+  // POST /api/notes/latest | /api/runs/latest/notes   body {scenarioId|testId, role?, qaNotes}
+  // GET  /api/archive/:runId/notes | /api/runs/:runId/notes
+  // POST /api/archive/:runId/notes | /api/runs/:runId/notes
+  const latestNotesPathname =
+    pathname === '/api/notes/latest' || pathname === '/api/runs/latest/notes';
+  const archivedNotesMatch = pathname.match(/^\/api\/(?:archive|runs)\/([^/]+)\/notes$/);
+  if (latestNotesPathname) {
+    if (method === 'GET') {
+      jsonResponse(res, 200, {
+        runId: canonicalLatestArchiveRunId(),
+        notes: loadLatestTestNotes().notes,
+        runInsights: loadLatestTestNotes().runInsights ?? [],
+      });
+      return;
+    }
+    if (method === 'POST' || method === 'PUT') {
+      try {
+        const body = await readBody(req);
+        if (!isRecord(body)) {
+          validationError(res, 'body', 'INVALID_BODY', 'request body must be a JSON object');
+          return;
+        }
+        const scenarioId = typeof body['scenarioId'] === 'string' ? body['scenarioId'].trim() : '';
+        const testId = typeof body['testId'] === 'string' ? body['testId'].trim() : '';
+        if (!scenarioId && !testId) {
+          validationError(
+            res,
+            'scenarioId',
+            'INVALID_KEY',
+            'scenarioId or testId is required to identify the test row',
+          );
+          return;
+        }
+        const role = typeof body['role'] === 'string' ? body['role'] : undefined;
+        const qaNotes = body['qaNotes'] ?? body['note'];
+        if (qaNotes === undefined || typeof qaNotes !== 'string') {
+          validationError(res, 'qaNotes', 'INVALID_FIELD', 'qaNotes must be a string');
+          return;
+        }
+        if (qaNotes.length > MAX_TEST_NOTE_LENGTH) {
+          validationError(
+            res,
+            'qaNotes',
+            'INVALID_FIELD',
+            `qaNotes exceeds the maximum of ${MAX_TEST_NOTE_LENGTH} characters`,
+          );
+          return;
+        }
+        const key = testNoteKey(scenarioId, testId, role);
+        // Bind the note to the canonical run identity — an unstamped sidecar
+        // would be treated as stale by the next reporter run (notes leaking
+        // from run A into run B is exactly what this prevents).
+        const entry = upsertLatestTestNote(
+          key,
+          { qaNotes },
+          { runId: canonicalLatestArchiveRunId() ?? undefined },
+        );
+        broadcastEvent('notes-updated', { scope: 'latest', key });
+        jsonResponse(res, 200, { ok: true, key, entry });
+      } catch (err) {
+        const status = (err as { code?: number }).code === 413 ? 413 : 400;
+        jsonResponse(res, status, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+  } else if (archivedNotesMatch) {
+    if (method === 'GET') {
+      const runId = archivedNotesMatch[1] ?? '';
+      if (!isValidRunId(runId)) {
+        jsonResponse(res, 400, { error: 'Invalid runId', code: 'INVALID_RUN_ID', field: 'runId' });
+        return;
+      }
+      const archivedNotes = loadArchivedTestNotes(runId);
+      jsonResponse(res, 200, {
+        runId,
+        notes: archivedNotes.notes,
+        runInsights: archivedNotes.runInsights ?? [],
+      });
+      return;
+    }
+    if (method === 'POST' || method === 'PUT') {
+      try {
+        const body = await readBody(req);
+        if (!isRecord(body)) {
+          validationError(res, 'body', 'INVALID_BODY', 'request body must be a JSON object');
+          return;
+        }
+        const runId = archivedNotesMatch[1] ?? '';
+        if (!isValidRunId(runId)) {
+          jsonResponse(res, 400, {
+            error: 'Invalid runId',
+            code: 'INVALID_RUN_ID',
+            field: 'runId',
+          });
+          return;
+        }
+        const scenarioId = typeof body['scenarioId'] === 'string' ? body['scenarioId'].trim() : '';
+        const testId = typeof body['testId'] === 'string' ? body['testId'].trim() : '';
+        if (!scenarioId && !testId) {
+          validationError(
+            res,
+            'scenarioId',
+            'INVALID_KEY',
+            'scenarioId or testId is required to identify the test row',
+          );
+          return;
+        }
+        const role = typeof body['role'] === 'string' ? body['role'] : undefined;
+        const qaNotes = body['qaNotes'] ?? body['note'];
+        if (qaNotes === undefined || typeof qaNotes !== 'string') {
+          validationError(res, 'qaNotes', 'INVALID_FIELD', 'qaNotes must be a string');
+          return;
+        }
+        if (qaNotes.length > MAX_TEST_NOTE_LENGTH) {
+          validationError(
+            res,
+            'qaNotes',
+            'INVALID_FIELD',
+            `qaNotes exceeds the maximum of ${MAX_TEST_NOTE_LENGTH} characters`,
+          );
+          return;
+        }
+        const key = testNoteKey(scenarioId, testId, role);
+        const entry = upsertArchivedTestNote(runId, key, { qaNotes });
+        broadcastEvent('notes-updated', { runId, key });
+        jsonResponse(res, 200, { ok: true, key, entry });
+      } catch (err) {
+        const status = (err as { code?: number }).code === 413 ? 413 : 400;
+        const message = err instanceof Error ? err.message : String(err);
+        if (/Archive run not found/.test(message)) {
+          jsonResponse(res, 404, { error: message });
+          return;
+        }
+        jsonResponse(res, status, { error: message });
+      }
+      return;
+    }
   }
 
   // ── GET /api/archive/:runId or GET /api/runs/:runId ──────────────────────
@@ -1160,7 +1380,7 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
         jsonResponse(res, 404, { error: `Archive ${escapeHtml(runId)} not found` });
         return;
       }
-      const merged = {
+      const merged: Record<string, unknown> = {
         runId,
         ...(summary ?? {}),
         ...(metadata
@@ -1177,6 +1397,12 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
             }
           : {}),
       };
+      if (Array.isArray(merged.testCases)) {
+        merged.testCases = mergeTestNotes(
+          merged.testCases as CollectedTestCase[],
+          loadArchivedTestNotes(runId),
+        );
+      }
       jsonResponse(res, 200, merged);
     } catch (err) {
       jsonResponse(res, 500, {

@@ -348,6 +348,7 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '    sse.addEventListener("archive-saved",function(){ refreshCurrentView(); });',
     '    sse.addEventListener("archive-deleted",function(){ refreshCurrentView(); });',
     '    sse.addEventListener("archive-updated",function(){ refreshCurrentView(); });',
+    '    sse.addEventListener("notes-updated",function(){ if(document.getElementById("qa-note-modal")&&document.getElementById("qa-note-modal").classList.contains("modal--open"))return; refreshCurrentView(); });',
     '    sse.onerror=function(){',
     '      try{sse.close();}catch(e){}',
     '      sse=null;',

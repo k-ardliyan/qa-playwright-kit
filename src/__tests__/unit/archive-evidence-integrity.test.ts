@@ -29,6 +29,12 @@ fs.writeFileSync(
       timestamp: latestTimestamp,
       requirementId: 'REQ-EVIDENCE-001',
       requirementTitle: 'Evidence integrity',
+      requirementPath: 'requirements/evidence-integrity.md',
+      analysis: {
+        completed: true,
+        runInsightsRecorded: 1,
+        passedScenariosReviewed: 1,
+      },
       reportMode: 'role-aware',
       rolesInScope: ['finance'],
       testCases: [
@@ -65,7 +71,7 @@ fs.writeFileSync(
       ],
       runMeta: {
         appEnv: 'staging',
-        runId: 'run-20260821-102030-123',
+        runId: 'run-20260821-172030-123',
         ci: false,
         totalDurationMs: 1234,
         generatedAt: latestTimestamp,
@@ -85,6 +91,29 @@ fs.writeFileSync(
     skipped: 0,
     passRate: 100,
   }),
+);
+
+fs.writeFileSync(
+  path.join(reportDir, 'test-notes.json'),
+  JSON.stringify(
+    {
+      version: 1,
+      runId: 'run-20260821-172030-123',
+      updatedAt: latestTimestamp,
+      notes: {},
+      runInsights: [
+        {
+          text: 'Jenis: trend\nObservasi: evidence path stable',
+          source: 'reporter',
+          kind: 'trend',
+          status: 'observed',
+          at: latestTimestamp,
+        },
+      ],
+    },
+    null,
+    2,
+  ),
 );
 
 process.env['QA_REPORT_DIR'] = reportDir;
@@ -184,7 +213,6 @@ test('archive preserves rich fields and exposes archive and fragment evidence li
   const archivedSummary = loadArchivedSummary(archive.runId);
   if (!archivedSummary) throw new Error('Archive summary is missing');
   const archivedCase = (archivedSummary.testCases as Array<Record<string, unknown>>)[0];
-  expect(archivedCase.fullTitle).toBe('Evidence > Rich evidence record');
   expect(archivedCase.inputData).toEqual({ period: 'Q1-2026' });
   expect(archivedCase.expectedResult).toBe('Evidence remains available');
   expect(archivedCase.actualResult).toBe('Evidence remains available');

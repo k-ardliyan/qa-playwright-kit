@@ -51,6 +51,9 @@ export interface LatestRunSummary {
   durationMs?: number;
   isArchived: boolean;
   qaDecision?: QaDecision | '';
+  analysisVerdict?: string;
+  analysisVerified?: boolean;
+  analysisIssues?: string[];
 }
 
 export interface DashboardOverviewData {
@@ -66,4 +69,23 @@ export interface DashboardOverviewData {
     notes: string;
     savedAt: string;
   }>;
+  /** Cross-scenario AI insights: deterministic (reporter) + agent-authored (sidecar). */
+  aiRunInsights: AiRunInsight[];
+}
+
+/** One entry of the AI Run Insights panel. */
+export interface AiRunInsight {
+  text: string;
+  source: string;
+  kind?: string;
+  status?: string;
+  priority?: string;
+  confidence?: string;
+  at?: string;
+  /** Traceability metadata — what the insight affects. */
+  affected?: {
+    tests?: string[];
+    modules?: string[];
+    roles?: string[];
+  };
 }

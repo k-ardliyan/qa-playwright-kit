@@ -15,6 +15,7 @@ import { readTextFile } from '../utils/file-reader';
 import { safeJsonParse } from '../utils/json-parser';
 import { probeAuthRoles, type AuthRoleStatus } from '../utils/auth-probe';
 import { computeSourceHash } from '../contracts';
+import { ensurePendingRun } from '../utils/run-context';
 
 interface AppEnvResolution {
   appEnv: string;
@@ -86,6 +87,9 @@ function loadAppEnvResolver(workspaceRoot: string): AppEnvResolver {
 export interface PipelineStatusOutput {
   status: 'success' | 'no_state';
   message: string;
+  /** Pending pipeline run id (run-YYYYMMDD-HHmmss-SSS) when a run is active —
+   *  pass this as `runId` to note tools so pre-run notes bind to this run. */
+  pipelineRunId?: string;
   state?: {
     runId: string;
     status: string;
@@ -268,6 +272,17 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
 
   // ── Actionable guidance ─────────────────────────────────────────────────
   const nextSteps: string[] = [...authWarnings];
+
+  // While a pipeline is actively running, make sure pre-run notes (Generator/
+  // Plan phase) are bound to the run identity the reporter will adopt.
+  let pipelineRunId: string | null = null;
+  if (state.status === 'running') {
+    try {
+      pipelineRunId = ensurePendingRun().runId;
+    } catch {
+      // Non-blocking — note writers fall back to latest-run attribution
+    }
+  }
   if (state.status === 'running' || state.status === 'paused') {
     if (state.missingArtifacts.length > 0) {
       nextSteps.push(
@@ -298,5 +313,6 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
     state,
     lastRun,
     environment,
+    ...(pipelineRunId ? { pipelineRunId } : {}),
   };
 }

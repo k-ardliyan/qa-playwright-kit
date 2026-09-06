@@ -194,6 +194,19 @@ export function HistoryRunsTable({
                   <div class="run-machine-id muted font-mono" safe>
                     {entry.runId}
                   </div>
+                  {entry.analysisVerdict ? (
+                    <span
+                      class={`analysis-badge analysis-badge--${entry.analysisVerdict}`}
+                      title={
+                        entry.analysisVerified
+                          ? 'Analysis evidence verified'
+                          : 'Analysis incomplete or not verified'
+                      }
+                      safe
+                    >
+                      AI: {entry.analysisVerdict.toUpperCase()}
+                    </span>
+                  ) : null}
                 </DataTableCell>
                 <DataTableCell class="history-env">
                   <span class="env-tag" safe>

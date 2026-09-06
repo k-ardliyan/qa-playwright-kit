@@ -59,7 +59,24 @@ export interface PipelineReport {
   >;
   coverage: ScenarioCoverage[];
   unresolvedFailures: UnresolvedFailure[];
+  /** Analyze sub-phase contract — proof the Reporter ran the analysis. */
+  analysis?: AnalysisSummary;
   qaDecision?: string | null;
+}
+
+/**
+ * Runtime proof of the Analyze sub-phase (Execute → Heal → Analyze → Report).
+ * The Reporter agent fills this from its record_ai_note activity; consumers
+ * can treat `completed !== true` as an incomplete report.
+ */
+export interface AnalysisSummary {
+  completed: boolean;
+  /** Run-level insights recorded via record_ai_note scope=run. */
+  runInsightsRecorded?: number;
+  /** Passed scenarios inspected for product insights. */
+  passedScenariosReviewed?: number;
+  /** Scenarios skipped because evidence was insufficient (no fabrication). */
+  skippedForInsufficientEvidence?: number;
 }
 
 /**
@@ -84,6 +101,8 @@ export interface BuildReportInput {
     status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-generated';
   }>;
   unresolvedFailures?: UnresolvedFailure[];
+  /** Analyze sub-phase proof (Execute → Heal → Analyze → Report). */
+  analysis?: AnalysisSummary;
 }
 
 /**
@@ -128,9 +147,23 @@ export function buildReport(input: BuildReportInput): PipelineReport {
     },
     coverage,
     unresolvedFailures: input.unresolvedFailures || [],
+    // Always present so consumers can treat `completed !== true` as an
+    // incomplete report — a missing Analyze sub-phase is a fact, not an
+    // absent field.
+    analysis: input.analysis ?? { completed: false },
   };
 
   return report;
+}
+
+/**
+ * Analyze-phase gate: a report is analysis-complete only when the Reporter
+ * proved the Analyze sub-phase ran (`analysis.completed === true`). Consumers
+ * (archive tooling, dashboards) use this to MARK — not silently trust — an
+ * unanalyzed report.
+ */
+export function isAnalysisComplete(report: PipelineReport): boolean {
+  return report.analysis?.completed === true;
 }
 
 /**
@@ -204,6 +237,28 @@ export function writeReportMarkdown(report: PipelineReport): string {
     }
     lines.push('');
   }
+
+  // AI Analysis section — runtime proof of the Analyze sub-phase
+  const analysis = report.analysis ?? { completed: false };
+  lines.push('## AI Analysis');
+  lines.push('');
+  lines.push(`**Completed:** ${analysis.completed}`);
+  if (analysis.runInsightsRecorded !== undefined) {
+    lines.push(`**Run insights recorded:** ${analysis.runInsightsRecorded}`);
+  }
+  if (analysis.passedScenariosReviewed !== undefined) {
+    lines.push(`**Passed scenarios reviewed:** ${analysis.passedScenariosReviewed}`);
+  }
+  if (analysis.skippedForInsufficientEvidence !== undefined) {
+    lines.push(`**Skipped for insufficient evidence:** ${analysis.skippedForInsufficientEvidence}`);
+  }
+  if (!analysis.completed) {
+    lines.push('');
+    lines.push(
+      '> ⚠️ Analyze sub-phase tidak terbukti berjalan — insight AI naratif mungkin tidak tersedia untuk run ini.',
+    );
+  }
+  lines.push('');
 
   // QA Decision section
   lines.push('## QA Decision');
