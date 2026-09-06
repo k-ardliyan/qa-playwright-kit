@@ -10,7 +10,7 @@ process.env['QA_REPORT_DIR'] = TMP_REPORT_DIR;
 process.env['QA_ARCHIVE_DIR'] = TMP_ARCHIVE_DIR;
 
 import { test, expect } from '@playwright/test';
-import { saveLatestRun } from '../../agents/reporter/report-archive';
+import { generateRunId, saveLatestRun } from '../../agents/reporter/report-archive';
 import { appendLatestRunInsight } from '../../agents/reporter/test-notes';
 
 function writeSummary(summary: Record<string, unknown>): void {
@@ -55,8 +55,9 @@ test.describe('saveLatestRun Analyze gate (dashboard/CLI archive path)', () => {
   });
 
   test('APPROVE on a pipeline run WITH agent run insights succeeds and carries notes', () => {
+    const timestamp = '2026-09-06T09:10:00.000Z';
     writeSummary({
-      timestamp: '2026-09-06T09:10:00.000Z',
+      timestamp,
       requirementPath: 'requirements/auth/login-auto.md',
       analysis: {
         completed: true,
@@ -65,7 +66,7 @@ test.describe('saveLatestRun Analyze gate (dashboard/CLI archive path)', () => {
       },
     });
     appendLatestRunInsight({ kind: 'trend', observation: 'flow B lebih stabil' }, 'reporter', {
-      runId: 'run-20260906-161000-000',
+      runId: generateRunId(timestamp),
     });
 
     const result = saveLatestRun({ qaDecision: 'APPROVE', triggerSource: 'cli' });

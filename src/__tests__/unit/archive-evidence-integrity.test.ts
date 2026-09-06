@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { test, expect } from '@playwright/test';
+import { generateRunId } from '../../agents/reporter/report-archive';
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-evidence-integrity-'));
 const reportDir = path.join(tempRoot, 'reports');
@@ -12,6 +13,7 @@ const attachmentsDir = path.join(reportDir, 'attachments');
 const screenshotName = "evil & 'quote'.png";
 const screenshotPath = path.join(attachmentsDir, screenshotName);
 const latestTimestamp = '2026-08-21T10:20:30.123Z';
+const expectedRunId = generateRunId(latestTimestamp);
 
 fs.mkdirSync(attachmentsDir, { recursive: true });
 fs.writeFileSync(screenshotPath, 'png-fixture');
@@ -71,7 +73,7 @@ fs.writeFileSync(
       ],
       runMeta: {
         appEnv: 'staging',
-        runId: 'run-20260821-172030-123',
+        runId: expectedRunId,
         ci: false,
         totalDurationMs: 1234,
         generatedAt: latestTimestamp,
@@ -98,7 +100,7 @@ fs.writeFileSync(
   JSON.stringify(
     {
       version: 1,
-      runId: 'run-20260821-172030-123',
+      runId: expectedRunId,
       updatedAt: latestTimestamp,
       notes: {},
       runInsights: [
