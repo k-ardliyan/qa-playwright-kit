@@ -292,12 +292,12 @@ async function handleResume(
   req: AgentProtocolRequest,
   executor: PhaseExecutor,
 ): Promise<AgentProtocolResponse> {
-  const resumeResult = resumeState();
+  const resumeResult = resumeState(req.options?.runId);
 
   if ('error' in resumeResult) {
     return createErrorResponse([
       {
-        code: 'NO_RESUMABLE_RUN',
+        code: resumeResult.code ?? 'NO_RESUMABLE_RUN',
         message: resumeResult.error,
         retryable: false,
       },
@@ -321,9 +321,10 @@ async function handleResume(
   }
 
   // Manual mode: run the next phase
-  const result = await orchestrator.runPhase(resumePhase, {
-    requirementPath: state.requirementPath,
-  });
+  const result = await orchestrator.runPhase(
+    resumePhase,
+    orchestrator.getResumePhaseInput(resumePhase),
+  );
 
   if (result.status === 'success') {
     return createSuccessResponse(resumePhase, result);

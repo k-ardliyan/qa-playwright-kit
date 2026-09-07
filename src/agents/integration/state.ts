@@ -55,6 +55,8 @@ export interface PipelineState {
   requirementPath: string;
   requirementHash?: string;
   planHash?: string;
+  /** Output of the most recently completed phase, used to resume context. */
+  lastOutput?: unknown;
   orchestrationMode: 'manual' | 'automatic';
   errors: ProtocolError[];
 }
@@ -134,13 +136,22 @@ export function archiveState(state: PipelineState): void {
  * 6. Determine resume point: first phase in sequence not in completedPhases
  * 7. Return the updated state and the phase to resume from
  */
-export function resumeState():
+export function resumeState(
+  expectedRunId?: string,
+):
   | { state: PipelineState; resumePhase: PipelinePhase }
-  | { error: string } {
+  | { error: string; code?: 'NO_RESUMABLE_RUN' | 'RUN_ID_MISMATCH' } {
   const state = loadState();
 
   if (!state) {
-    return { error: 'No resumable pipeline run found.' };
+    return { error: 'No resumable pipeline run found.', code: 'NO_RESUMABLE_RUN' };
+  }
+
+  if (expectedRunId !== undefined && expectedRunId !== state.runId) {
+    return {
+      error: `Requested runId '${expectedRunId}' does not match the resumable run '${state.runId}'.`,
+      code: 'RUN_ID_MISMATCH',
+    };
   }
 
   // 1. Validate requirement staleness

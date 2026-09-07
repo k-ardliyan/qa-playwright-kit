@@ -42,6 +42,7 @@ function mockArtifactPath(phase: PipelinePhase): string {
 
 function createMockExecutor(options?: {
   failPhase?: PipelinePhase;
+  failPhases?: PipelinePhase[];
   retryable?: boolean;
 }): PhaseExecutor & { calls: Array<{ phase: PipelinePhase; input: unknown }> } {
   const calls: Array<{ phase: PipelinePhase; input: unknown }> = [];
@@ -51,7 +52,7 @@ function createMockExecutor(options?: {
     async execute(phase: PipelinePhase, input: unknown): Promise<PhaseResult> {
       calls.push({ phase, input });
 
-      if (options?.failPhase === phase) {
+      if (options?.failPhase === phase || options?.failPhases?.includes(phase)) {
         return {
           phase,
           status: 'error',
@@ -142,6 +143,79 @@ test.describe('Automatic Pipeline Run', () => {
     const completeEvents = events.filter((e) => e.eventType === 'phase:complete');
     expect(startEvents).toHaveLength(5);
     expect(completeEvents).toHaveLength(5);
+  });
+
+  test('returns an error and does not retry Report when Report fails', async () => {
+    const executor = createMockExecutor({ failPhase: 'report' });
+    const hooks = new PipelineHookRegistry();
+
+    const orchestrator = new Orchestrator(
+      { orchestrationMode: 'automatic', requirementPath: 'requirements/test-feature.md' },
+      executor,
+      hooks,
+    );
+
+    const response = await orchestrator.run();
+
+    expect(response.status).toBe('error');
+    expect(response.errors?.[0]?.phase).toBe('report');
+    expect(executor.calls.map(({ phase }) => phase)).toEqual([
+      'plan',
+      'generate',
+      'execute',
+      'heal',
+      'report',
+    ]);
+  });
+
+  test('returns an error when skip-to-Report is unable to produce a report', async () => {
+    const executor = createMockExecutor({ failPhases: ['plan', 'report'] });
+    const hooks = new PipelineHookRegistry();
+
+    const orchestrator = new Orchestrator(
+      { orchestrationMode: 'automatic', requirementPath: 'requirements/test-feature.md' },
+      executor,
+      hooks,
+    );
+
+    const response = await orchestrator.run();
+
+    expect(response.status).toBe('error');
+    expect(response.errors?.map((error) => error.phase)).toEqual(['plan', 'report']);
+  });
+
+  test('restores the last completed output when automatic execution resumes', async () => {
+    const executor = createMockExecutor();
+    const hooks = new PipelineHookRegistry();
+    const lastOutput = { planPath: 'specs/test-feature-test-plan.md', scenarioCount: 2 };
+    const state: PipelineState = {
+      runId: '770e8400-e29b-41d4-a716-446655440002',
+      status: 'paused',
+      currentPhase: 'generate',
+      completedPhases: ['plan', 'generate'],
+      artifacts: { plan: [], generate: [], execute: [], heal: [], report: [] },
+      timestamp: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+      requirementPath: 'requirements/test-feature.md',
+      lastOutput,
+      orchestrationMode: 'automatic',
+      errors: [],
+    };
+
+    const orchestrator = new Orchestrator(
+      {
+        orchestrationMode: 'automatic',
+        requirementPath: state.requirementPath,
+        runId: state.runId,
+      },
+      executor,
+      hooks,
+      state,
+    );
+
+    await orchestrator.run();
+
+    expect(executor.calls[0]).toEqual({ phase: 'execute', input: lastOutput });
   });
 });
 
@@ -484,5 +558,63 @@ test.describe('Protocol Handler Routing', () => {
     expect(response.status).toBe('error');
     expect(response.errors).toBeDefined();
     expect(response.errors![0].code).toBe('NO_RESUMABLE_RUN');
+  });
+
+  test('resume rejects a runId that does not match persisted state', async () => {
+    const state: PipelineState = {
+      runId: '880e8400-e29b-41d4-a716-446655440003',
+      status: 'paused',
+      currentPhase: 'plan',
+      completedPhases: [],
+      artifacts: { plan: [], generate: [], execute: [], heal: [], report: [] },
+      timestamp: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+      requirementPath: 'requirements/test-feature.md',
+      orchestrationMode: 'automatic',
+      errors: [],
+    };
+    saveState(state);
+
+    const executor = createMockExecutor();
+    const response = await handleProtocolRequest(
+      {
+        action: 'resume',
+        options: { runId: '990e8400-e29b-41d4-a716-446655440004' },
+      },
+      executor,
+    );
+
+    expect(response.status).toBe('error');
+    expect(response.errors?.[0]?.code).toBe('RUN_ID_MISMATCH');
+    expect(executor.calls).toHaveLength(0);
+  });
+
+  test('manual resume passes the persisted output to the next phase', async () => {
+    const state: PipelineState = {
+      runId: 'aa0e8400-e29b-41d4-a716-446655440005',
+      status: 'paused',
+      currentPhase: 'plan',
+      completedPhases: ['plan'],
+      artifacts: { plan: [], generate: [], execute: [], heal: [], report: [] },
+      timestamp: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+      requirementPath: 'requirements/test-feature.md',
+      lastOutput: { testPlan: 'plan-output', scenarioCount: 1 },
+      orchestrationMode: 'manual',
+      errors: [],
+    };
+    saveState(state);
+
+    const executor = createMockExecutor();
+    const response = await handleProtocolRequest(
+      { action: 'resume', options: { runId: state.runId } },
+      executor,
+    );
+
+    expect(response.status).toBe('success');
+    expect(executor.calls[0]).toEqual({
+      phase: 'generate',
+      input: state.lastOutput,
+    });
   });
 });

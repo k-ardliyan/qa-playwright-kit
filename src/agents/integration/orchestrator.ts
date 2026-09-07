@@ -125,7 +125,10 @@ export class Orchestrator {
       // Non-blocking — notes fall back to latest-run attribution
     }
 
-    let lastResult: PhaseResult | undefined;
+    // Resume must retain the output context from the last completed phase.
+    // Older state files do not have lastOutput, so getPhaseInput provides a
+    // self-contained fallback containing the requirement and artifacts.
+    let lastResult: PhaseResult | undefined = this.getPersistedLastResult();
 
     for (const phase of PHASE_SEQUENCE) {
       if (this.state.completedPhases.includes(phase)) {
@@ -263,6 +266,14 @@ export class Orchestrator {
   }
 
   /**
+   * Resolve the input for the next phase of a resumed run.
+   * Manual resume uses the same context reconstruction as automatic resume.
+   */
+  getResumePhaseInput(phase: PipelinePhase): unknown {
+    return this.getPhaseInput(phase, this.getPersistedLastResult());
+  }
+
+  /**
    * Run in dry run mode: simulate all phase transitions without executing tools.
    */
   private async runDryRun(): Promise<AgentProtocolResponse> {
@@ -336,6 +347,15 @@ export class Orchestrator {
   ): Promise<AgentProtocolResponse> {
     const reportPhase: PipelinePhase = 'report';
 
+    // Report is the terminal phase. If Report itself failed, invoking it
+    // again here would duplicate side effects and could mask the failure as
+    // a successful top-level response.
+    if (failureError.phase === reportPhase) {
+      this.state.status = 'failed';
+      saveState(this.state);
+      return createErrorResponse([failureError], 'all');
+    }
+
     // If report phase is already completed (shouldn't happen normally), just return error
     if (this.state.completedPhases.includes(reportPhase)) {
       this.state.status = 'failed';
@@ -378,10 +398,35 @@ export class Orchestrator {
       });
     }
 
+    if (reportResult.status === 'success') {
+      this.state.status = 'failed';
+      saveState(this.state);
+      return createSuccessResponse('all', reportResult);
+    }
+
+    this.state.errors.push(
+      reportResult.error || {
+        code: 'REPORT_PHASE_FAILED',
+        message: 'Report phase failed without error details.',
+        phase: reportPhase,
+        retryable: false,
+      },
+    );
     this.state.status = 'failed';
     saveState(this.state);
 
-    return createSuccessResponse('all', reportResult);
+    return createErrorResponse(
+      [
+        failureError,
+        reportResult.error || {
+          code: 'REPORT_PHASE_FAILED',
+          message: 'Report phase failed without error details.',
+          phase: reportPhase,
+          retryable: false,
+        },
+      ],
+      'all',
+    );
   }
 
   /**
@@ -395,6 +440,7 @@ export class Orchestrator {
     if (result.artifacts) {
       this.state.artifacts[phase] = result.artifacts;
     }
+    this.state.lastOutput = result.output;
     saveState(this.state);
   }
 
@@ -405,7 +451,32 @@ export class Orchestrator {
     if (phase === 'plan') {
       return { requirementPath: this.config.requirementPath };
     }
-    return lastResult?.output ?? {};
+    if (lastResult?.output !== undefined) {
+      return lastResult.output;
+    }
+    return {
+      requirementPath: this.config.requirementPath,
+      resumed: true,
+      completedPhases: [...this.state.completedPhases],
+      artifacts: this.state.artifacts,
+    };
+  }
+
+  /** Rebuild the last successful phase result from persisted resume context. */
+  private getPersistedLastResult(): PhaseResult | undefined {
+    const phase = this.state.currentPhase;
+    if (!phase || !this.state.completedPhases.includes(phase)) {
+      return undefined;
+    }
+    if (this.state.lastOutput === undefined) {
+      return undefined;
+    }
+    return {
+      phase,
+      status: 'success',
+      output: this.state.lastOutput,
+      artifacts: this.state.artifacts[phase] ?? [],
+    };
   }
 
   /**
