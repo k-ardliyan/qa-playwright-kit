@@ -11,7 +11,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { getToolEntry, TOOL_REGISTRY } from '../../../tools/mcp/src/tools/registry';
 import argumentInventory from '../../../tools/mcp/src/__tests__/fixtures/tool-argument-inventory.json';
-import { pipelineStatus } from '../../../tools/mcp/src/tools/pipeline-status';
+import { pipelineStatus, deriveWorkflowStage } from '../../../tools/mcp/src/tools/pipeline-status';
 import { traceRequirement } from '../../../tools/mcp/src/tools/trace-requirement';
 import { resolveFileInspectPath } from '../../../tools/mcp/src/tools/_internal/file-inspect-path';
 import {
@@ -296,6 +296,7 @@ test.describe('pipeline_status tool', () => {
       expect(out.state!.completedPhases).toEqual(['plan']);
       expect(out.state!.requirementUpToDate).toBe(false);
       expect(out.state!.missingArtifacts).toEqual(['specs/missing-plan.md']);
+      expect(out.state!.workflowStage).toBeUndefined(); // currentPhase was null
       expect(out.lastRun!.total).toBe(4);
       expect(out.lastRun!.failed).toBe(1);
       expect(out.message).toContain('Resume from phase: generate');
@@ -304,6 +305,16 @@ test.describe('pipeline_status tool', () => {
       else process.env['QA_REPORT_DIR'] = prevReport;
       fs.rmSync(isolate, { recursive: true, force: true });
     }
+  });
+
+  test('deriveWorkflowStage maps physical phases to semantic workflow stages', () => {
+    expect(deriveWorkflowStage(null)).toBeUndefined();
+    expect(deriveWorkflowStage('plan')).toBe('model');
+    expect(deriveWorkflowStage('generate')).toBe('generate');
+    expect(deriveWorkflowStage('execute')).toBe('validate');
+    expect(deriveWorkflowStage('heal')).toBe('validate');
+    expect(deriveWorkflowStage('report')).toBe('validate');
+    expect(deriveWorkflowStage('unknown_phase')).toBeUndefined();
   });
 });
 

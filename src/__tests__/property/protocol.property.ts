@@ -52,28 +52,40 @@ const validRequestArb: fc.Arbitrary<Record<string, unknown>> = actionArb.chain((
   if (action === 'resume') {
     return fc.record({
       action: fc.constant(action),
-      phase: fc.option(phaseArb, { nil: undefined }),
       options: fc.record({
         runId: runIdArb,
-        orchestrationMode: fc.option(fc.constantFrom('manual' as const, 'automatic' as const), {
-          nil: undefined,
-        }),
       }),
     }) as fc.Arbitrary<Record<string, unknown>>;
   }
-  // 'query' action — minimal required fields
-  return fc.record({
-    action: fc.constant(action),
-    phase: fc.option(phaseArb, { nil: undefined }),
-    options: fc.option(
-      fc.record({
-        orchestrationMode: fc.option(fc.constantFrom('manual' as const, 'automatic' as const), {
-          nil: undefined,
+  if (action === 'run') {
+    return fc.record({
+      action: fc.constant(action),
+      requirementPath: requirementPathArb,
+      stage: fc.option(
+        fc.constantFrom(
+          'explore' as const,
+          'model' as const,
+          'challenge' as const,
+          'generate' as const,
+          'validate' as const,
+        ),
+        { nil: undefined },
+      ),
+      options: fc.option(
+        fc.record({
+          orchestrationMode: fc.option(fc.constantFrom('manual' as const, 'automatic' as const), {
+            nil: undefined,
+          }),
+          roleFilter: fc.option(fc.array(fc.string({ minLength: 1 }), { minLength: 1 }), {
+            nil: undefined,
+          }),
         }),
-      }),
-      { nil: undefined },
-    ),
-  }) as fc.Arbitrary<Record<string, unknown>>;
+        { nil: undefined },
+      ),
+    }) as fc.Arbitrary<Record<string, unknown>>;
+  }
+  // 'query' action — minimal required fields
+  return fc.record({ action: fc.constant(action) }) as fc.Arbitrary<Record<string, unknown>>;
 });
 
 /** Generate an invalid request (missing required conditional fields, invalid types) */

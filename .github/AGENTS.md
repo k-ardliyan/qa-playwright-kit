@@ -31,10 +31,26 @@ Configure all three in [`.mcp.json`](../.mcp.json) as the project MCP config. Ke
 
 ### Role Description
 
-Coordinates the full pipeline:
-**Pre-flight → Validate → Plan → Generate → Execute → Heal → Report(Analyze)**.
+Coordinates the evidence-driven QA lifecycle:
+**01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate [↺ Learn → Refine → Re-explore]**
+(Physical engine execution: **Pre-flight → Validate Req → Plan → Generate → Execute → Heal → Report(Analyze)**).
 
-`Report(Analyze)` is a mandatory Analyze sub-phase, not a sixth phase. One workspace supports one active pipeline; `pipelineRunId` is the pending identity for pre-run Plan/Generator notes and `archiveRunId` is the canonical archive ID.
+`Report(Analyze)` is a mandatory Analyze sub-phase inside Report/Validate, not a separate pipeline phase. One workspace supports one active pipeline; `pipelineRunId` is the pending identity for pre-run Plan/Generator notes and `archiveRunId` is the canonical archive ID.
+
+#### Autonomous Agent Protocol for `workflow_run`
+
+When driving the semantic workflow via `workflow_run`:
+1. **Launch:** Call `qa-playwright-kit:workflow_run({ requirementPath, orchestrationMode: "automatic" })`.
+2. **Model Handoff (Plan Missing):** If paused at `model` (`planner-required`), write `specs/<feature>-test-plan.md` per Planner instructions, verify via `validate_plan`, then resume immediately: `workflow_run({ requirementPath, resume: true, runId })`.
+3. **Generate Handoff (Spec Missing):** If paused at `generate` (`awaiting-generator`), write `tests/<feature>[-<role>].spec.ts` per Generator instructions, verify via `validate_generated_tests`, then resume immediately: `workflow_run({ requirementPath, resume: true, runId })`.
+4. **Validate & QA Review:** When finished with `qa-decision-required`, present the summary, instruct opening `npm run dashboard`, and record decision via `archive_report`.
+
+#### Natural Language Chat Intent Routing
+
+When QA chats naturally in Hermes:
+- **"Tolong buatkan test untuk halaman <URL> (role: <role>)"** → Route to Phase -0.5: call `snapshot_page` / `discover_pages` → `synthesize_requirement` → `workflow_run`.
+- **"Tolong buatkan test dari tiket / PRD ini: [...]"** → Route to Phase -1: PRD Decompose into `requirements/<feature>.md` → `workflow_run`.
+- **"Jalankan pipeline untuk requirements/<feature>.md"** → `workflow_run({ requirementPath, orchestrationMode: "automatic" })`.
 
 ### Input Format
 
@@ -78,9 +94,9 @@ Coordinates the full pipeline:
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `health_check`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `archive_report`, `generate_page_object`, `record_ai_note`, `set_test_note`
+- `qa-playwright-kit`: `health_check`, `pipeline_status`, `workflow_run`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `synthesize_requirement`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `archive_report`, `generate_page_object`, `record_ai_note`, `set_test_note`
 - `playwright-test`: `run_tests`
-- `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`, `browser_file_upload`; see root [`AGENTS.md`](../AGENTS.md)
+- `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`; see root [`AGENTS.md`](../AGENTS.md)
 
 ### Example Prompt
 
@@ -158,7 +174,7 @@ Planner table with columns:
 
 - `qa-playwright-kit`: `compile_test_plan`, `validate_generated_tests`, `snapshot_page` (catalog reuse), `list_test_fixtures`, `inspect_file`, `generate_page_object`
 - `playwright-test`: `run_tests` (live verification loop, iterate until pass)
-- `playwright`: `browser_navigate`, `browser_snapshot`, `browser_file_upload`
+- `playwright`: `browser_navigate`, `browser_snapshot`
 
 Generated files must include `// spec:` and `// seed:` traceability headers (see generator agent).
 

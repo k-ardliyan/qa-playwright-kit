@@ -101,10 +101,20 @@ export function buildAgentPrompt(
   const executionGuidance = t(
     lang,
     `[ARAHAN EKSEKUSI]\n` +
-      `Jalankan pipeline dalam mode otomatis untuk ${reqRelPath} (orchestrator: AGENTS.md).\n` +
+      `Jalankan pipeline dalam mode otomatis (alur QA: 01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate) untuk ${reqRelPath} (orchestrator: AGENTS.md).\n` +
+      `Panggil tool MCP workflow_run({ requirementPath: "${reqRelPath}", orchestrationMode: "automatic" }). Alternatif CLI: npx tsx tools/scripts/workflow-run.ts ${reqRelPath} --automatic.\n` +
+      `Protokol Handoff Otonom:\n` +
+      `- Jika workflow_run jeda di Model (planner-required): buat specs/<feature>-test-plan.md sesuai panduan Planner, lalu resume workflow_run({ requirementPath: "${reqRelPath}", resume: true, runId }).\n` +
+      `- Jika workflow_run jeda di Generate (awaiting-generator): buat tests/<feature>[-<role>].spec.ts sesuai panduan Generator, validasi dengan validate_generated_tests, lalu resume workflow_run({ requirementPath: "${reqRelPath}", resume: true, runId }).\n` +
+      `- Saat Validate selesai (qa-decision-required): laporkan ringkasan hasil uji dan panduan membuka dashboard: npm run dashboard.\n` +
       `Lanjutkan pengerjaan secara mandiri sampai tuntas hingga laporan akhir terbit. Jika menemukan kendala di tengah jalan (error konfigurasi, selector DOM berbeda, linter, atau test failure), jangan berhenti: langsung lakukan diagnosa dan perbaikan di tempat (in-flight fix / self-heal), lalu lanjutkan eksekusi pipeline sampai selesai.`,
     `[EXECUTION GUIDANCE]\n` +
-      `Run the pipeline in automatic mode for ${reqRelPath} (orchestrator: AGENTS.md).\n` +
+      `Run the pipeline in automatic mode (QA workflow: 01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate) for ${reqRelPath} (orchestrator: AGENTS.md).\n` +
+      `Call MCP tool workflow_run({ requirementPath: "${reqRelPath}", orchestrationMode: "automatic" }). CLI alternative: npx tsx tools/scripts/workflow-run.ts ${reqRelPath} --automatic.\n` +
+      `Autonomous Handoff Protocol:\n` +
+      `- When workflow_run pauses at Model (planner-required): draft specs/<feature>-test-plan.md per Planner guidelines, then resume workflow_run({ requirementPath: "${reqRelPath}", resume: true, runId }).\n` +
+      `- When workflow_run pauses at Generate (awaiting-generator): write tests/<feature>[-<role>].spec.ts per Generator guidelines, validate with validate_generated_tests, then resume workflow_run({ requirementPath: "${reqRelPath}", resume: true, runId }).\n` +
+      `- When Validate finishes (qa-decision-required): report the execution summary and instruct opening dashboard: npm run dashboard.\n` +
       `Proceed autonomously to completion until the final report is generated. If any issues arise along the way (config errors, DOM selector mismatches, linter or test failures), do not stop: diagnose and fix them in-flight (self-heal), then resume and finish the pipeline run.`,
   );
 
@@ -222,11 +232,11 @@ export function buildAgentPrompt(
     lang,
     `[LAPORAN & PENYELESAIAN]\n` +
       `- Resume dari artifacts/reports/pipeline-state.json HANYA jika requirementPath-nya cocok dengan file ini; jika tidak, mulai run baru.\n` +
-      `- Pipeline: Health Check (0) → Validate Req (0.5) → Plan (1) → Generate (2) → Execute (3) → Heal (4, maks 3 siklus) → Report (5) → archive_report.\n` +
+      `- Alur QA: 01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate (mesin: Health Check (0) → Validate Req (0.5) → Plan (1) → Generate (2) → Execute (3) → Heal (4, maks 3 siklus) → Report (5) → archive_report).\n` +
       `- Tutup respon akhir dengan: summary pass/fail, daftar file spec/plan/report yang dibuat, QA decision, dan instruksi "Jalankan \`npm run dashboard\` untuk melihat laporan interaktif".`,
     `[REPORTING & COMPLETION]\n` +
       `- Resume from artifacts/reports/pipeline-state.json ONLY if its requirementPath matches this file; otherwise start a fresh run.\n` +
-      `- Pipeline: Health Check (0) → Validate Req (0.5) → Plan (1) → Generate (2) → Execute (3) → Heal (4, max 3 cycles) → Report (5) → archive_report.\n` +
+      `- QA workflow: 01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate (engine: Health Check (0) → Validate Req (0.5) → Plan (1) → Generate (2) → Execute (3) → Heal (4, max 3 cycles) → Report (5) → archive_report).\n` +
       `- End your final response with: pass/fail summary, list of generated spec/plan/report files, QA decision, and instruction "Run \`npm run dashboard\` to open the interactive dashboard".`,
   );
 

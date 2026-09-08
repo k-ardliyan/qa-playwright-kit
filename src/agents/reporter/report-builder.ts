@@ -166,6 +166,15 @@ export function isAnalysisComplete(report: PipelineReport): boolean {
   return report.analysis?.completed === true;
 }
 
+/** Write the structured PipelineReport JSON beside its Markdown report. */
+export function writeReportJson(report: PipelineReport): string {
+  const reportsDir = getReportDir();
+  if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
+  const reportPath = path.join(reportsDir, `pipeline-report-${report.runId}.json`);
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf-8');
+  return reportPath;
+}
+
 /**
  * Generates a Markdown report from a PipelineReport and writes it to disk.
  *

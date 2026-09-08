@@ -6,6 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Native Semantic Workflow Engine (Explore → Model → Challenge → Generate → Validate) — 2026-09-07
+
+- **Runtime state machine:** `WorkflowController` (src/agents/integration/workflow-controller.ts) kini menjadi pemilik transisi stage — Explore policy, Challenge gate, dan Generate precondition di-enforce di runtime, bukan hanya di prompt. Reducer murni `transitionWorkflow` menolak transisi ilegal (mis. `model → generate` tanpa Challenge pass); hanya `explore` yang bisa di-skip eksplisit; QA decision hanya legal di `validate`.
+- **Explore policy & evidence resolver:** `explore-policy.ts` + `explore-evidence.ts` — resolver memverifikasi katalog selector (matched/missing/stale/role-mismatch/invalid) dengan hash; policy menghasilkan `required | recommended | satisfied | skipped | blocked`. Evidence valid + feature stabil → live exploration di-skip otomatis.
+- **Challenge gate:** `challenge-gate.ts` membungkus `validate_plan` — error → block, warning → pause (manual) / recorded proceed (automatic), `canGenerate()` = invariant FOURTH-NOT-FIRST yang machine-enforced.
+- **Feedback router:** `feedback-router.ts` memetakan temuan ke stage terkecil (auth redirect → fix-environment, app bug → file-bug, dst) dengan `loopCounts` terbatas.
+- **State envelope `qa.workflow/v1`:** `PipelineState.workflow` (additive, optional) menyimpan stage status, Explore/Model/Challenge/Generate/Validate results, lastFeedback, loopCounts; schema JSON diperbarui; `saveState` kini **atomic** (tmp + rename).
+- **Protocol `action: "run"`:** request semantic (`requirementPath` + optional `stage`/`workflow`/`roleFilter`) tanpa physical phase; `handleProtocolRequest` overload 3-arg dengan `WorkflowAdapters` (2-arg = physical-compat, tidak berubah); tanpa adapters → fails closed `WORKFLOW_ADAPTERS_REQUIRED`.
+- **Production wiring (MCP tool ke-26 `workflow_run`):** driver `tools/scripts/workflow-run.ts` me-wire tool MCP asli ke `createMcpAdapters` dan menjalankan controller — caller produksi yang sebelumnya tidak ada; tool MCP `workflow_run` men-shell driver dan mengembalikan `workflowStage`/`workflowStatus`/`nextRequiredAction` terstruktur. Registry fixtures + manifest diperbarui (26 tool).
+- **`pipeline_status` native:** membaca envelope workflow (stage status, explore/challenge decision, lastFeedback) dan tidak pernah memfabricate Challenge pass dari state lama; manifest mengekspos `workflowContracts` (entry/exit conditions, gate, physical mapping).
+- **Bukti runtime (3 invariant):** 40 test baru `workflow-engine.test.ts` — tanpa evidence → Model/Generate tidak dipanggil; Challenge blocked → Generate tidak dipanggil; Challenge pass → Generate dipanggil tepat sekali. 673 unit + 52 property hijau.
+
+### Evidence-Driven QA Lifecycle Migration (Explore → Model → Challenge → Generate → Validate) — 2026-09-07
+
+- **Alur metodologi QA kanonik baru:** `01. Explore` (PLAYWRIGHT MCP — `THE APP ANSWERS`), `02. Model` (UNDERSTAND THE FLOW — `SHARED MODEL`), `03. Challenge` (THINK LIKE QA — `THE GATE`), `04. Generate` (PLAYWRIGHT AUTOMATION — `FOURTH, NOT FIRST`), `05. Validate` (RUN • INSPECT • CORRECT — `EARNED TRUST`), dengan feedback loop `LEARN → REFINE → RE-EXPLORE`.
+- **Kompatibilitas mesin eksekusi fisik:** `PipelinePhase` tetap preserved (`plan`, `generate`, `execute`, `heal`, `report`) untuk menjaga kompatibilitas `pipeline-state.json`, resume, dan client MCP.
+- **Workflow manifest & metadata:** manifest kapabilitas kini mengekspos bagian `workflow` berisi urutan 5 stage semantik secara aditif tanpa merusak pembaca lama `phases`.
+- **Status derivation:** `pipeline_status` kini mengekspos field `workflowStage` yang diderivasi secara deterministik dari physical phase aktif.
+- **Kebijakan Explore & Challenge Gate:** aturan Explore eksplisit (required / recommended / skippable dengan alasan), larangan keras ephemeral locator refs (`tw-XXXX`), dan integrasi QA Challenge check sebelum Generator menulis kode.
+
 ### Per-test QA Notes & AI Notes di Report — 2026-09-06
 
 - **Kolom AI NOTES (ke-13) & catatan QA editable di dashboard Table View:** kolom NOTES kini memuat chip scenarioId, **CATATAN QA** (free-text, diedit QA via tombol ✎ yang membuka **dialog Catatan QA** — tersimpan via API di serve mode `npm run dashboard`, dialog menyalin perintah CLI di mode file://), durasi, thumbnail screenshot, link video/trace, dan badge layer. Kolom baru **AI NOTES** berisi catatan AI 2 lapis untuk QA/programmer: auto-deterministik (di-bake custom reporter ke `testCases[].aiNotes` di `test-summary.json` dengan tag `Jenis:` — untuk gagal: "Jenis: Root Cause — Analisa: …", "Diduga penyebab: …", "Gagal konsisten di N attempt"; untuk passed: "Jenis: Stability — Flaky: …", "Jenis: Test Quality — Tidak ada assertion (expect) terdeteksi (false-green risk)", deteksi durasi lambat relatif median run, pengingat actual-result kosong) + naratif agent dengan badge sumber `[healer]`/`[generator]`/`[reporter]`/`[analyzer]` — **tidak hanya untuk error**: saran UI/UX, perbandingan flow A vs B, dan tips data juga ditulis pada scenario passed.

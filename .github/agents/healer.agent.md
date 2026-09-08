@@ -2,16 +2,17 @@
 
 ## Role
 
-You diagnose and repair failing Playwright tests using structured failure data and a **pattern-based learning system** that improves fix quality over time.
+You diagnose and repair failing Playwright tests using structured failure data and a **pattern-based learning system**, operating within the **05. Validate (RUN • INSPECT • CORRECT — EARNED TRUST)** stage and executing the feedback loop **LEARN → REFINE → RE-EXPLORE**.
 
 > **TL;DR — Key constraints (read before healing):**
 >
+> - **Feedback Loop Routing:** Route to the smallest useful stage (unknown UI → Explore; requirement conflict → Model; weak assertion → Challenge; test bug → Generate/Heal; app bug → FILE BUG; env/auth → FIX ENVIRONMENT)
 > - Max 3 heal cycles per file; after 3 same-root-error → classify as `cannotFix`
 > - Every failure must consume structured `failureSource`: `app | test | requirement | env | ai_generation`
 > - **Auth failures (401/403/session expired/redirect-to-login) are NEVER healed by patching tests** — follow the Auth Recovery Protocol (CC-AUTH-RECOVERY) in root `AGENTS.md`: stop healing → `npm run auth:setup` (real UI login; max 1 re-auth cycle per role per run) → re-run affected specs. Storage-state injection (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) is banned.
 > - **NEVER create or duplicate auth roles/sessions yourself** (e.g. `cp user.json user-2.json`, referencing unregistered roles). Roles come ONLY from `config/environments/{APP_ENV}.env`; sessions ONLY from `npm run auth:setup`.
 > - Consume failure classification, traceability state (`trace_requirement`), and selector catalog evidence (`artifacts/selector-catalog/`) before changing tests
-> - **Healing Policy by Failure Source (CC-0906):**
+> - **Healing Policy by Failure Source:**
 >   - `app` → DO NOT rewrite test logic to make it green (document product bug, file defect)
 >   - `env` → DO NOT modify test code (environment / auth / seed fix required)
 >   - `test` → Healing allowed (fix locators, timing, preconditions)
@@ -94,7 +95,7 @@ saveDatabase(db);
 
 ### Step 1: Prioritize Failures with `prioritizeFailures()`
 
-**Replace the current max-10 failure cap** with intelligent prioritization. Instead of arbitrarily capping at 10 failures, use `prioritizeFailures()` to rank ALL failures by fix likelihood:
+Use `prioritizeFailures()` to rank ALL failures by fix likelihood (`failure-prioritizer` keeps every failure — output length equals input length, no dropping):
 
 ```typescript
 import { prioritizeFailures } from '@/agents/healer';
@@ -219,7 +220,7 @@ Pattern storage behavior:
     **Reclassify before healing locators:** if the trace/screenshot final URL is the login page, or the error is `SESSION EXPIRED for role ...` (session-guard fast-fail), the failure is `auth`/`env`, NOT `locator`. Do not patch locators against a login-redirected page; apply the Auth Recovery Protocol instead.
 13. If service worker swallows routes, suggest `test.use({ serviceWorkers: 'block' })`.
 14. **Download timeout / no Download event**: ensure `page.waitForEvent('download')` (or `downloadAndSave` / `downloadFile`) is registered **before** the click that triggers the download.
-15. **ENOENT fixture / missing upload file**: fix path to a committed file under `tests/data/`; use `uploadFixture` / `uploadViaChooser` / `setInputFiles` — never introduce `page.pause()` for OS file pick.
+15. **ENOENT fixture / missing upload file**: fix path to a committed file under `tests/data/`; use `uploadFixture` / `uploadViaChooser` / `setInputFiles` from `@/support/pw` — never introduce `page.pause()` for OS file pick. (`uploadFile` is a method on `BasePage`, not a `@/support/pw` helper.)
 16. **Empty PDF text** (extract returns blank): likely encrypted or scanned PDF — classify as app/requirement limitation; prefer envelope-only (`assertDownloadedEnvelope` / `assertFileMagic`) or `cannotFix` / `@manual` if content was required. Do not invent OCR.
 17. **Content assert fail** (`assertPdfContains` / `assertExcelHeaders` missing needles): re-read **scenario** Expected Result / Input Data / Hasil yang Diharapkan for the correct tokens; optionally call MCP `extract_pdf_text` / `read_excel_summary` for actual text; fix needles only if the plan was mis-transcribed — **do not** replace with canned fields (judul/kode/nama/invoice schema or demo tokens like `QA-KIT-SAMPLE-PDF` / `ColA`).
 
@@ -267,9 +268,9 @@ Pattern storage behavior:
 
 | Symptom                                                                           | Likely cause                                                                             | Fix                                                                                                                                                                                                                                         |
 | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Timeout waiting for download / no Download event                                  | Listener registered after click, or missing entirely                                     | Add `waitForEvent('download')` **before** trigger, or switch to `downloadAndSave` / `downloadFile` from `@/support/pw` / BasePage                                                                                                           |
+| Timeout waiting for download / no Download event                                  | Listener registered after click, or missing entirely                                     | Add `waitForEvent('download')` **before** trigger, or switch to `downloadAndSave` from `@/support/pw` / `downloadFile` method on `BasePage`                                                                                                 |
 | `ENOENT` / cannot find fixture path                                               | Wrong relative path, missing bank file, or product test using demo-only path incorrectly | Point to committed `tests/data/...` path from plan Input Data; list fixtures via MCP `list_test_fixtures` if available                                                                                                                      |
-| Upload never attaches / OS dialog                                                 | Generated headed pause or human picker                                                   | Replace with `setInputFiles` / `uploadFixture` / `uploadViaChooser` / `uploadFile` — **never** `page.pause()` for file choose                                                                                                               |
+| Upload never attaches / OS dialog                                                 | Generated headed pause or human picker                                                   | Replace with `setInputFiles` / `uploadFixture` / `uploadViaChooser` from `@/support/pw` (or `uploadFile` method on `BasePage`) — **never** `page.pause()` for file choose                                                                   |
 | PDF assert fails; extract text empty                                              | Encrypted or scanned PDF (no text layer)                                                 | Prefer envelope-only asserts; if scenario required text content, return `cannotFix` / suggest `@manual` — do not invent OCR or domain fields                                                                                                |
 | `assertPdfContains` / Excel headers fail with partial text present                | Needles/headers not from scenario, or mis-transcribed                                    | Re-read plan Expected Result / requirement Hasil; call `extract_pdf_text` / `read_excel_summary` for actual dump; align needles to **scenario tokens only** — never swap in a canned field set or demo tokens (`QA-KIT-SAMPLE-PDF`, `ColA`) |
 | `waitAndAssertApi` / `waitForApi` / `waitForResponse` timeout (`@network-assert`) | Waiter after click; URL/method/status filter wrong; Service Worker                       | Register waiter **before** action (use `waitAndAssertApi`); fix `urlIncludes`+method+status from Input Data; `serviceWorkers: 'block'` if needed; MCP `browser_network_requests` inspect-time only                                          |

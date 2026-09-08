@@ -13,7 +13,7 @@ metadata:
 
 # QA Playwright Kit Skill
 
-Runbook for QA Users: write `requirements/*.md`, run Plan → Generate → Execute → Heal → Report(Analyze), heal generated specs, read the dashboard, and make a gated QA decision. `Report(Analyze)` is a mandatory Analyze sub-phase inside Report, not a sixth pipeline phase. Not a maintainer license — do not touch the framework.
+Runbook for QA Users: orchestrate the **Explore → Model → Challenge → Generate → Validate** lifecycle (physical engine: Plan → Generate → Execute → Heal → Report(Analyze)), heal generated specs, read the dashboard, and make a gated QA decision. `Report(Analyze)` is a mandatory Analyze sub-phase inside Validate/Report, not a separate pipeline phase. Not a maintainer license — do not touch the framework.
 
 Hard stop: any edit under `src/`, `tools/`, `config/` (except `*.env` via setup/`env:edit`), `.github/agents/`, `skills/`, `AGENTS.md`, `package.json`, or CI → load [qa-vs-maintainer.md](references/qa-vs-maintainer.md) and file a maintainer report. Zero protected-path diffs.
 
@@ -38,6 +38,7 @@ Don't use for: protected zones (`src/**`, `tools/**`, `config/**`, `.github/agen
 - MCP server `qa-playwright-kit` healthy — call `qa-playwright-kit:health_check` before Plan
 - Auth sessions at `.auth/{APP_ENV}/{role}.json` — run `npm run auth:setup` when `Auth state: authenticated`
 - Resuming an interrupted run? Call `qa-playwright-kit:pipeline_status` first — one call reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, ready auth roles, and (when active) `pipelineRunId` for pre-run note attribution.
+- Running the full semantic workflow in one call? `qa-playwright-kit:workflow_run` drives Explore → Model → Challenge → Generate → Validate through the production driver and returns a structured `workflowStage`/`workflowStatus`/`nextRequiredAction` — prefer it over manual phase-by-phase invoke for the semantic flow.
 
 ## How to Run
 
@@ -51,6 +52,37 @@ terminal(command="npx tsx tools/scripts/qa-run.ts requirements/<feature>.md")
 Hermes prompt (automatic): `Run full pipeline for requirements/<feature>.md`
 
 Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<feature>.md`
+
+## Natural Language Chat Intent Routing (How to Handle QA Prompts)
+
+When QA chats naturally, immediately map the intent to the corresponding phase:
+1. **New Feature from Live URL** (e.g. *"Hermes, tolong buatkan test untuk halaman http://.../invoices (role: finance)"*):
+   - Route to **Phase -0.5 (UI Discovery & Requirement Synthesis)**.
+   - Call `snapshot_page` (or `discover_pages`) with the URL, feature name, and role session (`.auth/{APP_ENV}/{role}.json`).
+   - Call `synthesize_requirement` to automatically produce `requirements/<feature>.md`.
+   - Validate with `validate_requirement`, then proceed directly to `workflow_run`.
+2. **New Feature from User Story / Jira Ticket** (e.g. *"Hermes, buatkan test dari tiket/PRD ini: [cerita]"*):
+   - Route to **Phase -1 (PRD Decompose)**.
+   - Decompose into acceptance criteria and scenarios in `requirements/<feature>.md` per `_TEMPLATE.md`.
+   - Validate with `validate_requirement`, then proceed directly to `workflow_run`.
+3. **Run Pipeline for Existing Requirement** (e.g. *"Hermes, jalankan pipeline untuk requirements/login.md"*):
+   - Call `workflow_run({ requirementPath, orchestrationMode: "automatic" })`.
+   - Follow the **Autonomous Agent Protocol** below for any Model / Generate handoff pauses.
+
+## Autonomous Agent Protocol for `workflow_run`
+
+When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
+1. **Launch:** Call `qa-playwright-kit:workflow_run({ requirementPath, orchestrationMode: "automatic" })`.
+2. **Model Handoff (Plan Missing):** If `workflow_run` returns `workflowStage: "model"` and pauses (`planner-required` / plan file missing):
+   - Act as the **Planner**: read requirement, inspect selector catalog, write `specs/<feature>-test-plan.md`, and verify with `validate_plan`.
+   - Resume immediately: `qa-playwright-kit:workflow_run({ requirementPath, resume: true, runId })`.
+3. **Generate Handoff (Spec Missing):** If `workflow_run` returns `workflowStage: "generate"` with `handoffType: "awaiting-generator"`:
+   - Act as the **Generator**: write `tests/<feature>[-<role>].spec.ts` per Generator guidelines and verify with `validate_generated_tests`.
+   - Resume immediately: `qa-playwright-kit:workflow_run({ requirementPath, resume: true, runId })`.
+4. **Validate & QA Review:** When `workflow_run` completes Validate (`workflowStatus: "qa-decision-required"`):
+   - Present the execution summary to QA.
+   - Remind QA to open `npm run dashboard`.
+   - After QA review, record decision via `archive_report({ runId, reportPath, qaDecision })`.
 
 ## Quick Reference
 
@@ -73,33 +105,27 @@ Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<fe
 | Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                              |
 | QA vs maintainer boundary                                   | [qa-vs-maintainer.md](references/qa-vs-maintainer.md)                                            |
 
-## Procedure
+## Procedure (01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate)
 
-### 1. Draft or revise requirement
+### 1. Explore (01. Explore — THE APP ANSWERS)
 
-Write `requirements/<feature>.md` from `requirements/_TEMPLATE.md`. Business language only — no Playwright APIs. Required fields: `# REQ-` title, `Module` in Metadata, `AC-XX` IDs, and each `SC-XX` with Test ID, Covers, `**Langkah:**`, `**Hasil yang Diharapkan:**`, `**Input Data:**`. See [requirement-language.md](references/requirement-language.md).
+For new, unknown, or changed interactive flows, gather evidence first via `qa-playwright-kit:snapshot_page` (or `discover_pages`). Persistent ARIA and selector catalogs land under `artifacts/selector-catalog/<feature>/<page>.json`. For existing stable regression pages with fresh catalogs, live exploration may be safely skipped — the Explore policy (`workflow_run`) auto-discovers `artifacts/selector-catalog/<feature>/` and only requires live capture when evidence is missing or stale.
 
-Completion: file saved with all required fields.
+### 2. Model (02. Model — SHARED MODEL)
 
-### 2. Validate
+Draft or revise `requirements/<feature>.md` from `requirements/_TEMPLATE.md`. Business language only — no Playwright APIs. Required fields: `# REQ-` title, `Module` in Metadata, `AC-XX` IDs, and each `SC-XX` with Test ID, Covers, `**Langkah:**`, `**Hasil yang Diharapkan:**`, `**Input Data:**`. Validate with `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`.
+Load `.github/agents/planner.agent.md`. Compile via `qa-playwright-kit:compile_requirement` and write `specs/<feature>-test-plan.md`.
 
-`terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")` exits 0. Fix errors; retry once. Warnings may continue.
+### 3. Challenge (03. Challenge — THE GATE)
 
-Completion: validator exits 0.
+Attack assumptions before generating automation:
+- What can fail? (verify negative/error and access-restriction paths exist)
+- What's assumed? (mark ungrounded assumptions with `[planner-assumption]`)
+- What deserves an assertion? (verifiable, observable outcomes)
+- Which edge cases matter? (empty state, boundary conditions, loading spinners)
+Verify plan with `qa-playwright-kit:validate_plan`. Must pass with zero blocking errors before generation.
 
-### 3. QA review (manual mode)
-
-Show the requirement to QA. Do not Plan until they accept.
-
-Completion: QA explicitly says proceed.
-
-### 4. Plan
-
-Load `.github/agents/planner.agent.md`. Compile via `qa-playwright-kit:compile_requirement`. Write `specs/<feature>-test-plan.md`. Steps column copies requirement steps in business language, not Playwright. Verify with `qa-playwright-kit:validate_plan`.
-
-Completion: `validate_plan` passes with no blocking errors.
-
-### 5. Generate
+### 4. Generate (04. Generate — FOURTH, NOT FIRST)
 
 Generated spec naming is flat and canonical: `tests/<feature>[-<role>].spec.ts`. Nested `tests/<domain>/<feature>.spec.ts` files are compatibility-only for existing workspaces and are traceable only when `trace_requirement` can match the basename/role; explicit `testId`/`scenarioId` metadata is preferred.
 
@@ -115,27 +141,21 @@ Run `qa-playwright-kit:validate_generated_tests`.
 
 Completion: no ephemeral refs; no credential leakage in step titles; every test has `setTestMetadata` plus `test.step` titles in business language.
 
-### 6. Execute → Heal → Report(Analyze)
+### 5. Validate (05. Validate — EARNED TRUST)
 
-Execute via `playwright-test:run_tests`. Heal max 3 cycles per file (`.github/agents/healer.agent.md`). Reporter (`.github/agents/reporter.agent.md`) runs the mandatory Analyze sub-phase inside Report, writes `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }`, and produces `analysisVerdict` / `analysisVerified` after evidence checks. State file disimpan di `artifacts/reports/pipeline-state.json` (dan marker `.latest-run` menunjuk ke path laporan yang sama). One workspace supports one active pipeline; run sequentially. Pre-run Generator/Plan notes use `pipelineRunId`; archive uses canonical `archiveRunId`.
+Validate runs the execution, diagnosis, reporting, and review loop:
+
+- **Execute:** Run tests via `playwright-test:run_tests`.
+- **Heal:** Diagnose and repair up to 3 cycles per file via Healer (`.github/agents/healer.agent.md`).
+- **Analyze (WAJIB):** Reporter (`.github/agents/reporter.agent.md`) runs the mandatory Analyze sub-phase, writes `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }`, and produces `analysisVerdict` / `analysisVerified`.
+- **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Failures route intelligently to the smallest useful stage (UI unknown → Explore; requirement conflict → Model; weak assertion → Challenge; test bug → Generate; app defect → FILE BUG; auth/env issue → FIX ENVIRONMENT).
+- **QA Review & Gated Archive:** Ask QA. For a pipeline run, **APPROVE is gated**: allowed only when `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact sidecar evidence counts match, a Reporter Analyze insight exists, and there are no unresolved failures. Archive via `archive_report`.
 
 **Auth failure mid-run (401 / redirected to login / session expired):** stop healing that file, re-run `npm run auth:setup` (real UI login — the ONLY session producer), re-run the affected spec files. Max 1 re-auth cycle per role per run. NEVER inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) and NEVER log in inside a spec — see [auth-and-roles.md](references/auth-and-roles.md).
 
 **NEVER duplicate/rename `.auth/*.json` to fake a role** (e.g. `user-2.json`): roles exist ONLY when registered in `config/environments/{APP_ENV}.env`; sessions are produced ONLY by `npm run auth:setup`. Need another account → `npm run env:edit` → `npm run auth:setup`. `validate_generated_tests` fails specs referencing unregistered roles.
 
-Completion: dashboard Table View matches [report-column-contract.md](references/report-column-contract.md) — NOTES column holds the QA note (editable via the ✎ button) alongside evidence links, and the AI NOTES column shows the AI-authored insight.
-
-### 7. QA Decision
-
-Ask QA. For a pipeline run, **APPROVE is gated**: it is allowed only when `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact sidecar evidence counts match, a Reporter Analyze insight exists, and there are no unresolved failures. Missing/mismatched analysis returns `ANALYSIS_INCOMPLETE`, `ANALYSIS_UNVERIFIABLE`, or `ANALYSIS_EVIDENCE_MISMATCH` before archive write. Other decisions archive with the verdict and warning. See [post-pipeline-decisions.md](references/post-pipeline-decisions.md) for the 6 decisions.
-
-To persist a QA remark on a specific test, use `qa-playwright-kit:set_test_note` (or CLI `npm run note:set -- --scenario=SC-03 [--role=finance] --note="text"`); agent-side analysis notes are appended via `qa-playwright-kit:record_ai_note`. Notes are per-run: cleared when a new run starts, permanent once archived.
-
-FIX TEST = rewrite `tests/*.spec.ts` (review zone) or regenerate. It does **not** mean editing `src/` or `.github/agents/` files.
-
-Completion: `qaDecision` recorded; pipeline report updated.
-
-### 8. Escalate framework defects
+### 6. Escalate framework defects
 
 If Heal fails the same root error for 3 cycles and the cause is in the framework (reporter columns, validator, MCP, agent prompt, dashboard), stop. Fill the maintainer-report block in [qa-vs-maintainer.md](references/qa-vs-maintainer.md). MARK BLOCKED until maintainer lands a fix.
 

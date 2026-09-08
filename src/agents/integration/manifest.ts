@@ -15,7 +15,8 @@
 
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { PipelinePhase, OrchestrationModeDescriptor } from './types';
+import type { PipelinePhase, OrchestrationModeDescriptor, WorkflowStage } from './types';
+import { WORKFLOW_STAGES, WORKFLOW_STAGE_DEFINITIONS, type WorkflowStageDescriptor } from './types';
 
 // ─── Type Definitions ────────────────────────────────────────────────────────
 
@@ -46,6 +47,28 @@ export interface PhaseCapability {
 }
 
 /**
+ * Describes the semantic workflow stages and their execution mapping.
+ */
+export interface WorkflowManifest {
+  stages: WorkflowStageDescriptor[];
+  notes: string;
+}
+
+/**
+ * Machine-readable contract for one semantic workflow stage: when it may
+ * start, what it must produce, and where the flow may go next.
+ */
+export interface WorkflowStageContract {
+  stage: WorkflowStage;
+  entryConditions: string[];
+  exitConditions: string[];
+  gate?: string;
+  physicalMapping: PipelinePhase[];
+  requiredArtifacts: string[];
+  allowedNextStages: WorkflowStage[];
+}
+
+/**
  * Prerequisites required to run the pipeline.
  */
 export interface Prerequisites {
@@ -61,6 +84,8 @@ export interface CapabilityManifest {
   version: string;
   generatedAt: string;
   phases: Record<PipelinePhase, PhaseCapability>;
+  workflow?: WorkflowManifest;
+  workflowContracts?: WorkflowStageContract[];
   orchestrationModes: OrchestrationModeDescriptor[];
   prerequisites: Prerequisites;
 }
@@ -83,6 +108,12 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     name: 'pipeline_status',
     description:
       'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.',
+  },
+  workflow_run: {
+    server: 'qa-playwright-kit',
+    name: 'workflow_run',
+    description:
+      'Run the native semantic workflow (Explore → Model → Challenge → Generate → Validate) for a requirement through the production driver. Returns the structured WorkflowResponse (workflowStage, workflowStatus, nextRequiredAction) so a block is actionable. Use this instead of manual phase-by-phase invoke when the semantic flow is desired.',
   },
   compile_requirement: {
     server: 'qa-playwright-kit',
@@ -255,6 +286,7 @@ const PHASE_DEFINITIONS: Record<
     toolNames: [
       'health_check',
       'pipeline_status',
+      'workflow_run',
       'compile_requirement',
       'compile_test_plan',
       'validate_plan',
@@ -446,6 +478,89 @@ export const MANIFEST_VERSION = '1.0.0';
 /** Output path relative to repository root. */
 export const MANIFEST_FILENAME = 'agent-manifest.json';
 
+// ─── Semantic Stage Contracts ────────────────────────────────────────────────
+
+/**
+ * Canonical per-stage entry/exit contracts. Generated once here and surfaced
+ * in the manifest so AI clients can read real runtime preconditions instead
+ * of re-inferring them from physical phase completion.
+ */
+const WORKFLOW_STAGE_CONTRACTS: WorkflowStageContract[] = [
+  {
+    stage: 'explore',
+    entryConditions: [
+      'Requirement path and environment are known',
+      'No usable on-disk evidence, or the feature is new/changed/high-risk',
+    ],
+    exitConditions: [
+      'Evidence satisfied (catalog/page-map paths + hashes verified)',
+      'Explicit safe skip recorded with reason',
+      'Blocked with actionable reason',
+    ],
+    physicalMapping: [],
+    requiredArtifacts: [
+      'artifacts/selector-catalog/<feature>/*',
+      'artifacts/selector-catalog/<feature>/page-map.json',
+    ],
+    allowedNextStages: ['model'],
+  },
+  {
+    stage: 'model',
+    entryConditions: ['Explore result is usable (satisfied/skipped/recommended)'],
+    exitConditions: [
+      'Valid requirement and plan path with matching hashes',
+      'Scenario metadata recorded',
+    ],
+    physicalMapping: ['plan'],
+    requiredArtifacts: ['specs/<feature>-test-plan.md'],
+    allowedNextStages: ['challenge'],
+  },
+  {
+    stage: 'challenge',
+    entryConditions: ['Model result exists and passed'],
+    exitConditions: [
+      'Zero blocking diagnostics',
+      'Warnings recorded as needs-review/manual decision',
+    ],
+    gate: 'validate_plan — coverage, AC, role/auth drift, assertion provenance, catalog evidence, ephemeral refs',
+    physicalMapping: ['plan'],
+    requiredArtifacts: ['specs/<feature>-test-plan.md (compiled TestPlanContractV1)'],
+    allowedNextStages: ['generate'],
+  },
+  {
+    stage: 'generate',
+    entryConditions: [
+      'Explore usable',
+      'Model passed',
+      'Challenge allowed',
+      'Requirement/plan hashes current',
+    ],
+    exitConditions: [
+      'Structurally valid generated specs (validate_generated_tests)',
+      'No credential or ephemeral ref leakage',
+    ],
+    gate: 'canGenerate() — the machine-enforced FOURTH, NOT FIRST invariant',
+    physicalMapping: ['generate'],
+    requiredArtifacts: ['tests/<feature>-<role>.spec.ts'],
+    allowedNextStages: ['validate'],
+  },
+  {
+    stage: 'validate',
+    entryConditions: ['Generated specs available'],
+    exitConditions: [
+      'Report/Analyze complete and verified',
+      'Explicit QA decision recorded (archive_report)',
+    ],
+    physicalMapping: ['execute', 'heal', 'report'],
+    requiredArtifacts: [
+      'artifacts/reports/pipeline-report-<runId>.md',
+      'artifacts/reports/test-notes.json (sidecar)',
+      'artifacts/reports/archive/<runId>/ (after QA decision)',
+    ],
+    allowedNextStages: [],
+  },
+];
+
 // ─── Manifest Generator ──────────────────────────────────────────────────────
 
 /**
@@ -520,10 +635,18 @@ export function generateManifest(): CapabilityManifest {
     dependencies: ['@playwright/test', '@playwright/mcp', 'tsx'],
   };
 
+  const workflow: WorkflowManifest = {
+    stages: WORKFLOW_STAGES.map((s) => WORKFLOW_STAGE_DEFINITIONS[s]),
+    notes:
+      'Canonical QA workflow: Explore → Model → Challenge → Generate → Validate. Physical phases (plan, generate, execute, heal, report) are preserved for execution engine compatibility.',
+  };
+
   return {
     version: MANIFEST_VERSION,
     generatedAt: new Date().toISOString(),
     phases,
+    workflow,
+    workflowContracts: WORKFLOW_STAGE_CONTRACTS,
     orchestrationModes,
     prerequisites,
   };

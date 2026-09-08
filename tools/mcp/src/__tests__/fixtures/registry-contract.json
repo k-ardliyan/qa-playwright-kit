@@ -14,6 +14,13 @@
     "readOnly": true
   },
   {
+    "name": "workflow_run",
+    "description": "Run the native semantic workflow (Explore → Model → Challenge → Generate → Validate) for a requirement through the production driver. Returns the structured WorkflowResponse (workflowStage, workflowStatus, nextRequiredAction) so a block is actionable. Use this instead of manual phase-by-phase invoke when the semantic flow is desired.",
+    "stability": "experimental",
+    "profiles": ["planner", "generator", "healer", "reporter", "author", "all"],
+    "readOnly": false
+  },
+  {
     "name": "get_test_failures",
     "description": "Get Playwright test failures from the caller's resultsDir (or artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
     "stability": "stable",

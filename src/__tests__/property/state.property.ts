@@ -46,7 +46,9 @@ const pipelineStateArb = fc.record({
   runId: fc.uuid(),
   status: fc.constantFrom('running', 'completed', 'failed', 'paused'),
   currentPhase: fc.option(phaseArb, { nil: null }),
-  completedPhases: fc.subarray(PHASE_SEQUENCE),
+  completedPhases: fc
+    .integer({ min: 0, max: PHASE_SEQUENCE.length })
+    .map((count) => PHASE_SEQUENCE.slice(0, count)),
   artifacts: fc.constant({ plan: [], generate: [], execute: [], heal: [], report: [] }),
   timestamp: isoDateArb,
   startedAt: isoDateArb,

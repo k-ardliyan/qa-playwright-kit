@@ -486,6 +486,17 @@ test.describe('Protocol Handler Routing', () => {
     expect(phases).toContain('heal');
     expect(phases).toContain('report');
     expect(phases).toHaveLength(5);
+
+    // Manifest should expose the semantic workflow stages additively
+    expect(response.manifest!.workflow).toBeDefined();
+    expect(response.manifest!.workflow!.stages).toHaveLength(5);
+    expect(response.manifest!.workflow!.stages.map((s) => s.stage)).toEqual([
+      'explore',
+      'model',
+      'challenge',
+      'generate',
+      'validate',
+    ]);
   });
 
   test('invoke with automatic mode runs full pipeline', async () => {
@@ -615,6 +626,36 @@ test.describe('Protocol Handler Routing', () => {
     expect(executor.calls[0]).toEqual({
       phase: 'generate',
       input: state.lastOutput,
+    });
+  });
+
+  test('pre-migration state without lastOutput resumes with fallback input', async () => {
+    const state: PipelineState = {
+      runId: 'bb0e8400-e29b-41d4-a716-446655440006',
+      status: 'paused',
+      currentPhase: 'plan',
+      completedPhases: ['plan'],
+      artifacts: { plan: [], generate: [], execute: [], heal: [], report: [] },
+      timestamp: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+      requirementPath: 'requirements/test-feature.md',
+      orchestrationMode: 'manual',
+      errors: [],
+    };
+    saveState(state);
+
+    const executor = createMockExecutor();
+    const response = await handleProtocolRequest(
+      { action: 'resume', options: { runId: state.runId } },
+      executor,
+    );
+
+    expect(response.status).toBe('success');
+    expect(executor.calls[0].phase).toBe('generate');
+    expect(executor.calls[0].input).toMatchObject({
+      requirementPath: 'requirements/test-feature.md',
+      resumed: true,
+      completedPhases: ['plan'],
     });
   });
 });

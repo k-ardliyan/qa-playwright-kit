@@ -2,17 +2,19 @@
 
 ## Role
 
-You convert a Planner scenario table into Playwright TypeScript test files.
+You convert a Planner scenario table into Playwright TypeScript test files, executing stage **04. Generate (PLAYWRIGHT AUTOMATION — FOURTH, NOT FIRST)** in the **Explore → Model → Challenge → Generate → Validate** framework.
 
 > **TL;DR — Key constraints (read before generating):**
 >
+> - **Fourth, Not First:** Only generate tests after the requirement has been Modeled and Challenged by the Planner.
+> - **Durable Evidence First:** Consume verified selector catalogs (`artifacts/selector-catalog/`) or run live discovery. NEVER guess selectors.
+> - **Zero Ephemeral Refs:** NEVER persist runtime ephemeral element `ref`s (e.g. `ref:tw-123`, `tw-XXXX`) or hardcoded sleeps into spec files.
 > - Import test from `./fixtures` (or `@/public`) — NEVER from `@playwright/test` directly
 > - Auth: `test.use({ storageState: authStatePath('<role>') })` — NEVER hardcode `.auth/` path
 > - NEVER log in inside a spec: no filling login forms / inline credentials + submit in `tests/*.spec.ts`. Sessions are provisioned by the setup project via storageState only (exception: the requirement itself tests login — `authState: unauthenticated` — then login steps are the test subject)
 > - Canonical output is flat: one spec file per role at `tests/<feature>-<role>.spec.ts` (or `tests/<feature>.spec.ts` for general mode)
 > - Call `setTestMetadata(test, ...)` as first statement in every test body
 > - Use `.visible()` instead of `:visible` CSS pseudo-class (e.g. `page.locator('button').visible().click()`)
-> - Unknown selector → call `browser_snapshot` or check catalog first; NEVER guess
 > - Blocked scenario → `test.skip(true, '<reason>')`, NEVER delete
 
 ## Golden Examples
@@ -51,6 +53,8 @@ Also read per-scenario fields:
 
 Also read metadata from the source requirement via `compile_requirement` (or `normalize_requirements`) when available.
 
+**Challenge Gate Compliance:** Generator must only generate executable code from plans that pass the Planner's Challenge stage (`validate_plan` has zero blocking errors). If a scenario is marked `@blocked` or listed in Coverage Gaps with unresolved dependencies, generate as `test.skip(true, '<reason>')` and record a generator note via `record_ai_note`. Do not silently guess implementation details for unverified assumptions.
+
 ## MCP Dependencies
 
 | Server              | Tool                       | Purpose                                                                                                                                                 |
@@ -67,7 +71,7 @@ Also read metadata from the source requirement via `compile_requirement` (or `no
 
 ### POM Decision (Before Generating Spec)
 
-Check if `metadata.pomRequired` lists a POM. If yes:
+Check if `metadata.pomFixtures` lists a POM. If yes:
 
 1. Check if `tests/pages/<PomName>.ts` exists
    - Exists → import and use it (current behavior)
@@ -76,7 +80,7 @@ Check if `metadata.pomRequired` lists a POM. If yes:
      b. If catalog exists → call `generate_page_object` tool → warn QA to review scaffold + register fixture
      c. If catalog missing → call `snapshot_page` first, then `generate_page_object`
      d. Output: "⚠️ POM scaffold created. Review TODOs and register in tests/fixtures.ts before running."
-2. If no `pomRequired` → generate with inline locators (default behavior)
+2. If no `pomFixtures` → generate with inline locators (default behavior)
 
 ### Selector Catalog Reuse (Token-Efficient Locator Discovery)
 
@@ -141,7 +145,7 @@ Before committing generated test code:
 | `(@download)`                   | Download files and verify envelope with `downloadAndSave()` from `@/support/pw`.                                                                      |
 | `(@upload)`                     | Upload files with `uploadFixture()` or `uploadImageAndVerify()` from `@/support/pw`.                                                                  |
 | `(@file-content)`               | Assert text/headers in PDF/Excel fixtures with `assertPdfContains()` or `assertExcelHeaders()` from `@/support/pw`.                                   |
-| `metadata.pomRequired`          | Import and use the named POM class(es) from `tests/pages/<name>.ts`                                                                                   |
+| `metadata.pomFixtures`          | Import and use the named POM class(es) from `tests/pages/<name>.ts`                                                                                   |
 
 ## File Naming Convention
 
@@ -462,7 +466,7 @@ const downloaded = await test.step('Download export', async () => {
 await assertDownloadedEnvelope(downloaded.path, { kind: 'pdf', minBytes: 100 });
 ```
 
-Register `waitForEvent('download')` **before** the click that starts the download (or use `downloadAndSave`, which does this). Prefer `downloadAndSave` / `downloadFile` from `@/support/pw` or BasePage over ad-hoc listeners.
+Register `waitForEvent('download')` **before** the click that starts the download (or use `downloadAndSave`, which does this). Prefer `downloadAndSave` from `@/support/pw`, or the `downloadFile` method on `BasePage` (`tests/pages/BasePage.ts`), over ad-hoc listeners.
 
 ### Upload pattern (`@upload`) — fixture-first
 
@@ -475,7 +479,7 @@ await test.step('Upload fixture', async () => {
 });
 ```
 
-**Forbidden:** `page.pause()` or any headed OS file-picker flow for upload. Always use `setInputFiles` / `uploadFixture` / `uploadViaChooser` / `uploadFile`.
+**Forbidden:** `page.pause()` or any headed OS file-picker flow for upload. Always use `setInputFiles` / `uploadFixture` / `uploadViaChooser` from `@/support/pw` (or the `uploadFile` method on `BasePage`).
 
 ### File content pattern (`@file-content`) — scenario-owned tokens only
 

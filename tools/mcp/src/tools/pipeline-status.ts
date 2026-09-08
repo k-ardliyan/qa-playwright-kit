@@ -33,6 +33,27 @@ type AppEnvResolver = (options: AppEnvResolverOptions) => AppEnvResolution;
 const KNOWN_APP_ENVS = new Set(['local', 'dev', 'staging', 'production']);
 const ACTIVE_ENV_FILENAME = '.active-env';
 
+export type McpWorkflowStage = 'explore' | 'model' | 'challenge' | 'generate' | 'validate';
+
+/**
+ * Derive semantic workflow stage from the physical pipeline phase.
+ */
+export function deriveWorkflowStage(currentPhase: string | null): McpWorkflowStage | undefined {
+  if (!currentPhase) return undefined;
+  switch (currentPhase) {
+    case 'plan':
+      return 'model';
+    case 'generate':
+      return 'generate';
+    case 'execute':
+    case 'heal':
+    case 'report':
+      return 'validate';
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Optional test/runtime seam. Handler callers use defaults; tests can inject a
  * temporary workspace without changing output shape or reading credential data.
@@ -102,6 +123,19 @@ export interface PipelineStatusOutput {
     requirementUpToDate: boolean | null;
     /** Relative artifact paths recorded by the state file that no longer exist. */
     missingArtifacts: string[];
+    /** Semantic workflow stage derived from current physical phase. */
+    workflowStage?: McpWorkflowStage;
+    /** Native semantic workflow envelope (qa.workflow/v1) when present. */
+    workflow?: {
+      schemaVersion: string;
+      mode: 'semantic-v1' | 'physical-compat';
+      currentStage: McpWorkflowStage | null;
+      currentSubstage?: 'execute' | 'heal' | 'report-analyze' | 'qa-review';
+      stageStatus: Record<string, string>;
+      exploreDecision?: string;
+      challengeDecision?: string;
+      lastFeedback?: { loopTarget: string; failureSource: string; reason: string };
+    };
   };
   lastRun?: {
     total: number;
@@ -155,6 +189,50 @@ function checkArtifacts(repoRoot: string, state: Record<string, unknown>): strin
     }
   }
   return missing;
+}
+
+const WORKFLOW_STAGE_NAMES = ['explore', 'model', 'challenge', 'generate', 'validate'];
+
+/** Extract per-stage status from the workflow envelope (honest: never fabricate). */
+function extractStageStatuses(raw: unknown): Record<string, string> {
+  const stages = (raw as Record<string, unknown> | null)?.stages;
+  if (typeof stages !== 'object' || stages === null) return {};
+  const out: Record<string, string> = {};
+  for (const name of WORKFLOW_STAGE_NAMES) {
+    const entry = (stages as Record<string, unknown>)[name];
+    if (typeof entry === 'object' && entry !== null) {
+      const status = (entry as Record<string, unknown>).status;
+      if (typeof status === 'string') out[name] = status;
+    }
+  }
+  return out;
+}
+
+/** Extract a stage decision status (explore/challenge) when recorded. */
+function extractDecision(raw: unknown, key: 'explore' | 'challenge'): string | undefined {
+  const entry = (raw as Record<string, unknown> | null)?.[key];
+  if (typeof entry === 'object' && entry !== null) {
+    const status = (entry as Record<string, unknown>).status;
+    if (typeof status === 'string') return status;
+  }
+  return undefined;
+}
+
+/** Extract the last feedback decision when recorded. */
+function extractLastFeedback(
+  raw: unknown,
+): { loopTarget: string; failureSource: string; reason: string } | undefined {
+  const fb = (raw as Record<string, unknown> | null)?.lastFeedback;
+  if (typeof fb !== 'object' || fb === null) return undefined;
+  const rec = fb as Record<string, unknown>;
+  if (typeof rec.loopTarget !== 'string' || typeof rec.failureSource !== 'string') {
+    return undefined;
+  }
+  return {
+    loopTarget: rec.loopTarget,
+    failureSource: rec.failureSource,
+    reason: typeof rec.reason === 'string' ? rec.reason : '',
+  };
 }
 
 export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineStatusOutput {
@@ -224,10 +302,41 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
     }
   })();
 
+  const currentPhase = typeof s.currentPhase === 'string' ? s.currentPhase : null;
+  const rawWorkflow = s.workflow;
+  const workflow =
+    typeof rawWorkflow === 'object' &&
+    rawWorkflow !== null &&
+    typeof (rawWorkflow as Record<string, unknown>).schemaVersion === 'string'
+      ? {
+          schemaVersion: (rawWorkflow as Record<string, unknown>).schemaVersion as string,
+          mode:
+            (rawWorkflow as Record<string, unknown>).mode === 'semantic-v1'
+              ? ('semantic-v1' as const)
+              : ('physical-compat' as const),
+          currentStage:
+            typeof (rawWorkflow as Record<string, unknown>).currentStage === 'string'
+              ? ((rawWorkflow as Record<string, unknown>).currentStage as McpWorkflowStage)
+              : null,
+          currentSubstage:
+            typeof (rawWorkflow as Record<string, unknown>).currentSubstage === 'string'
+              ? ((rawWorkflow as Record<string, unknown>).currentSubstage as
+                  | 'execute'
+                  | 'heal'
+                  | 'report-analyze'
+                  | 'qa-review')
+              : undefined,
+          stageStatus: extractStageStatuses(rawWorkflow),
+          exploreDecision: extractDecision(rawWorkflow, 'explore'),
+          challengeDecision: extractDecision(rawWorkflow, 'challenge'),
+          lastFeedback: extractLastFeedback(rawWorkflow),
+        }
+      : undefined;
+
   const state: PipelineStatusOutput['state'] = {
     runId: typeof s.runId === 'string' ? s.runId : '',
     status: typeof s.status === 'string' ? s.status : 'unknown',
-    currentPhase: typeof s.currentPhase === 'string' ? s.currentPhase : null,
+    currentPhase,
     completedPhases: Array.isArray(s.completedPhases)
       ? (s.completedPhases as string[]).filter((p) => PHASE_ORDER.includes(p))
       : [],
@@ -236,6 +345,8 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
     lastUpdated: typeof s.timestamp === 'string' ? s.timestamp : '',
     requirementUpToDate,
     missingArtifacts: checkArtifacts(repoRoot, s),
+    workflowStage: workflow?.currentStage ?? deriveWorkflowStage(currentPhase),
+    ...(workflow ? { workflow } : {}),
   };
 
   // ── Last run summary ────────────────────────────────────────────────────
@@ -294,8 +405,37 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
         'Requirement changed since this run started — start a fresh run instead of resuming.',
       );
     }
-    const remaining = PHASE_ORDER.filter((p) => !state.completedPhases.includes(p));
-    nextSteps.push(`Resume from phase: ${remaining[0] ?? 'report'}.`);
+    // Native semantic runs resume by stage, not by physical phase.
+    if (workflow) {
+      const blockedStage = WORKFLOW_STAGE_NAMES.find(
+        (name) =>
+          workflow.stageStatus[name] === 'blocked' || workflow.stageStatus[name] === 'failed',
+      );
+      if (blockedStage) {
+        nextSteps.push(
+          `Workflow stage '${blockedStage}' is ${workflow.stageStatus[blockedStage]} — fix the blocker, then resume the semantic run.`,
+        );
+      } else {
+        const nextStage = WORKFLOW_STAGE_NAMES.find(
+          (name) =>
+            workflow.stageStatus[name] === 'idle' || workflow.stageStatus[name] === 'required',
+        );
+        nextSteps.push(
+          nextStage
+            ? `Next workflow stage: ${nextStage}.`
+            : 'All workflow stages complete — record the QA decision (archive_report).',
+        );
+      }
+    } else {
+      const remaining = PHASE_ORDER.filter((p) => !state.completedPhases.includes(p));
+      nextSteps.push(`Resume from phase: ${remaining[0] ?? 'report'}.`);
+    }
+  } else if (state.status === 'blocked') {
+    // PC-06: a blocked run has no active process and waits for a fix or
+    // decision — surface the next required action instead of a phantom run.
+    nextSteps.push(
+      'Last run is blocked — fix the blocker (Plan/Generate/Validate input), then resume with the same runId.',
+    );
   } else if (state.status === 'failed') {
     nextSteps.push('Last run failed — inspect unresolved failures before restarting.');
   } else if (lastRun && lastRun.failed === 0) {
@@ -304,12 +444,16 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
     );
   }
 
+  const stageLabel = workflow?.currentStage
+    ? `stage: ${workflow.currentStage} (${workflow.stageStatus[workflow.currentStage] ?? 'unknown'})`
+    : `phase: ${state.currentPhase ?? '-'}`;
+
   return {
     status: 'success',
     message:
       nextSteps.length > 0
-        ? `Pipeline ${state.status} (phase: ${state.currentPhase ?? '-'}). ${nextSteps.join(' ')}`
-        : `Pipeline ${state.status} (phase: ${state.currentPhase ?? '-'}).`,
+        ? `Pipeline ${state.status} (${stageLabel}). ${nextSteps.join(' ')}`
+        : `Pipeline ${state.status} (${stageLabel}).`,
     state,
     lastRun,
     environment,

@@ -65,11 +65,17 @@ test.describe('Staleness Invalidation & Resume Safety (Phase 9)', () => {
       orchestrationMode: 'automatic',
       errors: [],
     };
+    const prodFile = path.resolve(repoRoot, 'artifacts', 'reports', 'pipeline-state.json');
+    const beforeContent = fs.existsSync(prodFile) ? fs.readFileSync(prodFile, 'utf-8') : null;
+
     saveState(isolated);
+
     expect(fs.existsSync(path.join(isolateDir(), 'pipeline-state.json'))).toBe(true);
-    expect(
-      fs.existsSync(path.resolve(repoRoot, 'artifacts', 'reports', 'pipeline-state.json')),
-    ).toBe(false);
+    const afterContent = fs.existsSync(prodFile) ? fs.readFileSync(prodFile, 'utf-8') : null;
+    expect(afterContent).toBe(beforeContent);
+    if (afterContent) {
+      expect(afterContent).not.toContain('isolation-check-0000');
+    }
   });
 });
 

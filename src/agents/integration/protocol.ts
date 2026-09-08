@@ -7,25 +7,65 @@
  * @module agents/integration/protocol
  */
 
-import type { PipelinePhase, ProtocolError, PhaseResult } from './types';
+import * as path from 'node:path';
+import {
+  WORKFLOW_STAGES,
+  type PipelinePhase,
+  type ProtocolError,
+  type PhaseResult,
+  type WorkflowStage,
+} from './types';
 import type { CapabilityManifest } from './manifest';
 import { generateManifest } from './manifest';
 import { Orchestrator, OrchestratorConfig, PhaseExecutor } from './orchestrator';
 import { PipelineHookRegistry } from './hooks';
-import { resumeState } from './state';
+import { loadState, resumeState } from './state';
+import {
+  WorkflowController,
+  type WorkflowAdapters,
+  type WorkflowResponse,
+} from './workflow-controller';
 
 export type { CapabilityManifest, PhaseExecutor };
 
 /**
  * Valid protocol actions.
  */
-export const VALID_ACTIONS = ['invoke', 'query', 'resume'] as const;
+export const VALID_ACTIONS = ['invoke', 'query', 'resume', 'run'] as const;
 export type ProtocolAction = (typeof VALID_ACTIONS)[number];
 
 /**
  * Valid pipeline phases.
  */
 export const VALID_PHASES: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 'report'];
+const VALID_WORKFLOWS = ['semantic-v1', 'physical-compat'] as const;
+const VALID_ORCHESTRATION_MODES = ['manual', 'automatic'] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isSafeRequirementPath(value: unknown): value is string {
+  if (!isNonEmptyString(value) || value.includes('\0')) return false;
+  const normalized = value.replace(/\\/g, '/');
+  return (
+    !path.isAbsolute(value) &&
+    !path.win32.isAbsolute(value) &&
+    normalized.startsWith('requirements/') &&
+    normalized.endsWith('.md') &&
+    !normalized.split('/').some((segment) => segment === '..')
+  );
+}
+
+function isSafeRunId(value: unknown): value is string {
+  return (
+    isNonEmptyString(value) && value.length <= 128 && /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(value)
+  );
+}
 
 /**
  * Protocol request sent by any AI client to interact with the pipeline.
@@ -33,12 +73,16 @@ export const VALID_PHASES: PipelinePhase[] = ['plan', 'generate', 'execute', 'he
 export interface AgentProtocolRequest {
   action: ProtocolAction;
   phase?: PipelinePhase;
+  /** Semantic stage for action `run` (manual mode). Omit to run all stages. */
+  stage?: WorkflowStage;
+  workflow?: 'semantic-v1' | 'physical-compat';
   requirementPath?: string;
   options?: {
     orchestrationMode?: 'manual' | 'automatic';
     resume?: boolean;
     runId?: string;
     dryRun?: boolean;
+    roleFilter?: string[];
   };
 }
 
@@ -76,7 +120,7 @@ export type ValidationResult =
  */
 export function validateRequest(request: unknown): ValidationResult {
   // Check request is a non-null object
-  if (request === null || typeof request !== 'object') {
+  if (!isRecord(request)) {
     return {
       valid: false,
       error: createErrorResponse([
@@ -89,7 +133,87 @@ export function validateRequest(request: unknown): ValidationResult {
     };
   }
 
-  const req = request as Record<string, unknown>;
+  const req = request;
+  const errors: ProtocolError[] = [];
+  const options = req.options;
+
+  if (req.options !== undefined && !isRecord(req.options)) {
+    errors.push({
+      code: 'SCHEMA_VIOLATION',
+      message: "Field 'options' must be an object.",
+      retryable: false,
+    });
+  }
+  if (
+    req.workflow !== undefined &&
+    !VALID_WORKFLOWS.includes(req.workflow as (typeof VALID_WORKFLOWS)[number])
+  ) {
+    errors.push({
+      code: 'INVALID_WORKFLOW',
+      message: `Unrecognized workflow: '${String(req.workflow)}'. Valid workflows are: ${VALID_WORKFLOWS.join(', ')}.`,
+      retryable: false,
+    });
+  }
+  if (req.requirementPath !== undefined && !isSafeRequirementPath(req.requirementPath)) {
+    errors.push({
+      code: 'INVALID_REQUIREMENT_PATH',
+      message: 'requirementPath must be a non-empty requirements/*.md path without traversal.',
+      retryable: false,
+    });
+  }
+  if (
+    req.stage !== undefined &&
+    (!isNonEmptyString(req.stage) || !(WORKFLOW_STAGES as readonly string[]).includes(req.stage))
+  ) {
+    errors.push({
+      code: 'INVALID_STAGE',
+      message: `Unrecognized stage: '${String(req.stage)}'. Valid stages are: ${WORKFLOW_STAGES.join(', ')}.`,
+      retryable: false,
+    });
+  }
+  if (isRecord(options)) {
+    if (
+      options.orchestrationMode !== undefined &&
+      !VALID_ORCHESTRATION_MODES.includes(
+        options.orchestrationMode as (typeof VALID_ORCHESTRATION_MODES)[number],
+      )
+    ) {
+      errors.push({
+        code: 'INVALID_ORCHESTRATION_MODE',
+        message: 'options.orchestrationMode must be manual or automatic.',
+        retryable: false,
+      });
+    }
+    for (const key of ['resume', 'dryRun'] as const) {
+      if (options[key] !== undefined && typeof options[key] !== 'boolean') {
+        errors.push({
+          code: 'SCHEMA_VIOLATION',
+          message: `options.${key} must be a boolean.`,
+          retryable: false,
+        });
+      }
+    }
+    if (options.runId !== undefined && !isSafeRunId(options.runId)) {
+      errors.push({
+        code: 'INVALID_RUN_ID',
+        message: 'options.runId must be a safe non-empty identifier.',
+        retryable: false,
+      });
+    }
+    if (
+      options.roleFilter !== undefined &&
+      (!Array.isArray(options.roleFilter) ||
+        options.roleFilter.length === 0 ||
+        !options.roleFilter.every(isNonEmptyString))
+    ) {
+      errors.push({
+        code: 'SCHEMA_VIOLATION',
+        message: 'options.roleFilter must be a non-empty array of non-empty strings.',
+        retryable: false,
+      });
+    }
+  }
+  if (errors.length > 0) return { valid: false, error: createErrorResponse(errors) };
 
   // Validate action field
   const action = req.action;
@@ -107,6 +231,93 @@ export function validateRequest(request: unknown): ValidationResult {
   }
 
   const typedAction = action as ProtocolAction;
+
+  if (typedAction === 'run' && req.phase !== undefined) {
+    errors.push({
+      code: 'INCOMPATIBLE_FIELD',
+      message: "Action 'run' accepts semantic 'stage', not physical 'phase'.",
+      retryable: false,
+    });
+  }
+  if (typedAction !== 'run' && req.stage !== undefined) {
+    errors.push({
+      code: 'INCOMPATIBLE_FIELD',
+      message: `Action '${typedAction}' accepts no semantic 'stage' field.`,
+      retryable: false,
+    });
+  }
+  if (typedAction === 'invoke' && req.workflow === 'semantic-v1') {
+    errors.push({
+      code: 'INCOMPATIBLE_WORKFLOW',
+      message: "Physical action 'invoke' cannot use workflow 'semantic-v1'.",
+      retryable: false,
+    });
+  }
+  if (typedAction === 'run' && req.workflow === 'physical-compat') {
+    errors.push({
+      code: 'INCOMPATIBLE_WORKFLOW',
+      message: "Semantic action 'run' cannot use workflow 'physical-compat'.",
+      retryable: false,
+    });
+  }
+  if (
+    typedAction === 'query' &&
+    (req.phase !== undefined ||
+      req.stage !== undefined ||
+      req.workflow !== undefined ||
+      req.requirementPath !== undefined ||
+      req.options !== undefined)
+  ) {
+    errors.push({
+      code: 'INCOMPATIBLE_FIELD',
+      message: "Action 'query' does not accept pipeline fields or options.",
+      retryable: false,
+    });
+  }
+  if (
+    typedAction === 'resume' &&
+    (req.phase !== undefined ||
+      req.stage !== undefined ||
+      req.workflow !== undefined ||
+      req.requirementPath !== undefined)
+  ) {
+    errors.push({
+      code: 'INCOMPATIBLE_FIELD',
+      message:
+        "Action 'resume' only accepts options.runId; do not provide phase, stage, workflow, or requirementPath.",
+      retryable: false,
+    });
+  }
+  if (typedAction === 'resume' && isRecord(options)) {
+    for (const key of ['orchestrationMode', 'resume', 'dryRun', 'roleFilter'] as const) {
+      if (options[key] !== undefined) {
+        errors.push({
+          code: 'INCOMPATIBLE_FIELD',
+          message: `Action 'resume' does not accept options.${key}; persisted run settings are authoritative.`,
+          retryable: false,
+        });
+      }
+    }
+  }
+  if (typedAction === 'invoke' && isRecord(options)) {
+    if (options.resume !== undefined || options.runId !== undefined) {
+      errors.push({
+        code: 'INCOMPATIBLE_FIELD',
+        message:
+          "Physical action 'invoke' cannot use options.resume or options.runId; use action 'resume'.",
+        retryable: false,
+      });
+    }
+  }
+  if (typedAction === 'run' && isRecord(options) && options.dryRun !== undefined) {
+    errors.push({
+      code: 'INCOMPATIBLE_FIELD',
+      message: "Semantic action 'run' does not support options.dryRun.",
+      retryable: false,
+    });
+  }
+
+  if (errors.length > 0) return { valid: false, error: createErrorResponse(errors) };
 
   // Validate phase if provided
   if (req.phase !== undefined) {
@@ -136,7 +347,7 @@ export function validateRequest(request: unknown): ValidationResult {
       });
     }
 
-    if (!req.requirementPath || typeof req.requirementPath !== 'string') {
+    if (!isNonEmptyString(req.requirementPath)) {
       errors.push({
         code: 'SCHEMA_VIOLATION',
         message: "Action 'invoke' requires a 'requirementPath' field.",
@@ -149,39 +360,69 @@ export function validateRequest(request: unknown): ValidationResult {
     }
   }
 
-  // Conditional validation for 'resume' action
-  if (typedAction === 'resume') {
-    const options = req.options as Record<string, unknown> | undefined;
-    if (
-      !options ||
-      typeof options !== 'object' ||
-      !options.runId ||
-      typeof options.runId !== 'string'
-    ) {
-      return {
-        valid: false,
-        error: createErrorResponse([
-          {
-            code: 'SCHEMA_VIOLATION',
-            message: "Action 'resume' requires 'options.runId' field.",
-            retryable: false,
-          },
-        ]),
-      };
+  // Conditional validation for 'run' action (native semantic workflow)
+  if (typedAction === 'run') {
+    const errors: ProtocolError[] = [];
+
+    if (!isNonEmptyString(req.requirementPath)) {
+      errors.push({
+        code: 'SCHEMA_VIOLATION',
+        message: "Action 'run' requires a 'requirementPath' field.",
+        retryable: false,
+      });
+    }
+
+    if (req.stage !== undefined) {
+      const validStages = WORKFLOW_STAGES;
+      if (
+        typeof req.stage !== 'string' ||
+        !(validStages as readonly string[]).includes(req.stage)
+      ) {
+        errors.push({
+          code: 'INVALID_STAGE',
+          message: `Unrecognized stage: '${String(req.stage)}'. Valid stages are: ${validStages.join(', ')}.`,
+          retryable: false,
+        });
+      }
+    }
+
+    if (errors.length > 0) {
+      return { valid: false, error: createErrorResponse(errors) };
     }
   }
 
+  // Conditional validation for 'resume' action
+  if (typedAction === 'resume' && (!isRecord(options) || !isSafeRunId(options.runId))) {
+    return {
+      valid: false,
+      error: createErrorResponse([
+        {
+          code: 'SCHEMA_VIOLATION',
+          message: "Action 'resume' requires a safe 'options.runId' field.",
+          retryable: false,
+        },
+      ]),
+    };
+  }
+
   // Build validated request with defaults applied
-  const options = (req.options as Record<string, unknown> | undefined) ?? {};
+  const validatedOptions = isRecord(options) ? options : {};
   const validatedRequest: AgentProtocolRequest = {
     action: typedAction,
     ...(req.phase !== undefined && { phase: req.phase as PipelinePhase }),
+    ...(req.stage !== undefined && { stage: req.stage as WorkflowStage }),
+    ...(req.workflow !== undefined && {
+      workflow: req.workflow as 'semantic-v1' | 'physical-compat',
+    }),
     ...(req.requirementPath !== undefined && { requirementPath: req.requirementPath as string }),
     options: {
-      orchestrationMode: (options.orchestrationMode as 'manual' | 'automatic') ?? 'manual',
-      ...(options.resume !== undefined && { resume: options.resume as boolean }),
-      ...(options.runId !== undefined && { runId: options.runId as string }),
-      ...(options.dryRun !== undefined && { dryRun: options.dryRun as boolean }),
+      orchestrationMode: (validatedOptions.orchestrationMode as 'manual' | 'automatic') ?? 'manual',
+      ...(validatedOptions.resume !== undefined && { resume: validatedOptions.resume as boolean }),
+      ...(validatedOptions.runId !== undefined && { runId: validatedOptions.runId as string }),
+      ...(validatedOptions.dryRun !== undefined && { dryRun: validatedOptions.dryRun as boolean }),
+      ...(validatedOptions.roleFilter !== undefined && {
+        roleFilter: validatedOptions.roleFilter as string[],
+      }),
     },
   };
 
@@ -344,20 +585,32 @@ async function handleResume(
 }
 
 /**
- * Handle an incoming protocol request by routing to the appropriate handler.
+ * Handle an `incoming` protocol request by routing to the appropriate handler.
  *
  * - `query` → returns the capability manifest
  * - `invoke` → creates an Orchestrator and runs the specified phase (manual) or full pipeline (automatic)
  * - `resume` → loads state and resumes the pipeline from last checkpoint
+ * - `run` → native semantic workflow (Explore → Model → Challenge → Generate → Validate)
  *
  * @param request - Raw request object (validated internally)
- * @param executor - PhaseExecutor for MCP tool calls (dependency injection)
+ * @param executor - PhaseExecutor for the physical compatibility path
+ * @param adapters - WorkflowAdapters for the native semantic path (required for action `run`)
  * @returns The protocol response
  */
 export async function handleProtocolRequest(
   request: unknown,
   executor: PhaseExecutor,
-): Promise<AgentProtocolResponse> {
+): Promise<AgentProtocolResponse>;
+export async function handleProtocolRequest(
+  request: unknown,
+  executor: PhaseExecutor,
+  adapters: WorkflowAdapters,
+): Promise<AgentProtocolResponse | WorkflowResponse>;
+export async function handleProtocolRequest(
+  request: unknown,
+  executor: PhaseExecutor,
+  adapters?: WorkflowAdapters,
+): Promise<AgentProtocolResponse | WorkflowResponse> {
   // 1. Validate the request
   const validation = validateRequest(request);
   if (!validation.valid) {
@@ -373,5 +626,169 @@ export async function handleProtocolRequest(
       return handleInvoke(req, executor);
     case 'resume':
       return handleResume(req, executor);
+    case 'run':
+      return handleRun(req, adapters);
   }
+}
+
+/**
+ * Handle a `run` action by driving the native semantic workflow.
+ *
+ * The semantic path requires a WorkflowAdapters implementation; without one
+ * the request fails closed with an actionable error rather than silently
+ * falling back to an unenforced prompt flow.
+ */
+async function handleRun(
+  req: AgentProtocolRequest,
+  adapters?: WorkflowAdapters,
+): Promise<WorkflowResponse> {
+  const requestedRunId = req.options?.runId;
+  const requirementPath = req.requirementPath!;
+  const orchestrationMode = req.options?.orchestrationMode ?? 'manual';
+
+  if (!adapters) {
+    return {
+      status: 'error',
+      runId: requestedRunId ?? '',
+      workflowStage: null,
+      workflowStatus: 'blocked',
+      phase: 'all',
+      errors: [
+        {
+          code: 'WORKFLOW_ADAPTERS_REQUIRED',
+          message:
+            "Action 'run' requires the native workflow adapters. The MCP runtime must wire snapshot_page/discover_pages/compile/validate/generate/execute adapters before semantic runs are available.",
+          retryable: false,
+        },
+      ],
+      nextRequiredAction: 'Wire the WorkflowAdapters implementation into the MCP runtime.',
+    };
+  }
+
+  let initialState: import('./state').PipelineState | undefined;
+  if (req.options?.resume === true) {
+    try {
+      // Load first so the explicit runId is bound to the same persisted run
+      // before resumeState performs freshness and artifact invalidation.
+      const loaded = loadState();
+      if (!loaded) {
+        return {
+          status: 'error',
+          runId: requestedRunId ?? '',
+          workflowStage: null,
+          workflowStatus: 'blocked',
+          phase: 'all',
+          errors: [
+            {
+              code: 'NO_RESUMABLE_RUN',
+              message: 'No resumable pipeline run found.',
+              retryable: false,
+            },
+          ],
+        };
+      }
+      if (requestedRunId !== loaded.runId) {
+        return {
+          status: 'error',
+          runId: requestedRunId ?? '',
+          workflowStage: null,
+          workflowStatus: 'blocked',
+          phase: 'all',
+          errors: [
+            {
+              code: 'RUN_ID_MISMATCH',
+              message: `Requested runId '${requestedRunId}' does not match the resumable run '${loaded.runId}'.`,
+              retryable: false,
+            },
+          ],
+        };
+      }
+      const resumed = resumeState(requestedRunId);
+      if ('error' in resumed) {
+        return {
+          status: 'error',
+          runId: requestedRunId ?? '',
+          workflowStage: null,
+          workflowStatus: 'blocked',
+          phase: 'all',
+          errors: [
+            {
+              code: resumed.code ?? 'NO_RESUMABLE_RUN',
+              message: resumed.error,
+              retryable: false,
+            },
+          ],
+        };
+      }
+      if (
+        resumed.state.requirementPath.replace(/\\/g, '/') !== requirementPath.replace(/\\/g, '/')
+      ) {
+        return {
+          status: 'error',
+          runId: resumed.state.runId,
+          workflowStage: null,
+          workflowStatus: 'blocked',
+          phase: 'all',
+          errors: [
+            {
+              code: 'RESUME_REQUIREMENT_MISMATCH',
+              message: 'The requested requirementPath does not match the persisted semantic run.',
+              retryable: false,
+            },
+          ],
+        };
+      }
+      if (resumed.state.workflow?.mode !== 'semantic-v1') {
+        return {
+          status: 'error',
+          runId: resumed.state.runId,
+          workflowStage: null,
+          workflowStatus: 'blocked',
+          phase: 'all',
+          errors: [
+            {
+              code: 'RESUME_NOT_SEMANTIC',
+              message: 'Persisted state is not a native semantic run (qa.workflow/v1).',
+              retryable: false,
+            },
+          ],
+        };
+      }
+      initialState = resumed.state;
+    } catch (error) {
+      return {
+        status: 'error',
+        runId: requestedRunId ?? '',
+        workflowStage: null,
+        workflowStatus: 'blocked',
+        phase: 'all',
+        errors: [
+          {
+            code: 'RESUME_STATE_ERROR',
+            message: error instanceof Error ? error.message : String(error),
+            retryable: false,
+          },
+        ],
+      };
+    }
+  }
+
+  const controller = new WorkflowController(
+    {
+      orchestrationMode,
+      requirementPath,
+      ...(requestedRunId !== undefined ? { runId: requestedRunId } : {}),
+    },
+    adapters,
+    initialState,
+  );
+
+  const input = {
+    requirementPath,
+    orchestrationMode,
+    roleFilter: req.options?.roleFilter,
+    ...(req.options?.resume === true ? { resume: true } : {}),
+  };
+  if (req.stage) return controller.runStage(req.stage, input);
+  return controller.run(input);
 }

@@ -32,7 +32,7 @@ npm run setup:check && npm run health:check
 # Setelah setup → requirements/login.md = REAL website kamu
 # (catalog mode: requirements/auth/login-<none|auto|otp-browser|otp-stdin|captcha-browser>.md)
 npm run qa:run
-# Hermes: snapshot_page dulu (locator per site) → plan → generate → report
+# Hermes: Explore (snapshot) → Model → Challenge → Generate → Validate
 
 # Fitur lain:
 cp requirements/_TEMPLATE.md requirements/fitur-saya.md
@@ -43,23 +43,39 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 ## Command Paling Sering
 
-| Command                         | Kapan                                                                  |
-| ------------------------------- | ---------------------------------------------------------------------- |
-| `npm run qa:run`                | Preflight + pilih requirement + prompt Hermes (bukan executor lokal)   |
-| `npm run validate:requirement`  | Cek requirement saja (TTY pilih file)                                  |
-| `npm run env:edit`              | Ganti password / role / browser / OTP-CAPTCHA                          |
-| `npm run auth:setup`            | Refresh session (mode paralel)                                         |
-| `npm run auth:setup:headed`     | Session + OTP/CAPTCHA di browser (workers=1)                           |
-| `npm run auth:verify`           | Live-check sesi per role (401/redirect → re-login asli via auth:setup) |
-| `npm run manual:check`          | List semua skenario `(@manual)`                                        |
-| `list_requirement_status` (MCP) | Peta: requirement → plan → tests → manual                              |
-| `pipeline_status` (MCP)         | Cek fase pipeline, resume safety, staleness requirement                |
-| `npm test`                      | Jalankan semua test                                                    |
-| `npm run test:smoke`            | Cuma smoke test                                                        |
-| `npm run test:contract`         | Validasi Golden Contract CI offline                                    |
-| `npm run health:check`          | Cek MCP + env                                                          |
-| `npm run note:set`              | Tulis/hapus catatan QA per test (--scenario, --note; kosong = hapus)   |
-| `npm run note:list`             | Lihat semua catatan per run (opsional --run untuk run terarsip)        |
+| Command                                                                   | Kapan                                                                                                                                                                        |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run qa:run`                                                          | Preflight + pilih requirement + prompt Hermes (bukan executor lokal)                                                                                                         |
+| `npm run qa:workflow`                                                     | Pipeline semantic penuh (Explore→Model→Challenge→Generate→Validate) via driver produksi `tools/scripts/workflow-run.ts`                                                      |
+| `npm run validate:requirement`                                            | Cek requirement saja (TTY pilih file)                                                                                                                                        |
+| `npm run env:edit`                                                        | Ganti password / role / browser / OTP-CAPTCHA                                                                                                                                |
+| `npm run auth:setup`                                                      | Refresh session (mode paralel)                                                                                                                                               |
+| `npm run auth:setup:headed`                                               | Session + OTP/CAPTCHA di browser (workers=1)                                                                                                                                 |
+| `npm run auth:verify`                                                     | Live-check sesi per role (401/redirect → re-login asli via auth:setup)                                                                                                       |
+| `npm run manual:check`                                                    | List semua skenario `(@manual)`                                                                                                                                              |
+| `list_requirement_status` (MCP)                                           | Peta: requirement → plan → tests → manual                                                                                                                                    |
+| `pipeline_status` (MCP)                                                   | Cek fase pipeline, resume safety, staleness requirement                                                                                                                      |
+| `workflow_run` (MCP)                                                      | Jalankan workflow semantic penuh (Explore→Model→Challenge→Generate→Validate) via production driver; balasannya terstruktur (workflowStage/workflowStatus/nextRequiredAction) |
+| `npx tsx tools/scripts/workflow-run.ts <req> [--automatic] [--stage <s>]` | Driver CLI yang sama tanpa MCP                                                                                                                                               |
+| `npm test`                                                                | Jalankan semua test                                                                                                                                                          |
+| `npm run test:smoke`                                                      | Cuma smoke test                                                                                                                                                              |
+| `npm run test:contract`                                                   | Validasi Golden Contract CI offline                                                                                                                                          |
+| `npm run health:check`                                                    | Cek MCP + env                                                                                                                                                                |
+| `npm run note:set`                                                        | Tulis/hapus catatan QA per test (--scenario, --note; kosong = hapus)                                                                                                         |
+| `npm run note:list`                                                       | Lihat semua catatan per run (opsional --run untuk run terarsip)                                                                                                              |
+
+---
+
+## Katalog Prompt Chat Hermes untuk QA (Cheat Sheet)
+
+Setelah setup selesai, Anda **tidak wajib mengetik file Markdown secara manual**. Cukup salin salah satu contoh prompt di bawah ini ke chat Hermes di IDE:
+
+| Kebutuhan Anda                         | Contoh Chat ke Hermes                                                                                                           | Apa yang Dikerjakan Hermes di Balik Layar                                                                                 |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Menguji Halaman Baru (Punya URL)**   | `Hermes, tolong buatkan test automation untuk halaman http://.../invoices (role: finance) dan jalankan sampai selesai.`         | Memotret UI via `snapshot_page`, ekstrak komponen & form, susun `requirements/invoices.md`, lalu jalankan `workflow_run`. |
+| **Fitur Baru dari Tiket Jira / PRD**   | `Hermes, tolong buatkan test automation dari kriteria tiket ini: [paste cerita user / acceptance criteria]`                     | Membedah kebutuhan (*PRD Decompose*), buat file requirement, minta konfirmasi, lalu jalankan full pipeline.               |
+| **Uji Hak Akses (Multi-Role RBAC)**    | `Hermes, buatkan test akses halaman /settings: role super-admin harus bisa ubah, role user biasa harus ditolak (403/redirect).` | Menghasilkan skenario `@access-restriction` untuk tiap role dan menguji storageState masing-masing peran.                 |
+| **Jalankan Ulang Regresi (Fitur Ada)** | `Hermes, jalankan pipeline untuk requirements/login.md dalam mode otomatis.`                                                    | Menjalankan Explore → Model → Challenge → Generate → Validate hingga dashboard laporan siap.                              |
 
 ---
 

@@ -173,21 +173,41 @@ const DEFAULT_RESULTS_DIR = path.resolve(getRepoRoot(), 'artifacts', 'test-resul
 
 function resolveResultsFile(resultsDir: string): string | null {
   const repoRoot = getRepoRoot();
-  const normalizedDir = path.resolve(resultsDir);
+  const normalizedPath = path.resolve(resultsDir);
+
+  // 1. Direct file path support: if caller passed an existing .json file, use it directly.
+  if (
+    fs.existsSync(normalizedPath) &&
+    fs.statSync(normalizedPath).isFile() &&
+    normalizedPath.endsWith('.json')
+  ) {
+    return normalizedPath;
+  }
+
   const defaultResultsDir = path.resolve(repoRoot, 'artifacts', 'test-results');
 
-  // Config-mapped JSON applies only when browsing the default test-results root.
-  // Explicit subdirs (property fixtures, scoped Healer runs) must not pick stale global JSON.
-  if (normalizedDir === defaultResultsDir) {
+  // 2. Config-mapped JSON applies only when browsing the default test-results root.
+  if (normalizedPath === defaultResultsDir) {
     const configMapped = path.resolve(repoRoot, getJsonResultsPath());
     if (fs.existsSync(configMapped)) {
       return configMapped;
     }
   }
 
-  // Latest .json in the caller-supplied directory (default: artifacts/test-results/).
+  // 3. For any results directory (including per-run isolated dirs), prioritize
+  // `results.json` directly over other files (e.g. run-manifest.json or .last-run.json).
+  const candidateResultsJson = path.join(normalizedPath, 'results.json');
+  if (fs.existsSync(candidateResultsJson)) {
+    return candidateResultsJson;
+  }
+
+  // 4. Fallback: latest Playwright result .json in directory, ignoring non-reporter manifests.
   const latestInDir = getLatestJsonResultFile(resultsDir);
-  return latestInDir ?? null;
+  if (latestInDir && !/(run-manifest|\.last-run)\.json$/i.test(latestInDir)) {
+    return latestInDir;
+  }
+
+  return null;
 }
 
 function extractErrorMessage(result: ParsedResult): string {

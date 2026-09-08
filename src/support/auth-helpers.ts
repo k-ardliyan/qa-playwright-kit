@@ -12,7 +12,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Page } from '@playwright/test';
-import { roleCredentialKeys, canonicalRoleName } from '../shared/utils/role-credentials';
+import { isKnownAppEnv } from '../utils/app-env';
+import {
+  isPlaceholderCredential,
+  isValidRoleName,
+  roleCredentialKeys,
+  canonicalRoleName,
+} from '../shared/utils/role-credentials';
 import { authStateFileExpiryVerdict } from '../shared/mcp/auth-probe';
 import { pathRoleFromStatePath, runAuthProbeCheck } from './session-guard';
 
@@ -54,8 +60,10 @@ export async function isSessionValid(
   try {
     await page.goto(targetUrl, { timeout: 15_000 });
     const currentUrl = page.url();
-    // If current URL does not contain the login path, session is still active
-    if (!currentUrl.includes(loginUrl)) {
+    const currentPath = getUrlPath(currentUrl);
+    const loginPath = getUrlPath(loginUrl);
+    // Query strings and unrelated paths containing "login" are not redirects.
+    if (currentPath !== loginPath) {
       // Layer 3: workspace probe check (if defined for this role) — the last
       // say on session health for silent apps. Timeout is inconclusive.
       const role = pathRoleFromStatePath(authFile) ?? 'user';
@@ -75,6 +83,31 @@ export async function isSessionValid(
   }
 
   return false;
+}
+
+function getUrlPath(value: string): string {
+  try {
+    return new URL(value, 'http://auth-helper.invalid').pathname.replace(/\/$/, '') || '/';
+  } catch {
+    return value.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/';
+  }
+}
+
+function normalizeConfiguredPath(value: string | undefined, fallback: string): string {
+  const candidate = value?.trim() || fallback;
+  if (/^https?:\/\//i.test(candidate)) return candidate;
+
+  let decoded = candidate;
+  try {
+    decoded = decodeURIComponent(candidate);
+  } catch {
+    return fallback;
+  }
+
+  const normalized = `/${candidate.replace(/^\/+/, '')}`;
+  const hasTraversal =
+    decoded.includes('\\') || decoded.split('/').some((segment) => segment === '..');
+  return normalized === '/' || hasTraversal ? fallback : normalized;
 }
 
 /**
@@ -105,8 +138,11 @@ export function resolveRoleCredentials(
   roleName: string,
   appEnv = process.env.APP_ENV ?? 'local',
 ): ResolvedRoleCredentials {
-  const name = canonicalRoleName(roleName);
-  const ref = roleCredentialKeys(name, appEnv);
+  const requestedRole = canonicalRoleName(roleName);
+  const name = isValidRoleName(requestedRole) ? requestedRole : 'user';
+  const requestedEnv = appEnv.trim().toLowerCase();
+  const safeEnv = isKnownAppEnv(requestedEnv) ? requestedEnv : 'local';
+  const ref = roleCredentialKeys(name, safeEnv);
 
   const pref = (process.env[ref.loginIdPrefKey] ?? '').trim().toLowerCase();
   const email = (process.env[ref.emailKey] ?? '').trim();
@@ -114,36 +150,44 @@ export function resolveRoleCredentials(
   const phone = (process.env[ref.phoneKey] ?? '').trim();
   const password = (process.env[ref.passwordKey] ?? '').trim();
 
-  const roleLoginUrl =
-    process.env[ref.loginUrlPathKey] || process.env.AUTH_LOGIN_URL_PATH || '/login';
-  const roleSuccessUrl =
-    process.env[ref.successUrlPathKey] || process.env.AUTH_SUCCESS_URL_PATH || '/dashboard';
+  const roleLoginUrl = normalizeConfiguredPath(
+    process.env[ref.loginUrlPathKey] || process.env.AUTH_LOGIN_URL_PATH,
+    '/login',
+  );
+  const roleSuccessUrl = normalizeConfiguredPath(
+    process.env[ref.successUrlPathKey] || process.env.AUTH_SUCCESS_URL_PATH,
+    '/dashboard',
+  );
 
-  const loginId =
-    (pref === 'email' && email) ||
-    (pref === 'username' && username) ||
-    (pref === 'phone' && phone) ||
-    email ||
-    username ||
-    phone;
+  const usableEmail = isPlaceholderCredential(email) ? '' : email;
+  const usableUsername = isPlaceholderCredential(username) ? '' : username;
+  const usablePhone = isPlaceholderCredential(phone) ? '' : phone;
+  const preferredLoginId =
+    pref === 'email'
+      ? usableEmail
+      : pref === 'username'
+        ? usableUsername
+        : pref === 'phone'
+          ? usablePhone
+          : '';
+  const loginId = preferredLoginId || usableEmail || usableUsername || usablePhone;
 
-  const idKind: 'email' | 'username' | 'phone' =
-    pref === 'email' || pref === 'username' || pref === 'phone'
-      ? (pref as 'email' | 'username' | 'phone')
-      : email
-        ? 'email'
-        : username
-          ? 'username'
-          : phone
-            ? 'phone'
-            : 'email';
+  const idKind: 'email' | 'username' | 'phone' = preferredLoginId
+    ? (pref as 'email' | 'username' | 'phone')
+    : usableEmail
+      ? 'email'
+      : usableUsername
+        ? 'username'
+        : usablePhone
+          ? 'phone'
+          : 'email';
 
   return {
     loginId,
     idKind,
     password,
-    loginUrl: roleLoginUrl.startsWith('/') ? roleLoginUrl : `/${roleLoginUrl}`,
-    successUrl: roleSuccessUrl.startsWith('/') ? roleSuccessUrl : `/${roleSuccessUrl}`,
+    loginUrl: roleLoginUrl,
+    successUrl: roleSuccessUrl,
     authFile: ref.authFile,
   };
 }

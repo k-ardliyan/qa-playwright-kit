@@ -1,21 +1,60 @@
 [
-  { "name": "health_check", "reads": [] },
-  { "name": "pipeline_status", "reads": [] },
-  { "name": "get_test_failures", "reads": ["resultsDir"] },
-  { "name": "get_test_summary", "reads": [] },
-  { "name": "list_artifacts", "reads": [] },
-  { "name": "list_requirement_status", "reads": [] },
-  { "name": "compile_requirement", "reads": ["requirementsText", "requirementPath"] },
-  { "name": "normalize_requirements", "reads": ["requirementsText", "requirementPath"] },
-  { "name": "parse_requirement_scenarios", "reads": ["requirementsText", "requirementPath"] },
-  { "name": "validate_generated_tests", "reads": ["filePath"] },
-  { "name": "validate_requirement", "reads": ["requirementsText", "requirementPath"] },
+  {
+    "name": "health_check",
+    "reads": []
+  },
+  {
+    "name": "pipeline_status",
+    "reads": []
+  },
+  {
+    "name": "get_test_failures",
+    "reads": ["resultsDir"]
+  },
+  {
+    "name": "get_test_summary",
+    "reads": []
+  },
+  {
+    "name": "list_artifacts",
+    "reads": []
+  },
+  {
+    "name": "list_requirement_status",
+    "reads": []
+  },
+  {
+    "name": "compile_requirement",
+    "reads": ["requirementsText", "requirementPath"]
+  },
+  {
+    "name": "normalize_requirements",
+    "reads": ["requirementsText", "requirementPath"]
+  },
+  {
+    "name": "parse_requirement_scenarios",
+    "reads": ["requirementsText", "requirementPath"]
+  },
+  {
+    "name": "validate_generated_tests",
+    "reads": ["filePath"]
+  },
+  {
+    "name": "validate_requirement",
+    "reads": ["requirementsText", "requirementPath"]
+  },
   {
     "name": "validate_plan",
     "reads": ["testPlan", "testPlanPath", "requirement", "requirementPath"]
   },
-  { "name": "compile_test_plan", "reads": ["testPlanPath", "testPlanText", "requirementPath"] },
-  { "name": "trace_requirement", "reads": ["requirementPath", "requirementsText", "summaryPath"] },
+  {
+    "name": "compile_test_plan",
+    "reads": ["testPlanPath", "testPlanText", "requirementPath"]
+  },
+  {
+    "name": "trace_requirement",
+    "reads": ["requirementPath", "requirementsText", "summaryPath"]
+  },
   {
     "name": "snapshot_page",
     "reads": [
@@ -95,8 +134,32 @@
     "name": "generate_page_object",
     "reads": ["featureName", "pageName", "className", "outputPath", "force"]
   },
-  { "name": "inspect_file", "reads": ["filePath"] },
-  { "name": "extract_pdf_text", "reads": ["filePath", "maxChars"] },
-  { "name": "read_excel_summary", "reads": ["filePath", "sheet", "maxRows"] },
-  { "name": "list_test_fixtures", "reads": ["subdir"] }
+  {
+    "name": "inspect_file",
+    "reads": ["filePath"]
+  },
+  {
+    "name": "extract_pdf_text",
+    "reads": ["filePath", "maxChars"]
+  },
+  {
+    "name": "read_excel_summary",
+    "reads": ["filePath", "sheet", "maxRows"]
+  },
+  {
+    "name": "list_test_fixtures",
+    "reads": ["subdir"]
+  },
+  {
+    "name": "workflow_run",
+    "reads": [
+      "requirementPath",
+      "stage",
+      "orchestrationMode",
+      "evidence",
+      "runId",
+      "resume",
+      "roleFilter"
+    ]
+  }
 ]

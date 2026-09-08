@@ -13,7 +13,7 @@
   ],
   "properties": {
     "runId": { "type": "string", "format": "uuid" },
-    "status": { "enum": ["running", "completed", "failed", "paused"] },
+    "status": { "enum": ["running", "completed", "failed", "paused", "blocked"] },
     "currentPhase": { "enum": ["plan", "generate", "execute", "heal", "report", null] },
     "completedPhases": {
       "type": "array",
@@ -27,6 +27,48 @@
     "startedAt": { "type": "string", "format": "date-time" },
     "requirementPath": { "type": "string" },
     "orchestrationMode": { "enum": ["manual", "automatic"] },
-    "errors": { "type": "array" }
+    "errors": { "type": "array" },
+    "workflow": {
+      "type": "object",
+      "required": ["schemaVersion", "mode", "currentStage", "stages", "loopCounts"],
+      "properties": {
+        "schemaVersion": { "const": "qa.workflow/v1" },
+        "mode": { "enum": ["semantic-v1", "physical-compat"] },
+        "currentStage": { "enum": ["explore", "model", "challenge", "generate", "validate", null] },
+        "currentSubstage": { "enum": ["execute", "heal", "report-analyze", "qa-review"] },
+        "stages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["status"],
+            "properties": {
+              "status": {
+                "enum": [
+                  "idle",
+                  "required",
+                  "recommended",
+                  "running",
+                  "passed",
+                  "skipped",
+                  "needs-review",
+                  "failed",
+                  "blocked",
+                  "qa-decision-required"
+                ]
+              },
+              "reason": { "type": "string" },
+              "updatedAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "explore": { "type": "object" },
+        "model": { "type": "object" },
+        "challenge": { "type": "object" },
+        "generate": { "type": "object" },
+        "validate": { "type": "object" },
+        "lastFeedback": { "type": "object" },
+        "loopCounts": { "type": "object" }
+      }
+    }
   }
 }

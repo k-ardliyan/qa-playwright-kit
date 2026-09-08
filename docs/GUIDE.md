@@ -124,18 +124,16 @@ CI shard merge: set `PW_BLOB=1` (nightly; PR e2e saat `shardCount` > 1) → `art
 
 ---
 
-## Alur kerja QA
+## Alur kerja QA (Explore → Model → Challenge → Generate → Validate)
 
-Pipeline mengikuti kontrak di [AGENTS.md](../AGENTS.md):
+Pipeline mengikuti alur metodologi QA di [AGENTS.md](../AGENTS.md):
 
-1. `health_check` (qa-playwright-kit)
-2. `validate_requirement` — atau CLI: `npm run validate:requirement`
-3. Planner → `specs/*-test-plan.md` (dengan kolom Role, Auth Context, Type)
-4. Generator → `tests/*.spec.ts` (satu file per role jika role-aware)
-5. `validate_generated_tests` — atau CLI: `npm run validate`
-6. `run_tests` (playwright-test)
-7. Jika gagal: `get_test_failures` → Healer → `run_tests` (scoped)
-8. `get_test_summary` → Reporter(Analyze) → QA decision → `archive_report`
+1. **Explore (01. Explore — THE APP ANSWERS):** Inspeksi UI / snapshot catalog (`snapshot_page` / `discover_pages`) jika halaman baru atau belum terpetakan.
+2. **Model (02. Model — SHARED MODEL):** `health_check` → validasi & kompilasi requirement (`compile_requirement` / `validate:requirement`) → Planner menyusun alur pengujian di `specs/*-test-plan.md`.
+3. **Challenge (03. Challenge — THE GATE):** Uji asumsi skenario via `validate_plan` (zero blocking errors) sebelum lanjut ke otomasi.
+4. **Generate (04. Generate — FOURTH, NOT FIRST):** Generator membuat `tests/*.spec.ts` (satu file per role jika role-aware) → validasi struktur via `validate_generated_tests`.
+5. **Validate (05. Validate — EARNED TRUST):** `run_tests` (playwright-test) → Healer jika ada kegagalan → Reporter Analyze wajib (`analysis: { completed, ... }`) → evaluasi hasil di dashboard → QA decision → `archive_report`.
+   - **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Kegagalan diarahkan ke tahap terkecil yang sesuai (UI unknown → Explore; requirement ambigu → Model; asumsi/assertion lemah → Challenge; bug test → Generate/Heal; bug produk → FILE BUG; env/auth → FIX ENVIRONMENT).
 
 `Reporter(Analyze)` wajib menulis `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }` dan catatan terstruktur berbasis bukti. Insight untuk skenario gagal maupun lulus (UI/UX, perbandingan flow, atau data) hanya boleh dicatat jika bukti mendukungnya; catatan bukan persetujuan UX otomatis.
 
@@ -301,28 +299,29 @@ Buat POM scaffold dari halaman target:
 
 ## Kamus Istilah
 
-| Untuk QA (Bahasa Indonesia) | Nama di framework                                       |
-| --------------------------- | ------------------------------------------------------- |
-| Dokumen kebutuhan           | `requirements/*.md`                                     |
-| Test plan                   | `specs/*-test-plan.md`                                  |
-| Kode tes                    | `tests/**/*.spec.ts`                                    |
-| Tes per role                | `tests/<fitur>-<role>.spec.ts`                          |
-| Auth state per role         | `.auth/{APP_ENV}/<role>.json` (helper: `authStatePath`) |
-| Katalog selector            | `artifacts/selector-catalog/<fitur>/<halaman>.json`     |
-| Scaffold POM                | `tests/pages/<NamaHalaman>.ts`                          |
-| Daftarkan POM               | `src/fixtures/project.fixture.ts`                       |
-| Server QA custom            | `qa-playwright-kit`                                     |
-| Cek kesehatan               | tool `health_check`                                     |
-| Status & resume pipeline    | tool `pipeline_status`                                  |
-| Validasi format             | `validate_requirement` / `npm run validate:requirement` |
-| Validasi kode tes           | `npm run validate`                                      |
-| Arsip laporan               | `archive_report` / `artifacts/reports/archive/<runId>/` |
-| Agent perencana             | Planner                                                 |
-| Agent penulis tes           | Generator                                               |
-| Agent perbaikan             | Healer                                                  |
-| Agent pelapor               | Reporter                                                |
-| Koordinator pipeline        | Orchestrator                                            |
-| Maintainer framework        | Tim yang maintain `tools/mcp/`, CI, parser              |
+| Untuk QA (Bahasa Indonesia) | Nama di framework                                                   |
+| --------------------------- | ------------------------------------------------------------------- |
+| Dokumen kebutuhan           | `requirements/*.md`                                                 |
+| Test plan                   | `specs/*-test-plan.md`                                              |
+| Kode tes                    | `tests/**/*.spec.ts`                                                |
+| Tes per role                | `tests/<fitur>-<role>.spec.ts`                                      |
+| Auth state per role         | `.auth/{APP_ENV}/<role>.json` (helper: `authStatePath`)             |
+| Katalog selector            | `artifacts/selector-catalog/<fitur>/<halaman>.json`                 |
+| Scaffold POM                | `tests/pages/<NamaHalaman>.ts`                                      |
+| Daftarkan POM               | `src/fixtures/project.fixture.ts`                                   |
+| Server QA custom            | `qa-playwright-kit`                                                 |
+| Cek kesehatan               | tool `health_check`                                                 |
+| Status & resume pipeline    | tool `pipeline_status`                                              |
+| Workflow semantik penuh     | tool `workflow_run` / `npx tsx tools/scripts/workflow-run.ts <req>` |
+| Validasi format             | `validate_requirement` / `npm run validate:requirement`             |
+| Validasi kode tes           | `npm run validate`                                                  |
+| Arsip laporan               | `archive_report` / `artifacts/reports/archive/<runId>/`             |
+| Agent perencana             | Planner                                                             |
+| Agent penulis tes           | Generator                                                           |
+| Agent perbaikan             | Healer                                                              |
+| Agent pelapor               | Reporter                                                            |
+| Koordinator pipeline        | Orchestrator                                                        |
+| Maintainer framework        | Tim yang maintain `tools/mcp/`, CI, parser                          |
 
 ---
 

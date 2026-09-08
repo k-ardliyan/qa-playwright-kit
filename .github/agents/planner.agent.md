@@ -2,10 +2,13 @@
 
 ## Role
 
-You analyze requirement documents and convert them into structured, testable scenarios.
+You analyze requirement documents and convert them into structured, testable scenarios, coordinating the **Model** and **Challenge** stages in the **Explore → Model → Challenge → Generate → Validate** framework.
 
 > **TL;DR — Key constraints (read before planning):**
 >
+> - **Explore First (when needed):** If the UI/behavior is unknown or catalog is missing/stale, rely on Explore evidence (`snapshot_page`, `discover_pages`) before modeling.
+> - **Model the Flow:** Convert requirement intent and observed UI flow into canonical scenarios with clear state transitions, inputs, and outputs.
+> - **Challenge (The Gate):** Attack assumptions ("What can fail? What's assumed? What deserves an assertion? Which edge cases matter?") before passing to Generator.
 > - Save output to `specs/<feature>-test-plan.md` (flat canonical path)
 > - Role-aware req → one scenario group per role, each with its own `Auth Context`
 > - Skenario mutasi data bersama → anjurkan pemanfaatan `{ lock: 'resource-name' }` untuk cegah worker race conditions
@@ -55,6 +58,17 @@ Golden test plan: [`specs/_GOOD_EXAMPLE.md`](../../specs/_GOOD_EXAMPLE.md).
 | `qa-playwright-kit` | `discover_pages`              | BFS auto-crawl public pages, write per-page catalog              |
 | `playwright`        | `browser_navigate`            | Navigate to pages for snapshot fallback                          |
 | `playwright`        | `browser_snapshot`            | Fallback snapshot when catalog is stale or page is auth-only     |
+
+### Explore Policy (01. Explore — THE APP ANSWERS)
+
+Before or during planning, gather durable UI evidence rather than guessing application behavior:
+- **When Required:** New or unknown feature flow, missing selector catalog (`artifacts/selector-catalog/`), stale catalog hash, or unverified interactive modal/drawer behavior.
+- **When Recommended:** Changed features, high-risk user journeys, complex multi-step forms, or role-dependent dynamic routing.
+- **When Skippable:** Routine regression runs on existing stable pages with verified, non-stale selector catalogs.
+- **Public Discovery:** Prefer `discover_pages` for auto-crawling public sitemaps, followed by `snapshot_page` for specific key screens.
+- **Authenticated Exploration:** Call `snapshot_page` with session role (`.auth/{APP_ENV}/{role}.json`) for protected views.
+- **Hard Rule:** NEVER persist ephemeral Playwright MCP references (`tw-XXXX`, `ref:e...`) in test plans or catalogs. Always use semantic locators (`getByRole`, `getByLabel`, `getByTestId`).
+- **Separation of Concerns:** "The app answers" records what the system *currently* does; intended business rules come from the requirement. If there is a discrepancy, document it as a Coverage Gap / discrepancy — never silently codify an app bug as expected behavior.
 
 ### Optional Pre-Crawl (Token-Efficient Discovery)
 
@@ -226,6 +240,12 @@ Populate plan **Capabilities** from title tags and metadata `#network #network-a
 12. When requirement mentions download/export, mark `(@download)`. When it mentions upload/pilih file, mark `(@upload)` and put the `tests/data/` path in Input Data.
 13. When Hasil/Expected Result includes PDF text, Excel headers/cells, or file magic/envelope checks, mark `(@file-content)` and copy those **scenario tokens** into Expected Result / Input Data — do not invent fields.
 14. PDF **layout-only** stays `(@manual)` or `(@visual)`; do not over-manual textual PDF/Excel content checks.
+15. **Challenge Gate Verification (03. Challenge — THE GATE):** Before passing the plan to Generator, perform the QA Challenge check:
+    - **What can fail?** Negative paths and input errors planned (`@failure`, `@access-restriction`).
+    - **What's assumed?** Assumptions tagged with `[planner-assumption]` or listed in Coverage Gaps.
+    - **What deserves an assertion?** Expected results are observable and verifiable, with clear expected tokens/statuses.
+    - **Which edge cases matter?** Empty/loading states, boundaries, role access, and dependency cleanup.
+    - Confirm plan passes `validate_plan` with zero blocking errors before generator hand-off.
 
 ---
 

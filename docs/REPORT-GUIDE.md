@@ -1,12 +1,12 @@
 ﻿# Panduan Report QA — QA Playwright Kit
 
-Dokumen ini menjelaskan **3 jenis report** yang dihasilkan framework setiap kali test dijalankan, format data yang tersedia, dan cara membacanya untuk keperluan QA.
+Dokumen ini menjelaskan **4 lapisan report** yang dihasilkan framework setiap kali test dijalankan, format data yang tersedia, dan cara membacanya untuk keperluan QA.
 
 ---
 
 ## Ringkasan Report yang Dihasilkan
 
-Setiap test run menghasilkan **3 lapisan report**:
+Setiap test run menghasilkan **4 lapisan report**:
 
 ```
 Playwright Test Run
@@ -45,7 +45,7 @@ Playwright Test Run
 ### 4. **Pipeline Report Markdown** (`artifacts/reports/pipeline-report-<runId>.md`)
 
 - **Sumber:** Reporter agent (`.github/agents/reporter.agent.md`), ditulis oleh `report-builder.ts` ke `artifacts/reports/` sesuai workspace manifest
-- **Isi:** Markdown narrative dari full pipeline run (Plan → Generate → Execute → Heal → Report(Analyze)); Report includes the mandatory Analyze sub-phase and `## AI Analysis` contract section
+- **Isi:** Markdown narrative dari full pipeline run (Explore → Model → Challenge → Generate → Validate; mesin: Plan → Generate → Execute → Heal → Report(Analyze)); Report includes the mandatory Analyze sub-phase and `## AI Analysis` contract section
 - **Kapan digunakan:** Review end-to-end pipeline result, audit trail, QA decision tracking; APPROVE is valid only when `analysisVerdict=complete` and `analysisVerified=true`
 
 ---
@@ -268,7 +268,7 @@ Halaman overview (`/`) menampilkan panel **AI Run Insights** — pola lintas ske
 - **Dashboard:** tombol **✎** di cell NOTES membuka **dialog Catatan QA**. Serve mode (`npm run dashboard`) → tersimpan otomatis via API (+ SSE `notes-updated` untuk auto-refresh). Mode file:// statis → dialog menyalin perintah CLI untuk dijalankan di terminal.
 - **API dashboard:** `GET`/`POST /api/notes/latest` (alias `/api/runs/latest/notes`) dan `GET`/`POST /api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`). POST body `{scenarioId | testId, role?, qaNotes}` — `qaNotes` string ≤4000 char, string kosong = hapus catatan.
 - **CLI:** `npm run note:set -- --scenario=SC-03 [--role=finance] [--test-id=TC-X] --note="teks"` (`--note=""` untuk hapus; `--run=run-…` untuk run terarsip) dan `npm run note:list [--run=run-…]`.
-- **MCP tools (total 25):** `record_ai_note` {`message` **atau** field terstruktur (`kind`, `observation`, `evidence`, `impact`, `recommendation`, `nextAction`, `priority`, `confidence`, `status`), `scope?: test|run`, `scenarioId?`, `testId?`, `role?`, `source?: healer|generator|reporter|analyzer`, `runId?`} — additive (catatan AI lama dipertahankan); `set_test_note` {`note` wajib (string kosong menghapus), `scenarioId?`, `testId?`, `role?`, `runId?`}. Tanpa `runId` → latest run; dengan `runId` → run terarsip.
+- **MCP tools (total 26):** `record_ai_note` {`message` **atau** field terstruktur (`kind`, `observation`, `evidence`, `impact`, `recommendation`, `nextAction`, `priority`, `confidence`, `status`), `scope?: test|run`, `scenarioId?`, `testId?`, `role?`, `source?: healer|generator|reporter|analyzer`, `runId?`} — additive (catatan AI lama dipertahankan); `set_test_note` {`note` wajib (string kosong menghapus), `scenarioId?`, `testId?`, `role?`, `runId?`}. Tanpa `runId` → latest run; dengan `runId` → run terarsip.
 - **Detail views:** accordion TestDetail, detail run terarsip, dan expandable row di daftar arsip menampilkan section **"Catatan"** (Catatan QA + Catatan AI).
 
 ---
@@ -329,7 +329,7 @@ Jika annotation tidak ada, framework fallback ke:
 
 ## Pipeline Report — Markdown Format
 
-Saat test dijalankan via **Orchestrator pipeline** (Plan → Generate → Execute → Heal → Report(Analyze)), Reporter agent menghasilkan markdown report di `artifacts/reports/pipeline-report-<runId>.md`. Report memiliki sub-phase Analyze wajib dan section `## AI Analysis`; untuk pipeline run, `APPROVE` hanya sah bila `analysisVerdict=complete` dan `analysisVerified=true`.
+Saat test dijalankan via **Orchestrator pipeline** (Explore → Model → Challenge → Generate → Validate; mesin: Plan → Generate → Execute → Heal → Report(Analyze)), Reporter agent menghasilkan markdown report di `artifacts/reports/pipeline-report-<runId>.md`. Report memiliki sub-phase Analyze wajib dan section `## AI Analysis`; untuk pipeline run, `APPROVE` hanya sah bila `analysisVerdict=complete` dan `analysisVerified=true`.
 
 ### Structure
 
@@ -461,7 +461,7 @@ Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard
 - ✅ Kolom NOTES berisi **CATATAN QA** editable — tombol ✎ membuka dialog Catatan QA: serve mode (`npm run dashboard`) tersimpan via API; mode file:// salin perintah CLI
 - ✅ Sidecar `artifacts/reports/test-notes.json` (schema `qa.test-notes/v1`, key `<scenarioId>::<role>`) — ikut disalin ke `archive/<runId>/` saat run di-save lalu sidecar latest di-reset; run baru mulai bersih, catatan run terarsip permanen & tetap bisa diedit
 - ✅ API GET/POST `/api/notes/latest` (alias `/api/runs/latest/notes`) & `/api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`) + SSE event `notes-updated`
-- ✅ MCP tools baru `record_ai_note` & `set_test_note` (total 25); CLI `npm run note:set` / `npm run note:list`
+- ✅ MCP tools baru `record_ai_note` & `set_test_note` (total 26); CLI `npm run note:set` / `npm run note:list`
 - ✅ Export TSV/CSV/Confluence menambah kolom AI NOTES (setelah NOTES); catatan QA di kolom NOTES dengan prefix `QA:` — tetap respect row filter + Filter columns
 - ✅ Detail views (accordion TestDetail, detail run terarsip, expandable row arsip) menampilkan section "Catatan" (QA + AI)
 

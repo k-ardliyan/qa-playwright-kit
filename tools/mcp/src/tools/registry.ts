@@ -31,6 +31,7 @@ import { validatePlan } from './validate-plan';
 import { traceRequirement } from './trace-requirement';
 import { synthesizeRequirement } from './synthesize-requirement';
 import { pipelineStatus } from './pipeline-status';
+import { workflowRun, type WorkflowRunArgs } from './workflow-run';
 import { resolveAllowedPath } from '../utils/safety';
 
 export interface JsonSchemaObject {
@@ -174,6 +175,55 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     readOnly: true,
     profiles: ['admin', 'planner', 'reporter', 'author', 'all'],
     handler: () => pipelineStatus(),
+  },
+  {
+    name: 'workflow_run',
+    description:
+      'Run the native semantic workflow (Explore → Model → Challenge → Generate → Validate) for a requirement through the production driver. Returns the structured WorkflowResponse (workflowStage, workflowStatus, nextRequiredAction) so a block is actionable. Use this instead of manual phase-by-phase invoke when the semantic flow is desired.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        requirementPath: {
+          type: 'string',
+          description: 'Repo-relative path to the requirement markdown file.',
+        },
+        stage: {
+          type: 'string',
+          enum: ['explore', 'model', 'challenge', 'generate', 'validate'],
+          description: 'Run a single semantic stage only (default: full workflow).',
+        },
+        orchestrationMode: {
+          type: 'string',
+          enum: ['manual', 'automatic'],
+          description: 'manual (default) pauses at gates; automatic records policy decisions.',
+        },
+        evidence: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Durable Explore evidence paths (selector catalog). When omitted the driver auto-discovers artifacts/selector-catalog/<feature>/.',
+        },
+        runId: {
+          type: 'string',
+          description:
+            'Explicit run identity. Fresh runs print their runId; pass it back with resume=true to continue after a process exit.',
+        },
+        resume: {
+          type: 'boolean',
+          description: 'Continue the persisted run identified by runId (requires runId).',
+        },
+        roleFilter: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Only run scenarios for these roles (role-aware requirements).',
+        },
+      },
+      required: ['requirementPath'],
+    },
+    stability: 'experimental',
+    readOnly: false,
+    profiles: ['planner', 'generator', 'healer', 'reporter', 'author', 'all'],
+    handler: (args) => workflowRun(args as WorkflowRunArgs | undefined),
   },
   {
     name: 'get_test_failures',

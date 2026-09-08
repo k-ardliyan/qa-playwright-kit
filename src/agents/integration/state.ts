@@ -11,7 +11,14 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { PipelinePhase, ProtocolError } from './types';
+import {
+  PipelinePhase,
+  ProtocolError,
+  WORKFLOW_STAGES,
+  WorkflowEnvelope,
+  WorkflowStage,
+  WorkflowStatus,
+} from './types';
 import { computeSourceHash } from '@/contracts';
 import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 
@@ -19,6 +26,214 @@ import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
  * Ordered sequence of pipeline phases for resume logic.
  */
 const PHASE_SEQUENCE: PipelinePhase[] = ['plan', 'generate', 'execute', 'heal', 'report'];
+const PIPELINE_STATUSES = ['running', 'completed', 'failed', 'paused', 'blocked'] as const;
+const WORKFLOW_STATUSES: WorkflowStatus[] = [
+  'idle',
+  'required',
+  'recommended',
+  'running',
+  'passed',
+  'skipped',
+  'needs-review',
+  'failed',
+  'blocked',
+  'qa-decision-required',
+];
+const WORKFLOW_SUBSTAGES = ['execute', 'heal', 'report-analyze', 'qa-review'] as const;
+const WORKFLOW_LOOP_TARGETS = [
+  'explore',
+  'model',
+  'challenge',
+  'generate',
+  'file-bug',
+  'fix-environment',
+  'blocked',
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isIsoTimestamp(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) &&
+    !Number.isNaN(Date.parse(value))
+  );
+}
+
+/** State IDs are path segments, not arbitrary filenames or paths. */
+function isSafeRunId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(value)
+  );
+}
+
+function isPathAbsolute(value: string): boolean {
+  return path.isAbsolute(value) || path.win32.isAbsolute(value);
+}
+
+function isContainedPath(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return (
+    relative === '' ||
+    (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))
+  );
+}
+
+function hasParentTraversal(value: string): boolean {
+  return value
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => segment === '..');
+}
+
+/**
+ * Artifact paths are read during resume. Relative paths remain compatible with
+ * old physical state; absolute paths are accepted only inside the workspace or
+ * the configured report directory (the existing physical runner writes both).
+ */
+function isSafeArtifactPath(value: unknown): value is string {
+  if (typeof value !== 'string' || value.trim() === '' || value.includes('\0')) return false;
+  const normalized = value.replace(/\\/g, '/');
+  return !hasParentTraversal(normalized);
+}
+
+function isSafeRequirementPath(value: unknown): value is string {
+  if (typeof value !== 'string' || value.trim() === '' || value.includes('\0')) return false;
+  const normalized = value.replace(/\\/g, '/');
+  return !isPathAbsolute(value) && !hasParentTraversal(normalized);
+}
+
+function isProtocolError(value: unknown): value is ProtocolError {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.code === 'string' &&
+    value.code.length > 0 &&
+    typeof value.message === 'string' &&
+    value.message.length > 0 &&
+    typeof value.retryable === 'boolean' &&
+    (value.phase === undefined || PHASE_SEQUENCE.includes(value.phase as PipelinePhase))
+  );
+}
+
+function isWorkflowStage(value: unknown): value is WorkflowStage {
+  return typeof value === 'string' && (WORKFLOW_STAGES as readonly string[]).includes(value);
+}
+
+function isWorkflowEnvelope(value: unknown): value is WorkflowEnvelope {
+  if (!isRecord(value)) return false;
+  if (
+    value.schemaVersion !== 'qa.workflow/v1' ||
+    (value.mode !== 'semantic-v1' && value.mode !== 'physical-compat') ||
+    (value.currentStage !== null && !isWorkflowStage(value.currentStage))
+  ) {
+    return false;
+  }
+  if (
+    value.currentSubstage !== undefined &&
+    !(WORKFLOW_SUBSTAGES as readonly string[]).includes(value.currentSubstage as string)
+  ) {
+    return false;
+  }
+
+  const stages = value.stages;
+  if (!isRecord(stages)) return false;
+  const stageKeys = Object.keys(stages).sort();
+  const expectedStageKeys = [...WORKFLOW_STAGES].sort();
+  if (JSON.stringify(stageKeys) !== JSON.stringify(expectedStageKeys)) return false;
+  for (const stage of WORKFLOW_STAGES) {
+    const stageState = stages[stage];
+    if (!isRecord(stageState) || !WORKFLOW_STATUSES.includes(stageState.status as WorkflowStatus)) {
+      return false;
+    }
+    if (stageState.reason !== undefined && typeof stageState.reason !== 'string') return false;
+    if (stageState.updatedAt !== undefined && !isIsoTimestamp(stageState.updatedAt)) return false;
+  }
+
+  if (!isRecord(value.loopCounts)) return false;
+  for (const [target, count] of Object.entries(value.loopCounts)) {
+    if (
+      !(WORKFLOW_LOOP_TARGETS as readonly string[]).includes(target) ||
+      typeof count !== 'number' ||
+      !Number.isInteger(count) ||
+      count < 0
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isPipelineState(value: unknown): value is PipelineState {
+  if (!isRecord(value)) return false;
+  if (
+    !isSafeRunId(value.runId) ||
+    !PIPELINE_STATUSES.includes(value.status as (typeof PIPELINE_STATUSES)[number]) ||
+    (value.currentPhase !== null &&
+      !PHASE_SEQUENCE.includes(value.currentPhase as PipelinePhase)) ||
+    !isIsoTimestamp(value.timestamp) ||
+    !isIsoTimestamp(value.startedAt) ||
+    !isSafeRequirementPath(value.requirementPath) ||
+    (value.orchestrationMode !== 'manual' && value.orchestrationMode !== 'automatic') ||
+    !Array.isArray(value.errors) ||
+    !value.errors.every(isProtocolError)
+  ) {
+    return false;
+  }
+  if (value.requirementHash !== undefined && typeof value.requirementHash !== 'string')
+    return false;
+  if (value.planHash !== undefined && typeof value.planHash !== 'string') return false;
+
+  if (!Array.isArray(value.completedPhases)) return false;
+  const completedPhases = value.completedPhases as unknown[];
+  if (
+    completedPhases.some((phase) => !PHASE_SEQUENCE.includes(phase as PipelinePhase)) ||
+    new Set(completedPhases).size !== completedPhases.length ||
+    completedPhases.some((phase, index) => phase !== PHASE_SEQUENCE[index])
+  ) {
+    return false;
+  }
+
+  if (!isRecord(value.artifacts)) return false;
+  const artifactKeys = Object.keys(value.artifacts).sort();
+  if (JSON.stringify(artifactKeys) !== JSON.stringify([...PHASE_SEQUENCE].sort())) return false;
+  for (const phase of PHASE_SEQUENCE) {
+    const artifacts = value.artifacts[phase];
+    if (!Array.isArray(artifacts) || !artifacts.every(isSafeArtifactPath)) return false;
+  }
+
+  return value.workflow === undefined || isWorkflowEnvelope(value.workflow);
+}
+
+function resolveSafeRequirementPath(requirementPath: string): string | null {
+  if (!isSafeRequirementPath(requirementPath)) return null;
+  const resolved = path.resolve(requirementPath);
+  if (!isContainedPath(process.cwd(), resolved)) return null;
+  if (fs.existsSync(resolved)) {
+    try {
+      if (!isContainedPath(process.cwd(), fs.realpathSync(resolved))) return null;
+    } catch {
+      return null;
+    }
+  }
+  return resolved;
+}
+
+function resolveSafeArtifactPathForResume(artifactPath: string): string | null {
+  if (!isSafeArtifactPath(artifactPath)) return null;
+  const resolved = path.resolve(artifactPath);
+  if (!isPathAbsolute(artifactPath)) return resolved;
+  if (!fs.existsSync(resolved)) return resolved;
+  try {
+    return fs.statSync(resolved).isFile() ? fs.realpathSync(resolved) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Resolve the report directory at call time.
@@ -41,12 +256,9 @@ function archiveDirPath(): string {
 /**
  * Persistent state for a pipeline run.
  */
-/**
- * Persistent state for a pipeline run.
- */
 export interface PipelineState {
   runId: string; // UUID v4
-  status: 'running' | 'completed' | 'failed' | 'paused';
+  status: 'running' | 'completed' | 'failed' | 'paused' | 'blocked';
   currentPhase: PipelinePhase | null;
   completedPhases: PipelinePhase[];
   artifacts: Record<PipelinePhase, string[]>; // paths to intermediate files
@@ -59,6 +271,11 @@ export interface PipelineState {
   lastOutput?: unknown;
   orchestrationMode: 'manual' | 'automatic';
   errors: ProtocolError[];
+  /**
+   * Additive semantic workflow envelope (qa.workflow/v1). Absent in old
+   * physical-compat states — never infer Challenge passed from plan completion.
+   */
+  workflow?: WorkflowEnvelope;
 }
 
 /**
@@ -66,6 +283,8 @@ export interface PipelineState {
  *
  * Creates the parent directory if it does not exist.
  * Updates the `timestamp` field to the current ISO 8601 string before writing.
+ * Writes atomically (temp file + rename) so a crash mid-write cannot corrupt
+ * the state resume depends on.
  */
 export function saveState(state: PipelineState): void {
   const stateFilePath = resolveStateFilePath();
@@ -74,7 +293,9 @@ export function saveState(state: PipelineState): void {
     fs.mkdirSync(dir, { recursive: true });
   }
   state.timestamp = new Date().toISOString();
-  fs.writeFileSync(stateFilePath, JSON.stringify(state, null, 2), 'utf-8');
+  const tmpPath = `${stateFilePath}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), 'utf-8');
+  fs.renameSync(tmpPath, stateFilePath);
 }
 
 /**
@@ -87,27 +308,14 @@ export function loadState(): PipelineState | null {
   if (!fs.existsSync(filePath)) {
     return null;
   }
-  const content = fs.readFileSync(filePath, 'utf-8');
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   } catch {
     // State file is corrupt — treat as no valid state
     return null;
   }
-  // GAP 3: Guard against partially-written or manually-edited state files.
-  // If required fields are absent, resume is impossible — return null rather than crashing.
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    !('runId' in parsed) ||
-    !('completedPhases' in parsed) ||
-    !('artifacts' in parsed) ||
-    !('requirementPath' in parsed)
-  ) {
-    return null;
-  }
-  return parsed as PipelineState;
+  return isPipelineState(parsed) ? parsed : null;
 }
 
 /**
@@ -116,12 +324,32 @@ export function loadState(): PipelineState | null {
  * Creates the archive directory if it does not exist.
  */
 export function archiveState(state: PipelineState): void {
+  if (!isPipelineState(state) || !isSafeRunId(state.runId)) {
+    throw new Error('Refusing to archive malformed pipeline state.');
+  }
   const archDir = archiveDirPath();
   if (!fs.existsSync(archDir)) {
     fs.mkdirSync(archDir, { recursive: true });
   }
-  const archivePath = path.join(archDir, `pipeline-state-${state.runId}.json`);
-  fs.writeFileSync(archivePath, JSON.stringify(state, null, 2), 'utf-8');
+  const archivePath = path.resolve(archDir, `pipeline-state-${state.runId}.json`);
+  if (!isContainedPath(archDir, archivePath)) {
+    throw new Error('Refusing to write outside the archive directory.');
+  }
+  if (fs.existsSync(archivePath)) {
+    throw new Error(`Archive for run ${state.runId} already exists. Will not overwrite.`);
+  }
+  const tmpPath = `${archivePath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), { encoding: 'utf-8', flag: 'wx' });
+    fs.renameSync(tmpPath, archivePath);
+  } catch (error) {
+    try {
+      fs.rmSync(tmpPath, { force: true });
+    } catch {
+      // Best effort cleanup.
+    }
+    throw error;
+  }
 }
 
 /**
@@ -154,12 +382,26 @@ export function resumeState(
     };
   }
 
-  // 1. Validate requirement staleness
-  if (state.requirementPath && fs.existsSync(path.resolve(state.requirementPath))) {
-    const reqContent = fs.readFileSync(path.resolve(state.requirementPath), 'utf-8');
+  // 1. Validate requirement staleness. A hashed requirement is mandatory for
+  // resume: silently continuing when the source disappeared is unsafe.
+  const requirementFile = resolveSafeRequirementPath(state.requirementPath);
+  if (!requirementFile) {
+    return {
+      error: 'Persisted requirementPath is unsafe or outside the workspace.',
+      code: 'NO_RESUMABLE_RUN',
+    };
+  }
+  if (state.requirementHash) {
+    if (!fs.existsSync(requirementFile)) {
+      return {
+        error: 'The persisted requirement is missing; refusing to resume a hashed run.',
+        code: 'NO_RESUMABLE_RUN',
+      };
+    }
+    const reqContent = fs.readFileSync(requirementFile, 'utf-8');
     const currentReqHash = computeSourceHash(reqContent);
 
-    if (state.requirementHash && state.requirementHash !== currentReqHash) {
+    if (state.requirementHash !== currentReqHash) {
       // Requirement changed! Cascade invalidate all phases
       state.completedPhases = [];
       for (const phase of PHASE_SEQUENCE) {
@@ -182,9 +424,10 @@ export function resumeState(
     }
 
     const phaseArtifacts = state.artifacts[phase] || [];
-    const hasMissingArtifact = phaseArtifacts.some(
-      (artifactPath) => !fs.existsSync(path.resolve(artifactPath)),
-    );
+    const hasMissingArtifact = phaseArtifacts.some((artifactPath) => {
+      const resolved = resolveSafeArtifactPathForResume(artifactPath);
+      return resolved === null || !fs.existsSync(resolved);
+    });
 
     if (hasMissingArtifact) {
       if (earliestInvalidIndex === -1) {

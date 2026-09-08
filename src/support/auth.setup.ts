@@ -20,7 +20,7 @@ import { resolveAppUrl } from './app-url';
 /**
  * Auth Setup — modular, customizable login runner.
  *
- * Roles in scope: user (fully role-aware — no general/user mode)
+ * Roles in scope: "user" (fully role-aware — no general/user mode)
  *
  * Runs once during setup project to materialize .auth/{APP_ENV}/<role>.json.
  * If your app requires extra login steps (profile picker, tenant selector, 2-step login),
@@ -29,19 +29,14 @@ import { resolveAppUrl } from './app-url';
  * Run: npm run auth:setup  |  npm run auth:setup:headed
  */
 
+const ROLE_URL_OVERRIDES: Record<string, { loginUrl: string; successUrl: string }> = {};
+
 // ─── Shared login helper — satu implementasi untuk semua role ─────────────────
-
-/**
- * Optional per-role URL overrides (customizable without being overwritten).
- * Shape: { [roleName]: { loginUrl?: string; successUrl?: string } }
- */
-const ROLE_URL_OVERRIDES: Record<string, { loginUrl?: string; successUrl?: string } | undefined> =
-  {};
-
 async function loginRole(roleName: string, page: Page): Promise<void> {
   const cred = resolveRoleCredentials(roleName);
   const authFile = cred.authFile; // scoped: .auth/{APP_ENV}/<role>.json
-  const overrides = ROLE_URL_OVERRIDES[roleName] ?? null;
+  const overrides =
+    (typeof ROLE_URL_OVERRIDES !== 'undefined' && ROLE_URL_OVERRIDES[roleName]) || null;
   const roleLoginUrl = cred.loginUrl || (overrides?.loginUrl ?? '/login');
   const roleSuccessUrl = cred.successUrl || (overrides?.successUrl ?? '/dashboard');
   console.log(`ℹ [Auth] Menyiapkan session untuk role: "${roleName}"...`);
@@ -176,9 +171,6 @@ function configuredRoles(): RoleCredentialRef[] {
 }
 
 for (const role of configuredRoles()) {
-  // Load the role's EXISTING session into this setup test's context so the
-  // reuse gate (isSessionValid) can actually see it — without this, the setup
-  // page is always unauthenticated and every run does a fresh login.
   const cred = resolveRoleCredentials(role.name);
   const existingSession = fs.existsSync(cred.authFile) ? cred.authFile : undefined;
   setup.describe(`role:${role.name}`, () => {

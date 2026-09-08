@@ -298,6 +298,23 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
         : undefined,
   });
 
+  // ── 10b. MCP server build ──
+  const mcpServerEntry = path.join(repoRoot, 'tools', 'mcp', 'dist', 'index-mcp.js');
+  const mcpBuildOk = fs.existsSync(mcpServerEntry);
+  add({
+    id: 'mcp_build',
+    label: labelFor(lang, 'Build MCP server (tools/mcp/dist)', 'MCP server build (tools/mcp/dist)'),
+    status: mcpBuildOk ? 'pass' : 'warn',
+    detail: mcpBuildOk
+      ? 'index-mcp.js ready'
+      : labelFor(
+          lang,
+          'belum dikompilasi (tools/mcp/dist/index-mcp.js)',
+          'unbuilt (tools/mcp/dist/index-mcp.js)',
+        ),
+    fix: mcpBuildOk ? undefined : 'npm run mcp:build',
+  });
+
   // ── 11. Auth session files per role ──
   if (roles.length > 0) {
     const missingAuth = roles

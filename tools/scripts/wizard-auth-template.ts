@@ -34,6 +34,15 @@ export interface AuthTemplateOptions {
 }
 
 /**
+ * Quote a value as a TypeScript string literal. JSON.stringify output is
+ * valid TS source: double-quoted, escapes backslashes/quotes/control chars,
+ * keeps apostrophes and Unicode raw.
+ */
+function tsLiteral(value: string): string {
+  return JSON.stringify(value);
+}
+
+/**
  * Generate isi file auth.setup.ts generik untuk satu atau banyak role.
  * Identity field uses resolve order (pref / email / username / phone).
  */
@@ -41,7 +50,7 @@ export function generateAuthSetupContent(opts: AuthTemplateOptions): string {
   const { roles, loginUrl, successUrlPath } = opts;
 
   const roleNames = roles.map((r) => canonicalRoleName(r.name));
-  const roleNamesComment = `// Roles in scope: ${roleNames.join(', ')} (fully role-aware — no general/user mode)`;
+  const roleNamesComment = `// Roles in scope: ${roleNames.map(tsLiteral).join(', ')} (fully role-aware — no general/user mode)`;
 
   // Per-role login URL / successUrl overrides, injected as runtime fallbacks
   // into resolveRoleCredentials() — the authFile itself always comes from cred.authFile.
@@ -52,22 +61,31 @@ export function generateAuthSetupContent(opts: AuthTemplateOptions): string {
       const roleSuccess = role.successUrlPath || successUrlPath;
       // Only emit overrides when they differ from the global defaults
       if (roleLogin === loginUrl && roleSuccess === successUrlPath) return null;
-      return `  '${name}': { loginUrl: '${roleLogin}', successUrl: '${roleSuccess}' },`;
+      return `  ${tsLiteral(name)}: { loginUrl: ${tsLiteral(roleLogin)}, successUrl: ${tsLiteral(roleSuccess)} },`;
     })
     .filter(Boolean);
 
-  const overridesBlock =
-    roleOverrides.length > 0
-      ? `\nconst ROLE_URL_OVERRIDES: Record<string, { loginUrl: string; successUrl: string }> = {\n${roleOverrides.join('\n')}\n};\n`
-      : '';
+  // Always emit the override table (possibly empty) so the runtime fallback
+  // `typeof ROLE_URL_OVERRIDES` reference below stays type-safe even when no
+  // role differs from the global defaults.
+  const overridesBlock = `\nconst ROLE_URL_OVERRIDES: Record<string, { loginUrl: string; successUrl: string }> = {\n${roleOverrides.join('\n')}\n};\n`;
 
+  // Load the role's EXISTING session into this setup test's context so the
+  // reuse gate (isSessionValid) can actually see it — without this, the setup
+  // page is always unauthenticated and every run does a fresh login.
   const setupBlocks = `\nfor (const role of configuredRoles()) {
-  setup(\`authenticate:\${role.name}\`, async ({ page }) => {
-    await loginRole(role.name, page);
+  const cred = resolveRoleCredentials(role.name);
+  const existingSession = fs.existsSync(cred.authFile) ? cred.authFile : undefined;
+  setup.describe(\`role:\${role.name}\`, () => {
+    setup.use({ storageState: existingSession });
+    setup(\`authenticate:\${role.name}\`, async ({ page }) => {
+      await loginRole(role.name, page);
+    });
   });
 }`;
 
-  return `import { test as setup, test } from '@playwright/test';
+  return `import * as fs from 'node:fs';
+import { test as setup, test } from '@playwright/test';
 	import {
 	  parseRolesFromEnvMap,
 	  roleCredentialKeys,
@@ -102,8 +120,8 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
   const cred = resolveRoleCredentials(roleName);
   const authFile = cred.authFile; // scoped: .auth/{APP_ENV}/<role>.json
   const overrides = (typeof ROLE_URL_OVERRIDES !== 'undefined' && ROLE_URL_OVERRIDES[roleName]) || null;
-  const roleLoginUrl = cred.loginUrl || (overrides?.loginUrl ?? '${loginUrl}');
-  const roleSuccessUrl = cred.successUrl || (overrides?.successUrl ?? '${successUrlPath}');
+  const roleLoginUrl = cred.loginUrl || (overrides?.loginUrl ?? ${tsLiteral(loginUrl)});
+  const roleSuccessUrl = cred.successUrl || (overrides?.successUrl ?? ${tsLiteral(successUrlPath)});
   console.log(\`ℹ [Auth] Menyiapkan session untuk role: "\${roleName}"...\`);
 
   setTestMetadata({
@@ -152,8 +170,22 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
     }
   }
 
-  // 2. Fresh Login Flow
+  // 2. Fresh Login Flow — must start from a CLEAN context: the setup test may
+  // carry the role's previous session (setup.use({ storageState })), and apps
+  // redirect /login back to the app for browser sessions they consider alive,
+  // so the login form would never render.
   await test.step('Buka halaman login', async () => {
+    await page.goto(resolveAppUrl(roleLoginUrl));
+  });
+
+  await test.step('Bersihkan sisa sesi lama di context', async () => {
+    await page.context().clearCookies();
+    try {
+      await page.localStorage.clear();
+      await page.sessionStorage.clear();
+    } catch {
+      // Page never reached the app origin — nothing was seeded to clear.
+    }
     await page.goto(resolveAppUrl(roleLoginUrl));
   });
 

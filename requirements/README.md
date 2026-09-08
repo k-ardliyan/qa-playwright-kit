@@ -14,9 +14,10 @@ Folder ini untuk **file requirement fitur** yang dibaca Planner / pipeline Herme
 Locator **berbeda per website**. Pipeline setup awal wajib:
 
 1. `npm run setup` → menulis `requirements/login.md` + print prompt Hermes
-2. `snapshot_page` → `artifacts/selector-catalog/auth/login.json`
-3. Plan → Generate (Path A: inline locator dari catalog)
-4. Execute → Heal → Report
+2. **01. Explore:** `snapshot_page` → `artifacts/selector-catalog/auth/login.json`
+3. **02. Model & 03. Challenge:** Plan → `validate_plan` (Path A: inline locator dari catalog)
+4. **04. Generate:** `tests/*.spec.ts`
+5. **05. Validate:** Execute → Heal → Report(Analyze)
 
 ## Cara pakai (setup awal)
 

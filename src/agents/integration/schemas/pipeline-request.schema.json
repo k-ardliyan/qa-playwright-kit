@@ -3,16 +3,23 @@
   "type": "object",
   "required": ["action"],
   "properties": {
-    "action": { "enum": ["invoke", "query", "resume"] },
+    "action": { "enum": ["invoke", "query", "resume", "run"] },
     "phase": { "enum": ["plan", "generate", "execute", "heal", "report"] },
+    "stage": { "enum": ["explore", "model", "challenge", "generate", "validate"] },
+    "workflow": { "enum": ["semantic-v1", "physical-compat"] },
     "requirementPath": { "type": "string", "pattern": "^requirements/.+\\.md$" },
     "options": {
       "type": "object",
       "properties": {
         "orchestrationMode": { "enum": ["manual", "automatic"] },
         "resume": { "type": "boolean" },
-        "runId": { "type": "string", "format": "uuid" },
-        "dryRun": { "type": "boolean" }
+        "runId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$" },
+        "dryRun": { "type": "boolean" },
+        "roleFilter": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
       }
     }
   },
@@ -27,6 +34,10 @@
         "required": ["options"],
         "properties": { "options": { "required": ["runId"] } }
       }
+    },
+    {
+      "if": { "properties": { "action": { "const": "run" } } },
+      "then": { "required": ["requirementPath"] }
     }
   ]
 }

@@ -8,7 +8,7 @@
 
 Markdown requirement → test plan → Playwright test → self-heal → dashboard triage.
 
-Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MCP tools · quality-gated CI
+Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 26 MCP tools · quality-gated CI
 
 [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
@@ -22,10 +22,11 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MC
 
 > **Masalahnya:** QA menulis test manual, menjalankan manual, copy-paste hasil ke spreadsheet, dan berdoa tidak ada yang terlewat.
 >
-> **Solusinya:** Tulis requirement dalam Markdown biasa. Lima agen AI menyusun rencana, membuat test Playwright, menjalankannya di browser sungguhan, memperbaiki yang gagal, dan melaporkan hasilnya sebagai dashboard triage siap-keputusan.
+> **Solusinya:** Tulis requirement dalam Markdown biasa. Agen AI mengeksplorasi aplikasi secara nyata, memodelkan alur, menantang asumsi, membuat test Playwright, menjalankannya di browser sungguhan, memperbaiki yang gagal, dan melaporkan hasilnya sebagai dashboard triage siap-keputusan.
 
-```
-📝 requirement  →  📋 test plan  →  ⚡ auto test  →  🔁 self-heal  →  📊 triage dashboard
+```text
+01 Explore  →  02 Model  →  03 Challenge  →  04 Generate  →  05 Validate
+   (App answers)   (Shared model)   (The gate)      (Fourth, not first)  (Earned trust)
 ```
 
 ---
@@ -46,12 +47,13 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MC
 
 |                       | Fitur                                                   | Apa artinya                                        |
 | --------------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| **Evidence-driven**   | Explore → Model → Challenge → Generate → Validate       | AI amati app, uji asumsi, baru buat test           |
 | **Requirement-first** | QA tulis Markdown, AI generate test                     | Tidak perlu tahu Playwright API untuk menulis test |
-| **5-Phase Pipeline**  | Plan → Generate → Execute → Heal → Report(Analyze)      | Satu perintah, hasil lengkap                       |
+| **5-Phase Engine**    | Plan → Generate → Execute → Heal → Report(Analyze)      | Satu perintah, hasil lengkap dengan self-heal      |
 | **Self-healing**      | Test gagal → AI fix → re-snapshot → rerun               | Locator berubah? Framework memperbaiki sendiri     |
 | **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                |
 | **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi            |
-| **25 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                 |
+| **26 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                 |
 | **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                 |
 | **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                     |
 | **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                   |
@@ -61,25 +63,15 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MC
 
 ## Cara kerja
 
-```
-requirements/*.md          QA tulis requirement
-       │
-       ▼
-   AI Planner  ──────►  specs/*-test-plan.md
-       │
-       ▼
-   AI Generator ──────►  tests/<feature>[-<role>].spec.ts
-       │
-       ▼
-   Execute ──►  Healer  ──►  Reporter (Analyze)
-   (run test)  (fix+re-     (evidence + custom-dashboard.html)
-                snapshot)
-       │                              │
-       ▼                              ▼
-  pass / fail                 triage Table/Accordion
+```text
+01. Explore ──────► 02. Model ──────► 03. Challenge ──────► 04. Generate ──────► 05. Validate
+(Playwright MCP)   (Req Contract)     (QA Gate)         (PW Automation)     (Exec / Heal / Report)
+       ▲                                                                               │
+       └───────────────────────── LEARN ◄─── REFINE ◄─── RE-EXPLORE ──────────────────┘
 ```
 
-> Diorkestrasi oleh **Hermes Agent** via 5 sub-agent — lihat [AGENTS.md](AGENTS.md).
+> **Alur Metodologi:** Explore the app. Model the flow. Challenge the assumptions. Generate the test. Validate the trust.
+> Diorkestrasi oleh **Hermes Agent** via sub-agent spesialis — lihat [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -102,6 +94,7 @@ npm run setup                 # generate clean .env → encrypt secrets
 #    Pipeline: snapshot → Plan → Generate → Execute → Heal → Report(Analyze)
 
 # atau: npm run qa:run
+# atau: npm run qa:workflow   # pipeline semantic penuh (Explore→Model→Challenge→Generate→Validate) via driver produksi
 ```
 
 > Detail pasca-pipeline → [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)

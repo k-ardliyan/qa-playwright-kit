@@ -13,7 +13,65 @@ export type {
   ProtocolError,
   PhaseResult,
   OrchestrationModeDescriptor,
+  WorkflowStage,
+  WorkflowStageDescriptor,
+  WorkflowLoopTarget,
+  WorkflowStatus,
+  WorkflowStageState,
+  ExploreDecision,
+  ModelResult,
+  ChallengeResult,
+  GenerateResult,
+  ValidateResult,
+  FeedbackDecision,
+  WorkflowEnvelope,
 } from './types';
+export {
+  WORKFLOW_STAGES,
+  WORKFLOW_STAGE_DEFINITIONS,
+  getWorkflowStage,
+  workflowStageForPhase,
+} from './types';
+
+// Semantic Workflow Engine
+export type {
+  WorkflowEvent,
+  TransitionResult,
+} from './workflow-transitions';
+export {
+  createWorkflowEnvelope,
+  transitionWorkflow,
+  isStageUsable,
+} from './workflow-transitions';
+export type {
+  EvidenceResolution,
+  EvidenceReference,
+  ExplorePolicyContext,
+} from './explore-policy';
+export { resolveEvidence, evaluateExplorePolicy } from './explore-policy';
+export type {
+  ChallengeGateInput,
+  ChallengeVerdict,
+} from './challenge-gate';
+export { evaluateChallenge, canGenerate } from './challenge-gate';
+export type { FeedbackInput } from './feedback-router';
+export { routeFeedback, isStageReentry } from './feedback-router';
+export type {
+  WorkflowAdapters,
+  WorkflowStartInput,
+  WorkflowResponse,
+  ExploreAdapterInput,
+  ModelAdapterInput,
+  ModelAdapterResult,
+  ChallengeAdapterInput,
+  ChallengeAdapterResult,
+  GenerateAdapterInput,
+  GenerateAdapterResult,
+  ValidateAdapterInput,
+  ValidateAdapterResult,
+} from './workflow-controller';
+export { WorkflowController } from './workflow-controller';
+export { ModelHandoffError } from './mcp-adapters';
 
 // Pipeline Event Hook System
 export type { EventType, PipelineEvent, HookCallback, HookRegistry } from './hooks';
@@ -26,6 +84,8 @@ export { saveState, loadState, archiveState, resumeState, markCompleted } from '
 // Capability Manifest Generator
 export type {
   CapabilityManifest,
+  WorkflowManifest,
+  WorkflowStageContract,
   PhaseCapability,
   ToolDescriptor,
   JsonSchemaObject,
@@ -86,7 +146,6 @@ export {
   VALID_ACTIONS,
   VALID_PHASES,
 } from './protocol';
-
 // Orchestrator Engine
 export type { OrchestratorConfig, PhaseExecutor } from './orchestrator';
 export { Orchestrator } from './orchestrator';

@@ -40,6 +40,7 @@ import { type WizardLang, t, DEFAULT_LANG } from './i18n';
 import prompts from 'prompts';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import {
   writeEnvFile,
   readExistingEnv,
@@ -350,10 +351,81 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
       ),
     );
   }
+  if (agentSync.mcpServerBuilt) {
+    stepLine(
+      t(
+        lang,
+        '✓ MCP server dikompilasi: tools/mcp/dist/index-mcp.js',
+        '✓ MCP server built: tools/mcp/dist/index-mcp.js',
+      ),
+    );
+  }
 
   // ─── Validate (parse + reachability + roles) ────────────────────────────
   const freshEnv = readExistingEnv(appEnv);
   const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath, lang);
+
+  // ─── Materialize auth sessions (inline synchronous) ─────────────────────
+  if (roleNames.length > 0 && validation.reachable) {
+    printSection(lang, 'Sesi autentikasi login', 'Login authentication sessions');
+    const authCmd = challengeMode === 'none' ? 'npm run auth:setup' : 'npm run auth:setup:headed';
+    const { runAuth } = await prompts(
+      {
+        type: 'confirm',
+        name: 'runAuth',
+        message: t(
+          lang,
+          `Buat sesi login sekarang via ${authCmd}?`,
+          `Materialize login sessions now via ${authCmd}?`,
+        ),
+        initial: true,
+      },
+      {
+        onCancel(): boolean {
+          return false;
+        },
+      },
+    );
+
+    if (runAuth) {
+      stepLine(
+        t(lang, `Menjalankan ${authCmd} (mohon tunggu)...`, `Running ${authCmd} (please wait)...`),
+      );
+      const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      const scriptName = challengeMode === 'none' ? 'auth:setup' : 'auth:setup:headed';
+      const authRes = spawnSync(npmCmd, ['run', scriptName], {
+        cwd: process.cwd(),
+        stdio: 'inherit',
+        shell: false,
+      });
+
+      if (authRes.status === 0) {
+        stepLine(
+          t(
+            lang,
+            `✓ Sesi login berhasil dibuat di .auth/${appEnv}/`,
+            `✓ Login sessions successfully created in .auth/${appEnv}/`,
+          ),
+        );
+      } else {
+        stepLine(
+          t(
+            lang,
+            `⚠ Pembuatan sesi login belum berhasil (exit code ${authRes.status}). Anda dapat menjalankannya nanti: ${authCmd}`,
+            `⚠ Login session creation incomplete (exit code ${authRes.status}). You can run it later: ${authCmd}`,
+          ),
+        );
+      }
+    } else {
+      stepLine(
+        t(
+          lang,
+          `ℹ Sesi login dilewati. Jalankan '${authCmd}' sebelum mengeksekusi test.`,
+          `ℹ Login sessions skipped. Run '${authCmd}' before executing tests.`,
+        ),
+      );
+    }
+  }
 
   // ─── Phase: REAL artifact verification ──────────────────────────────────
   printSection(lang, 'Verifikasi artefak (nyata)', 'Artifact verification (real)');
@@ -390,41 +462,6 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     loginMarkdown,
     loginRequirementValidation,
   });
-
-  // ─── Offer to run auth:setup in a parallel terminal ─────────────────────
-  if (roleNames.length > 0 && validation.reachable) {
-    const authCmd = challengeMode === 'none' ? 'npm run auth:setup' : 'npm run auth:setup:headed';
-    const { runAuth } = await prompts(
-      {
-        type: 'confirm',
-        name: 'runAuth',
-        message: t(
-          lang,
-          `Buka terminal baru untuk membuat session login (${authCmd})?`,
-          `Open a new terminal to materialize login sessions (${authCmd})?`,
-        ),
-        initial: true,
-      },
-      {
-        onCancel(): boolean {
-          return false;
-        },
-      },
-    );
-
-    if (runAuth) {
-      const ok = openTerminalFor(process.cwd(), authCmd);
-      if (ok) {
-        stepLine(
-          t(
-            lang,
-            `✓ Terminal baru dibuka menjalankan ${authCmd}. Session tersimpan ke .auth/${appEnv}/.`,
-            `✓ New terminal opened running ${authCmd}. Sessions saved to .auth/${appEnv}/.`,
-          ),
-        );
-      }
-    }
-  }
 
   return {
     envFilePath: writeResult.envFilePath,
@@ -725,21 +762,21 @@ function printSummary(data: {
 
   if (data.challengeMode !== 'none') {
     stepLine(`  ℹ ${t(lang, 'Langkah berikutnya:', 'Next steps:')}`);
-    console.log('      1. npm run auth:setup');
+    console.log('      1. npm run auth:setup:headed');
     stepLine(
       t(
         lang,
-        '       (buat sesi login; OTP/CAPTCHA: npm run auth:setup:headed)',
-        '       (materialize sessions; OTP/CAPTCHA: npm run auth:setup:headed)',
+        '         (pastikan sesi OTP/CAPTCHA tersimpan sebelum menjalankan test)',
+        '         (ensure OTP/CAPTCHA session is saved before running tests)',
       ),
     );
     console.log(
-      `      2. ${t(lang, 'paste prompt Hermes di bawah (atau npm run qa:run)', 'paste the Hermes prompt below (or npm run qa:run)')}`,
+      `      2. ${t(lang, 'paste prompt Hermes di bawah (atau CLI: npm run qa:workflow)', 'paste the Hermes prompt below (or CLI: npm run qa:workflow)')}`,
     );
   } else {
     stepLine(`  ℹ ${t(lang, 'Langkah berikutnya:', 'Next steps:')}`);
     console.log(
-      `      1. ${t(lang, 'paste prompt Hermes di bawah (atau npm run qa:run)', 'paste the Hermes prompt below (or npm run qa:run)')}`,
+      `      1. ${t(lang, 'paste prompt Hermes di bawah (atau CLI: npm run qa:workflow)', 'paste the Hermes prompt below (or CLI: npm run qa:workflow)')}`,
     );
   }
 
@@ -766,6 +803,38 @@ function printSummary(data: {
     console.log(prompt.trimEnd());
     console.log('');
     console.log('  ' + '─'.repeat(52));
+
+    console.log('');
+    const boxBorder = '─'.repeat(70);
+    console.log(`  ┌${boxBorder}┐`);
+    stepLine(
+      `  │  🚀 ${t(lang, 'SETELAH LOGIN: BAGAIMANA CARA MENGUJI FITUR BERIKUTNYA?', 'AFTER LOGIN: HOW TO TEST NEXT FEATURES?').padEnd(68)}│`,
+    );
+    console.log(`  ├${boxBorder}┤`);
+    stepLine(
+      `  │  ${t(lang, 'Anda TIDAK PERLU mengetik file kode atau Markdown manual. Cukup chat:', 'You DO NOT need to write code or Markdown manually. Simply chat:').padEnd(68)}│`,
+    );
+    console.log(`  │  ${' '.repeat(68)}│`);
+    stepLine(
+      `  │  👉 ${t(lang, 'Jalur 1 (Dari URL Halaman):', 'Path 1 (From Page URL):').padEnd(65)}│`,
+    );
+    stepLine(
+      `  │     "Hermes, tolong buatkan test untuk halaman <URL> (role: <role>)"`.padEnd(70) + '│',
+    );
+    stepLine(
+      `  │     ${t(lang, 'Hermes otomatis crawl UI (snapshot_page) & buat skenarionya.', 'Hermes crawls UI automatically (snapshot_page) & writes scenarios.').padEnd(65)}│`,
+    );
+    console.log(`  │  ${' '.repeat(68)}│`);
+    stepLine(
+      `  │  👉 ${t(lang, 'Jalur 2 (Dari Tiket Jira / PRD):', 'Path 2 (From Jira / PRD Ticket):').padEnd(65)}│`,
+    );
+    stepLine(
+      `  │     "Hermes, tolong buatkan test dari kriteria tiket ini: [paste]"`.padEnd(70) + '│',
+    );
+    stepLine(
+      `  │     ${t(lang, 'Hermes membedah cerita menjadi acceptance criteria & skenario.', 'Hermes decomposes requirements into criteria & test scenarios.').padEnd(65)}│`,
+    );
+    console.log(`  └${boxBorder}┘`);
   }
 
   console.log(line);
