@@ -21,12 +21,19 @@ function safe(args: Partial<WorkflowRunArgs>): WorkflowRunArgs {
 
 test.describe('workflow_run boundary hardening', () => {
   test('rejects absolute requirement path', () => {
-    const r = validateBoundaryPaths(
+    const winResult = validateBoundaryPaths(
       safe({ requirementPath: 'C:/windows/system32/x.md' }),
       REPO_ROOT,
     );
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain('repo-relative');
+    expect(winResult.ok).toBe(false);
+    if (!winResult.ok) expect(winResult.error).toContain('repo-relative');
+
+    const posixResult = validateBoundaryPaths(
+      safe({ requirementPath: '/etc/passwd.md' }),
+      REPO_ROOT,
+    );
+    expect(posixResult.ok).toBe(false);
+    if (!posixResult.ok) expect(posixResult.error).toContain('repo-relative');
   });
 
   test('rejects requirement outside requirements/', () => {

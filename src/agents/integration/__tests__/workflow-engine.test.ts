@@ -32,6 +32,8 @@ import {
   type WorkflowResponse,
 } from '../index';
 import { createMcpAdapters, resolveValidateResultsDir } from '../mcp-adapters';
+import { parsePlaywrightJsonReport } from '../playwright-counters';
+import { getTestFailures } from '../../../../tools/mcp/src/tools/get-test-failures';
 
 // ─── Test helpers ────────────────────────────────────────────────────────────
 
@@ -1053,8 +1055,7 @@ test.describe('WorkflowController runtime invariants', () => {
     );
   });
 
-  test('Task B3: JSON counters count tests, not spec files', async () => {
-    const { parsePlaywrightJsonReport } = await import('../playwright-counters');
+  test('Task B3: JSON counters count tests, not spec files', () => {
     const suites = [
       {
         specs: [
@@ -1072,8 +1073,7 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(counters.skipped).toBe(1);
   });
 
-  test('Task B3: JSON counters exclude auth.setup.ts from feature test counts', async () => {
-    const { parsePlaywrightJsonReport } = await import('../playwright-counters');
+  test('Task B3: JSON counters exclude auth.setup.ts from feature test counts', () => {
     const suites = [
       {
         title: 'auth.setup.ts',
@@ -1098,8 +1098,7 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(counters.failed).toBe(1);
   });
 
-  test('Task B4: getTestFailures resolves results.json even when newer run-manifest.json exists', async () => {
-    const { getTestFailures } = await import('../../../../tools/mcp/src/tools/get-test-failures');
+  test('Task B4: getTestFailures resolves results.json even when newer run-manifest.json exists', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-manifest-coexist-'));
     try {
       const resultsJsonPath = path.join(tempDir, 'results.json');

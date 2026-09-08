@@ -190,7 +190,15 @@ export function validateBoundaryPaths(
   repoRoot: string,
 ): { ok: true } | { ok: false; error: string } {
   const req = args.requirementPath.replace(/\\/g, '/');
-  if (path.isAbsolute(req)) {
+  const isAbsoluteReq =
+    path.isAbsolute(args.requirementPath) ||
+    path.win32.isAbsolute(args.requirementPath) ||
+    path.posix.isAbsolute(args.requirementPath) ||
+    /^[a-zA-Z]:[\\/]/.test(args.requirementPath) ||
+    args.requirementPath.startsWith('/') ||
+    args.requirementPath.startsWith('\\');
+
+  if (isAbsoluteReq) {
     return { ok: false, error: 'requirementPath must be repo-relative (absolute paths rejected).' };
   }
   if (!req.startsWith('requirements/')) {
@@ -206,7 +214,15 @@ export function validateBoundaryPaths(
   for (const evidence of args.evidence ?? []) {
     if (typeof evidence !== 'string' || evidence.length === 0) continue;
     const ev = evidence.replace(/\\/g, '/');
-    if (path.isAbsolute(ev)) {
+    const isAbsoluteEv =
+      path.isAbsolute(evidence) ||
+      path.win32.isAbsolute(evidence) ||
+      path.posix.isAbsolute(evidence) ||
+      /^[a-zA-Z]:[\\/]/.test(evidence) ||
+      evidence.startsWith('/') ||
+      evidence.startsWith('\\');
+
+    if (isAbsoluteEv) {
       return { ok: false, error: 'evidence paths must be repo-relative (absolute rejected).' };
     }
     if (!ev.startsWith('artifacts/selector-catalog/')) {
