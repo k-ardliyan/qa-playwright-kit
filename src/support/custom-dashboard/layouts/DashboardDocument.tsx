@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { Children } from '@kitajs/html';
-import { getDashboardStyles } from '../styles';
+import { getDashboardStyles } from '../renderer/render-assets';
 import { renderChartScript, renderInteractiveScript, renderThemeScript } from '../shared';
 import { buildClientBootstrapJs } from '../client';
 import { QaNoteModal } from '../pages/history/QaNoteModal';

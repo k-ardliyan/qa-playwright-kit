@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { getToolEntry, setActiveMcpProfile } from '../../../tools/mcp/src/tools/registry';
+import { loadNotesFile } from '../../../tools/mcp/src/utils/test-notes';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
+const TMP_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-mcp-note-'));
+const TMP_NOTES = path.join(TMP_ROOT, 'test-notes.json');
+
+test.afterAll(() => {
+  fs.rmSync(TMP_ROOT, { recursive: true, force: true });
+});
 
 /** The registry handler (includes the provenance guard) under test. */
 function handler(args: unknown): { status: string; code?: string } {
@@ -73,5 +84,20 @@ test.describe('record_ai_note MCP handler (validation paths)', () => {
     } finally {
       setActiveMcpProfile(undefined);
     }
+  });
+
+  test('MCP sidecar parse round-trip preserves runId', () => {
+    fs.writeFileSync(
+      TMP_NOTES,
+      JSON.stringify({
+        version: 1,
+        runId: 'run-20260906-000000-001',
+        updatedAt: new Date().toISOString(),
+        notes: { 'SC-01::general': { qaNotes: 'n', aiNotes: '' } },
+      }),
+      'utf-8',
+    );
+    const loaded = loadNotesFile(TMP_NOTES);
+    expect(loaded.runId).toBe('run-20260906-000000-001');
   });
 });

@@ -17,7 +17,7 @@ import type { ReportComparison } from '../../agents/reporter/report-compare';
 
 // ─── History Section ─────────────────────────────────────────────────────────
 
-export { buildSaveModal, buildConfirmDeleteModal };
+export { buildSaveModal };
 
 export function buildHistorySection(
   history: ReportHistoryEntry[],
@@ -206,7 +206,7 @@ function buildConfirmDeleteModal(): string {
 
 // ─── Trend Sparkline ─────────────────────────────────────────────────────────
 
-export function buildTrendSparkline(
+function buildTrendSparkline(
   entries: ReportHistoryEntry[],
   options?: { width?: number; height?: number },
 ): string {

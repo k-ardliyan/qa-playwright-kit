@@ -55,15 +55,27 @@ const MANIFEST_RELATIVE_PATH = path.join('config', 'qa-kit.workspace.json');
 const MAX_PARENT_HOPS = 12;
 
 /**
+ * Manifest-presence policy. `strict` throws when the manifest is absent or
+ * invalid (MCP server default); `compat` falls back to the default manifest
+ * (framework default).
+ */
+export type WorkspaceManifestMode = 'strict' | 'compat';
+
+/**
  * Finds the repository root by walking up directories looking for
- * config/qa-kit.workspace.json, playwright.config.ts, or package.json.
+ * config/qa-kit.workspace.json, package.json, or playwright.config.ts.
  */
 export function findRepoRoot(startDir: string = process.cwd()): string {
   let current = path.resolve(startDir);
   for (let i = 0; i < MAX_PARENT_HOPS; i++) {
     const manifestPath = path.join(current, MANIFEST_RELATIVE_PATH);
     const pkgPath = path.join(current, 'package.json');
-    if (fs.existsSync(manifestPath) || fs.existsSync(pkgPath)) {
+    const playwrightConfigPath = path.join(current, 'playwright.config.ts');
+    if (
+      fs.existsSync(manifestPath) ||
+      fs.existsSync(pkgPath) ||
+      fs.existsSync(playwrightConfigPath)
+    ) {
       return current;
     }
     const parent = path.dirname(current);
@@ -75,14 +87,32 @@ export function findRepoRoot(startDir: string = process.cwd()): string {
 
 export class WorkspacePathRegistry {
   private readonly _rootDir: string;
+  private readonly _mode: WorkspaceManifestMode;
   private _manifest: WorkspaceManifest | null = null;
+  private _fallbackWarningEmitted = false;
 
-  constructor(rootDir?: string) {
+  constructor(rootDir?: string, mode?: WorkspaceManifestMode) {
     this._rootDir = rootDir ? path.resolve(rootDir) : findRepoRoot();
+    this._mode = mode ?? this.resolveMode();
   }
 
   public get rootDir(): string {
     return this._rootDir;
+  }
+
+  public get mode(): WorkspaceManifestMode {
+    return this._mode;
+  }
+
+  /** Class default when neither the argument nor QA_WORKSPACE_MANIFEST_MODE is set. */
+  protected defaultMode(): WorkspaceManifestMode {
+    return 'compat';
+  }
+
+  private resolveMode(): WorkspaceManifestMode {
+    const envMode = process.env.QA_WORKSPACE_MANIFEST_MODE?.toLowerCase();
+    if (envMode === 'strict' || envMode === 'compat') return envMode;
+    return this.defaultMode();
   }
 
   public get manifest(): WorkspaceManifest {
@@ -95,12 +125,24 @@ export class WorkspacePathRegistry {
   private loadManifest(): WorkspaceManifest {
     const manifestFile = path.join(this._rootDir, MANIFEST_RELATIVE_PATH);
     if (!fs.existsSync(manifestFile)) {
+      if (this._mode === 'strict') {
+        throw new Error(
+          `WORKSPACE_MANIFEST_MISSING: Workspace manifest "${MANIFEST_RELATIVE_PATH}" is missing in root "${this._rootDir}".`,
+        );
+      }
+      this.warnFallback('Manifest file does not exist');
       return DEFAULT_WORKSPACE_MANIFEST;
     }
     try {
       const raw = fs.readFileSync(manifestFile, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<WorkspaceManifest>;
       if (!parsed.paths || typeof parsed.paths !== 'object') {
+        if (this._mode === 'strict') {
+          throw new Error(
+            `WORKSPACE_MANIFEST_INVALID: Manifest "${MANIFEST_RELATIVE_PATH}" is missing valid paths configuration.`,
+          );
+        }
+        this.warnFallback('Manifest paths object is invalid');
         return DEFAULT_WORKSPACE_MANIFEST;
       }
 
@@ -124,8 +166,28 @@ export class WorkspacePathRegistry {
           ...(parsed.ownership ?? {}),
         },
       };
-    } catch {
+    } catch (err) {
+      if (this._mode === 'strict') {
+        throw new Error(
+          `WORKSPACE_MANIFEST_INVALID: Failed to parse "${MANIFEST_RELATIVE_PATH}": ${err instanceof Error ? err.message : String(err)}`,
+          { cause: err },
+        );
+      }
+      this.warnFallback(
+        `Manifest parse error: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return DEFAULT_WORKSPACE_MANIFEST;
+    }
+  }
+
+  private warnFallback(reason: string): void {
+    if (!this._fallbackWarningEmitted) {
+      this._fallbackWarningEmitted = true;
+      if (process.env.NODE_ENV !== 'test') {
+        process.stderr.write(
+          `[WARN] WORKSPACE_MANIFEST_FALLBACK: Using default workspace manifest. Reason: ${reason}\n`,
+        );
+      }
     }
   }
 
@@ -269,7 +331,20 @@ export class WorkspacePathRegistry {
   }
 }
 
+/**
+ * MCP server registry: strict manifest presence by default (the server is
+ * launched inside the repository), overridable via `QA_WORKSPACE_MANIFEST_MODE`
+ * or an explicit mode argument.
+ */
+export class McpWorkspacePathRegistry extends WorkspacePathRegistry {
+  protected override defaultMode(): WorkspaceManifestMode {
+    return 'strict';
+  }
+}
+
 export const workspace = new WorkspacePathRegistry();
+
+export const mcpWorkspace = new McpWorkspacePathRegistry();
 
 /** Resolve report output while preserving the QA_REPORT_DIR test override. */
 export function resolveWorkspaceReportDir(registry: WorkspacePathRegistry = workspace): string {

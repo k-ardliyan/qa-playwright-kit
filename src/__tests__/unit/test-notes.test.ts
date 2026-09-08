@@ -146,6 +146,16 @@ test.describe('test-notes sidecar round-trip', () => {
     expect(parsed?.notes['ok::general']?.qaNotes).toBe('fine');
     expect(parsed?.notes['bad::general']).toBeUndefined();
   });
+
+  test('parse round-trip preserves the sidecar runId', () => {
+    const parsed = parseTestNotesFile({
+      version: 1,
+      runId: 'run-20260906-000000-001',
+      updatedAt: new Date().toISOString(),
+      notes: { 'ok::general': { qaNotes: 'fine', aiNotes: '' } },
+    });
+    expect(parsed?.runId).toBe('run-20260906-000000-001');
+  });
 });
 
 test.describe('test-notes archive lifecycle', () => {

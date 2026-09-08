@@ -11,6 +11,10 @@ process.env['QA_NOTES_LOCK_TIMEOUT_MS'] = '500';
 
 import { test, expect } from '@playwright/test';
 import { upsertTestNote, loadTestNotesFromFile } from '../../agents/reporter/test-notes';
+import {
+  upsertTestNote as mcpUpsertTestNote,
+  loadNotesFile,
+} from '../../../tools/mcp/src/utils/test-notes';
 
 test.afterAll(() => {
   fs.rmSync(TMP_ROOT, { recursive: true, force: true });
@@ -73,5 +77,59 @@ test.describe('notes write lock', () => {
       .readdirSync(TMP_REPORT_DIR)
       .filter((f) => f.includes('.lock') || f.endsWith('.tmp'));
     expect(residue).toEqual([]);
+  });
+});
+
+test.describe('MCP twin notes write lock (owner.json semantics)', () => {
+  test('a lock held by a LIVE pid is never stolen — fails with NOTES_LOCK_TIMEOUT', () => {
+    const filePath = path.join(TMP_REPORT_DIR, 'mcp-live-lock-notes.json');
+    const lockDir = `${filePath}.lock`;
+    fs.mkdirSync(lockDir, { recursive: true });
+    const old = new Date(Date.now() - 10_000);
+    fs.utimesSync(lockDir, old, old);
+    fs.writeFileSync(
+      path.join(lockDir, 'owner.json'),
+      JSON.stringify({ pid: process.pid, token: 'live-owner', acquiredAt: old.toISOString() }),
+      'utf-8',
+    );
+    fs.utimesSync(lockDir, old, old);
+
+    expect(() => mcpUpsertTestNote(filePath, 'SC-01::general', { qaNotes: 'x' })).toThrow(
+      /NOTES_LOCK_TIMEOUT/,
+    );
+    // The live owner's lock must still be intact and no partial write may exist
+    expect(fs.existsSync(lockDir)).toBe(true);
+    expect(fs.existsSync(filePath)).toBe(false);
+    fs.rmSync(lockDir, { recursive: true, force: true });
+  });
+
+  test('a lock held by a DEAD pid (ESRCH) is broken and the write proceeds', () => {
+    const filePath = path.join(TMP_REPORT_DIR, 'mcp-dead-lock-notes.json');
+    const lockDir = `${filePath}.lock`;
+    fs.mkdirSync(lockDir, { recursive: true });
+    const old = new Date(Date.now() - 10_000);
+    fs.utimesSync(lockDir, old, old);
+    fs.writeFileSync(
+      path.join(lockDir, 'owner.json'),
+      JSON.stringify({ pid: 2147483647, token: 'dead-owner', acquiredAt: old.toISOString() }),
+      'utf-8',
+    );
+    fs.utimesSync(lockDir, old, old);
+
+    const attempt = mcpUpsertTestNote(filePath, 'SC-02::general', { qaNotes: 'break stale' });
+    expect(attempt.qaNotes).toBe('break stale');
+    expect(fs.existsSync(lockDir)).toBe(false);
+  });
+
+  test('parse round-trip preserves the sidecar runId', () => {
+    const filePath = path.join(TMP_REPORT_DIR, 'mcp-runid-notes.json');
+    mcpUpsertTestNote(
+      filePath,
+      'SC-03::general',
+      { qaNotes: 'n' },
+      { runId: 'run-20260906-000000-001' },
+    );
+    const loaded = loadNotesFile(filePath);
+    expect(loaded.runId).toBe('run-20260906-000000-001');
   });
 });

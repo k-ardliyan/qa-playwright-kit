@@ -1,3 +1,8 @@
+/**
+ * AUTO-SYNCED from src/shared/mcp/auth-discovery.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
 export interface AuthenticatedDiscoveryOptions {
   enabled: boolean;
   role: string;

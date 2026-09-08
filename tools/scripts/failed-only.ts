@@ -51,19 +51,3 @@ export function buildFailedGrepPattern(titles: string[]): string {
   const escaped = titles.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return `(${escaped.join('|')})`;
 }
-
-// ---------------------------------------------------------------------------
-// CLI Execution Entry Point
-// Usage: npx tsx tools/scripts/failed-only.ts
-// ---------------------------------------------------------------------------
-if (require.main === module || process.argv[1]?.endsWith('failed-only.ts')) {
-  const titles = extractFailedTestTitles();
-  if (titles.length === 0) {
-    process.stderr.write('No failed tests found in the latest summary.\n');
-    process.exit(0);
-  }
-
-  const grep = buildFailedGrepPattern(titles);
-  // Outputs --grep pattern for direct consumption
-  process.stdout.write(`-g "${grep}"`);
-}

@@ -6,6 +6,39 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Comprehensive Architecture & Dead-Code Refactoring — 2026-09-09
+
+- **Phase 0 (Bug Drift):**
+  - Fix lock-owner race condition in `tools/mcp/src/utils/test-notes.ts`: `acquireNotesLock` writes `owner.json` (pid + token) and only steals stale locks if the recorded owner PID is demonstrably dead via `processIsAlive(pid)` (EPERM=alive, ESRCH=dead); fixed `parseNotesFile` dropping `runId` on read.
+  - Port `normalizeManifestPath` to `tools/mcp/src/utils/workspace-paths.ts`: closed manifest path-traversal vulnerability by rejecting absolute and `..`-escaping paths per key with fallback to defaults.
+- **Phase 1 (Drift Elimination):**
+  - Auto-synced byte-identical twins (`test-index.ts`, `auth-discovery-core.ts`) into `MCP_GENERATED_PAIRS` (14 pairs).
+  - Unified logger (`tools/mcp/src/utils/logger.ts` is now an auto-synced copy of `src/utils/logger.ts` via `MCP_STDIO` stream routing).
+  - Unified workspace-paths (`tools/mcp/src/utils/workspace-paths.ts` is now an auto-synced copy of `src/shared/workspace-paths.ts` with strict mode support and `playwright.config.ts` fallback). Total auto-synced pairs reached 16.
+  - Added automated manual twin parity checker (`tools/scripts/check-twin-parity.ts` + `npm run check:twin-parity`) to `quality:check-rules` covering `test-notes`, `run-context`, `analysis-gate`, and `failure-classifier`.
+- **Phase 2 (Legacy Resolution):**
+  - Added explicit `LEGACY` banners to 14 test-only files in `src/agents/{planner,generator,integration}` marking them as superseded by `WorkflowController` (commit `0d3baaa`).
+  - Redirected `.github/agents/healer.agent.md` away from legacy pattern-database imports to MCP tools (`get_test_failures`, `record_ai_note`).
+- **Phase 3 (Cleanup & God File Splits):**
+  - Removed dead files: `tools/scripts/check-inline-js.mjs`, `tools/scripts/gen-login-catalogs.ts`, `src/support/custom-dashboard/client/hash-router.ts`, `src/support/custom-dashboard/client/types.ts`.
+  - Removed dead exports in `export-helpers.ts` (`renderStepsCell`, `renderActualResultCell`, `renderMultilineTextCell`), `render-assets.ts` (`clearStylesCache`), and `build-history-view.ts` (`buildTrendSparkline`, `buildConfirmDeleteModal`).
+  - Removed redundant `styles.ts` pass-through indirection (repointed callers directly to `renderer/render-assets`).
+  - Stripped unused CLI runner blocks from `smart-shard.ts` and `failed-only.ts`.
+  - Split `src/cli/dashboard-server.ts` (1562 lines) into modular route handlers: `src/cli/routes/helpers.ts`, `src/cli/routes/render.ts`, `src/cli/routes/notes.ts`, `src/cli/routes/archive.ts`.
+  - Split `src/agents/integration/protocol.ts` (736 lines) into `protocol-validation.ts`, `protocol-handlers.ts`, and `protocol.ts` barrel.
+  - Split `src/support/custom-dashboard/export-helpers.ts` (946 lines) into `export-script.ts`, `render-cells.ts`, and `export-helpers.ts`.
+  - Split `src/support/custom-reporter.ts` (920 lines) into `reporter/collect.ts`, `reporter/attachments.ts`, `reporter/theme-patch.ts`, and `custom-reporter.ts`.
+  - Split `tools/mcp/src/tools/validate-generated-tests.ts` (731 lines) into `rules/rule-helpers.ts`, `rules/capability-rules.ts`, `rules/auth-rules.ts`, and `validate-generated-tests.ts`.
+  - Split `tools/mcp/src/tools/compile-requirement.ts` (709 lines) into `parsers/requirement-parsers.ts` and `compile-requirement.ts`.
+  - Split `tools/scripts/wizard-login-template.ts` (1024 lines) into `wizard-login-scenarios.ts` and `wizard-login-template.ts`.
+  - Split `src/agents/reporter/test-notes.ts` (855 lines) into `notes-lock.ts`, `run-insights.ts`, and `test-notes.ts`.
+  - Reconciled MCP twin failure-classifier: added `gateway timeout` token to network regex and aligned parity contract (0 warnings across all 4 manual twin pairs).
+- **Dependency Security Audit (tools/mcp):** 2 moderate vulnerabilities in `uuid < 11.1.1` (buffer bounds check on custom buffers in v3/v5/v6) pulled transitively by devDependency `exceljs >= 3.5.0` are explicitly deferred. Running `npm audit fix --force` would downgrade `exceljs` from 4.4.0 to 3.4.0 (a breaking change). The affected code path is not called by `exceljs` or the MCP server tools.
+- **Validation:** Zero regressions across the full suite (746 unit tests, 40+ property tests, all contract validators, MCP build, architecture and ephemeral ref guards passing cleanly).
+
+- **`.github/agents/healer.agent.md` bebas dari import engine legacy `@/agents/healer`:** seluruh referensi kode (`prioritizeFailures`, `loadDatabase`/`saveDatabase`/`storePattern`/`lookupPattern`, `ensurePowerSeedPatterns`, `src/agents/healer/pattern-database.ts`, `power-seed-patterns.ts`, learning system) dihapus. Healer kini memakai MCP `get_test_failures` untuk failure data terstruktur, heuristik prioritas + pola fix inline di dokumen (Healing Policy, File/PDF/Excel failure patterns), dan `record_ai_note` (source `healer`, format kanonik `ai-insight-format.md`) untuk mencatat outcome per fix attempt — database pola kode tidak lagi dijanjikan. Metodologi diagnose → fix → classify → note dipertahankan utuh.
+- **Verifikasi:** grep `@/agents/healer` di `.github/agents/` = 0 hit; `src/agents/healer` di `healer.agent.md` = 0 hit; `skills/qa-playwright-kit/SKILL.md` dan `.claude/skills/qa-playwright-kit/SKILL.md` hanya menunjuk ke `.github/agents/healer.agent.md` (tanpa referensi kode) — tidak perlu diubah.
+
 ### Native Semantic Workflow Engine (Explore → Model → Challenge → Generate → Validate) — 2026-09-07
 
 - **Runtime state machine:** `WorkflowController` (src/agents/integration/workflow-controller.ts) kini menjadi pemilik transisi stage — Explore policy, Challenge gate, dan Generate precondition di-enforce di runtime, bukan hanya di prompt. Reducer murni `transitionWorkflow` menolak transisi ilegal (mis. `model → generate` tanpa Challenge pass); hanya `explore` yang bisa di-skip eksplisit; QA decision hanya legal di `validate`.

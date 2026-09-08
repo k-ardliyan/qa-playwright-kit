@@ -127,6 +127,11 @@ test.describe('Sample Feature', () => {
     // Network connection refused -> env
     const envNetFail = classifyFailureError('connect ECONNREFUSED 127.0.0.1:3000');
     expect(envNetFail.source).toBe('env');
+
+    // Network gateway timeout -> env
+    const envGatewayFail = classifyFailureError('Request failed: gateway timeout');
+    expect(envGatewayFail.source).toBe('env');
+    expect(envGatewayFail.category).toBe('network');
   });
 
   test('CF-202: heuristic fallback emits TRACE_HEURISTIC_LINK_USED diagnostic', () => {

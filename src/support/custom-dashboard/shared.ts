@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
-import { getDashboardStyles } from './styles';
+import { getDashboardStyles } from './renderer/render-assets';
 import { buildClientBootstrapJs } from './client';
-import type { CollectedAttachment, CollectedStep, CollectedTestData, TestSummary } from './types';
+import type { CollectedStep, CollectedTestData, TestSummary } from './types';
 
 function resolveReportDir(): string {
   return resolveWorkspaceReportDir();
@@ -34,44 +34,6 @@ export function jsonForScript(value: unknown): string {
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026');
-}
-
-export function renderTraceLinkFromAttachments(attachments: CollectedAttachment[]): string {
-  const trace = attachments.find((attachment) => attachment.kind === 'trace');
-  if (!trace) {
-    return '<span class="muted">No trace</span>';
-  }
-
-  return `<a class="btn btn--ghost" href="${escapeHtml(trace.relativePath)}" target="_blank" rel="noopener">View trace</a>`;
-}
-
-export function formatDisplayTime(raw: string): string {
-  try {
-    const d = new Date(raw);
-    if (isNaN(d.getTime())) return raw;
-    const day = d.getDate();
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    const mon = months[d.getMonth()];
-    const yr = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${day} ${mon} ${yr}, ${hh}:${mm}`;
-  } catch {
-    return raw;
-  }
 }
 
 function getVerdict(summary: TestSummary): {

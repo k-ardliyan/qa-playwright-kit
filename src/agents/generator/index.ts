@@ -1,4 +1,8 @@
 /**
+ * LEGACY — superseded oleh src/agents/integration (WorkflowController, commit 0d3baaa)
+ * dan tools/mcp. Konsumen hanya test (property/unit). JANGAN diperluas; keputusan hapus
+ * menunggu tanpa regresi.
+ *
  * Generator Agent — Barrel Export
  *
  * Re-exports all generator sub-modules for unified import access:

@@ -1,4 +1,9 @@
 /**
+ * LEGACY — superseded oleh src/agents/integration (WorkflowController, commit 0d3baaa)
+ * dan tools/mcp. Konsumen hanya test (property/unit). JANGAN diperluas; keputusan hapus
+ * menunggu tanpa regresi.
+ * Catatan: bagian dari triple-duplikasi classifier.
+ *
  * Failure Classification Module for Generator Agent.
  *
  * Classifies generation errors into exactly one FailureClassification category

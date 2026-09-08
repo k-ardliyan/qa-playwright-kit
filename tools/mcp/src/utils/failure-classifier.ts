@@ -42,7 +42,7 @@ export function classifyFailureError(errorMessage?: string): ClassifiedFailure {
   }
 
   // 3. Network infrastructure / Environment
-  if (/econnrefused|enotfound|net::err_|err_connection|dns/i.test(msg)) {
+  if (/econnrefused|enotfound|net::err_|err_connection|dns|gateway timeout/i.test(msg)) {
     return {
       category: 'network',
       source: 'env',

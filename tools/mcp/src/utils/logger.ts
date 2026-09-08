@@ -1,58 +1,130 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+/**
+ * AUTO-SYNCED from src/utils/logger.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
+/**
+ * Structured Logger utility for the Playwright AI Agent Framework.
+ *
+ * Writes timestamped, levelled messages to the appropriate console stream
+ * and appends every message to `logs/automation.log` for persistent tracing.
+ *
+ * @see Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ---------------------------------------------------------------------------
+// Constants / helpers
+// ---------------------------------------------------------------------------
 
 type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
 
 /**
- * Resolve log paths at write-time.
- * MCP bootstrap may `chdir` to the repo root after this module is first loaded;
- * freezing LOG_DIR at import time previously wrote to CWD-at-import (e.g. System32).
+ * MCP stdio transport reserves stdout for JSON-RPC only.
+ * When MCP_STDIO=1 (set by qa-playwright-kit / playwright-test launchers),
+ * all console log lines go to stderr so the protocol is never corrupted.
  */
+function isMcpStdioMode(): boolean {
+  const flag = process.env['MCP_STDIO'];
+  return flag === '1' || flag === 'true';
+}
+
+/** Resolve log paths at write-time so chdir() during MCP bootstrap is respected. */
 function getLogPaths(): { logDir: string; logFile: string } {
   const logDir = path.resolve(process.cwd(), 'logs');
   return { logDir, logFile: path.join(logDir, 'automation.log') };
 }
 
-function appendToFile(line: string): void {
-  try {
-    const { logDir, logFile } = getLogPaths();
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
+// ---------------------------------------------------------------------------
+// Logger class
+// ---------------------------------------------------------------------------
+
+class Logger {
+  /**
+   * Log an informational message.
+   * Writes to process.stdout (or stderr in MCP_STDIO mode) and logs/automation.log.
+   */
+  info(message: string, metadata?: Record<string, unknown>): void {
+    this._write('INFO', message, metadata);
+  }
+
+  /**
+   * Log a warning message.
+   * Writes to process.stderr and logs/automation.log.
+   */
+  warn(message: string, metadata?: Record<string, unknown>): void {
+    this._write('WARN', message, metadata);
+  }
+
+  /**
+   * Log an error message.
+   * Writes to process.stderr and logs/automation.log.
+   */
+  error(message: string, metadata?: Record<string, unknown>): void {
+    this._write('ERROR', message, metadata);
+  }
+
+  /**
+   * Log a debug message.
+   * Only emitted when LOG_LEVEL env var equals "debug".
+   */
+  debug(message: string, metadata?: Record<string, unknown>): void {
+    if (process.env['LOG_LEVEL'] !== 'debug') {
+      return;
     }
-    fs.appendFileSync(logFile, `${line}\n`, 'utf8');
-  } catch (error) {
-    // MCP stdio transport: stdout reserved for protocol messages only.
-    // Log file write failures go to stderr.
-    process.stderr.write(`[Logger] Failed to write to log file: ${String(error)}\n`);
+    this._write('DEBUG', message, metadata);
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers
+  // -------------------------------------------------------------------------
+
+  /**
+   * Build the formatted log line and route it to the correct stream + file.
+   */
+  private _write(level: LogLevel, message: string, metadata?: Record<string, unknown>): void {
+    const timestamp = new Date().toISOString(); // ISO 8601 with ms precision
+    const metaPart = metadata !== undefined ? ` ${JSON.stringify(metadata)}` : '';
+    const line = `[${timestamp}] [${level}] ${message}${metaPart}`;
+
+    // Route to the correct console stream.
+    // MCP stdio: never touch stdout (breaks JSON-RPC framing).
+    if (isMcpStdioMode()) {
+      process.stderr.write(line + '\n');
+    } else if (level === 'INFO' || level === 'DEBUG') {
+      process.stdout.write(line + '\n');
+    } else {
+      // WARN, ERROR
+      process.stderr.write(line + '\n');
+    }
+
+    // Append to the persistent log file
+    this._appendToFile(line);
+  }
+
+  /**
+   * Ensure the `logs/` directory exists, then append the log line to the file.
+   * Uses fs.appendFileSync for thread-safe, synchronous writes.
+   */
+  private _appendToFile(line: string): void {
+    try {
+      const { logDir, logFile } = getLogPaths();
+      // Auto-create logs/ directory on first write
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      fs.appendFileSync(logFile, line + '\n', 'utf8');
+    } catch (err) {
+      // If file writing fails, report to stderr without crashing the process
+      process.stderr.write(`[Logger] Failed to write to log file: ${String(err)}\n`);
+    }
   }
 }
 
-function write(level: LogLevel, message: string, metadata?: Record<string, unknown>): void {
-  const timestamp = new Date().toISOString();
-  const metaPart = metadata ? ` ${JSON.stringify(metadata)}` : '';
-  const line = `[${timestamp}] [${level}] ${message}${metaPart}`;
+// ---------------------------------------------------------------------------
+// Singleton export
+// ---------------------------------------------------------------------------
 
-  // All console log output goes to stderr. Never stdout (breaks MCP stdio).
-  // INFO was previously file-only; emit to stderr too so MCP hosts can diagnose startup.
-  process.stderr.write(`${line}\n`);
-
-  appendToFile(line);
-}
-
-export const logger = {
-  info(message: string, metadata?: Record<string, unknown>): void {
-    write('INFO', message, metadata);
-  },
-  warn(message: string, metadata?: Record<string, unknown>): void {
-    write('WARN', message, metadata);
-  },
-  error(message: string, metadata?: Record<string, unknown>): void {
-    write('ERROR', message, metadata);
-  },
-  debug(message: string, metadata?: Record<string, unknown>): void {
-    if (process.env.LOG_LEVEL !== 'debug') {
-      return;
-    }
-    write('DEBUG', message, metadata);
-  },
-};
+export const logger = new Logger();

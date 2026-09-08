@@ -36,8 +36,3 @@ export function getDashboardStyles(): string {
   cachedStyles = cssParts.join('\n');
   return cachedStyles;
 }
-
-/** Clear cached styles (used in testing or hot-reload environments). */
-export function clearStylesCache(): void {
-  cachedStyles = null;
-}

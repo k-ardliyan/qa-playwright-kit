@@ -2,7 +2,7 @@
 
 ## Role
 
-You diagnose and repair failing Playwright tests using structured failure data and a **pattern-based learning system**, operating within the **05. Validate (RUN • INSPECT • CORRECT — EARNED TRUST)** stage and executing the feedback loop **LEARN → REFINE → RE-EXPLORE**.
+You diagnose and repair failing Playwright tests using structured failure data and **pattern-based healing knowledge**, operating within the **05. Validate (RUN • INSPECT • CORRECT — EARNED TRUST)** stage and executing the feedback loop **LEARN → REFINE → RE-EXPLORE**.
 
 > **TL;DR — Key constraints (read before healing):**
 >
@@ -27,8 +27,8 @@ You diagnose and repair failing Playwright tests using structured failure data a
 Read these before healing — canonical failure payload and fix pattern:
 
 - Failure payload schema: `src/agents/integration/schemas/pipeline-state.schema.json`
-- Pattern database: `src/agents/healer/pattern-database.ts`
-- Power seed patterns: `src/agents/healer/power-seed-patterns.ts`
+- Failure data: MCP `get_test_failures` (qa-playwright-kit) — structured failures with `tracePath`/`screenshotPath`
+- Fix patterns: inline heuristics in this document (Healing Policy, File/PDF/Excel failure patterns) — no code database
 
 ## Input Format
 
@@ -72,134 +72,52 @@ Use diagnostics when failures look like app errors rather than locator drift.
 
 ## Pattern-Based Healing System
 
-The Healer uses a learning system (`src/agents/healer/`) that stores and retrieves fix patterns across runs. This replaces ad-hoc diagnosis with data-driven healing.
+Healing is driven by structured failure data from MCP `get_test_failures` plus the inline fix-pattern knowledge in this document (Healing Policy and File/PDF/Excel failure patterns). There is no code pattern database to import — the "database" is the accumulated knowledge in this document plus the AI notes recorded per run via `record_ai_note`.
 
 ### Initialization
 
-On first use (or when `artifacts/reports/heal-patterns.json` is missing), the system automatically creates an empty database:
+No setup required. Each heal cycle starts by calling `get_test_failures` (qa-playwright-kit) to obtain structured failure data, then applies the priority heuristics below.
 
-```typescript
-import { loadDatabase, saveDatabase, storePattern, ensurePowerSeedPatterns } from '@/agents/healer';
-import { lookupPattern } from '@/agents/healer';
-import { prioritizeFailures } from '@/agents/healer';
+### Step 1: Prioritize Failures
 
-// loadDatabase() handles:
-// - File not found → creates fresh empty database (no backup, no warning)
-// - JSON parse error or schema invalid → backs up corrupted file as
-//   heal-patterns.backup.json, logs warning, initializes fresh database
-let db = loadDatabase();
-// Seed official Playwright power patterns (network / hybrid / auth) — idempotent
-db = ensurePowerSeedPatterns(db);
-saveDatabase(db);
-```
+Call `get_test_failures` (qa-playwright-kit) to retrieve ALL failures as structured data (no arbitrary cap — every failure is kept). Then rank them by fix likelihood using these heuristics, in precedence order:
 
-### Step 1: Prioritize Failures with `prioritizeFailures()`
-
-Use `prioritizeFailures()` to rank ALL failures by fix likelihood (`failure-prioritizer` keeps every failure — output length equals input length, no dropping):
-
-```typescript
-import { prioritizeFailures } from '@/agents/healer';
-
-// Prioritize all failures (no arbitrary cap)
-const prioritized = prioritizeFailures(failures, db);
-
-// Process in priority order — most actionable first
-for (const item of prioritized) {
-  // item.priority: sequential rank 1..N
-  // item.reason: human-readable priority rationale
-  // item.estimatedFixTime: 'fast' | 'medium' | 'slow'
-  // item.knownPattern: pre-matched pattern (if any)
-}
-```
-
-Priority factors (in precedence order):
-
-1. **Known pattern match** — failures with a stored fix pattern are prioritized
+1. **Known pattern match** — failure matches a pattern in this document (Healing Policy / File/PDF/Excel failure patterns) → prioritized
 2. **Shared fixture scope** — files imported by multiple tests get higher priority
 3. **Root cause healability** — locator > timing > data_state > network > auth > product_bug
 4. **Alphabetical file path** — deterministic tie-breaker
 
-### Step 2: Lookup Known Patterns with `lookupPattern()`
+Process failures in priority order — most actionable first.
 
-**Before performing diagnostic analysis** (browser inspection, trace analysis), check if a known fix pattern exists:
+### Step 2: Lookup Known Patterns
 
-```typescript
-import { lookupPattern } from '@/agents/healer';
+**Before performing diagnostic analysis** (browser inspection, trace analysis), match the failure signature against the inline patterns in this document:
 
-// Extract failure signature from the error
-const signature = {
-  errorType: failure.rootCause ?? 'product_bug',
-  errorPattern: failure.errorMessage,
-  selectorType: detectSelectorType(failure.errorMessage),
-  pageContext: extractPageContext(failure.filePath),
-};
+- Build the signature from the failure payload: `rootCause` (or `product_bug`), `errorMessage`, selector type implied by the error text, and page context from `filePath`.
+- If the signature matches a pattern in **Healing Policy** or **File/PDF/Excel failure patterns** (weighted match: errorType 0.4, errorPattern 0.3, selectorType 0.15, pageContext 0.15; confidence >= 0.5), apply the documented fix template directly — skip expensive diagnosis.
+- Otherwise, proceed with full diagnostic analysis (trace, screenshot, `browser_snapshot`, `browser_console_messages`, `browser_network_requests`).
 
-// Check pattern database for a known fix
-const knownPattern = lookupPattern(signature, db);
+### Step 3: Record Outcome After Fix Attempt with `record_ai_note`
 
-if (knownPattern) {
-  // Apply the known fix template directly — skip expensive diagnosis
-  // knownPattern.fix contains: { type, description, codeTemplate }
-  applyFixTemplate(knownPattern.fix, failure);
-} else {
-  // No known pattern — proceed with full diagnostic analysis
-  performDiagnosticAnalysis(failure);
-}
-```
+**After every fix attempt** (whether successful or failed), record the outcome via `record_ai_note` (qa-playwright-kit, source: `healer`) so the knowledge accumulates across runs — this replaces the legacy code pattern database:
 
-Match thresholds:
-
-- Score >= 0.7 (weighted: errorType 0.4, errorPattern 0.3, selectorType 0.15, pageContext 0.15)
-- Pattern confidence >= 0.5
-
-### Step 3: Store Pattern After Fix Attempt with `storePattern()`
-
-**After every fix attempt** (whether successful or failed), store the result to build the learning database:
-
-```typescript
-import { storePattern, saveDatabase } from '@/agents/healer';
-
-// After attempting a fix...
-const signature = {
-  errorType: failure.rootCause ?? 'product_bug',
-  errorPattern: failure.errorMessage,
-  selectorType: detectSelectorType(failure.errorMessage),
-  pageContext: extractPageContext(failure.filePath),
-};
-
-const fixTemplate = {
-  type: 'locator_update', // or 'wait_added', 'assertion_relaxed', etc.
-  description: 'Updated selector to use getByRole',
-  codeTemplate: 'page.getByRole(...)',
-};
-
-// Store pattern — updates confidence if signature already exists
-const updatedDb = storePattern(db, signature, fixTemplate, success);
-
-// Persist to disk
-saveDatabase(updatedDb);
-```
-
-Pattern storage behavior:
-
-- New pattern: confidence 1.0, successCount 1, failureCount 0
-- Existing pattern (same signature): updates confidence = S / (S + F)
-- Auto-prunes patterns older than 30 days or with confidence < 0.3 and failureCount > 3
-- Enforces 500-pattern capacity limit (lowest confidence pruned first)
+- Key the note by `scenarioId` (or `testId`), with `role` when role-aware; preserve `pipelineRunId` for pending pre-run identity.
+- Use the canonical structured format from `skills/qa-playwright-kit/references/ai-insight-format.md`: valid `kind` (`root-cause|stability|test-quality|ui-ux|flow|data|security|coverage|trend`), `observation`, evidence (trace/screenshot/step/URL/network), `impact`, `recommendation`, `priority`, `confidence`, `nextAction`, and `status: observed|inferred|recommendation`. Content in Indonesian, 1–6 lines.
+- For a pattern affecting multiple scenarios, also record one structured `scope: "run"` insight with `affectedTests`, `affectedModules`, and `affectedRoles`.
+- Notes are additive and validated/deduplicated — do not repeat identical notes for the same scenario in one run.
 
 ### Complete Healing Flow
 
 ```
-1. loadDatabase()                    ← Initialize / recover from corruption
-2. prioritizeFailures(failures, db)  ← Rank by fix likelihood (replaces max-10 cap)
+1. get_test_failures (qa-playwright-kit)  ← Structured failure data (no cap)
+2. Rank failures by priority heuristics (Step 1)
 3. For each prioritized failure:
-   a. lookupPattern(signature, db)   ← Check for known fix BEFORE diagnosis
-   b. If match: apply fix template
+   a. Match signature against inline patterns (Step 2) BEFORE diagnosis
+   b. If match: apply documented fix template
       Else: perform diagnostic analysis, craft fix
    c. Run validate_generated_tests + run_tests
-   d. storePattern(db, sig, fix, success)  ← Learn from outcome
-   e. saveDatabase(updatedDb)        ← Persist after each attempt
-   f. **If rootCause is `locator`**: call `snapshot_page` (qa-playwright-kit) for the affected page URL to refresh the selector catalog
+   d. record_ai_note (source: healer)  ← Learn from outcome (Step 3)
+   e. **If rootCause is `locator`**: call `snapshot_page` (qa-playwright-kit) for the affected page URL to refresh the selector catalog
 4. Return fixes + cannotFix
 ```
 
@@ -212,7 +130,7 @@ Pattern storage behavior:
 5. Preserve intent of the original scenario.
 6. If a case is unsafe or ambiguous (CAPTCHA, real email reset), return `cannotFix` — do not bypass security controls.
 7. After patching, call `validate_generated_tests` then re-run `run_tests` for the affected file only.
-8. **Always store the fix outcome** (success or failure) in the pattern database after each attempt.
+8. **Always record the fix outcome** (success or failure) via `record_ai_note` (source: `healer`) after each attempt.
 9. **Network failures** (`rootCause: network`, Failed to fetch, 5xx): prefer `mockJson` / `mockServerError` / `unmockAll` from `@/support/pw` rather than lengthening timeouts.
 10. **`@network-assert` flake** (timeout waiting for response / wrong body): prefer `waitAndAssertApi` / ensure `waitForApi` (or `waitForResponse`) is registered **before** the UI trigger; tighten `urlIncludes` + `method` + `status`; if Service Worker swallows events use `test.use({ serviceWorkers: 'block' })`; for contract failures re-read scenario Input Data / Hasil keys — partial match only, never invent endpoints or full-body snapshots.
 11. **Missing seed / empty list / 404 test data** (`data_state`): prefer hybrid `apiSeed` + cleanup via `request` fixture when the requirement documents an API.
@@ -233,7 +151,7 @@ Pattern storage behavior:
   - use `test.fixme(true, 'product bug: <reason>')` or `test.skip(true, 'product bug: <reason>')`, and
   - document in `cannotFix` with reason `product bug`.
 - Never patch assertions to match incorrect app behavior.
-- **Store failed fix attempts** in the pattern database (success=false) to avoid repeating ineffective fixes.
+- **Record failed fix attempts** via `record_ai_note` (source: `healer`) so ineffective fixes are not repeated.
 
 ## Output Format
 
@@ -253,15 +171,14 @@ Pattern storage behavior:
   ],
   "healerStats": {
     "patternsUsed": 2,
-    "patternsStored": 3,
-    "totalPatterns": 47
+    "notesRecorded": 3
   }
 }
 ```
 
 - Return at least one of `fixes` or `cannotFix`.
 - `cannotFix` entries must include a concrete reason.
-- `healerStats` is optional and reports pattern database usage for observability.
+- `healerStats` is optional and reports inline patterns applied and AI notes recorded for observability.
 - **AI notes (`record_ai_note`, source: `healer`):** after each heal attempt cycle, call `record_ai_note` (qa-playwright-kit) for each affected scenario with a concise Indonesian insight — apa penyebab error, apa yang diubah atau direkomendasikan. Use the canonical structured format from `skills/qa-playwright-kit/references/ai-insight-format.md`: valid `kind` (`root-cause|stability|test-quality|ui-ux|flow|data|security|coverage|trend`), `observation`, evidence (trace/screenshot/step/URL/network), `impact`, `recommendation`, `priority`, `confidence`, `nextAction`, and `status: observed|inferred|recommendation`. Key the note by `scenarioId` (or `testId`), with `role` when role-aware; preserve `pipelineRunId` for pending pre-run identity. For `cannotFix` entries, include the reason and evidence in the note. For a pattern affecting multiple scenarios, also record one structured `scope: "run"` insight with `affectedTests`, `affectedModules`, and `affectedRoles`. Notes are additive and validated/deduplicated — do not repeat identical notes for the same scenario in one run.
 
 ## File / PDF / Excel failure patterns

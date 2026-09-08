@@ -125,7 +125,7 @@ export function redactSecrets(text: string): string {
 
 // ─── Dedupe ──────────────────────────────────────────────────────────────────
 
-function normalizeForDedupe(text: string): string {
+export function normalizeForDedupe(text: string): string {
   return text
     .replace(/^\[[a-z]+\]\s*/i, '') // strip source badge — same insight from same source
     .replace(/\s+/g, ' ')
@@ -256,7 +256,7 @@ export function loadTestNotesFromFile(filePath: string): TestNotesFile {
 }
 
 /** Strict read for writes — corrupt files must fail loudly so notes are never lost. */
-function readTestNotesForWrite(filePath: string): TestNotesFile {
+export function readTestNotesForWrite(filePath: string): TestNotesFile {
   if (!fs.existsSync(filePath)) return emptyTestNotesFile();
   const parsed = parseTestNotesFile(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
   if (!parsed) {
@@ -287,212 +287,27 @@ function validatePatch(patch: TestNotePatch): void {
   }
 }
 
-/**
- * Locked read-modify-write: the lock covers the WHOLE transaction (read →
- * mutate → temp write → atomic rename → release), so a concurrent MCP write
- * and dashboard write can never lose each other's update. A stale lock
- * (older than STALE_LOCK_MS) is broken after LOCK_TIMEOUT_MS.
- */
-const LOCK_TIMEOUT_MS = Number(process.env['QA_NOTES_LOCK_TIMEOUT_MS']) || 3000;
-const STALE_LOCK_MS = 5000;
+import {
+  acquireNotesLock,
+  withNotesWrite,
+  withLatestTestNotesLock,
+  readLatestTestNotesSnapshot,
+  archiveTestNotesSnapshot,
+  withLatestNotesArchive,
+  type TestNotesSnapshot,
+  type NotesLockOwner,
+} from './notes-lock';
 
-function sleepSync(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
-
-interface NotesLockOwner {
-  pid: number;
-  token: string;
-  acquiredAt: string;
-}
-
-function processIsAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    // EPERM means the process exists but is not signalable; ESRCH means it is
-    // gone. Treat every other uncertainty as alive (fail closed).
-    return (error as NodeJS.ErrnoException).code !== 'ESRCH';
-  }
-}
-
-function acquireNotesLock(filePath: string): string {
-  const lockDir = `${filePath}.lock`;
-  const ownerPath = path.join(lockDir, 'owner.json');
-  const deadline = Date.now() + LOCK_TIMEOUT_MS;
-  while (true) {
-    try {
-      fs.mkdirSync(lockDir);
-      const owner: NotesLockOwner = {
-        pid: process.pid,
-        token: `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        acquiredAt: new Date().toISOString(),
-      };
-      fs.writeFileSync(ownerPath, JSON.stringify(owner), 'utf-8');
-      return lockDir;
-    } catch {
-      try {
-        const stat = fs.statSync(lockDir);
-        if (Date.now() - stat.mtimeMs > STALE_LOCK_MS && fs.existsSync(ownerPath)) {
-          const owner = JSON.parse(fs.readFileSync(ownerPath, 'utf-8')) as Partial<NotesLockOwner>;
-          // Only break a stale lock when its recorded owner is demonstrably
-          // dead. Unknown/invalid owners remain locked (fail closed).
-          if (typeof owner.pid === 'number' && !processIsAlive(owner.pid)) {
-            fs.rmSync(lockDir, { recursive: true, force: true });
-          }
-        }
-      } catch {
-        // Lock vanished or owner metadata is unreadable — retry until timeout
-      }
-      if (Date.now() > deadline) {
-        throw new Error(
-          `NOTES_LOCK_TIMEOUT: another writer holds ${lockDir} (waited ${LOCK_TIMEOUT_MS}ms). ` +
-            `If no other process is running, remove the stale lock directory manually.`,
-        );
-      }
-      sleepSync(50);
-    }
-  }
-}
-
-/**
- * Run `mutate` against the freshly-read sidecar inside the lock; the mutated
- * file is persisted atomically before the lock is released.
- */
-function withNotesWrite<T>(filePath: string, mutate: (file: TestNotesFile) => T): T {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const lockDir = acquireNotesLock(filePath);
-  try {
-    const file = readTestNotesForWrite(filePath);
-    const result = mutate(file);
-    const tmp = `${filePath}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(file, null, 2), 'utf-8');
-    fs.renameSync(tmp, filePath);
-    return result;
-  } finally {
-    try {
-      fs.rmSync(lockDir, { recursive: true, force: true });
-    } catch {
-      // Best-effort lock release
-    }
-  }
-}
-
-/**
- * Hold the latest sidecar lock across an arbitrary transaction. The callback
- * receives one coherent snapshot; callers can build the archive and transfer
- * that exact snapshot before this lock is released.
- */
-export function withLatestTestNotesLock<T>(callback: (snapshot: TestNotesFile | null) => T): T {
-  const latest = latestTestNotesPath();
-  fs.mkdirSync(path.dirname(latest), { recursive: true });
-  const lockDir = acquireNotesLock(latest);
-  try {
-    const snapshot = fs.existsSync(latest) ? readTestNotesForWrite(latest) : null;
-    return callback(snapshot);
-  } finally {
-    try {
-      fs.rmSync(lockDir, { recursive: true, force: true });
-    } catch {
-      // Best-effort lock release
-    }
-  }
-}
-
-/** Coherent latest-sidecar snapshot for gate/evidence consumers. */
-export interface TestNotesSnapshot {
-  file: TestNotesFile | null;
-  path: string;
-}
-
-export function readLatestTestNotesSnapshot(): TestNotesSnapshot {
-  return withLatestTestNotesLock((file) => ({ file, path: latestTestNotesPath() }));
-}
-
-/**
- * Write one previously captured snapshot to an archive sidecar atomically.
- * Destination locking prevents an archived QA edit from being overwritten.
- */
-export function archiveTestNotesSnapshot(runDir: string, snapshot: TestNotesFile): boolean {
-  const destination = path.join(runDir, 'test-notes.json');
-  if (fs.existsSync(destination)) return false;
-  const destinationLock = acquireNotesLock(destination);
-  try {
-    // Re-check after acquiring the destination lock — another archive caller
-    // may have created the file between the first check and the lock.
-    if (fs.existsSync(destination)) return false;
-    const tmp = `${destination}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(snapshot, null, 2), 'utf-8');
-    fs.renameSync(tmp, destination);
-    return true;
-  } catch {
-    try {
-      fs.rmSync(`${destination}.${process.pid}.tmp`, { force: true });
-    } catch {
-      // Best-effort temp cleanup
-    }
-    return false;
-  } finally {
-    try {
-      fs.rmSync(destinationLock, { recursive: true, force: true });
-    } catch {
-      // Best-effort lock release
-    }
-  }
-}
-
-/**
- * Lock the sidecar for a complete archive-transfer transaction. The callback
- * runs while the source lock is held, before the archive directory is created;
- * a thrown error therefore leaves no archive directory behind. When it
- * returns, the source snapshot is atomically copied to the archive under a
- * destination lock, and only then is the latest sidecar removed.
- */
-export function withLatestNotesArchive<T>(
-  runDir: string,
-  beforeTransfer: (snapshot: TestNotesFile | null) => T,
-): { result: T; notesArchived: boolean; snapshot: TestNotesFile | null } {
-  const latest = latestTestNotesPath();
-  fs.mkdirSync(path.dirname(latest), { recursive: true });
-  const sourceLock = acquireNotesLock(latest);
-  try {
-    const snapshot = fs.existsSync(latest) ? readTestNotesForWrite(latest) : null;
-    const result = beforeTransfer(snapshot);
-
-    fs.mkdirSync(path.dirname(runDir), { recursive: true });
-    if (fs.existsSync(runDir)) {
-      throw new Error(`Archive target already exists: ${runDir}`);
-    }
-    fs.mkdirSync(runDir, { recursive: true });
-
-    if (!snapshot) return { result, notesArchived: false, snapshot: null };
-
-    const destination = path.join(runDir, 'test-notes.json');
-    const destinationLock = acquireNotesLock(destination);
-    try {
-      const tmp = `${destination}.${process.pid}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(snapshot, null, 2), 'utf-8');
-      fs.renameSync(tmp, destination);
-    } finally {
-      try {
-        fs.rmSync(destinationLock, { recursive: true, force: true });
-      } catch {
-        // Best-effort lock release
-      }
-    }
-
-    // Source lock is still held: no writer can sneak in between copy and reset.
-    fs.rmSync(latest, { force: true });
-    return { result, notesArchived: true, snapshot };
-  } finally {
-    try {
-      fs.rmSync(sourceLock, { recursive: true, force: true });
-    } catch {
-      // Best-effort lock release
-    }
-  }
-}
+export {
+  acquireNotesLock,
+  withNotesWrite,
+  withLatestTestNotesLock,
+  readLatestTestNotesSnapshot,
+  archiveTestNotesSnapshot,
+  withLatestNotesArchive,
+  type TestNotesSnapshot,
+  type NotesLockOwner,
+};
 
 /**
  * Create or update one test note; the sidecar is created when missing.
@@ -593,134 +408,21 @@ export function upsertLatestTestNote(
 
 // ─── Run-level (cross-scenario) insights ─────────────────────────────────────
 
-/** Structured insight input — canonical format fields (ai-insight-format.md). */
-export interface InsightDraft {
-  /** Free-form text; used alone when no structured fields are provided. */
-  message?: string;
-  /** Insight kind (Jenis): root-cause, stability, test-quality, ui-ux, flow, data, trend, … */
-  kind?: string;
-  observation?: string;
-  evidence?: string;
-  impact?: string;
-  recommendation?: string;
-  priority?: AiInsightPriority;
-  confidence?: AiInsightConfidence;
-  nextAction?: string;
-  status?: AiInsightStatus;
-  affectedTests?: string[];
-  affectedModules?: string[];
-  affectedRoles?: string[];
-}
+import {
+  type InsightDraft,
+  type AppendRunInsightResult,
+  composeInsightText,
+  appendRunInsight,
+  appendLatestRunInsight,
+} from './run-insights';
 
-const INSIGHT_FIELD_CAP = 1000;
-
-function capField(value: string): string {
-  return value.slice(0, INSIGHT_FIELD_CAP);
-}
-
-/**
- * Compose an insight into the canonical multi-line BODY format:
- * `Jenis: … | Status: … | Prioritas: … | Confidence: …` header,
- * then Observasi / Bukti / Dampak / Rekomendasi / Next Action lines.
- * The `[source]` prefix is intentionally NOT added here — it belongs to the
- * storage layer (`appendAiNote`) or the render layer (badge from entry.source),
- * so insights never end up double-prefixed. Falls back to the plain message
- * when no structured field is provided.
- */
-export function composeInsightText(draft: InsightDraft): string {
-  const redact = (value: string | undefined): string =>
-    capField(redactSecrets((value ?? '').trim()));
-  const structured = [
-    draft.observation,
-    draft.evidence,
-    draft.impact,
-    draft.recommendation,
-    draft.nextAction,
-  ].some((v) => typeof v === 'string' && v.trim().length > 0);
-
-  if (!structured) {
-    const text = redact(draft.message);
-    if (!text) throw new Error('Insight requires a message or structured observation.');
-    return text.slice(0, MAX_TEST_NOTE_LENGTH);
-  }
-
-  const headerParts: string[] = [`Jenis: ${redact(draft.kind) || 'trend'}`];
-  if (draft.status) headerParts.push(`Status: ${draft.status}`);
-  if (draft.priority) headerParts.push(`Prioritas: ${draft.priority}`);
-  if (draft.confidence) headerParts.push(`Confidence: ${draft.confidence}`);
-
-  const lines = [headerParts.join(' | ')];
-  const body: Array<[string, string | undefined]> = [
-    ['Observasi', draft.observation],
-    ['Bukti', draft.evidence],
-    ['Dampak', draft.impact],
-    ['Rekomendasi', draft.recommendation],
-    ['Next Action', draft.nextAction],
-  ];
-  for (const [label, value] of body) {
-    const text = redact(value);
-    if (text) lines.push(`${label}: ${text}`);
-  }
-  return lines.join('\n').slice(0, MAX_TEST_NOTE_LENGTH);
-}
-
-/** Result of a run-insight append — `deduplicated` marks a repeat insight. */
-export interface AppendRunInsightResult {
-  entry: RunInsightEntry;
-  deduplicated: boolean;
-}
-
-/** Append a run-level insight (cross-scenario) to a sidecar file. Idempotent. */
-export function appendRunInsight(
-  filePath: string,
-  draft: InsightDraft,
-  source: AiNoteSource = 'analyzer',
-  opts?: { runId?: string },
-): AppendRunInsightResult {
-  const text = composeInsightText(draft);
-  const normalizedNew = normalizeForDedupe(text);
-
-  return withNotesWrite(filePath, (file) => {
-    const now = new Date().toISOString();
-    const entry: RunInsightEntry = {
-      text,
-      source,
-      kind: draft.kind?.trim() || undefined,
-      status: draft.status,
-      priority: draft.priority,
-      confidence: draft.confidence,
-      at: now,
-      affected: {
-        ...(draft.affectedTests?.length ? { tests: draft.affectedTests } : {}),
-        ...(draft.affectedModules?.length ? { modules: draft.affectedModules } : {}),
-        ...(draft.affectedRoles?.length ? { roles: draft.affectedRoles } : {}),
-      },
-    };
-
-    const existing = file.runInsights ?? [];
-    const duplicate = existing.find(
-      (e) => e.source === source && normalizeForDedupe(e.text) === normalizedNew,
-    );
-    if (duplicate) {
-      return { entry: duplicate, deduplicated: true };
-    }
-
-    const list = [...existing, entry];
-    file.runInsights = list.slice(Math.max(0, list.length - MAX_RUN_INSIGHTS));
-    file.updatedAt = now;
-    if (opts?.runId && !file.runId) file.runId = opts.runId;
-    return { entry, deduplicated: false };
-  });
-}
-
-/** Append a run-level insight to the latest sidecar. */
-export function appendLatestRunInsight(
-  draft: InsightDraft,
-  source: AiNoteSource = 'analyzer',
-  opts?: { runId?: string },
-): AppendRunInsightResult {
-  return appendRunInsight(latestTestNotesPath(), draft, source, opts);
-}
+export {
+  type InsightDraft,
+  type AppendRunInsightResult,
+  composeInsightText,
+  appendRunInsight,
+  appendLatestRunInsight,
+};
 
 export function appendLatestAiNote(
   key: string,

@@ -66,6 +66,22 @@ export const MCP_GENERATED_PAIRS: SyncPair[] = [
     source: 'src/shared/utils/role-credentials.ts',
     dest: 'tools/mcp/src/utils/role-credentials.ts',
   },
+  {
+    source: 'src/support/traceability/test-index.ts',
+    dest: 'tools/mcp/src/utils/test-index.ts',
+  },
+  {
+    source: 'src/shared/mcp/auth-discovery.ts',
+    dest: 'tools/mcp/src/utils/auth-discovery-core.ts',
+  },
+  {
+    source: 'src/utils/logger.ts',
+    dest: 'tools/mcp/src/utils/logger.ts',
+  },
+  {
+    source: 'src/shared/workspace-paths.ts',
+    dest: 'tools/mcp/src/utils/workspace-paths.ts',
+  },
 ];
 
 const BANNER_RE =

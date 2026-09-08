@@ -1,4 +1,8 @@
 /**
+ * LEGACY — superseded oleh src/agents/integration (WorkflowController, commit 0d3baaa)
+ * dan tools/mcp. Konsumen hanya test (property/unit). JANGAN diperluas; keputusan hapus
+ * menunggu tanpa regresi.
+ *
  * Agent AI Integration Layer — Barrel Export
  *
  * Universal interface between the QA Playwright Kit pipeline

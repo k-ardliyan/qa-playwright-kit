@@ -252,6 +252,7 @@ function parseNotesFile(raw: unknown): McpTestNotesFile | null {
     : undefined;
   return {
     version: MCP_TEST_NOTES_VERSION,
+    runId: typeof obj['runId'] === 'string' ? obj['runId'] : undefined,
     updatedAt: obj['updatedAt'],
     notes,
     ...(runInsights && runInsights.length > 0 ? { runInsights } : {}),
@@ -280,7 +281,8 @@ function readNotesForWrite(filePath: string): McpTestNotesFile {
  * Locked read-modify-write — twin of withNotesWrite in the src module: the
  * lock covers the WHOLE transaction (read → mutate → temp write → atomic
  * rename → release), so concurrent MCP and dashboard writes cannot lose each
- * other's update. Stale lock broken after 5s.
+ * other's update. A stale lock (older than STALE_LOCK_MS) is broken after
+ * LOCK_TIMEOUT_MS only when its recorded owner process is demonstrably dead.
  */
 const MCP_LOCK_TIMEOUT_MS = Number(process.env['QA_NOTES_LOCK_TIMEOUT_MS']) || 3000;
 const MCP_STALE_LOCK_MS = 5000;
@@ -289,21 +291,54 @@ function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
+interface McpNotesLockOwner {
+  pid: number;
+  token: string;
+  acquiredAt: string;
+}
+
+function mcpProcessIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM means the process exists but is not signalable; ESRCH means it is
+    // gone. Treat every other uncertainty as alive (fail closed).
+    return (error as NodeJS.ErrnoException).code !== 'ESRCH';
+  }
+}
+
 function acquireNotesLock(filePath: string): string {
   const lockDir = `${filePath}.lock`;
+  const ownerPath = path.join(lockDir, 'owner.json');
   const deadline = Date.now() + MCP_LOCK_TIMEOUT_MS;
   while (true) {
     try {
       fs.mkdirSync(lockDir);
+      const owner: McpNotesLockOwner = {
+        pid: process.pid,
+        token: `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        acquiredAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(ownerPath, JSON.stringify(owner), 'utf-8');
       return lockDir;
     } catch {
       try {
         const stat = fs.statSync(lockDir);
-        if (Date.now() - stat.mtimeMs > MCP_STALE_LOCK_MS) {
-          fs.rmSync(lockDir, { recursive: true, force: true });
+        if (Date.now() - stat.mtimeMs > MCP_STALE_LOCK_MS && fs.existsSync(ownerPath)) {
+          const owner = JSON.parse(
+            fs.readFileSync(ownerPath, 'utf-8'),
+          ) as Partial<McpNotesLockOwner>;
+          // Only break a stale lock when its recorded owner is demonstrably
+          // dead. Unknown/invalid owners remain locked (fail closed) — an
+          // mtime-only steal would reopen the lost-update window this lock
+          // exists to close for a long-running live writer.
+          if (typeof owner.pid === 'number' && !mcpProcessIsAlive(owner.pid)) {
+            fs.rmSync(lockDir, { recursive: true, force: true });
+          }
         }
       } catch {
-        // Lock vanished between attempts — retry immediately
+        // Lock vanished or owner metadata is unreadable — retry until timeout
       }
       if (Date.now() > deadline) {
         // Never force-remove an ACTIVE lock — force-acquiring would reopen

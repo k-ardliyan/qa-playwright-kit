@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   WorkspacePathRegistry,
@@ -83,5 +85,77 @@ test.describe('Workspace Path Closure & Cross-Platform Resolver Contract (Phase 
       /WORKSPACE_MANIFEST_MISSING/,
     );
     expect(new McpWorkspacePathRegistry(missing, 'compat').reportsRel).toBe('artifacts/reports');
+  });
+
+  test('MCP registry rejects absolute manifest paths with per-key fallback', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-ws-abs-'));
+    fs.mkdirSync(path.join(root, 'config'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'config', 'qa-kit.workspace.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        paths: {
+          requirements: 'C:/evil/absolute',
+          tests: '/etc/evil',
+          reports: 'artifacts/reports',
+        },
+      }),
+    );
+    const registry = new McpWorkspacePathRegistry(root);
+    expect(registry.requirementsRel).toBe('requirements');
+    expect(registry.testsRel).toBe('tests');
+    expect(registry.reportsRel).toBe('artifacts/reports');
+  });
+
+  test('MCP registry rejects manifest paths escaping the workspace root', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-ws-esc-'));
+    fs.mkdirSync(path.join(root, 'config'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'config', 'qa-kit.workspace.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        paths: {
+          artifacts: '../outside',
+          testResults: 'artifacts/../../outside',
+        },
+      }),
+    );
+    const registry = new McpWorkspacePathRegistry(root);
+    expect(registry.artifactsRel).toBe('artifacts');
+    expect(registry.testResultsRel).toBe('artifacts/test-results');
+  });
+
+  test('MCP registry falls back per-key when manifest keys are missing', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-ws-miss-'));
+    fs.mkdirSync(path.join(root, 'config'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'config', 'qa-kit.workspace.json'),
+      JSON.stringify({ schemaVersion: 1, paths: { requirements: 'reqs' } }),
+    );
+    const registry = new McpWorkspacePathRegistry(root);
+    expect(registry.requirementsRel).toBe('reqs');
+    expect(registry.specsRel).toBe('specs');
+    expect(registry.environmentsRel).toBe('config/environments');
+  });
+
+  test('MCP registry preserves valid manifest values unchanged', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-ws-valid-'));
+    fs.mkdirSync(path.join(root, 'config'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'config', 'qa-kit.workspace.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        paths: {
+          requirements: 'custom/reqs',
+          tests: 'custom/tests',
+          reports: 'custom/reports',
+        },
+      }),
+    );
+    const registry = new McpWorkspacePathRegistry(root);
+    expect(registry.requirementsRel).toBe('custom/reqs');
+    expect(registry.testsRel).toBe('custom/tests');
+    expect(registry.reportsRel).toBe('custom/reports');
+    expect(registry.artifactsRel).toBe('artifacts');
   });
 });

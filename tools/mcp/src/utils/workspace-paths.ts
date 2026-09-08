@@ -1,3 +1,8 @@
+/**
+ * AUTO-SYNCED from src/shared/workspace-paths.ts — do not edit by hand.
+ * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)
+ */
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -52,16 +57,30 @@ export const DEFAULT_WORKSPACE_MANIFEST: WorkspaceManifest = {
 };
 
 const MANIFEST_RELATIVE_PATH = path.join('config', 'qa-kit.workspace.json');
-const REPO_MARKERS = ['config/qa-kit.workspace.json', 'playwright.config.ts'];
 const MAX_PARENT_HOPS = 12;
 
-export function findRepoRoot(startDir: string = __dirname): string {
+/**
+ * Manifest-presence policy. `strict` throws when the manifest is absent or
+ * invalid (MCP server default); `compat` falls back to the default manifest
+ * (framework default).
+ */
+export type WorkspaceManifestMode = 'strict' | 'compat';
+
+/**
+ * Finds the repository root by walking up directories looking for
+ * config/qa-kit.workspace.json, package.json, or playwright.config.ts.
+ */
+export function findRepoRoot(startDir: string = process.cwd()): string {
   let current = path.resolve(startDir);
   for (let i = 0; i < MAX_PARENT_HOPS; i++) {
-    const hasMarker = REPO_MARKERS.some((marker) =>
-      fs.existsSync(path.join(current, ...marker.split('/'))),
-    );
-    if (hasMarker) {
+    const manifestPath = path.join(current, MANIFEST_RELATIVE_PATH);
+    const pkgPath = path.join(current, 'package.json');
+    const playwrightConfigPath = path.join(current, 'playwright.config.ts');
+    if (
+      fs.existsSync(manifestPath) ||
+      fs.existsSync(pkgPath) ||
+      fs.existsSync(playwrightConfigPath)
+    ) {
       return current;
     }
     const parent = path.dirname(current);
@@ -71,9 +90,7 @@ export function findRepoRoot(startDir: string = __dirname): string {
   return path.resolve(startDir);
 }
 
-export type WorkspaceManifestMode = 'strict' | 'compat';
-
-export class McpWorkspacePathRegistry {
+export class WorkspacePathRegistry {
   private readonly _rootDir: string;
   private readonly _mode: WorkspaceManifestMode;
   private _manifest: WorkspaceManifest | null = null;
@@ -81,9 +98,7 @@ export class McpWorkspacePathRegistry {
 
   constructor(rootDir?: string, mode?: WorkspaceManifestMode) {
     this._rootDir = rootDir ? path.resolve(rootDir) : findRepoRoot();
-    const envMode = process.env.QA_WORKSPACE_MANIFEST_MODE?.toLowerCase();
-    // Repository execution is strict by default; compatibility is explicit.
-    this._mode = mode ?? (envMode === 'compat' ? 'compat' : 'strict');
+    this._mode = mode ?? this.resolveMode();
   }
 
   public get rootDir(): string {
@@ -92,6 +107,17 @@ export class McpWorkspacePathRegistry {
 
   public get mode(): WorkspaceManifestMode {
     return this._mode;
+  }
+
+  /** Class default when neither the argument nor QA_WORKSPACE_MANIFEST_MODE is set. */
+  protected defaultMode(): WorkspaceManifestMode {
+    return 'compat';
+  }
+
+  private resolveMode(): WorkspaceManifestMode {
+    const envMode = process.env.QA_WORKSPACE_MANIFEST_MODE?.toLowerCase();
+    if (envMode === 'strict' || envMode === 'compat') return envMode;
+    return this.defaultMode();
   }
 
   public get manifest(): WorkspaceManifest {
@@ -124,12 +150,22 @@ export class McpWorkspacePathRegistry {
         this.warnFallback('Manifest paths object is invalid');
         return DEFAULT_WORKSPACE_MANIFEST;
       }
+
+      const configuredPaths = parsed.paths as Partial<
+        Record<keyof WorkspaceManifestPaths, unknown>
+      >;
+      const paths = Object.fromEntries(
+        (Object.keys(DEFAULT_WORKSPACE_MANIFEST.paths) as Array<keyof WorkspaceManifestPaths>).map(
+          (key) => [
+            key,
+            this.normalizeManifestPath(configuredPaths[key], DEFAULT_WORKSPACE_MANIFEST.paths[key]),
+          ],
+        ),
+      ) as unknown as WorkspaceManifestPaths;
+
       return {
         schemaVersion: parsed.schemaVersion ?? DEFAULT_WORKSPACE_MANIFEST.schemaVersion,
-        paths: {
-          ...DEFAULT_WORKSPACE_MANIFEST.paths,
-          ...parsed.paths,
-        },
+        paths,
         ownership: {
           ...DEFAULT_WORKSPACE_MANIFEST.ownership,
           ...(parsed.ownership ?? {}),
@@ -160,6 +196,29 @@ export class McpWorkspacePathRegistry {
     }
   }
 
+  /**
+   * Manifest paths are workspace-relative by contract. Invalid or escaping
+   * values fall back individually instead of allowing a local config file to
+   * redirect framework output outside the workspace.
+   */
+  private normalizeManifestPath(value: unknown, fallback: string): string {
+    if (typeof value !== 'string' || value.trim() === '') return fallback;
+    const candidate = value.trim().replace(/\\/g, '/');
+    if (
+      candidate.startsWith('/') ||
+      /^[A-Za-z]:\//.test(candidate) ||
+      candidate.startsWith('\\\\')
+    ) {
+      return fallback;
+    }
+    const resolved = path.resolve(this._rootDir, candidate);
+    const relative = path.relative(this._rootDir, resolved);
+    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      return fallback;
+    }
+    return relative.replace(/\\/g, '/');
+  }
+
   public toRelative(targetPath: string): string {
     const rootNormalized = this._rootDir.replace(/\\/g, '/').replace(/\/+$/, '');
     const targetNormalized = targetPath.replace(/\\/g, '/');
@@ -182,7 +241,7 @@ export class McpWorkspacePathRegistry {
     return path.resolve(this._rootDir, ...pathSegments);
   }
 
-  // Relative getters (normalized forward slashes)
+  // Relative path getters (normalized with forward slashes)
   public get requirementsRel(): string {
     return this.manifest.paths.requirements.replace(/\\/g, '/');
   }
@@ -227,7 +286,7 @@ export class McpWorkspacePathRegistry {
     return this.manifest.paths.environments.replace(/\\/g, '/');
   }
 
-  // Absolute directory getters
+  // Absolute path getters
   public get requirementsDir(): string {
     return path.resolve(this._rootDir, this.manifest.paths.requirements);
   }
@@ -277,4 +336,30 @@ export class McpWorkspacePathRegistry {
   }
 }
 
+/**
+ * MCP server registry: strict manifest presence by default (the server is
+ * launched inside the repository), overridable via `QA_WORKSPACE_MANIFEST_MODE`
+ * or an explicit mode argument.
+ */
+export class McpWorkspacePathRegistry extends WorkspacePathRegistry {
+  protected override defaultMode(): WorkspaceManifestMode {
+    return 'strict';
+  }
+}
+
+export const workspace = new WorkspacePathRegistry();
+
 export const mcpWorkspace = new McpWorkspacePathRegistry();
+
+/** Resolve report output while preserving the QA_REPORT_DIR test override. */
+export function resolveWorkspaceReportDir(registry: WorkspacePathRegistry = workspace): string {
+  const override = process.env['QA_REPORT_DIR'];
+  return override ? path.resolve(override) : registry.reportsDir;
+}
+
+/** Resolve test-result output from the active workspace manifest. */
+export function resolveWorkspaceTestResultsDir(
+  registry: WorkspacePathRegistry = workspace,
+): string {
+  return registry.testResultsDir;
+}
