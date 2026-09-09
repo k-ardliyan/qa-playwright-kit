@@ -94,6 +94,9 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Dashboard browser suite (seeded report dir, local server)
+        run: npm run test:dashboard-browser
+
       - name: File-content & network-assert suites
         run: npm run test:file-content && npm run test:network-assert
 
@@ -108,5 +111,5 @@ jobs:
         run: |
           echo "## Quality Gate — full lane (run #${GITHUB_RUN_NUMBER})" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Rantai penuh: install → setup:check → validators → sync/parity/mcp:check → requirement/test-plan → contract/traceability/profiles → property → unit → file-content → network-assert → mcp:build → health:check" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rantai penuh: install → setup:check → validators → sync/parity/mcp:check → requirement/test-plan → contract/traceability/profiles → property → unit → dashboard-browser → file-content → network-assert → mcp:build → health:check" >> "$GITHUB_STEP_SUMMARY"
           echo "Job ini gagal **hanya** jika ada check nyata yang merah — tidak ada skip senyap di dalam rantai." >> "$GITHUB_STEP_SUMMARY"

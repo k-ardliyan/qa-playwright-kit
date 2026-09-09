@@ -67,4 +67,22 @@ test.describe('dashboard shell interactive state keys', () => {
     expect(out).not.toContain('</script>');
     expect(JSON.parse(out)).toEqual({ qaNotes: '</script><script>alert(1)</script>' });
   });
+
+  test('filter hash sync never overwrites deep-link routes (#/compare, #/history, #/detail)', () => {
+    const html = renderDocumentShell({
+      pageTitle: 'test',
+      mode: 'local',
+      summary: emptySummary,
+      collectedTests: [],
+      body: '',
+      includeChart: false,
+    });
+    // The guard bails out BEFORE any replaceState when the current hash is a
+    // secondary route — deep links must survive the bootstrap (regression for
+    // the dashboard browser suite: #/compare was rewritten to #/ on load).
+    expect(html).toContain(
+      "if (current && current !== '#' && current.indexOf('#/?') !== 0 && current !== '#/') {",
+    );
+    expect(html).toContain('return;');
+  });
 });

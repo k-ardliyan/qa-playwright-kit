@@ -3,7 +3,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { MCP_GENERATED_PAIRS, syncMcpGenerated } from '../../../tools/scripts/sync-mcp-generated';
+import {
+  MCP_GENERATED_PAIRS,
+  findUnregisteredBannerFiles,
+  syncMcpGenerated,
+} from '../../../tools/scripts/sync-mcp-generated';
 
 test.describe('sync:mcp-generated (SoT → MCP copy)', () => {
   const root = process.cwd();
@@ -102,6 +106,30 @@ test.describe('sync:mcp-generated (SoT → MCP copy)', () => {
       const check = syncMcpGenerated(tmp, true);
       expect(check.ok).toBe(false);
       expect(check.missingSources).toContain(MCP_GENERATED_PAIRS[0].source.replace(/\\/g, '/'));
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('findUnregisteredBannerFiles flags hand copies never added to the pair list', () => {
+    const tmp = seedTmpTree();
+    try {
+      // Fresh tree after a write has zero unregistered banner files.
+      syncMcpGenerated(tmp, false);
+      expect(findUnregisteredBannerFiles(tmp)).toEqual([]);
+
+      // Simulate a hand copy that was never registered in MCP_GENERATED_PAIRS.
+      const ghostRel = 'tools/mcp/src/utils/ghost-copy.ts';
+      const ghostAbs = path.join(tmp, ghostRel);
+      fs.mkdirSync(path.dirname(ghostAbs), { recursive: true });
+      const banner =
+        '/**\n * AUTO-SYNCED from src/shared/ghost.ts — do not edit by hand.\n' +
+        ' * Run: npm run sync:mcp-generated  (also runs inside npm run mcp:build)\n */\n\n' +
+        'export const ghost = 1;\n';
+      fs.writeFileSync(ghostAbs, banner);
+
+      const unregistered = findUnregisteredBannerFiles(tmp);
+      expect(unregistered).toContain(ghostRel.replace(/\\/g, '/'));
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

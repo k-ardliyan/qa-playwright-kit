@@ -378,6 +378,64 @@ function loadSourceWithLocalReExports(filePath: string): string {
   return content;
 }
 
+/**
+ * Find src/ files whose body is byte-identical (after banner/newline
+ * normalization) to a tools/mcp/src file but that are NOT declared in
+ * MCP_GENERATED_PAIRS — a hand fork that should either be registered as a
+ * byte-sync pair or reconciled deliberately. Warning-level (exit 0), because
+ * some identical files are intentional (e.g. pre-sync state during a PR).
+ */
+export function findIdenticalUnregisteredTwin(srcFile: string, mcpFile: string): boolean {
+  const normalized = (p: string): string => {
+    const body = fs.readFileSync(p, 'utf8');
+    return body
+      .replace(/^\/\*\*[\s\S]*?\*\/\r?\n\r?\n/, '') // leading doc banner
+      .replace(/\r\n/g, '\n')
+      .trim();
+  };
+  try {
+    return normalized(srcFile) === normalized(mcpFile);
+  } catch {
+    return false;
+  }
+}
+
+function reportIdenticalUnregisteredTwins(root: string): number {
+  const { MCP_GENERATED_PAIRS } =
+    require('./sync-mcp-generated') as typeof import('./sync-mcp-generated');
+  const registeredSrc = new Set(MCP_GENERATED_PAIRS.map((p) => p.source.replace(/\\/g, '/')));
+  const registeredDest = new Set(MCP_GENERATED_PAIRS.map((p) => p.dest.replace(/\\/g, '/')));
+  let found = 0;
+
+  const walkMcp = (dir: string): void => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules') walkMcp(full);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      const mcpRel = path.relative(root, full).replace(/\\/g, '/');
+      if (registeredDest.has(mcpRel)) continue;
+      if (fs.readFileSync(full, 'utf8').includes('AUTO-SYNCED from')) continue; // handled by sync check
+      // Same-relative-path src candidate.
+      const srcRel = mcpRel.replace(/^tools\/mcp\/src\//, 'src/');
+      const srcAbs = path.join(root, srcRel);
+      if (!fs.existsSync(srcAbs)) continue;
+      if (registeredSrc.has(srcRel)) continue;
+      if (findIdenticalUnregisteredTwin(srcAbs, full)) {
+        process.stdout.write(
+          `⚠ identical unregistered twin: ${srcRel} ↔ ${mcpRel} (declare in MCP_GENERATED_PAIRS or reconcile)\n`,
+        );
+        found++;
+      }
+    }
+  };
+  const mcpSrc = path.join(root, 'tools', 'mcp', 'src');
+  if (fs.existsSync(mcpSrc)) walkMcp(mcpSrc);
+  return found;
+}
+
 function main(): void {
   const root = process.cwd();
   let failedPairs = 0;
@@ -416,6 +474,9 @@ function main(): void {
       }
     }
   }
+
+  const unregisteredTwins = reportIdenticalUnregisteredTwins(root);
+  warnings += unregisteredTwins;
 
   if (failedPairs > 0) {
     process.stderr.write(

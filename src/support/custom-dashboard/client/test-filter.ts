@@ -64,6 +64,13 @@ export function buildTestFilterJs(): string {
 
     function syncUrlHash(state) {
       try {
+        // Filter state only belongs on the primary dashboard view. When the
+        // hash targets another route (#/history, #/compare, #/detail/<id>),
+        // never overwrite it — deep links must survive the bootstrap.
+        var current = window.location.hash || '';
+        if (current && current !== '#' && current.indexOf('#/?') !== 0 && current !== '#/') {
+          return;
+        }
         var p = new URLSearchParams();
         if (state.qRaw) p.set('q', state.qRaw);
         if (state.status) p.set('status', state.status);
@@ -75,7 +82,7 @@ export function buildTestFilterJs(): string {
         if (state.evidence) p.set('evidence', '1');
         var qs = p.toString();
         var targetHash = qs ? '#/?' + qs : '#/';
-        if (window.location.hash !== targetHash && (!window.location.hash || window.location.hash.indexOf('#/') === 0)) {
+        if (window.location.hash !== targetHash) {
           history.replaceState(null, '', targetHash);
         }
       } catch (e) {}

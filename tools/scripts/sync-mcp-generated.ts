@@ -116,6 +116,48 @@ export interface SyncResult {
   ok: boolean;
   mismatches: string[];
   missingSources: string[];
+  /** tools/mcp files carrying the AUTO-SYNCED banner but not in MCP_GENERATED_PAIRS. */
+  unregisteredBannerFiles: string[];
+}
+
+/** Recursively list files under a directory (repo-relative posix paths). */
+export function listFilesUnder(root: string, relDir: string): string[] {
+  const absDir = path.join(root, relDir);
+  const out: string[] = [];
+  if (!fs.existsSync(absDir)) return out;
+  const walk = (dirAbs: string): void => {
+    for (const entry of fs.readdirSync(dirAbs, { withFileTypes: true })) {
+      const full = path.join(dirAbs, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules') walk(full);
+      } else if (entry.isFile()) {
+        out.push(posixRel(path.relative(root, full)));
+      }
+    }
+  };
+  walk(absDir);
+  return out.sort();
+}
+
+/**
+ * Detect tools/mcp files whose header still advertises AUTO-SYNCED but that
+ * are NOT registered in MCP_GENERATED_PAIRS — a hand copy that was never
+ * registered (or a pair removed from the list). These are drift landmines:
+ * the next sync leaves them stale silently.
+ */
+export function findUnregisteredBannerFiles(root: string): string[] {
+  const registered = new Set(MCP_GENERATED_PAIRS.map((p) => posixRel(p.dest)));
+  const mcpFiles = listFilesUnder(root, 'tools/mcp/src');
+  const unregistered: string[] = [];
+  for (const rel of mcpFiles) {
+    if (registered.has(rel)) continue;
+    if (!/\.(ts|tsx)$/.test(rel)) continue;
+    const head = fs.readFileSync(path.join(root, rel), 'utf8').slice(0, 200);
+    if (/AUTO-SYNCED from/.test(head)) {
+      unregistered.push(rel);
+    }
+  }
+  return unregistered;
 }
 
 export function syncMcpGenerated(root: string, checkOnly: boolean): SyncResult {
@@ -155,6 +197,7 @@ export function syncMcpGenerated(root: string, checkOnly: boolean): SyncResult {
     ok: missingSources.length === 0 && mismatches.length === 0,
     mismatches,
     missingSources,
+    unregisteredBannerFiles: findUnregisteredBannerFiles(root),
   };
 }
 
@@ -171,12 +214,24 @@ function main(): void {
   }
 
   if (checkOnly) {
+    let failed = !result.ok;
     if (!result.ok) {
       process.stderr.write('MCP generated copies out of sync:\n');
       for (const file of result.mismatches) {
         process.stderr.write(`  - ${file}\n`);
       }
       process.stderr.write('Run: npm run sync:mcp-generated\n');
+    }
+    if (result.unregisteredBannerFiles.length > 0) {
+      failed = true;
+      process.stderr.write(
+        'Unregistered AUTO-SYNCED files under tools/mcp/src (add to MCP_GENERATED_PAIRS or remove the banner):\n',
+      );
+      for (const file of result.unregisteredBannerFiles) {
+        process.stderr.write(`  - ${file}\n`);
+      }
+    }
+    if (failed) {
       process.exit(1);
     }
     process.stdout.write(`✓ ${MCP_GENERATED_PAIRS.length} MCP generated copies in sync\n`);

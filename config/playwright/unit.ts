@@ -10,6 +10,7 @@ export default defineConfig({
     'src/**/*.test.ts',
     'src/__tests__/**/*.test.ts',
     'tools/scripts/__tests__/**/*.test.ts',
+    'tools/validators/__tests__/**/*.test.ts',
   ],
   reporter: [['list']],
   timeout: 15_000,
