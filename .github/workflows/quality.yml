@@ -94,6 +94,9 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Install Playwright chromium (dashboard browser suite)
+        run: npx playwright install --with-deps chromium
+
       - name: Dashboard browser suite (seeded report dir, local server)
         run: npm run test:dashboard-browser
 

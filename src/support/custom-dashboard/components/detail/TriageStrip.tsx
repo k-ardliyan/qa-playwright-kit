@@ -45,9 +45,7 @@ export function TriageStrip({ groups, isArchived = false }: TriageStripProps) {
         {groups.map((group) => (
           <div class={`triage-group triage-group--${group.source}`}>
             <div class="triage-group__head">
-              <span class={`source-tag failure-source--${group.source}`} safe>
-                {group.source}
-              </span>
+              <span class={`source-tag failure-source--${group.source}`}>{group.source}</span>
               <span class="triage-group__count font-mono muted">
                 {group.count} test{group.count === 1 ? '' : 's'}
               </span>
@@ -60,6 +58,12 @@ export function TriageStrip({ groups, isArchived = false }: TriageStripProps) {
                     ? `${t.errorMessage.slice(0, 140)}…`
                     : t.errorMessage
                   : '';
+                const evidenceParts = [
+                  t.hasAttachment || t.screenshotPath ? 'evidence' : '',
+                  t.hasAttachment && t.tracePath ? ' · ' : '',
+                  t.tracePath ? 'trace' : '',
+                ].filter(Boolean);
+                const evidence = evidenceParts.join('');
                 return (
                   <li class="triage-test">
                     <span class="triage-test__title" safe>
@@ -70,13 +74,11 @@ export function TriageStrip({ groups, isArchived = false }: TriageStripProps) {
                         {err}
                       </code>
                     ) : null}
-                    {(t.tracePath || t.screenshotPath || t.hasAttachment) && (
-                      <span class="triage-test__evidence muted">
-                        {t.hasAttachment || t.screenshotPath ? 'evidence' : ''}
-                        {t.hasAttachment && t.tracePath ? ' · ' : ''}
-                        {t.tracePath ? 'trace' : ''}
+                    {evidence ? (
+                      <span class="triage-test__evidence muted" safe>
+                        {evidence}
                       </span>
-                    )}
+                    ) : null}
                   </li>
                 );
               })}
@@ -91,7 +93,9 @@ export function TriageStrip({ groups, isArchived = false }: TriageStripProps) {
               data-triage-decision={group.suggestedDecision}
               onclick={`applyTriageDecision && applyTriageDecision('${group.suggestedDecision}', ${String(isArchived)})`}
             >
-              {DECISION_LABELS[group.suggestedDecision] ?? group.suggestedDecision}
+              <span safe>
+                {DECISION_LABELS[group.suggestedDecision] ?? group.suggestedDecision}
+              </span>
             </button>
           </div>
         ))}

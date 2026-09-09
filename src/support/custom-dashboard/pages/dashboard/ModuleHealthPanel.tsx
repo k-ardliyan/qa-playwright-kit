@@ -43,7 +43,7 @@ export function ModuleHealthPanel({ modules }: ModuleHealthPanelProps) {
                   <span class="module-health-row__name" safe>
                     {m.module}
                   </span>
-                  <span class="module-health-row__meta font-mono muted" safe>
+                  <span class="module-health-row__meta font-mono muted">
                     {rate}% · {m.total}
                   </span>
                 </div>

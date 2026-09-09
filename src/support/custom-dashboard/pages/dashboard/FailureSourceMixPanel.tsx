@@ -73,10 +73,8 @@ export function FailureSourceMixPanel({ mix, totalFailures }: FailureSourceMixPa
                 <span class="mix-legend__label" safe>
                   {failureSourceLabel(entry.source)}
                 </span>
-                <span class="mix-legend__count font-mono" safe>
-                  {entry.count}
-                </span>
-                <span class="mix-legend__share font-mono muted" safe>
+                <span class="mix-legend__count font-mono">{entry.count}</span>
+                <span class="mix-legend__share font-mono muted">
                   {Math.round(entry.share * 100)}%
                 </span>
               </li>
