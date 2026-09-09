@@ -1,0 +1,75 @@
+name: 'CI Environment Materialize'
+description: >-
+  Materialize config/environments/<target>.env for CI from repository secrets.
+  Validates BASE_URL is set and not a kit placeholder, requires TEST_USER_PASSWORD,
+  requires at least one identity secret, then writes the env file and exports
+  APP_ENV. Previously inline-duplicated 3× across e2e.yml and nightly-e2e.yml.
+inputs:
+  target-env:
+    description: 'Environment name (dev | staging | production)'
+    required: true
+  base-url:
+    description: 'BASE_URL secret value'
+    required: true
+  test-user-email:
+    description: 'TEST_USER_EMAIL secret value (optional)'
+    required: false
+    default: ''
+  test-user-username:
+    description: 'TEST_USER_USERNAME secret value (optional)'
+    required: false
+    default: ''
+  test-user-password:
+    description: 'TEST_USER_PASSWORD secret value (required)'
+    required: true
+  test-user-phone:
+    description: 'TEST_USER_PHONE secret value (optional)'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Materialize CI environment file
+      shell: bash
+      env:
+        TARGET_ENV: ${{ inputs.target-env }}
+        BASE_URL: ${{ inputs.base-url }}
+        TEST_USER_EMAIL: ${{ inputs.test-user-email }}
+        TEST_USER_USERNAME: ${{ inputs.test-user-username }}
+        TEST_USER_PASSWORD: ${{ inputs.test-user-password }}
+        TEST_USER_PHONE: ${{ inputs.test-user-phone }}
+      run: |
+        set -euo pipefail
+        if [ -z "${BASE_URL// }" ]; then
+          echo "::error::BASE_URL secret is empty. Configure repository secrets before running E2E."
+          exit 1
+        fi
+        case "${BASE_URL}" in
+          *your-app.example.com*|*your-app.example.*)
+            echo "::error::BASE_URL still looks like a kit placeholder (${BASE_URL}). Set a real URL secret."
+            exit 1
+            ;;
+        esac
+        if [ -z "${TEST_USER_PASSWORD// }" ]; then
+          echo "::error::TEST_USER_PASSWORD secret is required for auth setup."
+          exit 1
+        fi
+        if [ -z "${TEST_USER_EMAIL// }" ] && [ -z "${TEST_USER_USERNAME// }" ] && [ -z "${TEST_USER_PHONE// }" ]; then
+          echo "::error::Provide at least one of TEST_USER_EMAIL, TEST_USER_USERNAME, or TEST_USER_PHONE."
+          exit 1
+        fi
+        {
+          printf 'BASE_URL=%s\n' "${BASE_URL}"
+          [ -n "${TEST_USER_EMAIL}" ]    && printf 'TEST_USER_EMAIL=%s\n'    "${TEST_USER_EMAIL}"
+          [ -n "${TEST_USER_USERNAME}" ] && printf 'TEST_USER_USERNAME=%s\n' "${TEST_USER_USERNAME}"
+          [ -n "${TEST_USER_PASSWORD}" ] && printf 'TEST_USER_PASSWORD=%s\n' "${TEST_USER_PASSWORD}"
+          [ -n "${TEST_USER_PHONE}" ]    && printf 'TEST_USER_PHONE=%s\n'    "${TEST_USER_PHONE}"
+          printf 'AUTH_SUCCESS_URL_PATH=/dashboard\n'
+          printf 'AUTH_LOGIN_URL_PATH=login\n'
+          printf 'AUTH_SUCCESS_TEXT=Berhasil Login\n'
+          # CI uses plaintext secrets — never encrypt this ephemeral file
+          printf 'AUTH_CHALLENGE_MODE=none\n'
+        } > "config/environments/${TARGET_ENV}.env"
+        # CI uses the canonical environment path only.
+        echo "APP_ENV=${TARGET_ENV}" >> "$GITHUB_ENV"
+        echo "Materialized config/environments/${TARGET_ENV}.env (plaintext CI profile)"

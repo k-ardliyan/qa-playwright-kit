@@ -79,48 +79,14 @@ jobs:
         run: npm ci
 
       - name: Materialize CI environment file
-        env:
-          TARGET_ENV: ${{ github.event.inputs.environment || 'staging' }}
-          BASE_URL: ${{ secrets.BASE_URL }}
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-          TEST_USER_USERNAME: ${{ secrets.TEST_USER_USERNAME }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-          TEST_USER_PHONE: ${{ secrets.TEST_USER_PHONE }}
-        run: |
-          set -euo pipefail
-          if [ -z "${BASE_URL// }" ]; then
-            echo "::error::BASE_URL secret is empty. Configure repository secrets before running nightly E2E."
-            exit 1
-          fi
-          case "${BASE_URL}" in
-            *your-app.example.com*|*your-app.example.*)
-              echo "::error::BASE_URL still looks like a kit placeholder (${BASE_URL}). Set a real staging URL secret."
-              exit 1
-              ;;
-          esac
-          if [ -z "${TEST_USER_PASSWORD// }" ]; then
-            echo "::error::TEST_USER_PASSWORD secret is required for auth setup."
-            exit 1
-          fi
-          if [ -z "${TEST_USER_EMAIL// }" ] && [ -z "${TEST_USER_USERNAME// }" ] && [ -z "${TEST_USER_PHONE// }" ]; then
-            echo "::error::Provide at least one of TEST_USER_EMAIL, TEST_USER_USERNAME, or TEST_USER_PHONE."
-            exit 1
-          fi
-          {
-            printf 'BASE_URL=%s\n' "${BASE_URL}"
-            [ -n "${TEST_USER_EMAIL}" ]    && printf 'TEST_USER_EMAIL=%s\n'    "${TEST_USER_EMAIL}"
-            [ -n "${TEST_USER_USERNAME}" ] && printf 'TEST_USER_USERNAME=%s\n' "${TEST_USER_USERNAME}"
-            [ -n "${TEST_USER_PASSWORD}" ] && printf 'TEST_USER_PASSWORD=%s\n' "${TEST_USER_PASSWORD}"
-            [ -n "${TEST_USER_PHONE}" ]    && printf 'TEST_USER_PHONE=%s\n'    "${TEST_USER_PHONE}"
-            printf 'AUTH_SUCCESS_URL_PATH=/dashboard\n'
-            printf 'AUTH_LOGIN_URL_PATH=login\n'
-            printf 'AUTH_SUCCESS_TEXT=Berhasil Login\n'
-            # CI uses plaintext secrets — never encrypt this ephemeral file
-            printf 'AUTH_CHALLENGE_MODE=none\n'
-          } > "config/environments/${TARGET_ENV}.env"
-          # CI uses the canonical environment path only.
-          echo "APP_ENV=${TARGET_ENV}" >> "$GITHUB_ENV"
-          echo "Materialized config/environments/${TARGET_ENV}.env (plaintext CI profile)"
+        uses: ./.github/actions/ci-env
+        with:
+          target-env: ${{ github.event.inputs.environment || 'staging' }}
+          base-url: ${{ secrets.BASE_URL }}
+          test-user-email: ${{ secrets.TEST_USER_EMAIL }}
+          test-user-username: ${{ secrets.TEST_USER_USERNAME }}
+          test-user-password: ${{ secrets.TEST_USER_PASSWORD }}
+          test-user-phone: ${{ secrets.TEST_USER_PHONE }}
 
       - name: Install MCP server dependencies
         run: npm run install:mcp-server
@@ -255,47 +221,14 @@ jobs:
         run: npm ci
 
       - name: Materialize CI environment file
-        env:
-          TARGET_ENV: ${{ github.event.inputs.environment || 'staging' }}
-          BASE_URL: ${{ secrets.BASE_URL }}
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-          TEST_USER_USERNAME: ${{ secrets.TEST_USER_USERNAME }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-          TEST_USER_PHONE: ${{ secrets.TEST_USER_PHONE }}
-        run: |
-          set -euo pipefail
-          if [ -z "${BASE_URL// }" ]; then
-            echo "::error::BASE_URL secret is empty. Configure repository secrets before running cross-browser E2E."
-            exit 1
-          fi
-          case "${BASE_URL}" in
-            *your-app.example.com*|*your-app.example.*)
-              echo "::error::BASE_URL still looks like a kit placeholder (${BASE_URL}). Set a real staging URL secret."
-              exit 1
-              ;;
-          esac
-          if [ -z "${TEST_USER_PASSWORD// }" ]; then
-            echo "::error::TEST_USER_PASSWORD secret is required for auth setup."
-            exit 1
-          fi
-          if [ -z "${TEST_USER_EMAIL// }" ] && [ -z "${TEST_USER_USERNAME// }" ] && [ -z "${TEST_USER_PHONE// }" ]; then
-            echo "::error::Provide at least one of TEST_USER_EMAIL, TEST_USER_USERNAME, or TEST_USER_PHONE."
-            exit 1
-          fi
-          {
-            printf 'BASE_URL=%s\n' "${BASE_URL}"
-            [ -n "${TEST_USER_EMAIL}" ]    && printf 'TEST_USER_EMAIL=%s\n'    "${TEST_USER_EMAIL}"
-            [ -n "${TEST_USER_USERNAME}" ] && printf 'TEST_USER_USERNAME=%s\n' "${TEST_USER_USERNAME}"
-            [ -n "${TEST_USER_PASSWORD}" ] && printf 'TEST_USER_PASSWORD=%s\n' "${TEST_USER_PASSWORD}"
-            [ -n "${TEST_USER_PHONE}" ]    && printf 'TEST_USER_PHONE=%s\n'    "${TEST_USER_PHONE}"
-            printf 'AUTH_SUCCESS_URL_PATH=/dashboard\n'
-            printf 'AUTH_LOGIN_URL_PATH=login\n'
-            printf 'AUTH_SUCCESS_TEXT=Berhasil Login\n'
-            printf 'AUTH_CHALLENGE_MODE=none\n'
-          } > "config/environments/${TARGET_ENV}.env"
-          # CI uses the canonical environment path only.
-          echo "APP_ENV=${TARGET_ENV}" >> "$GITHUB_ENV"
-          echo "Materialized config/environments/${TARGET_ENV}.env (plaintext CI profile)"
+        uses: ./.github/actions/ci-env
+        with:
+          target-env: ${{ github.event.inputs.environment || 'staging' }}
+          base-url: ${{ secrets.BASE_URL }}
+          test-user-email: ${{ secrets.TEST_USER_EMAIL }}
+          test-user-username: ${{ secrets.TEST_USER_USERNAME }}
+          test-user-password: ${{ secrets.TEST_USER_PASSWORD }}
+          test-user-phone: ${{ secrets.TEST_USER_PHONE }}
 
       - name: Install Playwright browsers (chromium, firefox, webkit)
         run: npx playwright install --with-deps chromium firefox webkit
