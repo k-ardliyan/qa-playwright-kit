@@ -321,4 +321,172 @@ test.describe('Modern Reporting Subsystem', () => {
     expect(html).toContain('Breadcrumb');
     expect(html).toContain('Detailed test records');
   });
+
+  test('buildDashboardOverview exposes failure-source mix, module health, and flaky tests', () => {
+    const flakySummary: TestSummary = {
+      ...mockSummary,
+      testCases: [
+        ...(mockSummary.testCases ?? []),
+        {
+          testId: 'TC-03',
+          scenarioId: 'SC-03',
+          title: 'Flaky After Retry',
+          role: 'admin',
+          module: 'Finance',
+          feature: 'Invoices',
+          status: 'passed',
+          retry: 2,
+          priority: 'medium',
+          duration: 900,
+          inputData: {},
+          expectedResult: 'ok',
+          actualResult: 'ok',
+          affectedLayer: ['FE'],
+          attachmentCount: 0,
+          hasTrace: false,
+        } as TestSummary['testCases'][number],
+      ],
+    };
+
+    const overview = buildDashboardOverview({
+      latestSummary: flakySummary as unknown as Record<string, unknown>,
+      latestRunArchived: false,
+      history: mockHistory,
+    });
+
+    // Failure-source mix: one failed test, source annotated via reporter heuristics.
+    expect(overview.failureSourceMix.length).toBeGreaterThan(0);
+    const totalShare = overview.failureSourceMix.reduce((n, e) => n + e.share, 0);
+    expect(totalShare).toBeCloseTo(1, 5);
+    // Module health folds latest + archived aggregates.
+    const auth = overview.moduleHealth.find((m) => m.module === 'Auth');
+    expect(auth).toBeDefined();
+    expect(auth!.total).toBeGreaterThan(0);
+    expect(auth!.passRate).toBeLessThanOrEqual(100);
+    // Flaky: TC-03 passed with retry=2.
+    expect(overview.metrics.flakyCount).toBe(1);
+    expect(overview.flakyTests).toContain('Flaky After Retry');
+  });
+
+  test('FailureSourceMixPanel and ModuleHealthPanel render on the overview', () => {
+    const overview = buildDashboardOverview({
+      latestSummary: mockSummary as unknown as Record<string, unknown>,
+      latestRunArchived: false,
+      history: mockHistory,
+    });
+
+    const html = String(
+      DashboardPage({
+        overview,
+        hasLatestRun: true,
+        latestRunArchived: false,
+        serveMode: true,
+      }),
+    );
+
+    expect(html).toContain('Failure Source Mix');
+    expect(html).toContain('mix-bar');
+    expect(html).toContain('Module Health');
+    expect(html).toContain('module-health-row');
+  });
+
+  test('ReportDetailPage renders the triage strip with suggested decisions', () => {
+    const html = String(
+      ReportDetailPage({
+        mode: 'local',
+        summary: mockSummary,
+        collectedTests: (mockSummary.testCases ?? []).map((t) => ({
+          ...t,
+          steps: [],
+          attachments: [],
+          errors: [],
+        })) as never,
+        displayName: 'Login Regression — Staging RC12',
+        isArchived: false,
+        serveMode: true,
+      }),
+    );
+
+    // One unhealthy test in the mock summary → triage strip present with the
+    // per-source group and a "Set decision" action.
+    expect(html).toContain('Triage (1)');
+    expect(html).toContain('triage-group');
+    expect(html).toContain('triage-set-decision');
+    expect(html).toContain('applyTriageDecision');
+    // Save modal is preselected with the dominant suggested decision.
+    expect(html).toContain('Preselected from triage');
+  });
+
+  test('ReportDetailPage hides the triage strip when everything passes', () => {
+    const passedOnly = String(
+      ReportDetailPage({
+        mode: 'local',
+        summary: { ...mockSummary, testCases: [mockSummary.testCases![0]] },
+        collectedTests: [
+          { ...mockSummary.testCases![0], steps: [], attachments: [], errors: [] },
+        ] as never,
+        isArchived: false,
+        serveMode: true,
+      }),
+    );
+
+    expect(passedOnly).not.toContain('Triage (');
+  });
+
+  test('ReportDetailPage deep-links: ?view=accordion and ?test=<id> expand server-side', () => {
+    const normalizedTests = (mockSummary.testCases ?? []).map((t) => ({
+      ...t,
+      steps: [],
+      attachments: [],
+      errors: [],
+    }));
+    const accordionHtml = String(
+      ReportDetailPage({
+        mode: 'local',
+        summary: mockSummary,
+        collectedTests: normalizedTests as never,
+        isArchived: false,
+        serveMode: true,
+        view: 'accordion',
+      }),
+    );
+    expect(accordionHtml).toContain('id="view-accordion"');
+    expect(accordionHtml).toMatch(/id="view-accordion"[^>]*class="view-panel view-panel--active"/);
+    expect(accordionHtml).toMatch(/id="view-table"[^>]*view-panel--hidden/);
+
+    const anchoredHtml = String(
+      ReportDetailPage({
+        mode: 'local',
+        summary: mockSummary,
+        collectedTests: normalizedTests as never,
+        isArchived: false,
+        serveMode: true,
+        view: 'accordion',
+        testAnchor: 'TC-02',
+      }),
+    );
+    // The anchor card is server-rendered open and carries a stable id.
+    expect(anchoredHtml).toContain('id="test-TC-02"');
+    expect(anchoredHtml).toContain('test-card--anchor');
+    expect(anchoredHtml).toContain('scrollIntoView');
+  });
+
+  test('HistoryPage deep-links: initial filters preselect toolbar values', () => {
+    const html = String(
+      HistoryPage({
+        history: mockHistory,
+        hasLatestRun: true,
+        serveMode: true,
+        initialQuery: 'regression',
+        initialDecision: 'APPROVE',
+        initialEnv: 'staging',
+      }),
+    );
+
+    expect(html).toMatch(/id="history-search"[^>]*value="regression"/);
+    expect(html).toMatch(/<option value="APPROVE" selected>APPROVE<\/option>/);
+    expect(html).toMatch(/<option value="staging" selected>/);
+    // filterHistory runs once on load with deep-linked values.
+    expect(html).toContain('filterHistory(false)');
+  });
 });

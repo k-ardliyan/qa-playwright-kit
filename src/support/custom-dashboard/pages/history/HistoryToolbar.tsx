@@ -5,12 +5,21 @@ export interface HistoryToolbarProps {
   totalCount: number;
   environments?: string[];
   decisions?: string[];
+  /** Deep-link: initial search text (?q=). */
+  initialQuery?: string;
+  /** Deep-link: preselected env filter (?env=). */
+  initialEnv?: string;
+  /** Deep-link: preselected decision filter (?decision=). */
+  initialDecision?: string;
 }
 
 export function HistoryToolbar({
   totalCount,
   environments = [],
   decisions = [],
+  initialQuery = '',
+  initialEnv = '',
+  initialDecision = '',
 }: HistoryToolbarProps) {
   return (
     <div class="table-toolbar history-toolbar">
@@ -22,6 +31,7 @@ export function HistoryToolbar({
           type="search"
           class="cmd-input search-input"
           id="history-search"
+          value={initialQuery}
           placeholder="Filter by label, requirement, or run ID… (Press '/' to focus)"
           oninput="filterHistory && filterHistory()"
           aria-label="Filter runs"
@@ -38,7 +48,7 @@ export function HistoryToolbar({
           >
             <option value="">All Environments</option>
             {environments.map((env) => (
-              <option value={env} safe>
+              <option value={env} selected={env === initialEnv} safe>
                 {env}
               </option>
             ))}
@@ -56,7 +66,7 @@ export function HistoryToolbar({
           >
             <option value="">All Decisions</option>
             {decisions.map((dec) => (
-              <option value={dec} safe>
+              <option value={dec} selected={dec === initialDecision} safe>
                 {dec}
               </option>
             ))}

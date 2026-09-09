@@ -11,6 +11,8 @@ export interface TestDetailProps {
   testData: CollectedTestData;
   index: number;
   runId?: string;
+  /** Deep-link: pre-expand this card (?test=<testId>). */
+  openTest?: string;
 }
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
@@ -153,9 +155,10 @@ function TraceLink({ testData, runId }: { testData: CollectedTestData; runId?: s
   );
 }
 
-export function TestDetail({ testData, index, runId }: TestDetailProps) {
+export function TestDetail({ testData, index, runId, openTest }: TestDetailProps) {
   const status = String(testData.status);
   const unhealthy = isUnhealthyStatus(status);
+  const isAnchorTarget = Boolean(openTest) && (testData.testId || '') === openTest;
   const packet = buildFailurePacket(testData);
   const attachments = testData.attachments ?? [];
   const attachmentCount = attachments.length;
@@ -207,9 +210,11 @@ export function TestDetail({ testData, index, runId }: TestDetailProps) {
 
   return (
     <details
-      class={`test-card test-file-test test-file-test-outcome-${status}`}
+      class={`test-card test-file-test test-file-test-outcome-${status}${isAnchorTarget ? ' test-card--anchor' : ''}`}
+      id={`test-${testData.testId || ''}`}
       data-row-key={rowKey}
       data-test-id={testData.testId || ''}
+      open={isAnchorTarget || undefined}
       data-status={status}
       data-priority={(testData.priority || 'medium').toLowerCase()}
       data-role={(testData.role || '').trim() || 'GENERAL / UNSCOPED'}

@@ -89,3 +89,63 @@ test.describe('dashboard interactions', () => {
     expect(response.status()).toBe(200);
   });
 });
+
+test.describe('P3 additions: health panels, triage, deep-links', () => {
+  test('overview shows the failure-source mix and module health panels', async ({ page }) => {
+    await gotoHash(page, '/');
+    await expect(page.locator('body')).toContainText('Failure Source Mix');
+    await expect(page.locator('.mix-bar')).toBeAttached();
+    await expect(page.locator('body')).toContainText('Module Health');
+    // Seed data: auth module exists in latest + archived runs.
+    await expect(page.locator('.module-health-row').first()).toBeVisible();
+  });
+
+  test('latest detail page shows the triage strip for the failing run', async ({ page }) => {
+    await page.goto('/latest');
+    await page.waitForLoadState('domcontentloaded');
+    // Seeded latest run has 1 failed test (wrong password).
+    await expect(page.locator('.triage-strip')).toBeVisible();
+    await expect(page.locator('.triage-group').first()).toBeVisible();
+    // Suggested-decision button is present and wired to applyTriageDecision.
+    const btn = page.locator('.triage-set-decision').first();
+    await expect(btn).toBeVisible();
+    expect(await btn.getAttribute('data-triage-decision')).toBeTruthy();
+  });
+
+  test('/history?decision=APPROVE deep-link preselects the filter', async ({ page }) => {
+    await page.goto('/history?decision=APPROVE');
+    await page.waitForLoadState('domcontentloaded');
+    // Toolbar select is preselected.
+    const decision = page.locator('#filter-history-decision');
+    await expect(decision).toHaveValue('APPROVE');
+    // Only the APPROVE row remains visible after the on-load filter.
+    const visibleRows = page.locator('.history-row:visible');
+    await expect(visibleRows).toHaveCount(1);
+    await expect(visibleRows.first()).toContainText('APPROVE');
+  });
+
+  test('/latest?view=accordion deep-link activates the accordion server-side', async ({ page }) => {
+    await page.goto('/latest?view=accordion');
+    await page.waitForLoadState('domcontentloaded');
+    const accordion = page.locator('#view-accordion');
+    await expect(accordion).toHaveClass(/view-panel--active/);
+    const table = page.locator('#view-table');
+    await expect(table).toHaveClass(/view-panel--hidden/);
+  });
+
+  test('/latest?test=<id> deep-link opens the matching test card', async ({ page }) => {
+    // Seeded failing test id in the latest run.
+    await page.goto('/latest?test=SC-L2&view=accordion');
+    await page.waitForLoadState('domcontentloaded');
+    const card = page.locator('details#test-SC-L2');
+    await expect(card).toBeAttached();
+    await expect(card).toHaveAttribute('open', '');
+  });
+
+  test('/latest?test=<unknown-id> does not break the page', async ({ page }) => {
+    const res = await page.goto('/latest?test=NOPE-404&view=accordion');
+    expect(res?.status()).toBe(200);
+    const card = page.locator('details#test-NOPE-404');
+    await expect(card).toHaveCount(0);
+  });
+});

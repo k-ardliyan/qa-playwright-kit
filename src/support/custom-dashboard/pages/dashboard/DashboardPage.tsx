@@ -8,6 +8,8 @@ import { QualityTrend } from './QualityTrend';
 import { RecentRuns } from './RecentRuns';
 import { AttentionPanel } from './AttentionPanel';
 import { AiInsightsPanel } from './AiInsightsPanel';
+import { FailureSourceMixPanel } from './FailureSourceMixPanel';
+import { ModuleHealthPanel } from './ModuleHealthPanel';
 import { SaveRunModal } from '../history/SaveRunModal';
 import { ConfirmDeleteModal } from '../history/ConfirmDeleteModal';
 import { buildHistoryJs } from '../../build-history-view';
@@ -74,6 +76,14 @@ export function DashboardPage({
             <AttentionPanel recurringFailures={overview.recurringFailures} />
             <AiInsightsPanel insights={overview.aiRunInsights} />
           </div>
+        </div>
+
+        <div class="health-grid-layout">
+          <FailureSourceMixPanel
+            mix={overview.failureSourceMix}
+            totalFailures={overview.metrics.recentFailuresCount}
+          />
+          <ModuleHealthPanel modules={overview.moduleHealth} />
         </div>
       </section>
 

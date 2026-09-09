@@ -4434,3 +4434,234 @@ td.col-actions {
 .affected-chip--role {
   color: var(--muted);
 }
+
+/* ── Health panels (failure-source mix + module health) ─────────────── */
+.health-grid-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.health-panel {
+  min-width: 0;
+}
+
+/* Failure-source mix */
+.mix-bar {
+  display: flex;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+
+.mix-seg {
+  height: 100%;
+  min-width: 2px;
+  transition: width var(--transition-normal);
+}
+
+.mix-legend {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mix-legend__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.76rem;
+  min-width: 0;
+}
+
+.mix-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.mix-legend__label {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.mix-legend__count {
+  font-weight: 600;
+}
+
+/* Module health */
+.module-health-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.module-health-row__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.module-health-row__name {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-health-row__meta {
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.mini-bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.mini-bar__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--transition-normal);
+}
+
+.mini-bar__fill.is-good {
+  background: var(--passed);
+}
+
+.mini-bar__fill.is-warn {
+  background: var(--skipped);
+}
+
+.mini-bar__fill.is-bad {
+  background: var(--failed);
+}
+
+html[data-theme="dark"] .mini-bar__fill.is-good {
+  background: #34d399;
+}
+html[data-theme="dark"] .mini-bar__fill.is-warn {
+  background: #fbbf24;
+}
+html[data-theme="dark"] .mini-bar__fill.is-bad {
+  background: #f87171;
+}
+
+@media (max-width: 900px) {
+  .health-grid-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Triage strip (run-level review workflow) ───────────────────────── */
+.triage-strip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.triage-strip__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.triage-strip__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.triage-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.triage-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.triage-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.triage-group__tests {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.triage-test {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.triage-test__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triage-test__err {
+  font-size: 0.66rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.triage-test__evidence {
+  font-size: 0.62rem;
+}
+
+.triage-test--more {
+  font-size: 0.7rem;
+}
+
+.triage-set-decision {
+  align-self: flex-start;
+}

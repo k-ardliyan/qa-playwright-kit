@@ -6,6 +6,8 @@ import { TestDetail } from './TestDetail';
 export interface AccordionViewProps {
   collectedTests: CollectedTestData[];
   runId?: string;
+  /** Deep-link: pre-expand + scroll to the card with this test id. */
+  openTest?: string;
 }
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
@@ -53,7 +55,7 @@ function buildStatusGroups(collectedTests: CollectedTestData[]): Array<{
   return groups.filter((group) => group.tests.length > 0);
 }
 
-export function AccordionView({ collectedTests, runId }: AccordionViewProps) {
+export function AccordionView({ collectedTests, runId, openTest }: AccordionViewProps) {
   if (collectedTests.length === 0) {
     return <EmptyState message="No test records were captured." />;
   }
@@ -72,7 +74,14 @@ export function AccordionView({ collectedTests, runId }: AccordionViewProps) {
         <div class="test-groups" data-accordion-groups>
           {groups.map((group) => {
             const groupCards = group.tests.map((testData) => {
-              const card = <TestDetail testData={testData} index={runningIndex} runId={runId} />;
+              const card = (
+                <TestDetail
+                  testData={testData}
+                  index={runningIndex}
+                  runId={runId}
+                  openTest={openTest}
+                />
+              );
               runningIndex += 1;
               return card;
             });

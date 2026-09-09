@@ -13,7 +13,10 @@ import { ViewToggle } from '../../components/dashboard/ViewToggle';
 import { AppNav } from '../../components/navigation/AppNav';
 import { Breadcrumb } from '../../components/navigation/Breadcrumb';
 import { SaveRunModal } from '../history/SaveRunModal';
+import { EditRunModal } from '../history/EditRunModal';
 import { ConfirmDeleteModal } from '../history/ConfirmDeleteModal';
+import { TriageStrip } from '../../components/detail/TriageStrip';
+import { groupUnhealthyTests, dominantSuggestedDecision } from '../../domain/triage';
 import { IconSave } from '../../components/shared/icons';
 import { buildHistoryJs } from '../../build-history-view';
 
@@ -40,6 +43,10 @@ export interface ReportDetailPageProps {
   hasLatestRun?: boolean;
   serveMode?: boolean;
   breadcrumb?: Array<{ label: string; href?: string }>;
+  /** Deep-link: initial view mode (?view=table|accordion). Default table. */
+  view?: string;
+  /** Deep-link: pre-expand + scroll to this test id (?test=<testId>). */
+  testAnchor?: string;
 }
 
 export function ReportDetailPage({
@@ -52,9 +59,16 @@ export function ReportDetailPage({
   hasLatestRun = false,
   serveMode = false,
   breadcrumb,
+  view = 'table',
+  testAnchor,
 }: ReportDetailPageProps) {
   const tests = Array.isArray(collectedTests) ? collectedTests : [];
   const unhealthyCount = tests.filter((t) => UNHEALTHY_STATUSES.has(t.status)).length;
+  const triageGroups = groupUnhealthyTests(tests as unknown as Array<Record<string, unknown>>);
+  const suggestedDecision = dominantSuggestedDecision(
+    tests as unknown as Array<Record<string, unknown>>,
+  );
+  const accordionActive = view === 'accordion';
   const { title, copy } = MODE_COPY[mode];
 
   const defaultBreadcrumbs = breadcrumb || [
@@ -131,15 +145,33 @@ export function ReportDetailPage({
       <SaveRunModal
         defaultLabel={displayName}
         defaultSeries={summary.testCases?.[0]?.module || summary.testCases?.[0]?.feature || ''}
+        defaultDecision={suggestedDecision}
       />
+      {isArchived ? <EditRunModal /> : null}
       <ConfirmDeleteModal />
 
       <script>{`window.__SERVE_MODE__ = ${serveMode};`}</script>
+      {testAnchor ? (
+        <script>
+          {`document.addEventListener('DOMContentLoaded', function () {
+  var target = document.getElementById('test-' + ${JSON.stringify(testAnchor)});
+  if (target) target.scrollIntoView({ block: 'start' });
+});`}
+        </script>
+      ) : null}
 
       <div id="primary-view">
         <Hero mode={mode} summary={summary} collectedTests={tests} />
         <RoleHealthStrip summary={summary} collectedTests={tests} />
         <FailureAlert unhealthyCount={unhealthyCount} />
+
+        {triageGroups.length > 0 ? (
+          <TriageStrip groups={triageGroups} isArchived={isArchived} />
+        ) : null}
+
+        {isArchived && runId ? (
+          <script>{`window.__TRIAGE_RUN_ID__ = ${JSON.stringify(runId)};`}</script>
+        ) : null}
 
         <section class="command-zone" aria-label="View controls">
           <div class="section-head section-head--toolbar">
@@ -161,18 +193,19 @@ export function ReportDetailPage({
             <section class="panel panel--bleed">
               <div
                 id="view-accordion"
-                class="view-panel view-panel--hidden"
+                class={`view-panel ${accordionActive ? 'view-panel--active' : 'view-panel--hidden'}`}
                 role="tabpanel"
                 aria-labelledby="tab-accordion"
-                aria-hidden="true"
+                aria-hidden={accordionActive ? 'false' : 'true'}
               >
-                <AccordionView collectedTests={tests} runId={runId} />
+                <AccordionView collectedTests={tests} runId={runId} openTest={testAnchor} />
               </div>
               <div
                 id="view-table"
-                class="view-panel view-panel--active"
+                class={`view-panel ${accordionActive ? 'view-panel--hidden' : 'view-panel--active'}`}
                 role="tabpanel"
                 aria-labelledby="tab-table"
+                aria-hidden={accordionActive ? 'true' : 'false'}
               >
                 <TableView summary={summary} collectedTests={tests} runId={runId} />
               </div>

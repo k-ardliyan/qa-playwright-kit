@@ -7,12 +7,116 @@
 import type { ReportHistoryEntry } from '../../../agents/reporter/report-history';
 import type {
   DashboardOverviewData,
+  FailureSourceMixEntry,
   LatestRunSummary,
+  ModuleHealthEntry,
   QualityMetrics,
   RecurringFailure,
   TrendPoint,
 } from './dashboard';
 import { deriveDisplayName, deriveTestSeriesId } from './run';
+
+/** Statuses counted as "unhealthy" for triage and source-mix aggregation. */
+export const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
+
+/** Canonical failure-source order for display (unknown last). */
+export const FAILURE_SOURCE_ORDER = [
+  'app',
+  'test',
+  'requirement',
+  'env',
+  'ai_generation',
+  'unknown',
+];
+
+function normalizeTestCases(raw: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(raw)
+    ? (raw as Array<Record<string, unknown>>).filter((t) => t && typeof t === 'object')
+    : [];
+}
+
+/** A test case is unhealthy when its status is a failure-ish status. */
+export function isUnhealthyStatus(status: unknown): boolean {
+  return typeof status === 'string' && UNHEALTHY_STATUSES.has(status);
+}
+
+/**
+ * Failure-source mix from a list of collected test cases (raw summary shape).
+ * Counts only unhealthy cases; tests without an annotated source fall into
+ * `unknown`. Pure — unit-testable without DOM/state.
+ */
+export function computeFailureSourceMix(
+  rawTestCases: unknown[],
+  windowLimit = 200,
+): FailureSourceMixEntry[] {
+  const testCases = normalizeTestCases(rawTestCases);
+  const counts = new Map<string, number>();
+  const sourceOf = (tc: Record<string, unknown>): string => {
+    const s = tc.failureSource;
+    return typeof s === 'string' && s ? s : 'unknown';
+  };
+  const candidates = testCases.slice(-windowLimit);
+  for (const tc of candidates) {
+    if (!isUnhealthyStatus(tc.status)) continue;
+    const source = sourceOf(tc);
+    counts.set(source, (counts.get(source) ?? 0) + 1);
+  }
+  const total = [...counts.values()].reduce((a, b) => a + b, 0);
+  if (total === 0) return [];
+  return FAILURE_SOURCE_ORDER.filter((s) => counts.has(s)).map((source) => ({
+    source,
+    count: counts.get(source) ?? 0,
+    share: (counts.get(source) ?? 0) / total,
+  }));
+}
+
+/**
+ * Per-module pass rate from collected test cases. Modules derive from each
+ * test's `module` field (fallback: `feature`, then `unknown`). Pure.
+ */
+export function computeModuleHealth(
+  rawTestCases: unknown[],
+  windowLimit = 500,
+): ModuleHealthEntry[] {
+  const testCases = normalizeTestCases(rawTestCases);
+  const perModule = new Map<string, { total: number; failed: number }>();
+  const moduleOf = (tc: Record<string, unknown>): string => {
+    const m = tc.module;
+    const f = tc.feature;
+    if (typeof m === 'string' && m && m !== '-') return m;
+    if (typeof f === 'string' && f && f !== '-') return f;
+    return 'unknown';
+  };
+  for (const tc of testCases.slice(-windowLimit)) {
+    if (typeof tc.status !== 'string' || tc.status === 'skipped') continue;
+    const module = moduleOf(tc);
+    const entry = perModule.get(module) ?? { total: 0, failed: 0 };
+    entry.total += 1;
+    if (isUnhealthyStatus(tc.status)) entry.failed += 1;
+    perModule.set(module, entry);
+  }
+  return [...perModule.entries()]
+    .map(([module, { total, failed }]) => ({
+      module,
+      total,
+      failed,
+      passRate: total === 0 ? 0 : Math.round(((total - failed) / total) * 100),
+    }))
+    .sort((a, b) => b.passRate - a.passRate || b.total - a.total);
+}
+
+/** Titles of tests in the latest run that passed only after a retry. */
+export function computeFlakyTests(rawTestCases: unknown[]): string[] {
+  const testCases = normalizeTestCases(rawTestCases);
+  const out: string[] = [];
+  for (const tc of testCases) {
+    const retry = typeof tc.retry === 'number' ? tc.retry : 0;
+    if (retry > 0 && tc.status === 'passed') {
+      out.push((tc.title as string) || (tc.testId as string) || 'untitled');
+    }
+  }
+  return out;
+}
 
 export interface BuildDashboardOptions {
   latestRunInfo?: {
@@ -133,6 +237,12 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   const approvedCount = history.filter((h) => h.qaDecision === 'APPROVE').length;
   const activeSeries = new Set(history.map((h) => h.testSeriesId).filter(Boolean)).size;
 
+  // Flaky tests (passed after retry) from the latest run — needed by metrics.
+  const latestTestCases = normalizeTestCases(
+    summary && Array.isArray(summary.testCases) ? summary.testCases : [],
+  );
+  const flakyTests = computeFlakyTests(latestTestCases);
+
   const metrics: QualityMetrics = {
     overallPassRate: avgPassRate,
     totalArchivedRuns: totalArchived,
@@ -140,6 +250,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     recentFailuresCount: latestRun?.failed ?? 0,
     approvedRunsCount: approvedCount,
     activeTestSeriesCount: Math.max(1, activeSeries),
+    flakyCount: flakyTests.length,
   };
 
   // 3. Pass Rate Trend Points (chronological, max 15)
@@ -194,6 +305,57 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     .sort((a, b) => b.occurrences - a.occurrences)
     .slice(0, 5);
 
+  // 4b. Failure-source mix + module health.
+  // - Failure source per-test is only retained for the latest run (archived
+  //   history entries carry aggregates, not per-test sources).
+  // - Module health folds the latest run's test cases together with the
+  //   archived runs' summaryByModule aggregates.
+  const failureSourceMix = computeFailureSourceMix(latestTestCases);
+
+  const moduleMap = new Map<string, { total: number; failed: number }>();
+  const addModule = (module: string, total: number, failed: number): void => {
+    const cur = moduleMap.get(module) ?? { total: 0, failed: 0 };
+    cur.total += total;
+    cur.failed += failed;
+    moduleMap.set(module, cur);
+  };
+  for (const tc of latestTestCases) {
+    if (typeof tc.status !== 'string' || tc.status === 'skipped') continue;
+    const module = (
+      typeof tc.module === 'string' && tc.module && tc.module !== '-'
+        ? tc.module
+        : typeof tc.feature === 'string' && tc.feature && tc.feature !== '-'
+          ? tc.feature
+          : 'unknown'
+    ) as string;
+    addModule(module, 1, isUnhealthyStatus(tc.status) ? 1 : 0);
+  }
+  for (const entry of history.slice(0, 6)) {
+    const perModule = entry.summaryByModule;
+    if (!perModule || typeof perModule !== 'object') continue;
+    for (const [module, bucket] of Object.entries(perModule)) {
+      const features = (bucket as { features?: Record<string, unknown> }).features ?? {};
+      let total = 0;
+      let failed = 0;
+      for (const f of Object.values(features)) {
+        const passing = (f as { passing?: number }).passing ?? 0;
+        const failing = (f as { failing?: number }).failing ?? 0;
+        const skipped = (f as { skipped?: number }).skipped ?? 0;
+        total += passing + failing + skipped;
+        failed += failing;
+      }
+      if (total > 0) addModule(module as string, total, failed);
+    }
+  }
+  const moduleHealth: ModuleHealthEntry[] = [...moduleMap.entries()]
+    .map(([module, { total, failed }]) => ({
+      module,
+      total,
+      failed,
+      passRate: total === 0 ? 0 : Math.round(((total - failed) / total) * 100),
+    }))
+    .sort((a, b) => a.passRate - b.passRate || b.total - a.total);
+
   // 5. Recent QA Decisions
   const recentQaDecisions = history
     .filter((h) => Boolean(h.qaDecision))
@@ -214,6 +376,9 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     recurringFailures,
     recentQaDecisions,
     aiRunInsights: buildAiRunInsights(summary, options.testNotes),
+    failureSourceMix,
+    moduleHealth,
+    flakyTests,
   };
 }
 

@@ -376,7 +376,11 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
   // ── Page Route: GET /history ─────────────────────────────────────────────
   if (pathname === '/history' && method === 'GET') {
     try {
-      const html = renderHistoryPage();
+      const html = renderHistoryPage({
+        q: parsed.query['q'] as string | undefined,
+        env: parsed.query['env'] as string | undefined,
+        decision: parsed.query['decision'] as string | undefined,
+      });
       htmlResponse(res, 200, html);
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -418,7 +422,10 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
       return;
     }
     try {
-      const pageHtml = renderArchivedDetailPage(runId);
+      const pageHtml = renderArchivedDetailPage(runId, {
+        view: parsed.query['view'] as string | undefined,
+        test: parsed.query['test'] as string | undefined,
+      });
       if (!pageHtml) {
         htmlResponse(
           res,
@@ -458,7 +465,10 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
   // ── Page Route: GET /latest ──────────────────────────────────────────────
   if (pathname === '/latest' && method === 'GET') {
     try {
-      const html = renderLatestDetailPage();
+      const html = renderLatestDetailPage({
+        view: parsed.query['view'] as string | undefined,
+        test: parsed.query['test'] as string | undefined,
+      });
       htmlResponse(res, 200, html);
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'text/plain' });

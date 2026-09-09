@@ -19,6 +19,12 @@ export interface HistoryPageProps {
   serveMode?: boolean;
   defaultLabel?: string;
   defaultSeries?: string;
+  /** Deep-link: initial search text (?q=). */
+  initialQuery?: string;
+  /** Deep-link: preselected env filter (?env=). */
+  initialEnv?: string;
+  /** Deep-link: preselected decision filter (?decision=). */
+  initialDecision?: string;
 }
 
 export function HistoryPage({
@@ -29,6 +35,9 @@ export function HistoryPage({
   serveMode = true,
   defaultLabel,
   defaultSeries,
+  initialQuery,
+  initialEnv,
+  initialDecision,
 }: HistoryPageProps) {
   const envs = [...new Set(history.map((h) => h.appEnv).filter(Boolean))];
   const decisions = [...new Set(history.map((h) => h.qaDecision).filter(Boolean))];
@@ -58,7 +67,14 @@ export function HistoryPage({
           <TrendChart history={history} />
         </div>
 
-        <HistoryToolbar totalCount={history.length} environments={envs} decisions={decisions} />
+        <HistoryToolbar
+          totalCount={history.length}
+          environments={envs}
+          decisions={decisions}
+          initialQuery={initialQuery}
+          initialEnv={initialEnv}
+          initialDecision={initialDecision}
+        />
 
         <HistoryRunsTable history={history} latestRunId={latestRunId} serveMode={serveMode} />
       </section>
@@ -223,7 +239,7 @@ export function HistoryPage({
             });
         }
 
-        function filterHistory() {
+        function filterHistory(syncUrl) {
           var query = (document.getElementById('history-search')?.value || '').toLowerCase();
           var env = document.getElementById('filter-history-env')?.value || '';
           var dec = document.getElementById('filter-history-decision')?.value || '';
@@ -245,7 +261,18 @@ export function HistoryPage({
           });
           var countEl = document.getElementById('history-count');
           if (countEl) countEl.textContent = visible + ' archived run' + (visible === 1 ? '' : 's');
+          if (syncUrl && window.history && window.history.replaceState) {
+            var p = new URLSearchParams();
+            if (query) p.set('q', query);
+            if (env) p.set('env', env);
+            if (dec) p.set('decision', dec);
+            var qs = p.toString();
+            window.history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+          }
         }
+
+        // Apply deep-linked filters once on load, without rewriting the URL.
+        filterHistory(false);
 
         document.addEventListener('keydown', function(e) {
           if (e.key === 'Escape' || e.key === 'Esc') {

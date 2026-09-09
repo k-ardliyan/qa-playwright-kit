@@ -5,6 +5,8 @@ import { IconSave } from '../../components/shared/icons';
 export interface SaveRunModalProps {
   defaultLabel?: string;
   defaultSeries?: string;
+  /** Preselected QA decision (e.g. from the triage strip's dominant source). */
+  defaultDecision?: string;
 }
 
 const DECISIONS: Array<{ value: QaDecision; label: string; desc: string }> = [
@@ -16,7 +18,11 @@ const DECISIONS: Array<{ value: QaDecision; label: string; desc: string }> = [
   { value: 'MARK_BLOCKED', label: 'MARK_BLOCKED', desc: 'Execution blocked by dependency' },
 ];
 
-export function SaveRunModal({ defaultLabel = '', defaultSeries = '' }: SaveRunModalProps) {
+export function SaveRunModal({
+  defaultLabel = '',
+  defaultSeries = '',
+  defaultDecision = '',
+}: SaveRunModalProps) {
   return (
     <div
       class="modal-overlay"
@@ -90,11 +96,16 @@ export function SaveRunModal({ defaultLabel = '', defaultSeries = '' }: SaveRunM
             <select id="save-decision" class="cmd-select form-select" required>
               <option value="">— Select QA Decision —</option>
               {DECISIONS.map((d) => (
-                <option value={d.value} safe>
+                <option value={d.value} selected={d.value === defaultDecision} safe>
                   {d.label} — {d.desc}
                 </option>
               ))}
             </select>
+            {defaultDecision ? (
+              <span class="form-hint muted" safe>
+                Preselected from triage: the dominant failure source suggests {defaultDecision}.
+              </span>
+            ) : null}
           </div>
 
           <div class="form-group">

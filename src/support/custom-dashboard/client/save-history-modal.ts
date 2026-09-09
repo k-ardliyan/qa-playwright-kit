@@ -325,6 +325,24 @@ export function buildSaveHistoryModalJs(): string {
     window.openDeleteModal = openDeleteModal;
     window.closeDeleteModal = closeDeleteModal;
     window.closeConfirmDelete = closeDeleteModal;
+
+    // Triage strip: apply a suggested decision to the run. On the latest run
+    // it preselects the Save modal; on an archived run it opens the Edit
+    // modal (which fetches current metadata itself).
+    window.applyTriageDecision = function (decision, isArchived) {
+      if (isArchived) {
+        var runId = document.getElementById('edit-run-id')?.value || window.__TRIAGE_RUN_ID__ || '';
+        if (runId && typeof window.openEditModal === 'function') {
+          window.openEditModal(runId);
+        }
+        var sel = document.getElementById('edit-qa-decision');
+        if (sel) sel.value = decision;
+        return;
+      }
+      if (typeof window.openSaveModal === 'function') window.openSaveModal();
+      var de = document.getElementById('save-decision');
+      if (de) de.value = decision;
+    };
   })();
   `;
 }

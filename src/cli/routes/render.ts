@@ -256,7 +256,30 @@ export function renderDashboardOverviewPage(): string {
   );
 }
 
-export function renderHistoryPage(): string {
+/** Deep-link query options for detail pages (view mode + test anchor). */
+export interface DetailPageQuery {
+  view?: string;
+  test?: string;
+}
+
+/** Deep-link query options for the history list. */
+export interface HistoryPageQuery {
+  q?: string;
+  env?: string;
+  decision?: string;
+}
+
+/** Sanitize a deep-link param into a safe short token (or undefined). */
+function safeParam(value: string | undefined, allowed: Set<string>): string | undefined {
+  if (!value) return undefined;
+  const clean = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '');
+  return allowed.has(clean) ? clean : undefined;
+}
+
+export function renderHistoryPage(query?: HistoryPageQuery): string {
   const history = listReportHistory({ sort: 'newest', limit: 100 });
   const latestRun = getLatestRunInfo();
   const latestRunArchived = isLatestRunArchived();
@@ -269,6 +292,9 @@ export function renderHistoryPage(): string {
       latestRunArchived,
       latestRunId,
       serveMode: true,
+      initialQuery: query?.q,
+      initialEnv: query?.env,
+      initialDecision: query?.decision,
     }),
   );
 }
@@ -298,7 +324,7 @@ export function renderComparePage(baseline?: string, candidate?: string, series?
   );
 }
 
-export function renderLatestDetailPage(): string {
+export function renderLatestDetailPage(query?: DetailPageQuery): string {
   let summary: object | undefined;
   let collectedTests: import('../../support/custom-dashboard/types').CollectedTestData[] = [];
   let latestRunId: string | undefined;
@@ -354,11 +380,13 @@ export function renderLatestDetailPage(): string {
       serveMode: true,
       runId: isArchived ? latestRunId : undefined,
       breadcrumb: [{ label: 'Dashboard', href: '/dashboard' }, { label: 'Latest Report' }],
+      view: safeParam(query?.view, new Set(['table', 'accordion'])),
+      testAnchor: query?.test?.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || undefined,
     }),
   );
 }
 
-export function renderArchivedDetailPage(runId: string): string | null {
+export function renderArchivedDetailPage(runId: string, query?: DetailPageQuery): string | null {
   if (!isValidRunId(runId)) return null;
   const summary = loadArchivedSummary(runId);
   const metadata = loadArchivedMetadata(runId);
@@ -409,6 +437,8 @@ export function renderArchivedDetailPage(runId: string): string | null {
       hasLatestRun: false,
       serveMode: true,
       breadcrumb: [{ label: 'History', href: '/history' }, { label: displayName || runId }],
+      view: safeParam(query?.view, new Set(['table', 'accordion'])),
+      testAnchor: query?.test?.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || undefined,
     }),
   );
 }

@@ -28,6 +28,23 @@ export interface RecurringFailure {
   lastFailureSource?: string;
 }
 
+/** One segment of the failure-source mix (latest + recent archived runs). */
+export interface FailureSourceMixEntry {
+  source: string;
+  count: number;
+  /** 0..1 share of all unhealthy cases in the mix window. */
+  share: number;
+}
+
+/** Per-module health across the latest + recent archived runs. */
+export interface ModuleHealthEntry {
+  module: string;
+  /** 0..100 pass rate across the mix window. */
+  passRate: number;
+  total: number;
+  failed: number;
+}
+
 export interface QualityMetrics {
   overallPassRate: number;
   totalArchivedRuns: number;
@@ -35,6 +52,8 @@ export interface QualityMetrics {
   recentFailuresCount: number;
   approvedRunsCount: number;
   activeTestSeriesCount: number;
+  /** Tests in the latest run that passed only after a retry (flaky signal). */
+  flakyCount: number;
 }
 
 export interface LatestRunSummary {
@@ -71,6 +90,12 @@ export interface DashboardOverviewData {
   }>;
   /** Cross-scenario AI insights: deterministic (reporter) + agent-authored (sidecar). */
   aiRunInsights: AiRunInsight[];
+  /** Failure-source mix across latest + recent archived unhealthy cases. */
+  failureSourceMix: FailureSourceMixEntry[];
+  /** Per-module pass rate across latest + recent archived runs. */
+  moduleHealth: ModuleHealthEntry[];
+  /** Tests that needed a retry in the latest run. */
+  flakyTests: string[];
 }
 
 /** One entry of the AI Run Insights panel. */
