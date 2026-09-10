@@ -12,6 +12,7 @@
 import * as path from 'path';
 import { canGenerate } from '../challenge-gate';
 import { transitionWorkflow } from '../workflow-transitions';
+import { buildManualResumeInstruction } from './resume-instruction';
 import type { StageContext, StageResult } from './context';
 import type { StageInput } from './context';
 
@@ -98,7 +99,14 @@ export async function runGenerateStage(ctx: StageContext, input: StageInput): Pr
         };
       }
       ctx.markPaused(result.reason ?? 'Awaiting external generator.');
-      const resumeInstruction = `Run the Generator to produce ${'tests/<feature>[-<role>].spec.ts'}, then resume: npx tsx tools/scripts/workflow-run.ts ${input.requirementPath} --resume --run-id ${state.runId}`;
+      const targetPaths = state.workflow.generate?.requiredOutputPaths ?? [
+        `tests/${path.basename(input.requirementPath).replace(/\.md$/i, '')}.spec.ts`,
+      ];
+      const resumeInstruction = buildManualResumeInstruction(
+        targetPaths,
+        input.requirementPath,
+        state.runId,
+      );
       return {
         status: 'in-progress',
         runId: state.runId,

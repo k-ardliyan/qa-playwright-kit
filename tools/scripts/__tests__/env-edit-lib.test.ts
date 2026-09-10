@@ -86,20 +86,26 @@ test('maps role to auth file (scoped by APP_ENV)', () => {
 });
 
 test('every role has email/username/phone/password/pref keys', () => {
+  const prev = process.env.APP_ENV;
   process.env.APP_ENV = 'local';
-  const user = roleCredentialKeys('user');
-  assert.equal(user.emailKey, 'TEST_USER_EMAIL');
-  assert.equal(user.usernameKey, 'TEST_USER_USERNAME');
-  assert.equal(user.phoneKey, 'TEST_USER_PHONE');
-  assert.equal(user.passwordKey, 'TEST_USER_PASSWORD');
-  assert.equal(user.loginIdPrefKey, 'TEST_USER_LOGIN_ID_PREF');
+  try {
+    const user = roleCredentialKeys('user');
+    assert.equal(user.emailKey, 'TEST_USER_EMAIL');
+    assert.equal(user.usernameKey, 'TEST_USER_USERNAME');
+    assert.equal(user.phoneKey, 'TEST_USER_PHONE');
+    assert.equal(user.passwordKey, 'TEST_USER_PASSWORD');
+    assert.equal(user.loginIdPrefKey, 'TEST_USER_LOGIN_ID_PREF');
 
-  const fin = roleCredentialKeys('finance');
-  assert.equal(fin.emailKey, 'FINANCE_EMAIL');
-  assert.equal(fin.usernameKey, 'FINANCE_USERNAME');
-  assert.equal(fin.phoneKey, 'FINANCE_PHONE');
-  assert.equal(fin.passwordKey, 'FINANCE_PASSWORD');
-  assert.equal(fin.loginIdPrefKey, 'FINANCE_LOGIN_ID_PREF');
+    const fin = roleCredentialKeys('finance');
+    assert.equal(fin.emailKey, 'FINANCE_EMAIL');
+    assert.equal(fin.usernameKey, 'FINANCE_USERNAME');
+    assert.equal(fin.phoneKey, 'FINANCE_PHONE');
+    assert.equal(fin.passwordKey, 'FINANCE_PASSWORD');
+    assert.equal(fin.loginIdPrefKey, 'FINANCE_LOGIN_ID_PREF');
+  } finally {
+    if (prev === undefined) delete process.env.APP_ENV;
+    else process.env.APP_ENV = prev;
+  }
 });
 
 test('resolveLoginIdentifier: username preferred by default', () => {

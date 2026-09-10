@@ -83,12 +83,24 @@ const TOOLS = {
     const { recordAiNote } = await import('../mcp/src/tools/record-ai-note');
     return recordAiNote(args);
   },
-  runPlaywrightTests: async (args: { testFiles: string[]; resultsDir: string }) => {
+  runPlaywrightTests: async (args: {
+    testFiles: string[];
+    resultsDir: string;
+    requirementPath?: string;
+  }) => {
     if (args.testFiles.length === 0) {
       return { ok: false, passed: 0, failed: 0, skipped: 0, message: 'No generated files to run.' };
     }
     fs.mkdirSync(args.resultsDir, { recursive: true });
     const resultsJsonPath = path.join(args.resultsDir, 'results.json');
+    // Multi-reporter: JSON (via PLAYWRIGHT_JSON_OUTPUT_FILE — the inline
+    // `--reporter=json,outputFile=…` CLI syntax is unreliable with --output)
+    // feeds the Validate adapter, while CustomReporter also writes the shared
+    // artifacts/reports/custom-dashboard.html + test-summary.json so a
+    // semantic run updates the dashboard like any other run. Order matters on
+    // the Playwright CLI: `--reporter=json` LAST silently disables a custom
+    // reporter appended after it — keep custom FIRST, then `--reporter=json`.
+    const customReporterPath = path.join(process.cwd(), 'src', 'support', 'custom-reporter.ts');
     const result = spawnSync(
       process.execPath,
       [
@@ -97,6 +109,7 @@ const TOOLS = {
         ...args.testFiles,
         '--output',
         args.resultsDir,
+        `--reporter=${customReporterPath}`,
         '--reporter=json',
       ],
       {
@@ -104,7 +117,16 @@ const TOOLS = {
         encoding: 'utf-8',
         shell: false,
         timeout: 600_000,
-        env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: resultsJsonPath },
+        env: {
+          ...process.env,
+          PLAYWRIGHT_JSON_OUTPUT_FILE: resultsJsonPath,
+          REQUIREMENT_PATH: args.requirementPath ?? process.env.REQUIREMENT_PATH ?? '',
+          // Bind the CustomReporter summary to the SEMANTIC run identity so the
+          // archive gate's sidecar-runId check matches `--run-id` (semantic run
+          // ids are not run-YYYYMMDD-…; PLAYWRIGHT_RUN_ID flows through runMeta
+          // into the summary and the sidecar stamp).
+          PLAYWRIGHT_RUN_ID: process.env.PLAYWRIGHT_RUN_ID ?? process.env.SEMANTIC_RUN_ID ?? '',
+        },
       },
     );
     // Fallback for Playwright versions/configs that emit JSON to stdout.
@@ -303,6 +325,13 @@ async function main(): Promise<number> {
     initialState = loaded;
   }
 
+  // Expose the semantic runId to reporter processes spawned by the Validate
+  // adapter (PLAYWRIGHT_RUN_ID → runMeta.runId → summary + sidecar stamp) so
+  // the archive gate can match evidence against this exact run.
+  if (args.runId) {
+    process.env.PLAYWRIGHT_RUN_ID = args.runId;
+  }
+
   const adapters = createMcpAdapters({ tools: TOOLS, repoRoot });
   const controller = new WorkflowController(
     {
@@ -314,6 +343,12 @@ async function main(): Promise<number> {
     adapters,
     initialState,
   );
+
+  // New runs generate their runId inside the controller — publish it now so
+  // the Validate adapter's reporter subprocess carries the same identity.
+  if (!process.env.PLAYWRIGHT_RUN_ID) {
+    process.env.PLAYWRIGHT_RUN_ID = controller.getState().runId;
+  }
 
   const runInput = {
     requirementPath: args.requirementPath,
@@ -353,6 +388,35 @@ async function main(): Promise<number> {
       ? { resumeCommand }
       : {}),
   };
+
+  // Human-readable guidance on stderr for blocked semantic runs: the AI-agent
+  // path (Hermes) is the default, but the manual no-AI path is first-class.
+  if (response.workflowStatus === 'blocked' || response.workflowStatus === 'needs-review') {
+    const handoff = (response as { result?: { handoff?: { handoffType?: string } } }).result
+      ?.handoff;
+    if (handoff?.handoffType === 'awaiting-generator') {
+      process.stderr.write(
+        [
+          '',
+          '─'.repeat(66),
+          '⏸  Pipeline dijeda: Generate menunggu test spec (awaiting-generator).',
+          '',
+          '  Jalur 1 — AI agent (default & direkomendasikan):',
+          '    Jalankan Generator agent (Hermes) untuk menulis spec,',
+          '    lalu resume dengan perintah di resumeCommand.',
+          '',
+          '  Jalur 2 — Manual tanpa AI (first-class):',
+          `    1. Tulis spec sesuai nextRequiredAction (lihat`,
+          `       .github/agents/generator.agent.md untuk konvensi lengkap).`,
+          `    2. Verifikasi: validate_generated_tests (atau biarkan resume`,
+          `       yang memvalidasi otomatis).`,
+          `    3. Resume: ${resumeCommand}`,
+          '─'.repeat(66),
+          '',
+        ].join('\n') + '\n',
+      );
+    }
+  }
 
   // NDJSON contract: stdout carries EXACTLY ONE line — the JSON response.
   // All logs go to stderr (the MCP tool parses only the last stdout line).

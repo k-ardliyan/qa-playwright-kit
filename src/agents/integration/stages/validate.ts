@@ -15,8 +15,13 @@ import { routeFeedback, type FeedbackInput } from '../feedback-router';
 import type { FeedbackDecision, PipelinePhase } from '../types';
 import type { WorkflowResponse } from '../workflow-controller';
 import { transitionWorkflow } from '../workflow-transitions';
+import { buildManualResumeInstruction } from './resume-instruction';
 import type { StageContext } from './context';
 import type { StageInput } from './context';
+
+function requirementPathToFeature(requirementPath: string): string {
+  return requirementPath.split(/[/\\]/).pop()?.replace(/\.md$/i, '') ?? 'feature';
+}
 
 export async function runValidateStage(
   ctx: StageContext,
@@ -71,12 +76,17 @@ export async function runValidateStage(
   if (generated.length === 0) {
     const reason = 'No executable generated files are available for Validate.';
     ctx.markPaused(reason);
+    const fallbackPaths = [`tests/${requirementPathToFeature(input.requirementPath)}.spec.ts`];
     return {
       status: 'in-progress',
       runId: state.runId,
       workflowStage: 'validate',
       workflowStatus: 'blocked',
-      nextRequiredAction: `Run the Generator to create tests, then resume with the same runId: npx tsx tools/scripts/workflow-run.ts ${input.requirementPath} --resume --run-id ${state.runId}`,
+      nextRequiredAction: buildManualResumeInstruction(
+        fallbackPaths,
+        input.requirementPath,
+        state.runId,
+      ),
       phase: 'generate',
       result: { handoff: { handoffType: 'awaiting-generator', reason } },
     };

@@ -53,6 +53,8 @@ export interface VerifySetupOptions {
   skillsSynced?: boolean;
   /** Whether MCP config generation reported success. */
   mcpConfigsGenerated?: boolean;
+  /** Whether the Hermes agent install was detected (agent-sync). */
+  hermesDetected?: boolean;
 }
 
 function labelFor(lang: WizardLang, id: string, en: string): string {
@@ -364,6 +366,28 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
             ),
     });
   }
+
+  // ── 12. Hermes agent detection (non-critical — manual path is first-class) ──
+  const hermesDetected = opts.hermesDetected ?? false;
+  add({
+    id: 'hermes',
+    label: labelFor(lang, 'Hermes Agent (orkestrator AI)', 'Hermes Agent (AI orchestrator)'),
+    status: hermesDetected ? 'pass' : 'warn',
+    detail: hermesDetected
+      ? labelFor(lang, 'terdeteksi — pipeline AI siap dipakai', 'detected — AI pipeline ready')
+      : labelFor(
+          lang,
+          'tidak terdeteksi — jalur AI belum tersedia',
+          'not detected — AI path unavailable',
+        ),
+    fix: hermesDetected
+      ? undefined
+      : labelFor(
+          lang,
+          'Install Hermes Agent (https://hermes-agent.nousresearch.com) untuk jalur AI, ATAU pakai jalur manual: ikuti nextRequiredAction saat qa:workflow jeda di Generate, lalu resume.',
+          'Install Hermes Agent (https://hermes-agent.nousresearch.com) for the AI path, OR use the manual path: follow nextRequiredAction when qa:workflow pauses at Generate, then resume.',
+        ),
+  });
 
   return checks;
 }

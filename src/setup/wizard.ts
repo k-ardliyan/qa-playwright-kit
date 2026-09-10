@@ -445,6 +445,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     configValid: validation.valid,
     skillsSynced: agentSync.skillsSynced.length > 0,
     mcpConfigsGenerated: agentSync.mcpConfigsGenerated,
+    hermesDetected: agentSync.hermesProfileSkillsDir != null,
   });
   printChecklist(checks.map(toChecklistItem));
 
@@ -784,7 +785,47 @@ function printSummary(data: {
     stepLine(`  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementPath}`);
   }
 
+  const hermesDetected = data.agentSync?.hermesProfileSkillsDir != null;
   if (data.loginRequirementPath && data.loginMarkdown && data.loginRequirementValidation?.valid) {
+    if (!hermesDetected) {
+      const hermesBorder = '─'.repeat(70);
+      console.log('');
+      console.log(`  ┌${hermesBorder}┐`);
+      stepLine(
+        `  │  ⚠  ${t(
+          lang,
+          'HERMES AGENT TIDAK TERDETEKSI di komputer ini.'.padEnd(46),
+          'HERMES AGENT NOT DETECTED on this machine.'.padEnd(41),
+        ).padEnd(66)}│`,
+      );
+      stepLine(
+        `  │  ${t(
+          lang,
+          'Jalur 1 (disarankan): install Hermes Agent —',
+          'Path 1 (recommended): install Hermes Agent —',
+        ).padEnd(64)}│`,
+      );
+      stepLine(`  │     https://hermes-agent.nousresearch.com`.padEnd(68) + '│');
+      stepLine(
+        `  │  ${t(
+          lang,
+          'Jalur 2 (manual, tetap first-class): jalankan',
+          'Path 2 (manual, still first-class): run',
+        ).padEnd(62)}│`,
+      );
+      stepLine(
+        `  │     npx tsx tools/scripts/workflow-run.ts ${data.loginRequirementPath}`.padEnd(68) +
+          '│',
+      );
+      stepLine(
+        `  │     ${t(
+          lang,
+          'lalu ikuti instruksi nextRequiredAction saat jeda di Generate.',
+          'then follow the nextRequiredAction instructions when paused.',
+        ).padEnd(59)}│`,
+      );
+      console.log(`  └${hermesBorder}┘`);
+    }
     const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown, lang, {
       baseUrl: data.baseUrl,
       appEnv: data.appEnv,

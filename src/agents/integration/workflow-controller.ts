@@ -317,6 +317,10 @@ export class WorkflowController {
         reason: `Invalidated by feedback routed to '${target}'.`,
       };
     }
+    // Keep the handoff target list alive across the generate↔validate loop:
+    // a Generate feedback route wipes the `generate` payload, but the QA or
+    // agent still needs to know WHICH files to (re)write on the next pass.
+    const requiredOutputPaths = envelope.generate?.requiredOutputPaths;
     const next: WorkflowEnvelope = {
       ...envelope,
       stages,
@@ -336,6 +340,16 @@ export class WorkflowController {
     }
     if (index <= 3) {
       delete next.generate;
+      if (requiredOutputPaths && requiredOutputPaths.length > 0) {
+        next.generate = {
+          status: 'blocked',
+          reason: `Invalidated by feedback routed to '${target}'.`,
+          generatedFiles: [],
+          testCount: 0,
+          requiredOutputPaths,
+          freshnessVerified: false,
+        };
+      }
     }
     if (index <= 4) {
       delete next.validate;

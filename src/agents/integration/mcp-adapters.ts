@@ -36,7 +36,13 @@ import type {
   ValidateAdapterResult,
 } from './workflow-controller';
 import type { EvidenceReference } from './explore-policy';
-import { buildReport, writeReportMarkdown, writeReportJson } from '../reporter/report-builder';
+import {
+  buildReport,
+  writeReportMarkdown,
+  writeReportJson,
+  type UnresolvedFailure,
+} from '../reporter/report-builder';
+import { loadLatestTestNotes } from '../reporter/test-notes';
 
 /**
  * Raised by the Model adapter when the Planner handoff artifact (the test
@@ -73,7 +79,12 @@ export interface McpToolFunctions {
   traceRequirement?: (args: Record<string, unknown>) => Promise<unknown>;
   recordAiNote?: (args: Record<string, unknown>) => Promise<unknown>;
   /** Real Playwright runner invocation scoped to this run (driver implements it). */
-  runPlaywrightTests?: (args: { testFiles: string[]; resultsDir: string }) => Promise<{
+  runPlaywrightTests?: (args: {
+    testFiles: string[];
+    resultsDir: string;
+    /** Requirement source path — surfaced to reporters via REQUIREMENT_PATH. */
+    requirementPath?: string;
+  }) => Promise<{
     ok: boolean;
     total?: number;
     passed: number;
@@ -468,6 +479,7 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
       const run = await runPlaywrightTests({
         testFiles: input.generatedFiles,
         resultsDir,
+        requirementPath: input.requirementPath,
       });
       if (!run.ok) {
         throw new Error(
@@ -515,15 +527,19 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
       };
       await traceRequirement({ requirementPath: input.requirementPath });
 
-      // Production Analyze seam: record one run-level reporter insight and
-      // build the canonical report artifacts. If the note/report seam is not
-      // wired, return explicit incomplete proof; never fabricate completion.
+      // Production Analyze seam (honest minimum): one run-level insight plus
+      // per-scenario insights for FAILED tests only (no evidence for passed
+      // scenarios here — AGENTS.md allows skipping without evidence). Counts
+      // must match what was actually recorded, or the archive APPROVE gate
+      // would verify against fabricated numbers. If the note/report seam is
+      // not wired, return explicit incomplete proof; never fabricate.
       let analysisCompleted = false;
       let analysisVerified = false;
       let analysisVerdict: ValidateAdapterResult['analysisVerdict'] = 'unverifiable';
       const recordAiNote = tools.recordAiNote;
       if (recordAiNote) {
-        const note = asRecord(
+        let recordedInsights = 0;
+        const runNote = asRecord(
           await recordAiNote({
             scope: 'run',
             source: 'reporter',
@@ -543,11 +559,82 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
             status: 'observed',
           }),
         );
-        if (note.status === 'success') {
+        if (runNote.status === 'success') recordedInsights += 1;
+
+        // Per-scenario insight for each failed test (best-effort; count only
+        // notes that actually persisted so the gate evidence stays truthful).
+        for (const failure of failureList) {
+          const f = asRecord(failure);
+          const testId =
+            typeof f.testId === 'string' && f.testId
+              ? f.testId
+              : typeof f.title === 'string'
+                ? f.title
+                : undefined;
+          if (!testId) continue;
+          const errorText =
+            typeof f.errorMessage === 'string'
+              ? f.errorMessage.slice(0, 300)
+              : typeof f.message === 'string'
+                ? f.message.slice(0, 300)
+                : 'unknown error';
+          const evidencePaths = [f.tracePath, f.screenshotPath]
+            .filter((p): p is string => typeof p === 'string' && p.length > 0)
+            .join(', ');
+          const scenarioNote = asRecord(
+            await recordAiNote({
+              scope: 'test',
+              testId,
+              source: 'reporter',
+              kind: 'root-cause',
+              observation: `Skenario gagal pada run ini: ${errorText}`,
+              evidence: evidencePaths || resultsDir,
+              impact: 'Skenario tidak lulus; butuh triage sebelum keputusan QA.',
+              recommendation:
+                'Periksa trace/screenshot di artifacts/test-results untuk root cause.',
+              priority: 'high',
+              confidence: 'medium',
+              status: 'observed',
+            }),
+          );
+          if (scenarioNote.status === 'success') recordedInsights += 1;
+        }
+
+        if (runNote.status === 'success') {
           const total = typeof summary.total === 'number' ? summary.total : 0;
           const passed = typeof summary.passed === 'number' ? summary.passed : 0;
           const failed = typeof summary.failed === 'number' ? summary.failed : 0;
           const skipped = typeof summary.skipped === 'number' ? summary.skipped : 0;
+          const unresolved: UnresolvedFailure[] = failureList.map((failure) => {
+            const f = asRecord(failure);
+            return {
+              scenarioId:
+                typeof f.testId === 'string' ? f.testId : ((f.title as string) ?? 'unknown'),
+              stage: 'healer',
+              errorMessage:
+                typeof f.errorMessage === 'string'
+                  ? f.errorMessage
+                  : typeof f.message === 'string'
+                    ? f.message
+                    : 'unknown failure',
+              failureSource: 'app',
+              ...(typeof f.tracePath === 'string' ? { tracePath: f.tracePath } : {}),
+              ...(typeof f.screenshotPath === 'string' ? { screenshotPath: f.screenshotPath } : {}),
+            };
+          });
+          // The archive gate cross-checks `runInsightsRecorded` against the
+          // sidecar's TOTAL run insights (notes from earlier passes accumulate
+          // while the runId is unchanged), so declare the observed sidecar
+          // count — never just what this pass recorded.
+          let sidecarRunInsights = recordedInsights;
+          try {
+            const notes = loadLatestTestNotes();
+            if (!notes.runId || notes.runId === input.runId) {
+              sidecarRunInsights = notes.runInsights?.length ?? recordedInsights;
+            }
+          } catch {
+            // Sidecar unreadable — keep this pass's count
+          }
           const report = buildReport({
             runId: input.runId as string,
             startedAt,
@@ -558,12 +645,12 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
             testResults: { passing: passed, failing: failed, skipped },
             healedCount: 0,
             scenarios: [],
-            unresolvedFailures: [],
+            unresolvedFailures: unresolved,
             analysis: {
               completed: true,
-              runInsightsRecorded: 1,
-              passedScenariosReviewed: passed,
-              skippedForInsufficientEvidence: 0,
+              runInsightsRecorded: sidecarRunInsights,
+              passedScenariosReviewed: 0,
+              skippedForInsufficientEvidence: passed,
             },
           });
           writeReportMarkdown(report);

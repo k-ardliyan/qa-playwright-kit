@@ -159,7 +159,7 @@ function footer(state: LoginTemplateState, challengeMode: ChallengeMode): string
     `**4) Output pipeline**\n\n` +
     `- Plan: \`specs/login-test-plan.md\`\n` +
     `- Spec: \`tests/login*.spec.ts\`\n` +
-    `- Report: \`artifacts/reports/pipeline-report-*.md\` + \`artifacts/reports/custom-dashboard.html\`\n`
+    `- Report: \`artifacts/reports/pipeline-report-*.md\` (interaktif: \`npm run dashboard\`)\n`
   );
 }
 
