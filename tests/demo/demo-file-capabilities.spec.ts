@@ -2,7 +2,7 @@
 // seed: src/tests/seed.spec.ts
 // generated-at: 2026-07-24T00:00:00.000Z
 /**
- * Demo: download / upload / PDF+Excel content helpers (offline).
+ * Demo: download / upload / PDF content helpers (offline).
  * Uses demo fixture tokens only — not a product domain schema.
  *
  * Run: npx playwright test src/tests/demo/demo-file-capabilities.spec.ts --project=demo
@@ -11,7 +11,6 @@ import * as fs from 'node:fs';
 import { test, expect } from '@/fixtures/base.fixture';
 import {
   assertDownloadedEnvelope,
-  assertExcelHeaders,
   assertPdfContains,
   downloadAndSave,
   fixturePath,
@@ -55,13 +54,6 @@ test.describe('File capabilities demo @demo @download @upload @file-content', ()
     await test.step('Assert PDF demo tokens', async () => {
       const pdf = fixturePath('pdf', 'sample-text.pdf');
       await assertPdfContains(pdf, ['QA-KIT-SAMPLE-PDF', 'TOKEN-ALPHA']);
-    });
-  });
-
-  test('Excel sample has demo headers ColA/ColB/ColC', async () => {
-    await test.step('Assert Excel demo headers', async () => {
-      const xlsx = fixturePath('excel', 'sample-headers.xlsx');
-      await assertExcelHeaders(xlsx, ['ColA', 'ColB', 'ColC']);
     });
   });
 });

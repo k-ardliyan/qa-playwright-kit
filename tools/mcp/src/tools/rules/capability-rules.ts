@@ -44,8 +44,6 @@ export function validateCapabilityPowerRules(
     /\bassertPdfContains\b/.test(content) ||
     /\bassertPdfMatches\b/.test(content) ||
     /\bextractPdfText\b/.test(content) ||
-    /\bassertExcelHeaders\b/.test(content) ||
-    /\breadExcelSummary\b/.test(content) ||
     /\bassertDownloadedEnvelope\b/.test(content) ||
     /\bassertFileMagic\b/.test(content) ||
     /\bdetectMagic\b/.test(content) ||
@@ -170,7 +168,7 @@ export function validateCapabilityPowerRules(
       filePath,
       lineNumber: 1,
       ruleName:
-        'Capability rule (@file-content): must use assertPdfContains/assertPdfMatches/extractPdfText/assertExcelHeaders/readExcelSummary/assertDownloadedEnvelope/assertFileMagic from @/support/pw (needles from scenario)',
+        'Capability rule (@file-content): must use assertPdfContains/assertPdfMatches/extractPdfText/assertDownloadedEnvelope/assertFileMagic from @/support/pw (needles from scenario)',
     });
   }
 

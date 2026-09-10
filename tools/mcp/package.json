@@ -21,11 +21,13 @@
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
-    "exceljs": "^4.4.0",
     "pdf-parse": "^2.4.5",
     "typescript": "^6.0.3"
   },
   "overrides": {
     "hono": "^4.12.31"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }

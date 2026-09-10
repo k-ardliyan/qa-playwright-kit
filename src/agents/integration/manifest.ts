@@ -222,12 +222,6 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     description:
       'Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).',
   },
-  read_excel_summary: {
-    server: 'qa-playwright-kit',
-    name: 'read_excel_summary',
-    description:
-      'Read xlsx sheet names, header row, and sample rows under tests/data/ or artifacts/test-results/. Structure dump only — expected headers come from the scenario, not a fixed domain schema.',
-  },
   synthesize_requirement: {
     server: 'qa-playwright-kit',
     name: 'synthesize_requirement',
@@ -263,7 +257,7 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
  * Tools intentionally omitted from the phase manifest because they are
  * on-demand artifact helpers gated by their MCP profiles.
  */
-export const MANIFEST_OMITTED_ON_DEMAND_TOOLS = ['extract_pdf_text', 'read_excel_summary'] as const;
+export const MANIFEST_OMITTED_ON_DEMAND_TOOLS = ['extract_pdf_text'] as const;
 
 const REQUIRED_PHASE_TOOLS: Partial<Record<PipelinePhase, readonly string[]>> = {
   plan: ['health_check', 'pipeline_status'],

@@ -10,7 +10,6 @@ import * as path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import {
   assertDownloadedEnvelope as assertEnvelopeCore,
-  assertExcelHeaders as assertExcelHeadersCore,
   assertFileMagic as assertFileMagicCore,
   assertPdfContains as assertPdfContainsCore,
   assertPdfMatches as assertPdfMatchesCore,
@@ -28,8 +27,6 @@ export {
   fixturePath,
   findRepoRoot,
   inspectFileLocal,
-  readExcelSummary,
-  type ExcelSummary,
   type FileKind,
   type InspectFileResult,
 } from './file-content-core';
@@ -157,15 +154,6 @@ export async function assertPdfMatches(
   patterns: Array<string | RegExp>,
 ): Promise<void> {
   await assertPdfMatchesCore(filePath, patterns);
-}
-
-/** Scenario-owned header labels. */
-export async function assertExcelHeaders(
-  filePath: string,
-  headers: string[],
-  sheet?: string | number,
-): Promise<void> {
-  await assertExcelHeadersCore(filePath, headers, sheet);
 }
 
 export function assertFileMagic(filePath: string, expected: FileKind | FileKind[]): void {

@@ -64,17 +64,14 @@ export {
   assertDownloadedEnvelope,
   assertPdfContains,
   assertPdfMatches,
-  assertExcelHeaders,
   assertFileMagic,
   extractPdfText,
   fixturePath,
   detectMagic,
   detectFileKind,
-  readExcelSummary,
   inspectFileLocal,
   getFileKind,
   type FileKind,
-  type ExcelSummary,
   type InspectFileResult,
 } from './files';
 

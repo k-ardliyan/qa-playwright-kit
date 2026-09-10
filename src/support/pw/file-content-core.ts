@@ -1,5 +1,5 @@
 /**
- * Pure file helpers (no Playwright) — magic bytes, fixture paths, PDF/Excel extract.
+ * Pure file helpers (no Playwright) — magic bytes, fixture paths, PDF extract.
  *
  * Content matching is **scenario-driven**: callers pass needles/headers from the
  * requirement. This module does not patent business fields.
@@ -142,47 +142,6 @@ export async function extractPdfText(filePath: string, maxChars?: number): Promi
   }
 }
 
-export interface ExcelSummary {
-  sheetNames: string[];
-  headers: string[];
-  sampleRows: string[][];
-}
-
-/** Read sheet names, header row, and sample data rows (scenario defines expected headers). */
-export async function readExcelSummary(
-  filePath: string,
-  options?: { sheet?: string | number; maxRows?: number },
-): Promise<ExcelSummary> {
-  const ExcelJS = require('exceljs') as typeof import('exceljs');
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(path.resolve(filePath));
-  const sheetNames = workbook.worksheets.map((ws) => ws.name);
-  let worksheet = workbook.worksheets[0];
-  if (options?.sheet !== undefined) {
-    if (typeof options.sheet === 'number') {
-      worksheet = workbook.worksheets[options.sheet] ?? worksheet;
-    } else {
-      worksheet = workbook.getWorksheet(options.sheet) ?? worksheet;
-    }
-  }
-  if (!worksheet) {
-    return { sheetNames, headers: [], sampleRows: [] };
-  }
-
-  const maxRows = options?.maxRows ?? 20;
-  const rows: string[][] = [];
-  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (rows.length >= maxRows + 1) return; // header + samples
-    const values = Array.isArray(row.values) ? row.values.slice(1) : [];
-    rows.push(values.map((v) => (v == null ? '' : String(v))));
-    void rowNumber;
-  });
-
-  const headers = rows[0] ?? [];
-  const sampleRows = rows.slice(1);
-  return { sheetNames, headers, sampleRows };
-}
-
 /**
  * Assert every needle appears in haystack. Needles are **caller-defined**
  * (from the scenario) — never a fixed product schema.
@@ -227,21 +186,6 @@ export async function assertPdfMatches(
 ): Promise<void> {
   const text = await extractPdfText(filePath);
   assertTextMatches(text, patterns);
-}
-
-export async function assertExcelHeaders(
-  filePath: string,
-  headers: string[],
-  sheet?: string | number,
-): Promise<void> {
-  const summary = await readExcelSummary(filePath, { sheet });
-  const missing = headers.filter((h) => !summary.headers.includes(h));
-  if (missing.length > 0) {
-    throw new Error(
-      `Expected Excel headers to include scenario labels (missing: ${JSON.stringify(missing)}). ` +
-        `Actual headers: ${JSON.stringify(summary.headers)}.`,
-    );
-  }
 }
 
 export function assertFileMagic(filePath: string, expected: FileKind | FileKind[]): void {

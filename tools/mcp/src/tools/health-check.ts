@@ -321,11 +321,6 @@ function checkFileContentCapability(): HealthCheckItem {
   } catch {
     missing.push('pdf-parse');
   }
-  try {
-    require.resolve('exceljs', { paths: [root, path.join(root, 'tools', 'mcp')] });
-  } catch {
-    missing.push('exceljs');
-  }
   const fixtures = mcpWorkspace.testDataDir;
   if (!fs.existsSync(fixtures)) {
     missing.push('tests/data/');
@@ -336,13 +331,13 @@ function checkFileContentCapability(): HealthCheckItem {
       status: 'warn',
       message:
         `File capability incomplete (missing: ${missing.join(', ')}). ` +
-        'Install pdf-parse/exceljs and ensure tests/data/ exists for @download/@upload/@file-content.',
+        'Install pdf-parse and ensure tests/data/ exists for @download/@upload/@file-content.',
     };
   }
   return {
     name: 'file_content',
     status: 'ok',
-    message: 'pdf-parse + exceljs + tests/data/ available for file content asserts',
+    message: 'pdf-parse + tests/data/ available for file content asserts',
   };
 }
 

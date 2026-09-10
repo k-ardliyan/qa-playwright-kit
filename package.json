@@ -39,7 +39,7 @@
     "test:property": "tsx tools/scripts/run-property-tests.ts",
     "test:file-content": "tsx src/support/pw/__tests__/file-content-core.test.ts",
     "test:network-assert": "tsx src/support/pw/__tests__/network-assert-core.test.ts",
-    "install:mcp-server": "npm ci --prefix tools/mcp",
+    "install:mcp-server": "node tools/scripts/install-mcp-server.cjs",
     "mcp:check": "tsx tools/scripts/mcp-compat-check.ts",
     "mcp:build": "npm run install:mcp-server && npm run sync:file-core && npx tsc src/utils/app-env.ts src/utils/env-loader.ts src/utils/logger.ts --outDir src/utils --module commonjs --target es2020 --esModuleInterop --declaration --skipLibCheck --types node && cd tools/mcp && npm run build",
     "mcp:config": "tsx tools/scripts/mcp-config.ts",
@@ -96,7 +96,6 @@
     "@types/prompts": "^2.4.9",
     "eslint": "^10.10.0",
     "eslint-plugin-playwright": "^2.11.0",
-    "exceljs": "^4.4.0",
     "fast-check": "^4.9.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.0",
@@ -117,5 +116,8 @@
   },
   "engines": {
     "node": ">=20.19.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }

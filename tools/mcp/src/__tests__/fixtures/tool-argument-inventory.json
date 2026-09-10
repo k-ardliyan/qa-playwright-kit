@@ -143,10 +143,6 @@
     "reads": ["filePath", "maxChars"]
   },
   {
-    "name": "read_excel_summary",
-    "reads": ["filePath", "sheet", "maxRows"]
-  },
-  {
     "name": "list_test_fixtures",
     "reads": ["subdir"]
   },

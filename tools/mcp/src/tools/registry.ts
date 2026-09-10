@@ -22,7 +22,6 @@ import { setTestNote } from './set-test-note';
 import { generatePageObject } from './generate-page-object';
 import { inspectFile } from './inspect-file';
 import { extractPdfTextTool } from './extract-pdf-text';
-import { readExcelSummaryTool } from './read-excel-summary';
 import { listTestFixtures } from './list-test-fixtures';
 import { listRequirementStatus } from './list-requirement-status';
 import { compileRequirement } from './compile-requirement';
@@ -931,33 +930,6 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     readOnly: true,
     profiles: ['debug', 'artifact', 'all'],
     handler: (args) => extractPdfTextTool(args),
-  },
-  {
-    name: 'read_excel_summary',
-    description:
-      'Read xlsx sheet names, header row, and sample rows under tests/data/ or artifacts/test-results/. Structure dump only — expected headers come from the scenario, not a fixed domain schema.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        filePath: {
-          type: 'string',
-          description:
-            'Repo-relative path to an xlsx file under tests/data/ or artifacts/test-results/.',
-        },
-        sheet: {
-          description: 'Optional sheet name or 0-based index.',
-        },
-        maxRows: {
-          type: 'number',
-          description: 'Max data rows to return after the header (default 20).',
-        },
-      },
-      required: ['filePath'],
-    },
-    stability: 'stable',
-    readOnly: true,
-    profiles: ['debug', 'artifact', 'all'],
-    handler: (args) => readExcelSummaryTool(args),
   },
   {
     name: 'list_test_fixtures',

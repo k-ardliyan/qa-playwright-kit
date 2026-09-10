@@ -9,7 +9,6 @@ import * as path from 'node:path';
 import { resolveUploadFixturePath } from '../files';
 import {
   assertDownloadedEnvelope,
-  assertExcelHeaders,
   assertPdfContains,
   assertPdfMatches,
   assertStringsContain,
@@ -17,7 +16,6 @@ import {
   detectMagic,
   extractPdfText,
   fixturePath,
-  readExcelSummary,
 } from '../file-content-core';
 
 function test(name: string, fn: () => void | Promise<void>): void {
@@ -57,11 +55,6 @@ test('detectMagic png', () => {
   assert.equal(detectMagic(buf), 'png');
 });
 
-test('detectFileKind xlsx via extension+zip', () => {
-  const p = fixturePath('excel', 'sample-headers.xlsx');
-  assert.equal(detectFileKind(p), 'xlsx');
-});
-
 test('extractPdfText contains demo tokens only', async () => {
   const text = await extractPdfText(fixturePath('pdf', 'sample-text.pdf'));
   assert.match(text, /QA-KIT-SAMPLE-PDF/);
@@ -84,16 +77,6 @@ test('assertPdfMatches accepts RegExp from scenario', async () => {
 
 test('assertStringsContain reports missing', () => {
   assert.throws(() => assertStringsContain('hello', ['hello', 'missing-token']), /missing-token/);
-});
-
-test('readExcelSummary demo headers', async () => {
-  const summary = await readExcelSummary(fixturePath('excel', 'sample-headers.xlsx'));
-  assert.deepEqual(summary.headers, ['ColA', 'ColB', 'ColC']);
-  assert.ok(summary.sheetNames.length >= 1);
-});
-
-test('assertExcelHeaders demo', async () => {
-  await assertExcelHeaders(fixturePath('excel', 'sample-headers.xlsx'), ['ColA', 'ColB']);
 });
 
 test('assertDownloadedEnvelope minBytes', () => {
