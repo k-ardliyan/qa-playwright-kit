@@ -42,7 +42,7 @@ Coordinates the evidence-driven QA lifecycle:
 When driving the semantic workflow via `workflow_run`:
 1. **Launch:** Call `qa-playwright-kit:workflow_run({ requirementPath, orchestrationMode: "automatic" })`.
 2. **Model Handoff (Plan Missing):** If paused at `model` (`planner-required`), write `specs/<feature>-test-plan.md` per Planner instructions, verify via `validate_plan`, then resume immediately: `workflow_run({ requirementPath, resume: true, runId })`.
-3. **Generate Handoff (Spec Missing):** If paused at `generate` (`awaiting-generator`), write `tests/<feature>[-<role>].spec.ts` per Generator instructions, verify via `validate_generated_tests`, then resume immediately: `workflow_run({ requirementPath, resume: true, runId })`.
+3. **Generate Handoff (Spec Missing):** If paused at `generate` (`awaiting-generator`), write `tests/<feature>[-<role>].spec.ts` per Generator instructions, verify via `validate_generated_tests`, then resume immediately: `workflow_run({ requirementPath, resume: true, runId })`. Dual path: the AI-agent (Hermes) path is default & recommended; without an AI agent the manual path is first-class — follow the pause's `nextRequiredAction` (target paths + conventions + resume command).
 4. **Validate & QA Review:** When finished with `qa-decision-required`, present the summary, instruct opening `npm run dashboard`, and record decision via `archive_report`.
 
 #### Natural Language Chat Intent Routing
@@ -94,7 +94,7 @@ When QA chats naturally in Hermes:
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `health_check`, `pipeline_status`, `workflow_run`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `synthesize_requirement`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `archive_report`, `generate_page_object`, `record_ai_note`, `set_test_note`
+- `qa-playwright-kit`: `health_check`, `pipeline_status`, `workflow_run`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `synthesize_requirement`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `archive_report`, `generate_page_object`, `record_ai_note`, `set_test_note`
 - `playwright-test`: `run_tests`
 - `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`; see root [`AGENTS.md`](../AGENTS.md)
 
@@ -235,7 +235,7 @@ Diagnoses and repairs failing tests using structured failure payloads.
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `get_test_failures`, `validate_generated_tests`, `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `list_test_fixtures`, `trace_requirement`
+- `qa-playwright-kit`: `get_test_failures`, `validate_generated_tests`, `inspect_file`, `extract_pdf_text`, `list_test_fixtures`, `trace_requirement`
 - `playwright-test`: `run_tests`
 - `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`; see root [`AGENTS.md`](../AGENTS.md)
 

@@ -10,6 +10,7 @@
 npm install
 npm run setup
 npm run setup:check && npm run health:check
+# verifikasi install tanpa app: npm test (suite demo → custom-dashboard.html)
 # ganti kredensial nanti: npm run env:edit
 # refresh session: npm run auth:setup
 # OTP/CAPTCHA di browser: npm run auth:setup:headed
@@ -33,6 +34,9 @@ npm run setup:check && npm run health:check
 # (catalog mode: requirements/auth/login-<none|auto|otp-browser|otp-stdin|captcha-browser>.md)
 npm run qa:run
 # Hermes: Explore (snapshot) → Model → Challenge → Generate → Validate
+
+# Lihat hasil:
+npm run dashboard
 
 # Fitur lain:
 cp requirements/_TEMPLATE.md requirements/fitur-saya.md
@@ -164,7 +168,7 @@ generate_page_object (qa-playwright-kit) — featureName, pageName
 | `(@aria)` / `(@visual)` | ARIA snapshot / visual regression                       |
 | `(@download)`           | Download file → `downloadAndSave`                       |
 | `(@upload)`             | Upload fixture-first → `uploadFixture`                  |
-| `(@file-content)`       | PDF teks / Excel header (needle skenario)               |
+| `(@file-content)`       | PDF teks (needle skenario)                              |
 
 ---
 
@@ -173,7 +177,6 @@ generate_page_object (qa-playwright-kit) — featureName, pageName
 | Path                  | Isi                                                                                                                                    |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/data/pdf/`     | Sample PDF untuk upload / content assert                                                                                               |
-| `tests/data/excel/`   | Sample xlsx                                                                                                                            |
 | `tests/data/images/`  | Sample image upload                                                                                                                    |
 | `tests/data/invalid/` | Negative (empty / spoofed)                                                                                                             |
 | `tests/data/network/` | Contract partial untuk `@network-assert` (demo only)                                                                                   |

@@ -54,10 +54,8 @@ npm run health:check        # pastikan MCP server siap
 
 ## Playwright CLI vs MCP (Generator)
 
-- **playwright-cli** (preferred): token-efficient, attach via `npx playwright test --debug=cli tests/seed.spec.ts` lalu `npx playwright-cli attach tw-XXXX`. Replay langkah skenario dengan `snapshot`, `click`, `fill`, `press`, lalu pakai output TS sebagai basis spec. Jangan `open`/`goto` URL mentah — selalu attach lewat seed test agar bootstrap auth/fixture tetap benar.
-- **playwright MCP**: fallback exploratory/healing — `browser_snapshot`, `browser_click`, dll. via server `playwright`.
-
-Instal CLI: `npx playwright-cli --help` (pastikan command tersedia sebelum generate tes halaman baru).
+- **playwright-cli** (preferred saat tersedia): token-efficient, attach via `npx playwright test --debug=cli tests/seed.spec.ts` lalu `npx playwright-cli attach tw-XXXX`. Replay langkah skenario dengan `snapshot`, `click`, `fill`, `press`, lalu pakai output TS sebagai basis spec. Jangan `open`/`goto` URL mentah — selalu attach lewat seed test agar bootstrap auth/fixture tetap benar. CLI ini **tidak dibundel** framework — cek dulu keberadaannya (`npx playwright-cli --help`); jika tidak ada, lanjut dengan playwright MCP di bawah.
+- **playwright MCP**: fallback exploratory/healing (dan jalur utama bila playwright-cli tidak tersedia) — `browser_snapshot`, `browser_click`, dll. via server `playwright`.
 
 ---
 
@@ -84,8 +82,8 @@ Semua helper di atas diimpor dari `@/support/pw` (lihat `src/support/pw/files.ts
 **File / fixture rules:**
 
 - Upload **selalu** fixture-first dari `tests/data/` — **bukan** `@manual`, **bukan** headed OS picker pause.
-- Needle PDF / header Excel **milik skenario** (Hasil yang Diharapkan / Input Data) — jangan hardcode skema domain (judul/kode/nama tetap).
-- MCP inspect-time: `inspect_file`, `extract_pdf_text`, `read_excel_summary`, `list_test_fixtures`. Test committed tetap assert lewat helper, bukan memanggil MCP di runtime.
+- Needle PDF **milik skenario** (Hasil yang Diharapkan / Input Data) — jangan hardcode skema domain (judul/kode/nama tetap).
+- MCP inspect-time: `inspect_file`, `extract_pdf_text`, `list_test_fixtures`. Test committed tetap assert lewat helper, bukan memanggil MCP di runtime.
 - Demo file capabilities: `tests/demo/demo-file-capabilities.spec.ts` (`npx playwright test tests/demo/demo-file-capabilities.spec.ts --project=demo`)
 - Demo network assert: `tests/demo/demo-network-assert.spec.ts` (`npx playwright test tests/demo/demo-network-assert.spec.ts --project=demo`)
 
@@ -97,7 +95,7 @@ Semua helper di atas diimpor dari `@/support/pw` (lihat `src/support/pw/files.ts
 npx playwright test --update-snapshots tests/demo/demo-pw-power-extended.spec.ts
 ```
 
-> Catatan: `tests/demo/demo-visual.spec.ts` tidak ada di repo — contoh visual ada di `demo-pw-power-extended.spec.ts` (folder `-snapshots/` berisi baseline PNG).
+> Catatan: contoh visual ada di `demo-pw-power-extended.spec.ts` (folder `-snapshots/` berisi baseline PNG).
 
 Jangan update snapshot hanya untuk menutupi product bug.
 
@@ -247,7 +245,7 @@ Generate Playwright tests dari specs/nama-fitur-test-plan.md:
 
 1. Baca kolom Role dan Auth Context per scenario.
 2. Jika role-aware, buat satu file per role (tests/<fitur>-<role>.spec.ts).
-3. Untuk halaman baru: live verification via playwright-cli (preferred) atau browser_* MCP tools.
+3. Untuk halaman baru: live verification via playwright-cli (jika tersedia) atau browser_* MCP tools.
    Untuk halaman di selector-catalog: cek apakah `tests/pages/<PomName>.ts` sudah ada.
    - Ada → import via fixture, gunakan langsung.
    - Belum ada → panggil `generate_page_object` (qa-playwright-kit) untuk scaffold otomatis, lalu QA review dan register POM di `src/fixtures/project.fixture.ts` bila perlu.

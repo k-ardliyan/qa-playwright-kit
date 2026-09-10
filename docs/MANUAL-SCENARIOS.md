@@ -73,7 +73,7 @@ Jangan pakai `(@manual)` hanya karena "ribet" — biasanya bisa diotomasi dengan
 | Layout visual PDF (spasi, alignment, warna)         | `(@manual)`         | **Ya**           | Review mata manusia; bukan `assertPdfContains`               |
 | OS file-picker pause (headed)                       | —                   | **Anti-pattern** | Selalu fixture-first; tidak ada pause pipeline               |
 
-**Prinsip:** fixture-first + local-first. MCP tools (`inspect_file`, `extract_pdf_text`, `read_excel_summary`, `list_test_fixtures`, `browser_network_requests`) untuk **inspect-time** saja; test yang di-commit tetap assert lewat helper `@/support/pw`.
+**Prinsip:** fixture-first + local-first. MCP tools (`inspect_file`, `extract_pdf_text`, `list_test_fixtures`, `browser_network_requests`) untuk **inspect-time** saja; test yang di-commit tetap assert lewat helper `@/support/pw`.
 
 Kalau ragu, tanya maintainer framework dulu sebelum tandai `(@manual)`.
 

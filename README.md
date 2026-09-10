@@ -8,7 +8,7 @@
 
 Markdown requirement → test plan → Playwright test → self-heal → dashboard triage.
 
-Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 26 MCP tools · quality-gated CI
+Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MCP tools · quality-gated CI
 
 [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
@@ -53,7 +53,7 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 26 MC
 | **Self-healing**      | Test gagal → AI fix → re-snapshot → rerun               | Locator berubah? Framework memperbaiki sendiri     |
 | **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                |
 | **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi            |
-| **26 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                 |
+| **25 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                 |
 | **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                 |
 | **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                     |
 | **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                   |
@@ -87,6 +87,10 @@ npm run setup                 # generate clean .env → encrypt secrets
 **Setelah wizard selesai:**
 
 ```bash
+# 0) Verifikasi install tanpa app: jalankan suite demo bawaan
+#    (menghasilkan artifacts/reports/custom-dashboard.html + test-summary.json)
+npm test
+
 # 1) Wizard sudah menulis requirements/login.md + print prompt Hermes
 #    OTP/CAPTCHA: npm run auth:setup (atau auth:setup:headed)
 
@@ -95,6 +99,14 @@ npm run setup                 # generate clean .env → encrypt secrets
 
 # atau: npm run qa:run
 # atau: npm run qa:workflow   # pipeline semantic penuh (Explore→Model→Challenge→Generate→Validate) via driver produksi
+#      → tanpa AI agent: ikuti instruksi nextRequiredAction saat jeda di
+#        Generate (tulis spec manual), lalu resume dengan perintah yang tercetak
+```
+
+**Lihat hasil:**
+
+```bash
+npm run dashboard             # buka dashboard interaktif (overview/history/compare/triage)
 ```
 
 > Detail pasca-pipeline → [docs/REPORT-GUIDE.md](docs/REPORT-GUIDE.md)
@@ -113,27 +125,67 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 # REQ-001: Login dengan Email Valid
 
 ## Metadata
-- Tags: #smoke #ui
-- Prioritas: high
-- Auth state: unauthenticated
-- Halaman awal: /login
+
+- **Tags:** #smoke #ui
+- **Prioritas:** high
+- **Auth state:** unauthenticated
+- **Halaman awal:** /login
+- **Module:** auth
+- **Feature:** login-valid
 
 ## Kriteria Penerimaan
-- URL berubah ke /dashboard setelah login
-- Toast "Welcome" muncul
+
+- **AC-01:** URL berubah ke /dashboard setelah login berhasil.
+- **AC-02:** Toast "Welcome" muncul setelah login berhasil.
+- **AC-03:** Password salah menampilkan pesan error dan tetap di /login.
 
 ## Skenario Uji
 
 ### SC-01: Login berhasil (@success)
+
+- **Test ID:** `TC-001`
+- **Covers:** `AC-01`, `AC-02`
+- **Prioritas skenario:** `high`
+- **Layer terdampak:** `FE`
+
+**Input Data:**
+
+- email: credential:user.email
+- password: credential:user.password
+
+**Langkah:**
+
 1. Isi email valid + password benar
 2. Klik tombol Login
-**Hasil:** URL /dashboard, Toast "Welcome"
+
+**Hasil yang Diharapkan:**
+
+- URL /dashboard, Toast "Welcome" muncul
 
 ### SC-02: Login gagal (@failure)
+
+- **Test ID:** `TC-002`
+- **Covers:** `AC-03`
+- **Prioritas skenario:** `high`
+- **Layer terdampak:** `FE`
+
+**Input Data:**
+
+- email: credential:user.email
+- password: literal:WrongPassword123!
+
+**Langkah:**
+
 1. Isi email valid + password salah
 2. Klik tombol Login
-**Hasil:** Pesan error "Email atau password salah", tetap di /login
+
+**Hasil yang Diharapkan:**
+
+- Pesan error "Email atau password salah", tetap di /login
 ```
+
+> Contoh di atas adalah bentuk ringkas yang lolos validator. Kontrak lengkap
+> (Access Matrix, Prekondisi, checklist pra-simpan) ada di [_TEMPLATE.md](requirements/_TEMPLATE.md).
 
 Validasi: `npm run validate:requirement`
 
@@ -156,7 +208,7 @@ Contoh lengkap: [_GOOD_EXAMPLE.md](requirements/_GOOD_EXAMPLE.md) · [_BAD_EXAMP
 | `(@network-assert)`     | Live observe/assert payload + response          |
 | `(@upload)`             | Upload file via fixture (bukan OS picker)       |
 | `(@download)`           | Download file via fixture                       |
-| `(@file-content)`       | Assert isi PDF teks / header Excel              |
+| `(@file-content)`       | Assert isi PDF teks / file download             |
 | `(@aria)`               | Accessibility snapshot                          |
 | `(@visual)`             | Visual regression (`toHaveScreenshot`)          |
 | `(@hybrid)`             | Gabungan capability tags                        |

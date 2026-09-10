@@ -69,6 +69,7 @@ When driving the semantic workflow via the native `workflow_run` tool:
 3. **Generate Handoff (Spec Missing):** If `workflow_run` pauses at `generate` (`awaiting-generator`):
    - Consult Generator instructions (`.github/agents/generator.agent.md`), write `tests/<feature>[-<role>].spec.ts`, and verify with `validate_generated_tests`.
    - Resume immediately: `qa-playwright-kit:workflow_run({ requirementPath, resume: true, runId })`.
+   - **Dual path:** the AI-agent (Hermes) path is the default & recommended. Without an AI agent, this is still first-class: follow the `nextRequiredAction` of the pause (target paths + generator conventions + resume command) to write the spec manually, then resume.
 4. **Validate & QA Review:** When `workflow_run` completes Validate (`workflowStatus: "qa-decision-required"`):
    - Present the execution summary to QA.
    - Remind QA to inspect the interactive report (`npm run dashboard`).
@@ -138,7 +139,6 @@ List every tool explicitly by server:
   - `list_test_fixtures` (fixture-first upload paths under `tests/data/`)
   - `inspect_file` (envelope: kind/size/magic under `tests/data/` or `artifacts/test-results/`)
   - `extract_pdf_text` (raw PDF text only — match scenario tokens; no domain field schema)
-  - `read_excel_summary` (headers/sample rows — compare to scenario Expected Result)
 - **playwright-test**
   - `run_tests` (and related test-runner tools from this server)
 - **playwright** (`@playwright/mcp` via `tools/scripts/playwright-mcp-launch.ts`)
@@ -249,7 +249,7 @@ Applies when the run hits auth failures — classification `auth`, `failureSourc
 ### Phase 4: Heal
 
 - Call `get_test_failures` on **qa-playwright-kit** to retrieve structured failure data.
-- Use `prioritizeFailures()` to rank failures by fix likelihood (known patterns first, shared fixtures prioritized, healability order respected).
+- Rank failures by fix likelihood from the payload itself: known error patterns first, shared fixtures prioritized, healability order respected (auth → `fix-environment`, never healed — see feedback router in `src/agents/integration/feedback-router.ts`; max 3 loops enforced at runtime in `stages/validate.ts`).
 - Use `tracePath` and `screenshotPath` from failure payload when present.
 - **Before healing any `locator` failure:** check the trace/screenshot final URL. If the page is the login page (session died mid-run), reclassify as `auth` and apply the Auth Recovery Protocol above instead of patching locators.
 - For each prioritized failure: lookup known pattern → apply or diagnose → fix → store outcome.

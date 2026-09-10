@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Onboarding Honesty & Excel Tool Removal — 2026-09-10
+
+- **exceljs dihapus total + tool `read_excel_summary` dihapus (26 → 25 tools):** Hermes agent sudah bisa membaca Excel secara native, jadi framework tidak perlu parser xlsx sendiri. Dihapus: `tools/mcp/src/tools/read-excel-summary.ts`, helper `readExcelSummary`/`assertExcelHeaders` di `file-content-core.ts` (SoT + twin), registry entry, fixture `tests/data/excel/`, dan semua penyebutan di docs/tool lists. Rantai transitive exceljs-only (uuid, archiver, glob@7, minimatch@3/5, dll.) ikut hilang dari kedua lockfile.
+- **Dependency vuln zero:** `npm audit fix` memperbaiki `brace-expansion` (high, DoS) di rantai eslint; audit root dan tools/mcp kini bersih.
+- **Jalur manual tanpa AI first-class:** pause `awaiting-generator` kini menyertakan instruksi manual lengkap (path target dari `requiredOutputPaths`, konvensi Generator, verifikasi, resume command) via `buildManualResumeInstruction`; driver CLI mencetak blok panduan dua jalur (AI Hermes default & direkomendasikan; manual sebagai alternatif) ke stderr; docs agent (AGENTS.md, .github/AGENTS.md, SKILL.md, qa-run-prompt) menyebarkan kontrak dual-path.
+- **Wizard & verify-setup sadar Hermes:** check non-kritis `hermes` di `verify-setup.ts` (warn + hint install link ATAU jalur manual), branch "Hermes tidak terdeteksi" di `printSummary` wizard yang tetap menonjolkan jalur AI.
+- **Dashboard selalu ter-update dari semantic run:** `workflow-run.ts` kini menjalankan multi-reporter (`--reporter=json,outputFile=... --reporter=custom-reporter.ts`) sehingga CustomReporter menulis `custom-dashboard.html` + `test-summary.json`; `REQUIREMENT_PATH` diteruskan agar `analysisVerdict` benar. Teks klaim lokasi report di `qa-run` dan wizard template diperbaiki (arah ke `npm run dashboard`).
+- **Preflight qa:run menolak env placeholder:** kredensial `*_EMAIL|USERNAME|PHONE|PASSWORD` yang masih placeholder (`your_password_here`, `test@example.com`, …) ditolak di preflight dengan arahan `env:edit`/wizard — gagal di titik yang benar, bukan di auth:setup.
+- **Analyze seam honest minimum:** adapter Validate kini merekam insight per-skenario GAGAL (root-cause, evidence trace/screenshot bila ada) selain run-note; `unresolvedFailures` nyata masuk pipeline report; `runInsightsRecorded` = jumlah benar-benar tersimpan (gate bukti tetap jujur).
+- **Legacy trio dihapus:** `src/agents/planner/`, `src/agents/generator/`, `src/agents/healer/`, `src/executor/` (sharding-engine, multi-browser) tidak punya pemakai production; ~22 test property/unit yang terikat mereka dihapus, `evidence-healer`/`failure-classifier-integration` tetap jalan lewat shared module; `AGENTS.md` Phase 4 kini merujuk feedback router + max-3-cycles runtime.
+- **Dashboard browser suite diperluas:** seed kini memuat `analysisVerdict`, `aiInsights`, notes sidecar (dengan runId yang cocok), dan analysis declaration; spec baru `dashboard-panels.spec.ts` menguji analysis banner, AI Run Insights panel, QualityTrend, save modal → `/api/archive/save` (APPROVE lolos gate, APPROVE tanpa bukti ditolak), dan SSE `/events`.
+- **Docs:** `{ROLE}_LOGIN_URL_PATH`/`{ROLE}_SUCCESS_URL_PATH` ditambahkan ke semua `config/environments/*.env.example` (per-role paths kini terdokumentasi); skema global lama di CHANGELOG ditandai superseded; contoh requirement README dibuat compliant dengan `_TEMPLATE.md` (Module wajib, AC-XX, Test ID/Covers, provenance Input Data); quickstart README/CHEATSHEET menambahkan `npm test` (verifikasi tanpa app) dan `npm run dashboard`; `.nvmrc` → `20.19`; referensi demo usang & playwright-cli di GUIDE dikoreksi.
+
 ### Comprehensive Architecture & Dead-Code Refactoring — 2026-09-09
 
 - **Phase 0 (Bug Drift):**
@@ -102,6 +115,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **`env:edit` Per-Role Paths:** Aksi edit role dan tambah role di `npm run env:edit` kini menyertakan input path login & redirect per role.
 
 ### Login & success redirect paths, one-shot Hermes prompt & setup overhaul — 2026-09-02
+
+> **Superseded:** skema global `AUTH_LOGIN_URL_PATH` / `AUTH_SUCCESS_URL_PATH` pada entri di bawah
+> telah digantikan oleh skema per-role `{ROLE}_LOGIN_URL_PATH` / `{ROLE}_SUCCESS_URL_PATH`
+> (lihat entri "Per-role login & redirect paths" di atas). Fallback global masih dibaca
+> `auth-helpers.ts`, tapi skema per-role adalah yang kanonis.
 
 - **Prompt login & redirect di wizard (Opsi C):** Step 3 wizard kini menanyakan path halaman login (`AUTH_LOGIN_URL_PATH`, default `/login`) dan path redirect setelah login sukses (`AUTH_SUCCESS_URL_PATH`, default `/dashboard`) dengan prefill, validasi leading-slash, dan normalisasi URL-ke-pathname (`normalizeAppPath`). Nilai masuk ke env bersih section "URL Aplikasi", `src/support/auth.setup.ts`, `requirements/login.md`, pratinjau, dan summary.
 - **Menu env:edit:** `npm run env:edit` menu "Edit BASE_URL / browser / OTP-CAPTCHA" kini menyertakan field `AUTH_LOGIN_URL_PATH` dan `AUTH_SUCCESS_URL_PATH`; tabel kredensial menampilkan keduanya.

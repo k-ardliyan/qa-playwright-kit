@@ -79,6 +79,7 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 3. **Generate Handoff (Spec Missing):** If `workflow_run` returns `workflowStage: "generate"` with `handoffType: "awaiting-generator"`:
    - Act as the **Generator**: write `tests/<feature>[-<role>].spec.ts` per Generator guidelines and verify with `validate_generated_tests`.
    - Resume immediately: `qa-playwright-kit:workflow_run({ requirementPath, resume: true, runId })`.
+   - Dual path: the AI-agent (Hermes) path is default & recommended; without an AI agent the manual path is first-class — follow the pause's `nextRequiredAction` (target paths + conventions + resume command).
 4. **Validate & QA Review:** When `workflow_run` completes Validate (`workflowStatus: "qa-decision-required"`):
    - Present the execution summary to QA.
    - Remind QA to open `npm run dashboard`.
