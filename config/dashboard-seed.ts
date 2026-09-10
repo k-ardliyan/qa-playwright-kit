@@ -1,6 +1,7 @@
 import type { FullConfig } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { generateRunId } from '../src/agents/reporter/report-archive';
 
 /**
  * Seed the isolated QA_REPORT_DIR with deterministic report artifacts so the
@@ -48,6 +49,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   });
 
   // Latest run (not yet archived) — appears as the LatestRunCard.
+  // analysisVerdict/Verified exercise the analysis banner; aiInsights feeds the
+  // deterministic side of the AI Run Insights panel.
   const latestSummary = {
     total: 2,
     passed: 1,
@@ -57,6 +60,12 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     timestamp: '2026-09-08T18:41:43.575Z',
     reportMode: 'general',
     rolesInScope: [],
+    analysisVerdict: 'complete',
+    analysisVerified: true,
+    aiInsights: ['Pass rate stabil 50% pada run terbaru — periksa skenario gagal SC-L2.'],
+    // Reporter Analyze declaration consumed by the archive APPROVE gate —
+    // runInsightsRecorded must equal the sidecar runInsights length (1).
+    analysis: { completed: true, runInsightsRecorded: 1, passedScenariosReviewed: 1 },
     testCases: [
       testCase('SC-L1', 'Login with valid credentials', 'passed', 'user'),
       testCase('SC-L2', 'Login with wrong password', 'failed', 'user'),
@@ -73,6 +82,39 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   fs.writeFileSync(
     path.join(reportDir, 'test-summary.json'),
     JSON.stringify(latestSummary, null, 2),
+  );
+
+  // Notes sidecar — agent-authored run insight for the AI Run Insights panel.
+  // Shape must satisfy parseTestNotesFile (version/updatedAt/notes required).
+  // runId is derived with LOCAL time from summary.timestamp by generateRunId
+  // (2026-09-08T18:41:43Z → local 2026-09-09 01:41 in Asia/Jakarta) and the
+  // APPROVE gate requires sidecar.runId === that value, so compute it here
+  // instead of hardcoding.
+  const sidecarRunId = generateRunId('2026-09-08T18:41:43.575Z');
+  fs.writeFileSync(
+    path.join(reportDir, 'test-notes.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        runId: sidecarRunId,
+        updatedAt: '2026-09-08T18:45:00.000Z',
+        notes: {},
+        runInsights: [
+          {
+            text: 'Kegagalan SC-L2 berulang di dua run terakhir — indikasi seed data atau regressi UI login.',
+            source: 'reporter',
+            kind: 'stability',
+            status: 'observed',
+            priority: 'high',
+            confidence: 'high',
+            at: '2026-09-08T18:45:00.000Z',
+            affected: { tests: ['SC-L2'], modules: ['auth'] },
+          },
+        ],
+      },
+      null,
+      2,
+    ),
   );
 
   fs.writeFileSync(
