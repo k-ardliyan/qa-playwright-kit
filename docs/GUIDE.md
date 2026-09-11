@@ -29,7 +29,8 @@ Prasyarat: Node.js >= 20.19.0 dan Git terpasang di sistem.
 npm install                 # install dependencies
 npm run setup               # generate clean .env → encrypt secrets + login.md
 npm run setup:check         # verify setup setelah selesai
-npm run health:check        # pastikan MCP server siap
+npm run health:check        # cek MCP + env (sesi expired = warning)
+npm run health:check:strict # pra-run: sesi expired = gagal
 ```
 
 > **Setup error?** Cek [TROUBLESHOOTING.md](TROUBLESHOOTING.md) untuk 10 error paling umum + solusinya.
@@ -119,6 +120,54 @@ Contoh requirement login per challenge mode:
 - Auto-detect: `requirements/auth/login-auto.md`
 
 CI shard merge: set `PW_BLOB=1` (nightly; PR e2e saat `shardCount` > 1) → `artifacts/blob-report/` → `npx playwright merge-reports`.
+
+---
+
+## Jalur Tercepat: URL → Test Pertama (< 5 menit)
+
+Ini jalur yang paling sering dipakai QA. Semua durasi di bawah **diukur nyata** pada mesin dev (Windows, Node 22) — bukan estimasi.
+
+```bash
+# 0) Sekali per mesin (lewati kalau sudah pernah)
+npm install && npm run setup          # wizard: project → APP_ENV → BASE_URL → kredensial
+
+# 1) Siapkan sesi login (hanya jika halaman butuh login)
+npm run auth:setup                    # OTP/CAPTCHA: npm run auth:setup:headed
+npm run health:check:strict           # pra-run: sesi expired = fail, bukan warning
+
+# 2) Minta Hermes buatkan requirement dari halaman live
+#    (paste ke chat Hermes)
+#    "Buatkan test untuk halaman https://<host>/<path> (role: <role>) — module: <module>"
+```
+
+Hermes menjalankan **Phase -0.5** (UI Discovery & Requirement Synthesis):
+`snapshot_page` → `synthesize_requirement` → `validate_requirement` → tampilkan skenario aktif vs backlog.
+
+```bash
+# 3) Review requirement hasil sintesis, lalu jalankan pipeline penuh
+npm run qa:workflow                   # Explore → Model → Challenge → Generate → Validate
+# atau via Hermes: "Jalankan pipeline untuk requirements/<fitur>.md"
+
+# 4) Lihat hasil
+npm run dashboard
+```
+
+**Waktu terukur (referensi mesin dev):**
+
+| Langkah                         | Perintah                        | Durasi nyata    |
+| ------------------------------- | ------------------------------- | --------------- |
+| Validasi format requirement     | `validate-requirement`          | **~1,1 s**      |
+| Kompilasi contract requirement  | `compile_requirement` (MCP)     | **~1,0 s**      |
+| Snapshot halaman + katalog      | `snapshot_page`                 | ~5–15 s/halaman |
+| Pipeline penuh (1 spec, 2 test) | `qa:workflow` + resume Generate | ~2–4 menit      |
+
+> **Yang membuat jalur ini tersendat** (dan yang harus dihindari):
+>
+> - **Sesi expired** → jangan heal locator; `npm run auth:setup` lalu ulangi. Cek dulu dengan `npm run health:check:strict`.
+> - **Generate berhenti (`awaiting-generator`)** → itu memang by design: runtime tidak punya generator internal. Jalankan Generator (Hermes) atau tulis spec manual, lalu `--resume`.
+> - **Halaman baru tanpa catalog** → Explore berstatus `required`; jalankan `snapshot_page` dulu (Hermes melakukannya otomatis saat pipeline).
+
+Halaman yang sudah punya `artifacts/selector-catalog/<fitur>/` yang hash-nya masih cocok akan **melewati Explore live** (policy `satisfied`) — itu jalur tercepat untuk regresi berulang.
 
 ---
 

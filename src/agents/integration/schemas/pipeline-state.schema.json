@@ -35,7 +35,9 @@
         "schemaVersion": { "const": "qa.workflow/v1" },
         "mode": { "enum": ["semantic-v1", "physical-compat"] },
         "currentStage": { "enum": ["explore", "model", "challenge", "generate", "validate", null] },
-        "currentSubstage": { "enum": ["execute", "heal", "report-analyze", "qa-review"] },
+        "currentSubstage": {
+          "enum": ["execute", "needs-heal", "heal", "report-analyze", "qa-review"]
+        },
         "stages": {
           "type": "object",
           "additionalProperties": {

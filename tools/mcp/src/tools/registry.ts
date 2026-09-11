@@ -216,6 +216,11 @@ export const TOOL_REGISTRY: ToolEntry[] = [
           items: { type: 'string' },
           description: 'Only run scenarios for these roles (role-aware requirements).',
         },
+        timeoutMs: {
+          type: 'number',
+          description:
+            'Driver timeout in milliseconds (default 600000, range 10000-3600000). Raise for long suites; env override: QA_WORKFLOW_TIMEOUT_MS.',
+        },
       },
       required: ['requirementPath'],
     },

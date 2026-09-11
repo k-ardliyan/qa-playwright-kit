@@ -238,12 +238,13 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 
 ### Discovery & Setup
 
-| Command                | Fungsi                                 |
-| ---------------------- | -------------------------------------- |
-| `npm run setup`        | Setup interaktif (recommended)         |
-| `npm run setup:check`  | Verifikasi setup lokal                 |
-| `npm run health:check` | Pre-flight pipeline (env + MCP + auth) |
-| `npm run mcp:config`   | Generate MCP config semua platform     |
+| Command                       | Fungsi                                    |
+| ----------------------------- | ----------------------------------------- |
+| `npm run setup`               | Setup interaktif (recommended)            |
+| `npm run setup:check`         | Verifikasi setup lokal                    |
+| `npm run health:check`        | Cek MCP + env (sesi expired = warning)    |
+| `npm run health:check:strict` | Pre-flight pra-run (sesi expired = gagal) |
+| `npm run mcp:config`          | Generate MCP config semua platform        |
 
 ### Test & Quality
 

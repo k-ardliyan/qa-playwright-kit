@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### State honesty, report coverage & gate separation — 2026-09-11
+
+- **Report semantic kini terisi (bukan tabel kosong):** adapter Validate sebelumnya membuang hasil `trace_requirement` dan mengirim `scenarios: []` + `scenariosPlanned` dari total test. Kini `extractReportCoverageFromTrace()` memetakan graph traceability → baris coverage report, `scenariosPlanned` memakai jumlah skenario requirement, dan `healedCount` diambil dari metrik trace (0 selama belum ada heal pass nyata). Trace gagal tidak membunuh Validate — fallback kosong, tidak pernah mengarang baris.
+- **`failureSource` tidak lagi di-hardcode `'app'`:** `unresolvedFailures` mempertahankan klasifikasi dari payload failure bila termasuk enum kontrak; jika tidak ada, field dibiarkan kosong alih-alih menuduh aplikasi.
+- **Substage `needs-heal` vs `heal`:**
+  - Adapter Validate kini mengembalikan `needs-heal` saat ada unresolved failure — sebelumnya `heal`, yang membuat runtime menandai phase fisik `heal` **selesai** padahal tidak ada healer yang jalan. `heal` kini hanya sah bila heal pass nyata terjadi.
+  - `ValidateResult`/`ValidateAdapterResult`/`WorkflowEnvelope.currentSubstage`/validator state/`pipeline-state.schema.json` diperluas dengan `needs-heal`.
+  - `stages/validate.ts` juga menyinkronkan `state.currentPhase` ke substage yang benar-benar berjalan (sebelumnya bisa tertinggal di `generate` walau `report` sudah selesai).
+- **Gate kode vs kesiapan environment dipisah (P0-4):** `healthCheck({ strictAuth })` — default strict (kontrak pre-flight MCP: sesi expired = fail). CLI `npm run health:check` kini non-strict (sesi expired = warning, exit 0) sehingga gate kualitas kode tidak pernah merah karena sesi login lokal; `npm run health:check:strict` mengembalikan kontrak pra-run. Hint `auth_storage` ditambahkan di CLI.
+- **CI tidak lagi auto-`APPROVE`:** langkah `Auto-archive if all tests pass` di `.github/workflows/e2e.yml` diganti menjadi langkah ringkasan; arsip adalah milestone pilihan QA (prinsip "Archive = milestone, not log") — CI tidak pernah mencatat keputusan QA. Pengesahan manual: `npm run dashboard` atau `npm run archive:save`.
+- **Bug nyata ditemukan & diperbaiki — reporter ganda mematikan CustomReporter:** driver semantic memakai `--reporter=<custom>` + `--reporter=json`; Playwright **menimpa** (bukan menambah) sehingga CustomReporter tidak pernah jalan dan `test-summary.json`/`custom-dashboard.html` **tidak diperbarui** oleh run semantic (klaim CHANGELOG 2026-09-10 belum terbukti). Kini memakai `--add-reporter=json`; terverifikasi live: reporter custom + JSON jalan bersamaan, summary segar dengan `scenarioId` benar. Guard test `tools/scripts/__tests__/workflow-run-reporter.test.ts` mengunci kontrak ini.
+- **`workflow_run` timeout parametrik:** arg MCP `timeoutMs` (default 600000, rentang 10000–3600000) + override env `QA_WORKFLOW_TIMEOUT_MS`; nilai di luar rentang jatuh ke default (tidak pernah unbounded). Terdaftar di registry + fixture inventory, dengan test resolusi.
+- **Guardrail baru:** `extractReportCoverageFromTrace` (pemetaan + input rusak), dua test state-honesty (`needs-heal` tidak menandai heal/report selesai; `qa-review` menandai ketiganya lengkap), dua test kontrak strictness health check, dan test resolusi timeout driver.
+
 ### Onboarding Honesty & Excel Tool Removal — 2026-09-10
 
 - **exceljs dihapus total + tool `read_excel_summary` dihapus (26 → 25 tools):** Hermes agent sudah bisa membaca Excel secara native, jadi framework tidak perlu parser xlsx sendiri. Dihapus: `tools/mcp/src/tools/read-excel-summary.ts`, helper `readExcelSummary`/`assertExcelHeaders` di `file-content-core.ts` (SoT + twin), registry entry, fixture `tests/data/excel/`, dan semua penyebutan di docs/tool lists. Rantai transitive exceljs-only (uuid, archiver, glob@7, minimatch@3/5, dll.) ikut hilang dari kedua lockfile.

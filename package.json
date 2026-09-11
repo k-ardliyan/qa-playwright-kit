@@ -73,6 +73,7 @@
     "manual:check": "tsx tools/scripts/manual-check.ts",
     "codegen": "tsx tools/scripts/codegen.ts",
     "health:check": "tsx tools/scripts/health-check-cli.ts",
+    "health:check:strict": "tsx tools/scripts/health-check-cli.ts --strict",
     "archive:save": "tsx src/cli/archive-cli.ts save",
     "archive:view": "tsx src/cli/archive-cli.ts view",
     "archive:delete": "tsx src/cli/archive-cli.ts delete",

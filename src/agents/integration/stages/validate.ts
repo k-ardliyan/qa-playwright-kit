@@ -209,15 +209,12 @@ export async function runValidateStage(
     state.status = 'paused'; // WAITING for an explicit QA decision
     // PC-04: only mark physical phases completed when their substeps REALLY
     // ran. The validate adapter reports which substages executed.
+    // `needs-heal` proves Execute ran but NOT Heal — a failing run routed back
+    // to Generate must not record `heal` as completed.
     const completedPhysical: PipelinePhase[] = [];
-    if (
-      result.substage === 'execute' ||
-      result.substage === 'heal' ||
-      result.substage === 'report-analyze' ||
-      result.substage === 'qa-review'
-    ) {
-      completedPhysical.push('execute');
-    }
+    // Execute ran whenever Validate returned an adapter result (all substage
+    // values except the early-exit paths prove the runner executed).
+    completedPhysical.push('execute');
     if (
       result.substage === 'heal' ||
       result.substage === 'report-analyze' ||
@@ -229,6 +226,11 @@ export async function runValidateStage(
       completedPhysical.push('report');
     }
     state.completedPhases = [...new Set([...state.completedPhases, ...completedPhysical])];
+    // Keep the physical pointer aligned with the substage that actually ran —
+    // `currentPhase` must never stay on an earlier phase once Validate acted.
+    if (completedPhysical.length > 0) {
+      state.currentPhase = completedPhysical[completedPhysical.length - 1];
+    }
 
     // Task 6.1: route unresolved failures to the smallest responsible stage
     // and persist the decision (bounded by loopCounts).

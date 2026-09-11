@@ -9,6 +9,7 @@ import { test, expect } from '@playwright/test';
 import {
   workflowRun,
   validateBoundaryPaths,
+  resolveDriverTimeoutMs,
   type WorkflowRunArgs,
 } from '../../../tools/mcp/src/tools/workflow-run';
 import * as path from 'node:path';
@@ -110,5 +111,43 @@ test.describe('workflow_run boundary hardening', () => {
     const out = workflowRun({} as WorkflowRunArgs);
     expect(out.status).toBe('error');
     expect(out.errors?.[0]?.code).toBe('INVALID_INPUT');
+  });
+});
+
+test.describe('workflow_run driver timeout resolution', () => {
+  test('defaults to 10 minutes when nothing is configured', () => {
+    const prev = process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    delete process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    expect(resolveDriverTimeoutMs(undefined)).toBe(600_000);
+    if (prev === undefined) delete process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    else process.env['QA_WORKFLOW_TIMEOUT_MS'] = prev;
+  });
+
+  test('accepts an explicit in-range value and floors it', () => {
+    expect(resolveDriverTimeoutMs(900_000)).toBe(900_000);
+    expect(resolveDriverTimeoutMs(120_000.7)).toBe(120_000);
+  });
+
+  test('rejects out-of-range or non-numeric values (falls back, never unbounded)', () => {
+    const prev = process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    delete process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    expect(resolveDriverTimeoutMs(1_000)).toBe(600_000); // below min
+    expect(resolveDriverTimeoutMs(99_999_999)).toBe(600_000); // above max
+    expect(resolveDriverTimeoutMs(Number.NaN)).toBe(600_000);
+    expect(resolveDriverTimeoutMs('soon')).toBe(600_000);
+    if (prev === undefined) delete process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    else process.env['QA_WORKFLOW_TIMEOUT_MS'] = prev;
+  });
+
+  test('environment override applies only inside the allowed range', () => {
+    const prev = process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    process.env['QA_WORKFLOW_TIMEOUT_MS'] = '1800000';
+    expect(resolveDriverTimeoutMs(undefined)).toBe(1_800_000);
+
+    process.env['QA_WORKFLOW_TIMEOUT_MS'] = '1';
+    expect(resolveDriverTimeoutMs(undefined)).toBe(600_000);
+
+    if (prev === undefined) delete process.env['QA_WORKFLOW_TIMEOUT_MS'];
+    else process.env['QA_WORKFLOW_TIMEOUT_MS'] = prev;
   });
 });

@@ -93,7 +93,7 @@ export interface ValidateAdapterInput {
 
 export interface ValidateAdapterResult {
   unresolvedFailures: number;
-  substage: 'execute' | 'heal' | 'report-analyze' | 'qa-review';
+  substage: 'execute' | 'needs-heal' | 'heal' | 'report-analyze' | 'qa-review';
   /** Report(Analyze) proof; QA review is legal only when this is true. */
   analysisCompleted?: boolean;
   analysisVerified?: boolean;

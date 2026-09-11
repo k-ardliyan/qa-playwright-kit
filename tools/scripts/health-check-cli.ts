@@ -43,12 +43,21 @@ const HINTS: Record<string, { hint: string; docs: string; severity: 'fixable' | 
     docs: 'docs/GUIDE.md#troubleshooting-health-check',
     severity: 'fixable',
   },
+  auth_storage: {
+    hint: 'Sesi login expired/kosong. Jalankan: npm run auth:setup (login UI asli). Jalur pipeline yang butuh sesi: npm run health:check:strict',
+    docs: 'docs/TROUBLESHOOTING.md',
+    severity: 'fixable',
+  },
 };
 
 async function main(): Promise<void> {
   await withFriendlyErrors(async () => {
     bootstrapMcpEnvironment(__dirname);
-    const output = healthCheck();
+    // Code-quality gate default: an expired local session is a readiness
+    // warning, not a code failure. `--strict` restores the pre-run contract
+    // (expired session = fail) for CI pre-flight or before an authenticated run.
+    const strictAuth = process.argv.includes('--strict');
+    const output = healthCheck({ strictAuth });
 
     let failCount = 0;
     let warnCount = 0;

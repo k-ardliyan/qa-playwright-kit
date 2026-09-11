@@ -119,25 +119,16 @@ jobs:
             npx playwright test --project=chromium --shard=${{ matrix.shardIndex }}/$TOTAL --grep-invert @demo
           fi
 
-      - name: Auto-archive if all tests pass
+      - name: Summarize run (archive is opt-in — QA saves milestones, CI never auto-approves)
         if: success() && steps.shard.outputs.skip != 'true'
         run: |
           SUMMARY_FILE="artifacts/reports/test-summary.json"
           if [ -f "$SUMMARY_FILE" ]; then
             # Real numbers from the real reporter — echoed for the log, no silent guessing.
             node -e "const s=require('./$SUMMARY_FILE'); console.log('Summary: total='+s.total, 'passed='+s.passed, 'failed='+s.failed, 'skipped='+s.skipped, 'passRate='+s.passRate+'%')"
-            PASS_RATE=$(node -e "const s=require('./$SUMMARY_FILE'); console.log(s.passRate||0)")
-            TOTAL=$(node -e "const s=require('./$SUMMARY_FILE'); console.log(s.total||0)")
-            if [ "$TOTAL" = "0" ]; then
-              echo "::warning::test-summary.json contains total=0 — reporter produced an empty run. NOT auto-archiving."
-            elif [ "$PASS_RATE" = "100" ]; then
-              echo "All tests passed (100%). Auto-archiving..."
-              npm run archive:save -- --decision=APPROVE --notes="CI auto-pass (100%)" --yes || true
-            else
-              echo "Pass rate: ${PASS_RATE}%. Skipping auto-archive (not 100%)."
-            fi
+            echo "::notice::Archive is a QA-selected milestone, not an automatic log. CI never records a QA decision — approve/save from the dashboard (npm run dashboard) or: npm run archive:save"
           else
-            echo "::warning::No test-summary.json found at $SUMMARY_FILE — custom reporter did not run or wrote elsewhere. Auto-archive skipped."
+            echo "::warning::No test-summary.json found at $SUMMARY_FILE — custom reporter did not run or wrote elsewhere."
           fi
 
       - name: Upload blob report

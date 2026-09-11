@@ -139,7 +139,9 @@ npm run auth:setup
 npm run auth:setup:headed
 ```
 
-Jika `health_check` / `npm run health:check` melaporkan **`auth_storage` warn** (`.auth/{APP_ENV}/` missing atau kosong), jalankan `npm run auth:setup` untuk environment aktif. Tanpa file storage state, test authenticated akan gagal di auth setup / empty session.
+Jika `health_check` / `npm run health:check` melaporkan **`auth_storage` warn** (`.auth/{APP_ENV}/` missing, kosong, atau expired), jalankan `npm run auth:setup` untuk environment aktif. Tanpa file storage state, test authenticated akan gagal di auth setup / empty session.
+
+> **Catatan gate (sejak 2026-09-11):** `npm run health:check` adalah gate kualitas kode — sesi expired hanya **warning** (exit 0) supaya gate tidak merah karena sesi login lokal. Untuk pra-run pipeline yang butuh sesi hidup, pakai `npm run health:check:strict` (sesi expired = **gagal**).
 
 Jika `auth_storage` melaporkan **EXPIRED** (semua cookie sesi kedaluwarsa) → `npm run auth:setup`. Jika status **unknown** (sesi hidup di localStorage, tidak ada TTL cookie di disk) → verifikasi live dengan `npm run auth:verify` (navigate ke success URL per role; redirect ke login = sesi mati).
 

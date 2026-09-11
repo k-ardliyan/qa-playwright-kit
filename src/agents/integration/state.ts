@@ -39,7 +39,13 @@ const WORKFLOW_STATUSES: WorkflowStatus[] = [
   'blocked',
   'qa-decision-required',
 ];
-const WORKFLOW_SUBSTAGES = ['execute', 'heal', 'report-analyze', 'qa-review'] as const;
+const WORKFLOW_SUBSTAGES = [
+  'execute',
+  'needs-heal',
+  'heal',
+  'report-analyze',
+  'qa-review',
+] as const;
 const WORKFLOW_LOOP_TARGETS = [
   'explore',
   'model',

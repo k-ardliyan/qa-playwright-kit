@@ -93,13 +93,12 @@ const TOOLS = {
     }
     fs.mkdirSync(args.resultsDir, { recursive: true });
     const resultsJsonPath = path.join(args.resultsDir, 'results.json');
-    // Multi-reporter: JSON (via PLAYWRIGHT_JSON_OUTPUT_FILE — the inline
-    // `--reporter=json,outputFile=…` CLI syntax is unreliable with --output)
-    // feeds the Validate adapter, while CustomReporter also writes the shared
-    // artifacts/reports/custom-dashboard.html + test-summary.json so a
-    // semantic run updates the dashboard like any other run. Order matters on
-    // the Playwright CLI: `--reporter=json` LAST silently disables a custom
-    // reporter appended after it — keep custom FIRST, then `--reporter=json`.
+    // Multi-reporter: CustomReporter must stay attached so the run updates
+    // artifacts/reports/{custom-dashboard.html,test-summary.json} like any
+    // other run. Playwright's `--reporter` OVERWRITES instead of appending
+    // (repeating the flag keeps only the last one), so the JSON reporter is
+    // added with `--add-reporter` on top of the custom one. Order matters:
+    // custom FIRST, `--add-reporter=json` second.
     const customReporterPath = path.join(process.cwd(), 'src', 'support', 'custom-reporter.ts');
     const result = spawnSync(
       process.execPath,
@@ -110,7 +109,7 @@ const TOOLS = {
         '--output',
         args.resultsDir,
         `--reporter=${customReporterPath}`,
-        '--reporter=json',
+        '--add-reporter=json',
       ],
       {
         cwd: process.cwd(),

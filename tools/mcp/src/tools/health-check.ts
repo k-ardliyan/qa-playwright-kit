@@ -375,7 +375,17 @@ function checkNetworkAssertCapability(): HealthCheckItem {
   };
 }
 
-function checkAuthStorageState(): HealthCheckItem {
+export interface HealthCheckOptions {
+  /**
+   * Strict auth readiness: expired sessions become a hard failure instead of a
+   * warning. The MCP pre-flight keeps this ON (the pipeline must abort before
+   * running authenticated tests); the quality gate CLI keeps it OFF so an
+   * expired local session never turns a green code gate red.
+   */
+  strictAuth?: boolean;
+}
+
+function checkAuthStorageState(strictAuth: boolean): HealthCheckItem {
   const root = getRepoRoot();
   let appEnv = 'local';
   try {
@@ -414,8 +424,12 @@ function checkAuthStorageState(): HealthCheckItem {
   if (expired.length === roleStatus.length) {
     return {
       name: 'auth_storage',
-      status: 'fail',
-      message: `.auth/${appEnv}/ all session(s) expired: ${expired.map((r) => `${r.role} (${r.reason})`).join('; ')} — re-run: npm run auth:setup (real UI login; never inject storage state)`,
+      // Expired sessions need the same fix as missing ones (`npm run
+      // auth:setup`) — they are a pre-run readiness issue. Only strict mode
+      // (pipeline pre-flight / --strict) hard-fails so an expired local
+      // session can never block code-quality gates.
+      status: strictAuth ? 'fail' : 'warn',
+      message: `.auth/${appEnv}/ all session(s) expired: ${expired.map((r) => `${r.role} (${r.reason})`).join('; ')} — re-run: npm run auth:setup (real UI login; never inject storage state)${strictAuth ? '' : ' [strict mode: npm run health:check:strict]'}`,
     };
   }
 
@@ -435,7 +449,15 @@ function checkAuthStorageState(): HealthCheckItem {
   };
 }
 
-export function healthCheck(): HealthCheckOutput {
+/**
+ * Full health check.
+ *
+ * Default is strict auth (the MCP pre-flight contract: abort before running
+ * authenticated tests). Pass `{ strictAuth: false }` for code-quality gates
+ * where an expired local session is a readiness note, not a code failure.
+ */
+export function healthCheck(options: HealthCheckOptions = {}): HealthCheckOutput {
+  const strictAuth = options.strictAuth ?? true;
   const checks = [
     checkNodeVersion(),
     checkMcpBuild(),
@@ -445,7 +467,7 @@ export function healthCheck(): HealthCheckOutput {
     checkPlaywrightConfig(),
     checkBaseUrl(),
     checkAuthChallengeMode(),
-    checkAuthStorageState(),
+    checkAuthStorageState(strictAuth),
     checkJsonReporterOutput(),
     checkFileContentCapability(),
     checkNetworkAssertCapability(),

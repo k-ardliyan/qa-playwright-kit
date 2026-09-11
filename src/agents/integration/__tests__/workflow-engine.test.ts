@@ -31,7 +31,11 @@ import {
   type ModelResult,
   type WorkflowResponse,
 } from '../index';
-import { createMcpAdapters, resolveValidateResultsDir } from '../mcp-adapters';
+import {
+  createMcpAdapters,
+  resolveValidateResultsDir,
+  extractReportCoverageFromTrace,
+} from '../mcp-adapters';
 import { parsePlaywrightJsonReport } from '../playwright-counters';
 import { getTestFailures } from '../../../../tools/mcp/src/tools/get-test-failures';
 
@@ -803,7 +807,7 @@ test.describe('WorkflowController runtime invariants', () => {
         tracking.calls.push('validate-adapter');
         return {
           unresolvedFailures: 1,
-          substage: 'heal' as const,
+          substage: 'needs-heal' as const,
           failureList: [
             {
               failureSource: 'test',
@@ -843,7 +847,7 @@ test.describe('WorkflowController runtime invariants', () => {
         tracking.calls.push('validate-adapter');
         return {
           unresolvedFailures: 1,
-          substage: 'heal' as const,
+          substage: 'needs-heal' as const,
           failureList: [
             {
               failureSource: 'test',
@@ -1055,6 +1059,39 @@ test.describe('WorkflowController runtime invariants', () => {
     );
   });
 
+  test('report coverage: trace graph maps to coverage rows and heal counts', () => {
+    const coverage = extractReportCoverageFromTrace({
+      scenarios: [
+        { scenarioId: 'SC-01', title: 'login', executionStatus: 'passed' },
+        { scenarioId: 'SC-02', title: 'logout', executionStatus: 'failed' },
+        { scenarioId: 'SC-03', title: 'upload', executionStatus: 'timedOut' },
+        { scenarioId: 'SC-04', title: 'reset', executionStatus: 'manual' },
+        { scenarioId: 'SC-05', title: 'export', executionStatus: 'skipped' },
+        { scenarioId: 'SC-06', title: 'blocked one', executionStatus: 'blocked' },
+        { title: 'no id — must be skipped', executionStatus: 'passed' },
+      ],
+      metrics: { healedScenarios: 2 },
+    });
+
+    expect(coverage.scenarios.map((s) => [s.id, s.status])).toEqual([
+      ['SC-01', 'passed'],
+      ['SC-02', 'failed'],
+      ['SC-03', 'failed'],
+      ['SC-04', 'not-generated'],
+      ['SC-05', 'skipped'],
+      ['SC-06', 'not-generated'],
+    ]);
+    expect(coverage.healedScenarios).toBe(2);
+  });
+
+  test('report coverage: malformed trace input yields no invented rows', () => {
+    expect(extractReportCoverageFromTrace({}).scenarios).toEqual([]);
+    expect(extractReportCoverageFromTrace({ scenarios: 'nope' }).healedScenarios).toBe(0);
+    expect(
+      extractReportCoverageFromTrace({ metrics: { healedScenarios: -3 } }).healedScenarios,
+    ).toBe(0);
+  });
+
   test('Task B3: JSON counters count tests, not spec files', () => {
     const suites = [
       {
@@ -1096,6 +1133,91 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(counters.total).toBe(2);
     expect(counters.passed).toBe(1);
     expect(counters.failed).toBe(1);
+  });
+
+  test('state honesty: a needs-heal result never records the heal phase as completed', async () => {
+    const tracking = { calls: [] as string[] };
+    const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
+    const evidencePath = writeEvidence(process.env['QA_REPORT_DIR']!);
+
+    const failingAdapters = {
+      ...recordingAdapters(tracking),
+      async validate() {
+        tracking.calls.push('validate-adapter');
+        return {
+          unresolvedFailures: 2,
+          substage: 'needs-heal' as const,
+          // Report(Analyze) did run (the honest minimum records failure
+          // insights); only the heal substep did not.
+          analysisCompleted: true,
+          analysisVerified: true,
+          analysisVerdict: 'complete' as const,
+          failureList: [
+            { failureSource: 'test', message: 'locator timeout on #submit', authRedirect: false },
+          ],
+        };
+      },
+    };
+
+    const controller = new WorkflowController(
+      { orchestrationMode: 'automatic', requirementPath, repoRoot },
+      failingAdapters,
+    );
+    const response = await controller.run({
+      requirementPath,
+      orchestrationMode: 'automatic',
+      evidence: [{ path: evidencePath }],
+    });
+
+    expect(response.workflowStatus).toBe('needs-review');
+    const state = controller.getState();
+    // Execute genuinely ran…
+    expect(state.completedPhases).toContain('execute');
+    // …but Heal did NOT — claiming otherwise fakes a healing pass.
+    expect(state.completedPhases).not.toContain('heal');
+    expect(state.completedPhases).not.toContain('report');
+    // Physical pointer must reflect the substage that actually ran.
+    expect(state.currentPhase).toBe('execute');
+    // Routing back to Generate invalidates the downstream Validate payload —
+    // no stale Validate result may survive the feedback re-entry.
+    expect(state.workflow?.lastFeedback?.loopTarget).toBe('generate');
+    expect(state.workflow?.validate).toBeUndefined();
+  });
+
+  test('state honesty: a qa-review result records execute/heal/report and points at report', async () => {
+    const tracking = { calls: [] as string[] };
+    const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
+    const evidencePath = writeEvidence(process.env['QA_REPORT_DIR']!);
+
+    const cleanAdapters = {
+      ...recordingAdapters(tracking),
+      async validate() {
+        tracking.calls.push('validate-adapter');
+        return {
+          unresolvedFailures: 0,
+          substage: 'qa-review' as const,
+          analysisCompleted: true,
+          analysisVerified: true,
+          analysisVerdict: 'complete' as const,
+        };
+      },
+    };
+
+    const controller = new WorkflowController(
+      { orchestrationMode: 'automatic', requirementPath, repoRoot },
+      cleanAdapters,
+    );
+    await controller.run({
+      requirementPath,
+      orchestrationMode: 'automatic',
+      evidence: [{ path: evidencePath }],
+    });
+
+    const state = controller.getState();
+    for (const phase of ['execute', 'heal', 'report'] as const) {
+      expect(state.completedPhases).toContain(phase);
+    }
+    expect(state.currentPhase).toBe('report');
   });
 
   test('Task B4: getTestFailures resolves results.json even when newer run-manifest.json exists', () => {

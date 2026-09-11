@@ -266,10 +266,14 @@ export interface GenerateResult {
 
 /**
  * Validate stage result: grouped Execute → Heal → Report(Analyze) → QA Review.
+ *
+ * `needs-heal` — tests failed and a heal pass is REQUIRED (none ran yet).
+ * `heal`       — a healer actually ran during this Validate pass.
+ * Only `heal` / `report-analyze` / `qa-review` prove the heal substep completed.
  */
 export interface ValidateResult {
   status: 'passed' | 'failed' | 'needs-review';
-  substage: 'execute' | 'heal' | 'report-analyze' | 'qa-review';
+  substage: 'execute' | 'needs-heal' | 'heal' | 'report-analyze' | 'qa-review';
   unresolvedFailures: number;
   reason?: string;
 }
@@ -294,7 +298,7 @@ export interface WorkflowEnvelope {
   schemaVersion: 'qa.workflow/v1';
   mode: 'semantic-v1' | 'physical-compat';
   currentStage: WorkflowStage | null;
-  currentSubstage?: 'execute' | 'heal' | 'report-analyze' | 'qa-review';
+  currentSubstage?: 'execute' | 'needs-heal' | 'heal' | 'report-analyze' | 'qa-review';
   stages: Record<WorkflowStage, WorkflowStageState>;
   explore?: ExploreDecision;
   model?: ModelResult;

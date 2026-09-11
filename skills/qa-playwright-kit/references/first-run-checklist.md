@@ -37,6 +37,8 @@ npm run health:check # must be green — auth_storage warning is normal before a
 
 Any ❌ in `health:check` other than `auth_storage` → escalate to maintainer.
 
+> `health:check` is the **code-quality** gate: an expired local session is only a warning (exit 0). Right before running an authenticated pipeline, use `npm run health:check:strict` — there an expired session is a hard failure.
+
 ---
 
 ## Phase 3 — Auth (only when `Auth state: authenticated`)

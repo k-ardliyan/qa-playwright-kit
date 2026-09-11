@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   assessPlaywrightMcp,
   normalizePinnedVersion,
+  healthCheck,
 } from '../../../tools/mcp/src/tools/health-check';
 
 test.describe('MCP Health Check expected-vs-installed (MCP-005)', () => {
@@ -43,5 +44,28 @@ test.describe('Pinned baseline parser (health check)', () => {
     expect(normalizePinnedVersion('')).toBeNull();
     expect(normalizePinnedVersion('latest')).toBeNull();
     expect(normalizePinnedVersion('*')).toBeNull();
+  });
+});
+
+test.describe('Health check auth strictness (code gate vs pipeline pre-flight)', () => {
+  test('default is strict: an expired/missing session may fail the pre-flight', () => {
+    const output = healthCheck();
+    expect(output.checks.map((c) => c.name)).toContain('auth_storage');
+    // Default call is the MCP pre-flight contract (strictAuth defaults true).
+    // Whether it fails depends on this machine's .auth state — assert the
+    // contract, not the environment: strict mode never returns the
+    // non-strict marker text.
+    const authCheck = output.checks.find((c) => c.name === 'auth_storage')!;
+    expect(authCheck.message).not.toContain('[strict mode:');
+  });
+
+  test('non-strict mode keeps an expired session out of the failure set', () => {
+    const output = healthCheck({ strictAuth: false });
+    const authCheck = output.checks.find((c) => c.name === 'auth_storage')!;
+    // Code-quality contract: session readiness is a warning at most.
+    expect(['ok', 'warn']).toContain(authCheck.status);
+    if (authCheck.status === 'warn') {
+      expect(authCheck.message).toContain('[strict mode: npm run health:check:strict]');
+    }
   });
 });

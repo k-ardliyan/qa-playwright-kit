@@ -26,6 +26,37 @@ export interface WorkflowRunArgs {
   resume?: boolean;
   /** Restrict the run to these roles (role-aware requirements). */
   roleFilter?: string[];
+  /**
+   * Driver timeout in milliseconds (default 600000). Long suites on slow
+   * targets can exceed the default; raise it explicitly instead of relying on
+   * an unbounded wait. Bounded to a sane range to avoid accidental hangs.
+   */
+  timeoutMs?: number;
+}
+
+const DEFAULT_DRIVER_TIMEOUT_MS = 600_000;
+const MIN_DRIVER_TIMEOUT_MS = 10_000;
+const MAX_DRIVER_TIMEOUT_MS = 3_600_000;
+
+/** Resolve the driver timeout: explicit arg → env override → default. */
+export function resolveDriverTimeoutMs(explicit?: unknown): number {
+  if (
+    typeof explicit === 'number' &&
+    Number.isFinite(explicit) &&
+    explicit >= MIN_DRIVER_TIMEOUT_MS &&
+    explicit <= MAX_DRIVER_TIMEOUT_MS
+  ) {
+    return Math.floor(explicit);
+  }
+  const fromEnv = Number(process.env['QA_WORKFLOW_TIMEOUT_MS']);
+  if (
+    Number.isFinite(fromEnv) &&
+    fromEnv >= MIN_DRIVER_TIMEOUT_MS &&
+    fromEnv <= MAX_DRIVER_TIMEOUT_MS
+  ) {
+    return Math.floor(fromEnv);
+  }
+  return DEFAULT_DRIVER_TIMEOUT_MS;
 }
 
 export interface WorkflowRunOutput {
@@ -122,7 +153,7 @@ export function workflowRun(args: WorkflowRunArgs | undefined): WorkflowRunOutpu
     cwd: repoRoot,
     encoding: 'utf-8',
     shell: false,
-    timeout: 600_000,
+    timeout: resolveDriverTimeoutMs(args.timeoutMs),
     windowsHide: true,
   });
 

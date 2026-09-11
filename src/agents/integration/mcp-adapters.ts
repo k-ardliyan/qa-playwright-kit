@@ -40,9 +40,23 @@ import {
   buildReport,
   writeReportMarkdown,
   writeReportJson,
+  type BuildReportInput,
   type UnresolvedFailure,
 } from '../reporter/report-builder';
 import { loadLatestTestNotes } from '../reporter/test-notes';
+
+/** One report coverage row (scenario → status) derived from the trace graph. */
+type BuildCoverageScenario = BuildReportInput['scenarios'][number];
+
+/** failureSource values accepted by the report contract. */
+const FAILURE_SOURCES = ['app', 'test', 'requirement', 'env', 'ai_generation', 'unknown'] as const;
+type FailureSource = (typeof FAILURE_SOURCES)[number];
+
+function asFailureSource(value: unknown): FailureSource | undefined {
+  return typeof value === 'string' && (FAILURE_SOURCES as readonly string[]).includes(value)
+    ? (value as FailureSource)
+    : undefined;
+}
 
 /**
  * Raised by the Model adapter when the Planner handoff artifact (the test
@@ -243,6 +257,59 @@ export function resolveValidateResultsDir(repoRoot: string, runId: string | unde
     throw new Error('VALIDATE_RUN_ID_REQUIRED: semantic Validate requires a safe runId.');
   }
   return path.join(repoRoot, 'artifacts', 'test-results', 'workflow', runId);
+}
+
+export interface TraceReportCoverage {
+  scenarios: BuildCoverageScenario[];
+  /** Scenarios the traceability graph reports as healed (0 until a heal pass exists). */
+  healedScenarios: number;
+}
+
+/**
+ * Map a TraceabilityContractV1 payload onto report coverage rows + heal count.
+ *
+ * The trace contract is the only end-to-end source that links a requirement
+ * scenario to its execution evidence, so the pipeline report reuses it instead
+ * of shipping an empty Coverage table. Unparseable input yields empty data —
+ * a missing trace is reported as no-coverage, never invented.
+ */
+export function extractReportCoverageFromTrace(
+  traceData: Record<string, unknown>,
+): TraceReportCoverage {
+  const scenarios = Array.isArray(traceData.scenarios) ? traceData.scenarios : [];
+  const rows: BuildCoverageScenario[] = [];
+  for (const item of scenarios) {
+    const row = asRecord(item);
+    const id = firstString(row, 'scenarioId');
+    const title = firstString(row, 'title');
+    const executionStatus = firstString(row, 'executionStatus');
+    if (!id || !executionStatus) continue;
+    rows.push({
+      id,
+      name: title ?? id,
+      status: coverageStatusFromExecution(executionStatus),
+    });
+  }
+  const metrics = asRecord(traceData.metrics);
+  const healed = firstNumber(metrics, 'healedScenarios');
+  return { scenarios: rows, healedScenarios: healed && healed > 0 ? healed : 0 };
+}
+
+/** Trace execution status → report coverage status (report has no 'manual'). */
+function coverageStatusFromExecution(status: string): BuildCoverageScenario['status'] {
+  switch (status) {
+    case 'passed':
+      return 'passed';
+    case 'failed':
+    case 'timedOut':
+    case 'interrupted':
+      return 'failed';
+    case 'skipped':
+      return 'skipped';
+    default:
+      // manual / blocked / not-generated / not-executed
+      return 'not-generated';
+  }
 }
 
 /**
@@ -525,7 +592,26 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
         interrupted: run.interrupted ?? 0,
         testCases: failureList,
       };
-      await traceRequirement({ requirementPath: input.requirementPath });
+      // Traceability graph feeds the pipeline report coverage (previously the
+      // result was discarded and the report shipped an empty Coverage table).
+      // Trace failure must never kill Validate — fall back to empty coverage
+      // and the executed-test count.
+      let traceCoverage: TraceReportCoverage = { scenarios: [], healedScenarios: 0 };
+      try {
+        const traceResult = asRecord(
+          await traceRequirement({ requirementPath: input.requirementPath }),
+        );
+        traceCoverage = extractReportCoverageFromTrace(asRecord(traceResult.data));
+      } catch {
+        traceCoverage = { scenarios: [], healedScenarios: 0 };
+      }
+      const coverageScenarios = traceCoverage.scenarios;
+      const plannedScenarios =
+        coverageScenarios.length > 0
+          ? coverageScenarios.length
+          : typeof summary.total === 'number'
+            ? summary.total
+            : 0;
 
       // Production Analyze seam (honest minimum): one run-level insight plus
       // per-scenario insights for FAILED tests only (no evidence for passed
@@ -601,12 +687,15 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
         }
 
         if (runNote.status === 'success') {
-          const total = typeof summary.total === 'number' ? summary.total : 0;
           const passed = typeof summary.passed === 'number' ? summary.passed : 0;
           const failed = typeof summary.failed === 'number' ? summary.failed : 0;
           const skipped = typeof summary.skipped === 'number' ? summary.skipped : 0;
           const unresolved: UnresolvedFailure[] = failureList.map((failure) => {
             const f = asRecord(failure);
+            // Preserve the classified source from the failure payload when it
+            // is one of the contract values. Defaulting a 500 to 'app' when
+            // nothing classified it would fabricate a verdict.
+            const classified = asFailureSource(f.failureSource);
             return {
               scenarioId:
                 typeof f.testId === 'string' ? f.testId : ((f.title as string) ?? 'unknown'),
@@ -617,7 +706,7 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
                   : typeof f.message === 'string'
                     ? f.message
                     : 'unknown failure',
-              failureSource: 'app',
+              ...(classified ? { failureSource: classified } : {}),
               ...(typeof f.tracePath === 'string' ? { tracePath: f.tracePath } : {}),
               ...(typeof f.screenshotPath === 'string' ? { screenshotPath: f.screenshotPath } : {}),
             };
@@ -640,11 +729,13 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
             startedAt,
             completedAt,
             requirementPath: input.requirementPath,
-            scenariosPlanned: total,
+            scenariosPlanned: plannedScenarios,
             testsGenerated: input.generatedFiles.length,
             testResults: { passing: passed, failing: failed, skipped },
-            healedCount: 0,
-            scenarios: [],
+            // Heal count comes from the trace graph — 0 while no heal pass
+            // exists, never a placeholder that claims healing happened.
+            healedCount: traceCoverage.healedScenarios,
+            scenarios: coverageScenarios,
             unresolvedFailures: unresolved,
             analysis: {
               completed: true,
@@ -668,7 +759,10 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
         generatedFiles: input.generatedFiles,
         executionCommand: `playwright test ${input.generatedFiles.join(' ')}`,
         unresolvedFailures,
-        substage: unresolvedFailures > 0 ? 'heal' : 'qa-review',
+        // `needs-heal` = failures exist and a heal pass is REQUIRED; nothing was
+        // healed in this run. Reporting `heal` here would falsely claim the
+        // heal substep completed (see ValidateResult contract).
+        substage: unresolvedFailures > 0 ? 'needs-heal' : 'qa-review',
         passed: run.passed,
         failed: run.failed,
         skipped: run.skipped,
