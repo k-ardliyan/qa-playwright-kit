@@ -130,6 +130,7 @@ Ini jalur yang paling sering dipakai QA. Semua durasi di bawah **diukur nyata** 
 ```bash
 # 0) Sekali per mesin (lewati kalau sudah pernah)
 npm install && npm run setup          # wizard: project → APP_ENV → BASE_URL → kredensial
+npm run test:demo                     # verifikasi install tanpa app (suite publik)
 
 # 1) Siapkan sesi login (hanya jika halaman butuh login)
 npm run auth:setup                    # OTP/CAPTCHA: npm run auth:setup:headed

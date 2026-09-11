@@ -87,9 +87,13 @@ npm run setup                 # generate clean .env → encrypt secrets
 **Setelah wizard selesai:**
 
 ```bash
-# 0) Verifikasi install tanpa app: jalankan suite demo bawaan
-#    (menghasilkan artifacts/reports/custom-dashboard.html + test-summary.json)
-npm test
+# 0) Verifikasi install TANPA app (kredensial masih placeholder):
+#    suite demo publik (playwright.dev) → artifacts/reports/custom-dashboard.html
+npm run test:demo
+
+# Setelah kredensial asli diisi di config/environments/{APP_ENV}.env
+# (npm run setup / env:edit), `npm test` menjalankan suite penuh termasuk setup auth.
+# `npm test` TIDAK bisa dipakai sebelum itu — project setup butuh kredensial valid.
 
 # 1) Wizard sudah menulis requirements/login.md + print prompt Hermes
 #    OTP/CAPTCHA: npm run auth:setup (atau auth:setup:headed)

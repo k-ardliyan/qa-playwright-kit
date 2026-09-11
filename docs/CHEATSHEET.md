@@ -10,7 +10,8 @@
 npm install
 npm run setup
 npm run setup:check && npm run health:check
-# verifikasi install tanpa app: npm test (suite demo → custom-dashboard.html)
+# verifikasi install tanpa app: npm run test:demo (suite publik → custom-dashboard.html)
+# `npm test` butuh kredensial asli (project setup auth) — jalankan setelah npm run setup selesai
 # ganti kredensial nanti: npm run env:edit
 # refresh session: npm run auth:setup
 # OTP/CAPTCHA di browser: npm run auth:setup:headed

@@ -1,3 +1,6 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { Locator } from '@playwright/test';
 import { test, expect } from '@/fixtures/base.fixture';
 import { setTestMetadata, captureActualResult } from '@/support/test-metadata';
 import {
@@ -15,6 +18,25 @@ import {
  * Self-contained — no real backend.
  */
 const ORIGIN = 'https://pw-power.local';
+
+/**
+ * Record a missing visual baseline once, then compare for real.
+ *
+ * Baselines are platform-specific PNGs (`*-win32.png`, `*-linux.png`) and are
+ * gitignored, so a fresh clone has none and the first demo run would fail with
+ * "A snapshot doesn't exist". The page under test is a fixed `setContent`
+ * fixture (nothing real to regress), so bootstrapping here is safe — a real
+ * project's visual tests must keep failing loudly until someone deliberately
+ * records baselines with `npx playwright test --update-snapshots`.
+ */
+async function expectVisualBootstrapped(target: Locator, name: string): Promise<void> {
+  const baseline = test.info().snapshotPath(name, { kind: 'screenshot' });
+  if (!fs.existsSync(baseline)) {
+    fs.mkdirSync(path.dirname(baseline), { recursive: true });
+    fs.writeFileSync(baseline, await target.screenshot({ animations: 'disabled' }));
+  }
+  await expectVisual(target, { name, maxDiffPixelRatio: 0.05 });
+}
 
 test.describe('Playwright Power Extended', {
   tag: ['@demo', '@pw-power', '@network', '@visual'],
@@ -73,10 +95,7 @@ test.describe('Playwright Power Extended', {
     });
 
     await test.step('Visual snapshot of alert region', async () => {
-      await expectVisual(page.getByRole('alert'), {
-        name: 'invoice-error-banner.png',
-        maxDiffPixelRatio: 0.05,
-      });
+      await expectVisualBootstrapped(page.getByRole('alert'), 'invoice-error-banner.png');
     });
 
     await test.step('ARIA structure still has main + heading', async () => {

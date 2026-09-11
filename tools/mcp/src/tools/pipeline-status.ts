@@ -130,7 +130,13 @@ export interface PipelineStatusOutput {
       schemaVersion: string;
       mode: 'semantic-v1' | 'physical-compat';
       currentStage: McpWorkflowStage | null;
-      currentSubstage?: 'execute' | 'heal' | 'report-analyze' | 'qa-review';
+      /**
+       * Validate substage. `needs-heal` = failures exist and a heal pass is
+       * REQUIRED (nothing healed yet); `heal` = a healer actually ran. Keep in
+       * sync with `ValidateResult['substage']` in src/agents/integration/types.ts
+       * (guarded by pipeline-status-substage-parity.test.ts).
+       */
+      currentSubstage?: 'execute' | 'needs-heal' | 'heal' | 'report-analyze' | 'qa-review';
       stageStatus: Record<string, string>;
       exploreDecision?: string;
       challengeDecision?: string;
@@ -322,6 +328,7 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
             typeof (rawWorkflow as Record<string, unknown>).currentSubstage === 'string'
               ? ((rawWorkflow as Record<string, unknown>).currentSubstage as
                   | 'execute'
+                  | 'needs-heal'
                   | 'heal'
                   | 'report-analyze'
                   | 'qa-review')

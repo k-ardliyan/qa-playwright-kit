@@ -1220,6 +1220,93 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(state.currentPhase).toBe('report');
   });
 
+  test('needs-heal persists when a failure routes to a terminal target (file-bug)', async () => {
+    const tracking = { calls: [] as string[] };
+    const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
+    const evidencePath = writeEvidence(process.env['QA_REPORT_DIR']!);
+
+    const appBugAdapters = {
+      ...recordingAdapters(tracking),
+      async validate() {
+        tracking.calls.push('validate-adapter');
+        return {
+          unresolvedFailures: 1,
+          substage: 'needs-heal' as const,
+          analysisCompleted: true,
+          analysisVerified: true,
+          analysisVerdict: 'complete' as const,
+          failureList: [
+            { failureSource: 'app', message: 'HTTP 500 on /api/invoices', authRedirect: false },
+          ],
+        };
+      },
+    };
+
+    const controller = new WorkflowController(
+      { orchestrationMode: 'automatic', requirementPath, repoRoot },
+      appBugAdapters,
+    );
+    await controller.run({
+      requirementPath,
+      orchestrationMode: 'automatic',
+      evidence: [{ path: evidencePath }],
+    });
+
+    const wf = controller.getState().workflow!;
+    // Terminal routing (file-bug) is not a stage re-entry, so the Validate
+    // payload and substage survive for QA/agents to read.
+    expect(wf.lastFeedback?.loopTarget).toBe('file-bug');
+    expect(wf.currentSubstage).toBe('needs-heal');
+    expect(wf.validate?.substage).toBe('needs-heal');
+    expect(controller.getState().completedPhases).not.toContain('heal');
+  });
+
+  test('bounded re-entry: the 4th consecutive failure blocks instead of looping forever', async () => {
+    const tracking = { calls: [] as string[] };
+    const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
+    const evidencePath = writeEvidence(process.env['QA_REPORT_DIR']!);
+
+    // Deterministic adapter: Generate always "succeeds", Validate always fails
+    // with a fixable test defect → the loop target is `generate` every time.
+    const alwaysFailingAdapters = {
+      ...recordingAdapters(tracking),
+      async validate() {
+        tracking.calls.push('validate-adapter');
+        return {
+          unresolvedFailures: 1,
+          substage: 'needs-heal' as const,
+          analysisCompleted: true,
+          analysisVerified: true,
+          analysisVerdict: 'complete' as const,
+          failureList: [
+            { failureSource: 'test', message: 'locator timeout on #submit', authRedirect: false },
+          ],
+        };
+      },
+    };
+
+    const controller = new WorkflowController(
+      { orchestrationMode: 'automatic', requirementPath, repoRoot },
+      alwaysFailingAdapters,
+    );
+
+    // Re-enter Generate → Validate repeatedly; the bound must stop the loop.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await controller.run({
+        requirementPath,
+        orchestrationMode: 'automatic',
+        evidence: [{ path: evidencePath }],
+      });
+    }
+
+    const wf = controller.getState().workflow!;
+    // Loop counter is bounded at the limit, not unbounded.
+    expect(wf.loopCounts.generate).toBeLessThanOrEqual(4);
+    expect(wf.loopCounts.blocked).toBeGreaterThanOrEqual(1);
+    expect(wf.lastFeedback?.loopTarget).toBe('blocked');
+    expect(String(wf.lastFeedback?.reason)).toContain('re-entry limit');
+  });
+
   test('Task B4: getTestFailures resolves results.json even when newer run-manifest.json exists', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-manifest-coexist-'));
     try {
