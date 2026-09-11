@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Repo hygiene — 2026-09-11
+
+- **Output dogfood tidak lagi ter-track:** `tests/login-none.spec.ts` dan `specs/login-none-test-plan.md` (hasil jalur manual sesi prompt, bukan bagian framework) dihapus dari repo — keduanya bisa dihasilkan ulang oleh pipeline kapan pun.
+- **Pin lokal tidak lagi ter-track:** `config/environments/.active-env` (ditulis `npm run env:use`, sifatnya "local only") keluar dari index — fresh clone memakai default `local` sampai user memilih environment. File lokal yang ada di mesin ini tidak diubah.
+- **`.tmp/` masuk `.gitignore`:** seed dashboard-browser dan run ad-hoc menulis ke `.tmp/`, sehingga tidak lagi mengotori `git status`.
+- **Artefak runtime dibersihkan:** laporan loose `pipeline-report-*`, `pipeline-metrics.json`, `test-summary.json`/dashboard lama, selector catalog sesi (dogfood/probe/auth/login), screenshot proof, `logs/`, `test-results/` root, `.playwright-mcp/` dumps, dan output mobile basi `config/playwright/artifacts/`. Arsip milestone QA (`artifacts/reports/archive/`, opt-in save) **dipertahankan**.
+- **Aturan ignore legacy di-anchor ke root:** `/test-results/`, `/reports/`, `/blob-report/`, `/selector-catalog/`, `/playwright-report/`. Sebelumnya pola tanpa anchor (`test-results/`) menutupi exception `!artifacts/test-results/.gitkeep` di blok kanonik; setelah ditelusuri, `.gitkeep` di `artifacts/test-results/` memang **volatile by design** — direktori itu `outputDir` Playwright yang dihapus di awal setiap run, jadi ia sengaja tidak dilacak (Playwright membuatnya sendiri). Exception mati itu dihapus, bukan dihidupkan.
+
 ### State honesty, report coverage & gate separation — 2026-09-11
 
 - **Report semantic kini terisi (bukan tabel kosong):** adapter Validate sebelumnya membuang hasil `trace_requirement` dan mengirim `scenarios: []` + `scenariosPlanned` dari total test. Kini `extractReportCoverageFromTrace()` memetakan graph traceability → baris coverage report, `scenariosPlanned` memakai jumlah skenario requirement, dan `healedCount` diambil dari metrik trace (0 selama belum ada heal pass nyata). Trace gagal tidak membunuh Validate — fallback kosong, tidak pernah mengarang baris.

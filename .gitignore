@@ -31,14 +31,15 @@ environments/*.bak
 .gemini/
 
 # Consolidated Runtime Artifacts (Hybrid Architecture)
+#
+# `artifacts/test-results/` is intentionally NOT tracked: it is Playwright's
+# `outputDir` and is wiped at the start of every run, so any .gitkeep there is
+# volatile by design. Playwright recreates the directory on demand.
 artifacts/*
 !artifacts/.gitkeep
 !artifacts/reports/
 artifacts/reports/*
 !artifacts/reports/.gitkeep
-!artifacts/test-results/
-artifacts/test-results/*
-!artifacts/test-results/.gitkeep
 !artifacts/selector-catalog/
 artifacts/selector-catalog/*
 !artifacts/selector-catalog/.gitkeep
@@ -46,15 +47,18 @@ artifacts/selector-catalog/*
 artifacts/blob-report/*
 !artifacts/blob-report/.gitkeep
 
-# Legacy output directories (fallback)
-test-results/
-playwright-report/
-blob-report/
-reports/
-!reports/.gitkeep
-selector-catalog/
-!selector-catalog/.gitkeep
-!selector-catalog/.meta.json
+# Legacy output directories (fallback) — root-anchored so they cannot shadow
+# the canonical `artifacts/<dir>/` exceptions above (the unanchored
+# `test-results/` rule previously re-ignored artifacts/test-results/, making
+# its .gitkeep dead).
+/test-results/
+/playwright-report/
+/blob-report/
+/reports/
+!/reports/.gitkeep
+/selector-catalog/
+!/selector-catalog/.gitkeep
+!/selector-catalog/.meta.json
 
 # Logger output
 logs/
@@ -93,6 +97,9 @@ Thumbs.db
 # Local debug / temp artifacts
 debug-validator.ts
 *.diff
+
+# Scratch dirs (dashboard-browser seeds, ad-hoc runs)
+.tmp/
 
 # Debug dumps / screenshots / MCP console logs (never commit)
 _rpc*.json
