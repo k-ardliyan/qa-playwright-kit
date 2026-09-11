@@ -4,37 +4,29 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'src/shared/mcp/**'
-      - 'src/shared/evidence/**'
-      - 'src/shared/utils/**'
-      - 'src/support/pw/**'
-      - 'src/__tests__/unit/**'
-      - 'tools/mcp/**'
-      - 'tools/scripts/mcp*/**'
-      - 'tools/scripts/mcp-compat-check.ts'
-      - 'tools/scripts/playwright-mcp-launch.ts'
-      - 'tools/scripts/playwright-test-mcp-launch.ts'
-      - 'tools/scripts/playwright-mcp*'
+      # The job runs the full unit + property suites (npm run test:unit /
+      # test:property), which cover src/** and tools/**. Keep the trigger
+      # scope aligned with that execution scope — a narrower filter lets a
+      # commit that matches one path fail this lane for unrelated changes
+      # bundled with it.
+      - 'src/**'
+      - 'tools/**'
+      - 'config/environments/**'
       - 'package.json'
       - 'package-lock.json'
       - '.mcp.json'
+      # Self-trigger: a change to this workflow must re-run it.
+      - '.github/workflows/mcp-compatibility.yml'
   pull_request:
     branches: [main, master]
     paths:
-      - 'src/shared/mcp/**'
-      - 'src/shared/evidence/**'
-      - 'src/shared/utils/**'
-      - 'src/support/pw/**'
-      - 'src/__tests__/unit/**'
-      - 'tools/mcp/**'
-      - 'tools/scripts/mcp*/**'
-      - 'tools/scripts/mcp-compat-check.ts'
-      - 'tools/scripts/playwright-mcp-launch.ts'
-      - 'tools/scripts/playwright-test-mcp-launch.ts'
-      - 'tools/scripts/playwright-mcp*'
+      - 'src/**'
+      - 'tools/**'
+      - 'config/environments/**'
       - 'package.json'
       - 'package-lock.json'
       - '.mcp.json'
+      - '.github/workflows/mcp-compatibility.yml'
 
 jobs:
   mcp-compat:
