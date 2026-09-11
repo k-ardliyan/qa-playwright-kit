@@ -200,8 +200,9 @@ function showHelp(): void {
   );
 }
 
-function preflight(repoRoot: string): PreFlightResult {
+function preflight(repoRoot: string, options?: { requireCredentials?: boolean }): PreFlightResult {
   const issues: string[] = [];
+  const requireCredentials = options?.requireCredentials ?? true;
 
   // Check environment file
   const appEnv = resolveAppEnv({ repoRoot }).appEnv;
@@ -247,17 +248,21 @@ function preflight(repoRoot: string): PreFlightResult {
     }
     // A placeholder env (still a copy of *.env.example, or never edited) must
     // fail here — not later at auth:setup with a confusing login failure.
-    const envMap = parseEnvText(content);
-    const placeholderKeys = Object.entries(envMap)
-      .filter(
-        ([k, v]) => /_(EMAIL|USERNAME|PHONE|PASSWORD)$/i.test(k) && isPlaceholderCredential(v),
-      )
-      .map(([k]) => k);
-    if (placeholderKeys.length > 0) {
-      issues.push(
-        `Kredensial masih placeholder di ${path.relative(repoRoot, targetEnv)}: ${placeholderKeys.join(', ')}. ` +
-          'Isi kredensial asli via npm run env:edit atau npm run setup (wizard).',
-      );
+    // `--dry-run` performs no login, so it validates structure only: CI and
+    // fresh checkouts legitimately run dry-run against the example template.
+    if (requireCredentials) {
+      const envMap = parseEnvText(content);
+      const placeholderKeys = Object.entries(envMap)
+        .filter(
+          ([k, v]) => /_(EMAIL|USERNAME|PHONE|PASSWORD)$/i.test(k) && isPlaceholderCredential(v),
+        )
+        .map(([k]) => k);
+      if (placeholderKeys.length > 0) {
+        issues.push(
+          `Kredensial masih placeholder di ${path.relative(repoRoot, targetEnv)}: ${placeholderKeys.join(', ')}. ` +
+            'Isi kredensial asli via npm run env:edit atau npm run setup (wizard).',
+        );
+      }
     }
   }
 
@@ -406,7 +411,7 @@ async function main(): Promise<void> {
 
     // Step 1/3: Pre-flight
     printStep(1, 3, 'Pre-flight setup check');
-    const pre = preflight(repoRoot);
+    const pre = preflight(repoRoot, { requireCredentials: !args.dryRun });
     if (!pre.ok) {
       process.stderr.write('\n');
       printError({
