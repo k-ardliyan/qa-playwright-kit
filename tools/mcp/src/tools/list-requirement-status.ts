@@ -138,6 +138,22 @@ function expectedPlanPath(stem: string): string {
   return `specs/${stem}-test-plan.md`;
 }
 
+/**
+ * Canonical test-plan candidates for a requirement stem, in priority order.
+ *
+ * The semantic runtime writes plans FLAT from the requirement filename
+ * (`specs/<feature>-test-plan.md` — see mcp-adapters model stage), so a nested
+ * requirement like `requirements/auth/login-none.md` has its plan at
+ * `specs/login-none-test-plan.md`, NOT `specs/auth/login-none-test-plan.md`.
+ * The nested candidate is kept for hand-written / legacy layouts.
+ */
+export function planPathCandidates(stem: string): string[] {
+  const baseName = path.posix.basename(stem);
+  // Flat FIRST: that is what the semantic runtime actually writes today, so a
+  // nested requirement must find its real plan before any legacy layout.
+  return [...new Set([expectedPlanPath(baseName), expectedPlanPath(stem)])];
+}
+
 function countManualScenarios(markdown: string): number {
   const matches = markdown.match(/^###\s+.+\(@manual\)/gim);
   return matches?.length ?? 0;
@@ -189,7 +205,8 @@ export function listRequirementStatus(): ListRequirementStatusOutput {
 
   const rows: RequirementStatusRow[] = allReq.map((requirementPath) => {
     const stem = requirementStem(requirementPath);
-    const planCandidates = [expectedPlanPath(stem)];
+    // Flat candidate first (semantic runtime), nested kept for legacy layouts.
+    const planCandidates = planPathCandidates(stem);
     const planPath = planCandidates.find((p) => allSpecs.has(p)) ?? null;
     const hasPlan = planPath !== null;
     const baseName = path.posix.basename(stem);

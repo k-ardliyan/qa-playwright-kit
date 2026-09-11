@@ -25,6 +25,8 @@ Hard stop: any edit under `src/`, `tools/`, `config/` (except `*.env` via setup/
 - Unsure which scenario tag to use (`@manual`? `@upload`? `@access-restriction`?)
 - Requirement has `Auth state: authenticated` or a `Role scope` multi-role field
 - Running the pipeline — `qa:run`, Plan / Generate / Execute / Heal / Report
+- "Requirement mana yang belum punya plan/test?" → `qa-playwright-kit:list_requirement_status` (coverage map: `hasPlan`, `hasTests`, manual count, last status per requirement)
+- Pipeline paused/blocked and you need to know what to do next → `qa-playwright-kit:pipeline_status` (phase, resume safety, missing artifacts, next stage)
 - Generator writing `tests/*.spec.ts` that the dashboard will display
 - Test Step column shows `toBeVisible()`, `fill()`, `getByRole()`, or locator strings
 - Pipeline finished — reading dashboard and deciding APPROVE / FILE BUG / etc.
@@ -89,6 +91,9 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 
 | Need                                                        | Reference                                                                                        |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| "What still needs work?" — coverage map across requirements | `qa-playwright-kit:list_requirement_status`                                                      |
+| Orient / resume after an interrupted run                    | `qa-playwright-kit:pipeline_status`                                                              |
+| Which MCP tool for which task (full map)                    | [mcp-tools-for-qa.md](references/mcp-tools-for-qa.md)                                            |
 | Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                            |
 | First-time setup or setup error                             | [first-run-checklist.md](references/first-run-checklist.md)                                      |
 | Requirement format                                          | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md)      |

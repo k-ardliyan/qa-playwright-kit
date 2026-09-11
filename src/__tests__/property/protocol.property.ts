@@ -25,8 +25,27 @@ const phaseArb = fc.constantFrom(...VALID_PHASES);
 /** Generate a random valid action */
 const actionArb = fc.constantFrom(...VALID_ACTIONS);
 
-/** Generate a random valid requirementPath */
-const requirementPathArb = fc.string({ minLength: 1 }).map((s) => `requirements/${s}.md`);
+/**
+ * Generate a random valid requirementPath.
+ *
+ * The validator enforces `isSafeRequirementPath`: non-empty AFTER trim, no NUL,
+ * `requirements/` prefix, `.md` suffix, and NO `..` segment. A raw
+ * `fc.string({ minLength: 1 })` emits whitespace-only and traversal input
+ * (`requirements/ .md`, `requirements/../.md`), which the validator correctly
+ * rejects while this property claims the request is valid — a flaky failure
+ * that reddened the CI gate on an unlucky seed. Keep the generated segment a
+ * single safe filename so "valid" means the same thing on both sides.
+ */
+const requirementPathArb = fc
+  .stringMatching(/^[A-Za-z0-9._-]+$/)
+  .filter((s) => s.trim().length > 0 && !s.split('/').includes('..'))
+  .map((s) => `requirements/${s}.md`);
+
+/**
+ * Generate a random role name that satisfies `isNonEmptyString`
+ * (non-empty after trim) — the contract the validator actually enforces.
+ */
+const roleArb = fc.stringMatching(/^[A-Za-z0-9._-]+$/).filter((s) => s.trim().length > 0);
 
 /** Generate a random runId */
 const runIdArb = fc.uuid();
@@ -76,7 +95,7 @@ const validRequestArb: fc.Arbitrary<Record<string, unknown>> = actionArb.chain((
           orchestrationMode: fc.option(fc.constantFrom('manual' as const, 'automatic' as const), {
             nil: undefined,
           }),
-          roleFilter: fc.option(fc.array(fc.string({ minLength: 1 }), { minLength: 1 }), {
+          roleFilter: fc.option(fc.array(roleArb, { minLength: 1 }), {
             nil: undefined,
           }),
         }),

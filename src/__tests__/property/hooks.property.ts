@@ -12,6 +12,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PipelineHookRegistry, fileLoggerHook } from '../../agents/integration/hooks';
 import type { PipelineEvent, EventType, HookCallback } from '../../agents/integration/hooks';
+import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
+
+/**
+ * Isolate the reports dir for the WHOLE file.
+ *
+ * `PipelineHookRegistry.emit()` always runs the built-in `fileLoggerHook`, so
+ * every property below (not just Property 17) appends to
+ * `<QA_REPORT_DIR>/pipeline-events.jsonl`. Without a module-level isolation the
+ * fuzz events (synthetic UUIDs, 1990-2100 timestamps) land in the real
+ * `artifacts/reports/pipeline-events.jsonl` — verified leaking 200 lines per
+ * property run before this fix.
+ */
+const isolate = createIsolatedReportDir();
+process.on('exit', () => isolate.teardown());
 
 // ─── Arbitraries ──────────────────────────────────────────────────────────────
 
@@ -114,55 +128,37 @@ async function testProperty16(): Promise<void> {
 // ─── Property 17: File logger hook persistence ────────────────────────────────
 
 async function testProperty17(): Promise<void> {
-  const eventsFilePath = path.resolve('artifacts', 'reports', 'pipeline-events.jsonl');
-  const reportsDir = path.dirname(eventsFilePath);
+  // Reports dir isolation is applied at module level (see `isolate` above) —
+  // Property 15/16 hit the same file via the registry's built-in logger.
+  const eventsFilePath = path.join(isolate.dir, 'pipeline-events.jsonl');
 
-  // Ensure reports directory exists
-  if (!fs.existsSync(reportsDir)) {
-    fs.mkdirSync(reportsDir, { recursive: true });
-  }
+  await fc.assert(
+    fc.asyncProperty(pipelineEventArb, async (event) => {
+      // Get the file size before writing (to read only the new line)
+      const sizeBefore = fs.existsSync(eventsFilePath) ? fs.statSync(eventsFilePath).size : 0;
 
-  // Save existing content (if any) to restore later
-  const existingContent = fs.existsSync(eventsFilePath)
-    ? fs.readFileSync(eventsFilePath, 'utf-8')
-    : null;
+      // Call fileLoggerHook directly with the event
+      fileLoggerHook(event);
 
-  try {
-    await fc.assert(
-      fc.asyncProperty(pipelineEventArb, async (event) => {
-        // Get the file size before writing (to read only the new line)
-        const sizeBefore = fs.existsSync(eventsFilePath) ? fs.statSync(eventsFilePath).size : 0;
+      // Read the file content that was appended
+      const fullContent = fs.readFileSync(eventsFilePath, 'utf-8');
+      const newContent = fullContent.slice(sizeBefore);
 
-        // Call fileLoggerHook directly with the event
-        fileLoggerHook(event);
+      // The new content should be a single JSON line
+      const trimmed = newContent.trim();
+      assert.ok(trimmed.length > 0, 'Should have written content');
 
-        // Read the file content that was appended
-        const fullContent = fs.readFileSync(eventsFilePath, 'utf-8');
-        const newContent = fullContent.slice(sizeBefore);
+      // Parse the last written line
+      const parsed = JSON.parse(trimmed) as PipelineEvent;
 
-        // The new content should be a single JSON line
-        const trimmed = newContent.trim();
-        assert.ok(trimmed.length > 0, 'Should have written content');
-
-        // Parse the last written line
-        const parsed = JSON.parse(trimmed) as PipelineEvent;
-
-        // Verify all fields match the original event
-        assert.equal(parsed.eventType, event.eventType);
-        assert.equal(parsed.runId, event.runId);
-        assert.equal(parsed.phase, event.phase);
-        assert.equal(parsed.timestamp, event.timestamp);
-      }),
-      { numRuns: 100 },
-    );
-  } finally {
-    // Clean up: restore original content or remove the file
-    if (existingContent !== null) {
-      fs.writeFileSync(eventsFilePath, existingContent, 'utf-8');
-    } else if (fs.existsSync(eventsFilePath)) {
-      fs.unlinkSync(eventsFilePath);
-    }
-  }
+      // Verify all fields match the original event
+      assert.equal(parsed.eventType, event.eventType);
+      assert.equal(parsed.runId, event.runId);
+      assert.equal(parsed.phase, event.phase);
+      assert.equal(parsed.timestamp, event.timestamp);
+    }),
+    { numRuns: 100 },
+  );
 
   console.log('  ✓ Property 17 passed: file logger hook persistence');
 }

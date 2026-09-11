@@ -268,7 +268,7 @@ Halaman overview (`/`) menampilkan panel **AI Run Insights** — pola lintas ske
 - **Dashboard:** tombol **✎** di cell NOTES membuka **dialog Catatan QA**. Serve mode (`npm run dashboard`) → tersimpan otomatis via API (+ SSE `notes-updated` untuk auto-refresh). Mode file:// statis → dialog menyalin perintah CLI untuk dijalankan di terminal.
 - **API dashboard:** `GET`/`POST /api/notes/latest` (alias `/api/runs/latest/notes`) dan `GET`/`POST /api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`). POST body `{scenarioId | testId, role?, qaNotes}` — `qaNotes` string ≤4000 char, string kosong = hapus catatan.
 - **CLI:** `npm run note:set -- --scenario=SC-03 [--role=finance] [--test-id=TC-X] --note="teks"` (`--note=""` untuk hapus; `--run=run-…` untuk run terarsip) dan `npm run note:list [--run=run-…]`.
-- **MCP tools (total 26):** `record_ai_note` {`message` **atau** field terstruktur (`kind`, `observation`, `evidence`, `impact`, `recommendation`, `nextAction`, `priority`, `confidence`, `status`), `scope?: test|run`, `scenarioId?`, `testId?`, `role?`, `source?: healer|generator|reporter|analyzer`, `runId?`} — additive (catatan AI lama dipertahankan); `set_test_note` {`note` wajib (string kosong menghapus), `scenarioId?`, `testId?`, `role?`, `runId?`}. Tanpa `runId` → latest run; dengan `runId` → run terarsip.
+- **MCP tools** (`record_ai_note` & `set_test_note`, bagian dari 25 tool total): `record_ai_note` {`message` **atau** field terstruktur (`kind`, `observation`, `evidence`, `impact`, `recommendation`, `nextAction`, `priority`, `confidence`, `status`), `scope?: test|run`, `scenarioId?`, `testId?`, `role?`, `source?: healer|generator|reporter|analyzer`, `runId?`} — additive (catatan AI lama dipertahankan); `set_test_note` {`note` wajib (string kosong menghapus), `scenarioId?`, `testId?`, `role?`, `runId?`}. Tanpa `runId` → latest run; dengan `runId` → run terarsip.
 - **Detail views:** accordion TestDetail, detail run terarsip, dan expandable row di daftar arsip menampilkan section **"Catatan"** (Catatan QA + Catatan AI).
 
 ---
@@ -461,7 +461,7 @@ Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard
 - ✅ Kolom NOTES berisi **CATATAN QA** editable — tombol ✎ membuka dialog Catatan QA: serve mode (`npm run dashboard`) tersimpan via API; mode file:// salin perintah CLI
 - ✅ Sidecar `artifacts/reports/test-notes.json` (schema `qa.test-notes/v1`, key `<scenarioId>::<role>`) — ikut disalin ke `archive/<runId>/` saat run di-save lalu sidecar latest di-reset; run baru mulai bersih, catatan run terarsip permanen & tetap bisa diedit
 - ✅ API GET/POST `/api/notes/latest` (alias `/api/runs/latest/notes`) & `/api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`) + SSE event `notes-updated`
-- ✅ MCP tools baru `record_ai_note` & `set_test_note` (total 26); CLI `npm run note:set` / `npm run note:list`
+- ✅ MCP tools `record_ai_note` & `set_test_note` (bagian dari 25 tool total); CLI `npm run note:set` / `npm run note:list`
 - ✅ Export TSV/CSV/Confluence menambah kolom AI NOTES (setelah NOTES); catatan QA di kolom NOTES dengan prefix `QA:` — tetap respect row filter + Filter columns
 - ✅ Detail views (accordion TestDetail, detail run terarsip, expandable row arsip) menampilkan section "Catatan" (QA + AI)
 

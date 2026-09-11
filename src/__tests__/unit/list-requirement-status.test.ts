@@ -8,6 +8,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { planPathCandidates } from '../../../tools/mcp/src/tools/list-requirement-status';
 
 // ─── Pure helper re-implementations (mirrored from source for isolation) ────
 // We test the observable contract, not the internal symbols, so we replicate
@@ -81,6 +82,33 @@ test.describe('expectedPlanPath', () => {
     expect(expectedPlanPath('finance/invoice/approve')).toBe(
       'specs/finance/invoice/approve-test-plan.md',
     );
+  });
+});
+
+test.describe('planPathCandidates (real source — semantic runtime writes FLAT plans)', () => {
+  test('nested requirement finds the flat plan the runtime actually writes', () => {
+    // Regression: requirements/auth/login-none.md → the Model stage writes
+    // specs/login-none-test-plan.md, so the flat candidate MUST be found or
+    // the coverage map reports hasPlan:false for every nested requirement.
+    const candidates = planPathCandidates('auth/login-none');
+    expect(candidates).toContain('specs/login-none-test-plan.md');
+    expect(candidates[0]).toBe('specs/login-none-test-plan.md');
+  });
+
+  test('flat requirement yields exactly one candidate', () => {
+    expect(planPathCandidates('login')).toEqual(['specs/login-test-plan.md']);
+  });
+
+  test('nested candidate is retained for hand-written legacy layouts', () => {
+    expect(planPathCandidates('auth/login-none')).toContain('specs/auth/login-none-test-plan.md');
+  });
+
+  test('deep nesting keeps flat basename fallback', () => {
+    const candidates = planPathCandidates('finance/invoice/approve');
+    expect(candidates).toEqual([
+      'specs/approve-test-plan.md',
+      'specs/finance/invoice/approve-test-plan.md',
+    ]);
   });
 });
 
