@@ -4,10 +4,14 @@ import {
   validateNoHardcodedWaits,
   validateNoInlineAuth,
   validateAuthRolesRegistered,
+  validateAuthenticatedSpecsDeclareStorageState,
   validateNoVisiblePseudoClass,
   extractAuthRolesFromSpec,
   looksLikeClonedRoleName,
 } from '../../../tools/mcp/src/tools/validate-generated-tests';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 function withEnv(values: Record<string, string | undefined>, run: () => void): void {
   const previous = Object.fromEntries(Object.keys(values).map((k) => [k, process.env[k]]));
@@ -156,6 +160,169 @@ test.describe('validate-generated-tests role-vs-env rule (CC-AUTH-RECOVERY)', ()
   test('passes for specs without auth references', () => {
     const src = "await page.getByRole('button', { name: 'Go' }).click();";
     expect(validateAuthRolesRegistered(src, 'x', 'tests/browse.spec.ts')).toEqual([]);
+  });
+});
+
+/**
+ * Requirement-driven session rule: a spec whose requirement says
+ * `Auth state: authenticated` MUST declare a storageState — otherwise it runs
+ * with the config default (empty storage) and silently tests the login page.
+ * The requirement is resolved from the `// req:` comment (already mandatory).
+ */
+test.describe('validate-generated-tests authenticated-session rule (CC-AUTH-RECOVERY)', () => {
+  function withRequirements(files: Record<string, string>, run: (repo: string) => void): void {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-req-'));
+    const reqDir = path.join(repo, 'requirements');
+    fs.mkdirSync(reqDir, { recursive: true });
+    for (const [name, body] of Object.entries(files)) {
+      fs.writeFileSync(path.join(reqDir, name), body, 'utf-8');
+    }
+    try {
+      run(repo);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  }
+
+  const AUTH_REQ = [
+    '# REQ-INV-001: Approve Invoice',
+    '## Metadata',
+    '- **Auth state:** authenticated',
+    '- **Halaman awal:** /finance/invoices',
+    '',
+  ].join('\n');
+  const PUBLIC_REQ = [
+    '# REQ-PUB-001: Public Page',
+    '## Metadata',
+    '- **Auth state:** unauthenticated',
+    '- **Halaman awal:** /',
+    '',
+  ].join('\n');
+
+  const specWith = (extra: string): string =>
+    [
+      '// spec: requirements/approve-invoice.md',
+      '// seed: tests/seed.spec.ts',
+      '// req: requirements/approve-invoice.md',
+      "import { test } from '@/fixtures/base.fixture';",
+      extra,
+      "test.describe('x', () => { test('y', async () => {}); });",
+    ].join('\n');
+
+  test('flags an authenticated spec that declares no storageState', () => {
+    withRequirements({ 'approve-invoice.md': AUTH_REQ }, (repo) => {
+      const violations = validateAuthenticatedSpecsDeclareStorageState(
+        specWith(''),
+        'tests/approve-invoice.spec.ts',
+        'tests/approve-invoice.spec.ts',
+        repo,
+      );
+      expect(violations.length).toBe(1);
+      expect(violations[0].ruleName).toContain('authenticated');
+      expect(violations[0].ruleName).toContain('storageState');
+      expect(violations[0].severity).toBe('error');
+    });
+  });
+
+  test('passes when the authenticated spec declares storageState via authStatePath', () => {
+    withRequirements({ 'approve-invoice.md': AUTH_REQ }, (repo) => {
+      const src = specWith("test.use({ storageState: authStatePath('finance') });");
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          src,
+          'tests/approve-invoice.spec.ts',
+          'tests/approve-invoice.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+    });
+  });
+
+  test('passes for an unauthenticated requirement with no storageState', () => {
+    withRequirements({ 'approve-invoice.md': PUBLIC_REQ }, (repo) => {
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          specWith(''),
+          'tests/approve-invoice.spec.ts',
+          'tests/approve-invoice.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+    });
+  });
+
+  test('passes for a login-subject spec (login*.spec.ts / @auth) even when authenticated', () => {
+    withRequirements({ 'approve-invoice.md': AUTH_REQ }, (repo) => {
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          specWith(''),
+          'tests/login.spec.ts',
+          'tests/login.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+      const tagged = specWith("test.describe('L', { tag: ['@auth'] }, () => {});");
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          tagged,
+          'tests/auth-flow.spec.ts',
+          'tests/auth-flow.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+    });
+  });
+
+  test('stays silent when the requirement file or // req: comment is absent', () => {
+    withRequirements({}, (repo) => {
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          specWith(''),
+          'tests/approve-invoice.spec.ts',
+          'tests/approve-invoice.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+      const noReq = [
+        "import { test } from '@/fixtures/base.fixture';",
+        "test.describe('x', () => { test('y', async () => {}); });",
+      ].join('\n');
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          noReq,
+          'tests/approve-invoice.spec.ts',
+          'tests/approve-invoice.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+    });
+  });
+
+  test('accepts a literal .auth path declaration', () => {
+    withRequirements({ 'approve-invoice.md': AUTH_REQ }, (repo) => {
+      const src = specWith("test.use({ storageState: '.auth/dev/finance.json' });");
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          src,
+          'tests/approve-invoice.spec.ts',
+          'tests/approve-invoice.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+    });
+  });
+
+  test('skips traceability-exempt files', () => {
+    withRequirements({ 'approve-invoice.md': AUTH_REQ }, (repo) => {
+      expect(
+        validateAuthenticatedSpecsDeclareStorageState(
+          specWith(''),
+          'tests/demo/demo-x.spec.ts',
+          'tests/demo/demo-x.spec.ts',
+          repo,
+        ),
+      ).toEqual([]);
+    });
   });
 });
 

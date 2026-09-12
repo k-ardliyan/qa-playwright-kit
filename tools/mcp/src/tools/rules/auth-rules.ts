@@ -1,6 +1,17 @@
 import type { ValidationViolation } from './rule-helpers';
 import { isTraceabilityExempt, normalizeRelativePath } from './rule-helpers';
 import { parseRolesFromEnvMap } from '../../utils/role-credentials';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
+/**
+ * Specs whose SUBJECT is login: the login steps are the test, so a session must
+ * NOT be provisioned (the requirement is `Auth state: unauthenticated`).
+ */
+export function isLoginSubjectSpec(content: string, relativePath: string): boolean {
+  const rel = normalizeRelativePath(relativePath);
+  return /(^|\/)login[^/]*\.spec\.ts$/.test(rel) || /@auth\b/.test(content);
+}
 
 /**
  * CC-AUTH-RECOVERY enforcement:
@@ -21,8 +32,7 @@ export function validateNoInlineAuth(
   }
 
   const violations: ValidationViolation[] = [];
-  const rel = normalizeRelativePath(relativePath);
-  const isLoginSubjectSpec = /(^|\/)login[^/]*\.spec\.ts$/.test(rel) || /@auth\b/.test(content);
+  const isLoginSubject = isLoginSubjectSpec(content, relativePath);
 
   const submitPattern =
     /(?:fill|fillForm|type)\s*\(\s*['"`][^'"`]*(?:input\[type=["']password["']\]|name=["']password["']|id=["']password["'])[^'"`]*['"`][^)]*\)[\s\S]{0,400}?(?:click|tap|press)\s*\(\s*['"`][^'"`]*(?:button\[type=["']submit["']\]|type=["']submit["'])[^'"`]*['"`]/i;
@@ -31,7 +41,7 @@ export function validateNoInlineAuth(
   const injectPattern =
     /\b(?:browser_set_storage_state|setStorageState|addCookies|addCookiesToContext)\b|\blocalStorage\.setItem\s*\(/i;
 
-  if (!isLoginSubjectSpec) {
+  if (!isLoginSubject) {
     if (submitPattern.test(content) || fillFormPasswordPattern.test(content)) {
       violations.push({
         filePath,
@@ -166,4 +176,94 @@ function cloneViolation(role: string, filePath: string, evidence: string) {
     lineNumber: 1,
     ruleName: `Auth rule (CC-AUTH-RECOVERY): role "${role}" is not registered in the env contract — ${evidence} role authenticity comes ONLY from config/environments/{APP_ENV}.env (+ auth:setup). NEVER duplicate or rename .auth/<role>.json (e.g. user-2.json) to fake a role. Add the role via npm run env:edit, then run npm run auth:setup.`,
   };
+}
+
+/** `// req: <path>` provenance comment (mandatory on generated specs). */
+const REQ_COMMENT_RE = /^\s*\/\/\s*req:\s*(\S+)/m;
+
+/** Canonical requirement metadata parser — mirrors parse-requirement-scenarios. */
+const AUTH_STATE_RE = /^\s*-\s+\*\*Auth\s+state:\*\*\s*(\S+)/im;
+
+const STORAGE_STATE_RE = /storageState\s*:\s*([\s\S]{0,200})/;
+/** Explicit "I want to be anonymous" declaration — the documented opt-out. */
+const EXPLICIT_UNAUTH_RE = /\{\s*cookies\s*:\s*\[\s*\]/;
+
+/**
+ * Read `Auth state:` from the requirement referenced by a spec's `// req:`
+ * comment. Returns null when it cannot be determined (no comment, unreadable
+ * file, path escaping the repo, or an unrecognised value) — a rule must never
+ * guess, so "unknown" stays silent.
+ */
+export function readRequirementAuthState(
+  content: string,
+  repoRoot: string = process.cwd(),
+): 'authenticated' | 'unauthenticated' | null {
+  const reqComment = content.match(REQ_COMMENT_RE);
+  if (!reqComment) return null;
+
+  const rel = reqComment[1].replace(/\\/g, '/');
+  const abs = path.resolve(repoRoot, rel);
+  // Never follow a path that escapes the repo root.
+  if (path.relative(repoRoot, abs).replace(/\\/g, '/').startsWith('..')) return null;
+  if (!fs.existsSync(abs)) return null;
+
+  let text: string;
+  try {
+    text = fs.readFileSync(abs, 'utf-8');
+  } catch {
+    return null;
+  }
+
+  const match = text.match(AUTH_STATE_RE);
+  if (!match) return null;
+  const state = match[1].toLowerCase().replace(/[.,;]+$/, '');
+  if (state === 'authenticated') return 'authenticated';
+  if (state === 'unauthenticated') return 'unauthenticated';
+  return null;
+}
+
+/**
+ * A spec whose requirement declares `Auth state: authenticated` MUST declare a
+ * session. Without `test.use({ storageState })` it inherits the config default
+ * (`{ cookies: [], origins: [] }`, see playwright.config.ts) and silently tests
+ * the login page — a weak assertion then passes green without ever logging in.
+ *
+ * Deliberately silent (no violation) when the requirement cannot be read, the
+ * spec is a login subject, or the spec declares an explicit empty storageState
+ * (an intentional anonymous check, e.g. deep-link protection).
+ */
+export function validateAuthenticatedSpecsDeclareStorageState(
+  content: string,
+  filePath: string,
+  relativePath: string,
+  repoRoot: string = process.cwd(),
+): ValidationViolation[] {
+  if (isTraceabilityExempt(relativePath)) {
+    return [];
+  }
+  if (isLoginSubjectSpec(content, relativePath)) {
+    return [];
+  }
+  if (readRequirementAuthState(content, repoRoot) !== 'authenticated') {
+    return [];
+  }
+
+  const declaration = content.match(STORAGE_STATE_RE);
+  if (declaration) {
+    const value = declaration[1];
+    const declaresSession = value.includes('authStatePath') || value.includes('.auth/');
+    if (declaresSession || EXPLICIT_UNAUTH_RE.test(value)) {
+      return [];
+    }
+  }
+
+  return [
+    {
+      filePath,
+      lineNumber: 1,
+      ruleName:
+        "Auth rule (CC-AUTH-RECOVERY): requirement declares `Auth state: authenticated` but this spec never declares a session. Add test.use({ storageState: authStatePath('<role>') }) at file level (or an explicit empty storageState for an intentional anonymous check). Without it the spec runs unauthenticated and can pass on the login page.",
+      severity: 'error',
+    },
+  ];
 }

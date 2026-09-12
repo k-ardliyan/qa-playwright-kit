@@ -17,6 +17,9 @@ import {
   looksLikeClonedRoleName,
   extractAuthRolesFromSpec,
   validateAuthRolesRegistered,
+  validateAuthenticatedSpecsDeclareStorageState,
+  isLoginSubjectSpec,
+  readRequirementAuthState,
 } from './rules/auth-rules';
 
 export type { ValidationViolation };
@@ -26,6 +29,9 @@ export {
   looksLikeClonedRoleName,
   extractAuthRolesFromSpec,
   validateAuthRolesRegistered,
+  validateAuthenticatedSpecsDeclareStorageState,
+  isLoginSubjectSpec,
+  readRequirementAuthState,
 };
 
 export interface ValidateGeneratedTestsOutput {
@@ -158,7 +164,11 @@ function validateTraceabilityRule(
   return violations;
 }
 
-export function validateSpecFile(filePath: string, relativePath?: string): ValidationViolation[] {
+export function validateSpecFile(
+  filePath: string,
+  relativePath?: string,
+  repoRoot: string = process.cwd(),
+): ValidationViolation[] {
   const content = fs.readFileSync(filePath, 'utf-8');
   const violations: ValidationViolation[] = [];
   const rel = relativePath ?? normalizeRelativePath(filePath);
@@ -196,6 +206,9 @@ export function validateSpecFile(filePath: string, relativePath?: string): Valid
   violations.push(...validateMetadataRule(content, filePath, rel));
   violations.push(...validateNoInlineAuth(content, filePath, rel));
   violations.push(...validateAuthRolesRegistered(content, filePath, rel));
+  violations.push(
+    ...validateAuthenticatedSpecsDeclareStorageState(content, filePath, rel, repoRoot),
+  );
   violations.push(...validateNoVisiblePseudoClass(content, filePath, rel));
 
   return violations;
@@ -408,7 +421,7 @@ export function validateGeneratedTests(filePath?: string): ValidateGeneratedTest
   for (const specPath of specFiles) {
     const relativeSpecPath = normalizeRelativePath(path.relative(repoRoot, specPath));
     try {
-      violations.push(...validateSpecFile(specPath, relativeSpecPath));
+      violations.push(...validateSpecFile(specPath, relativeSpecPath, repoRoot));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to read file';
       violations.push({

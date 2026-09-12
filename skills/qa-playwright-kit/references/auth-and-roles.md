@@ -21,6 +21,8 @@ Load when the requirement has `Auth state: authenticated`, `Role scope` is set, 
 
 Without a valid auth file the test opens the login page instead of the target page.
 
+> **Enforced:** a spec whose requirement declares `Auth state: authenticated` **must** declare a session (`test.use({ storageState: authStatePath('<role>') })`). Otherwise `validate_generated_tests` rejects it — the spec would run unauthenticated and a weak assertion could pass green on the login page. Login-subject specs (`login*.spec.ts` / `@auth`) are exempt. For an intentional anonymous check, declare an explicit empty storageState: `test.use({ storageState: { cookies: [], origins: [] } })`.
+
 ---
 
 ## Checking role readiness
