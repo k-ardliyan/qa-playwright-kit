@@ -17,6 +17,15 @@ npm run setup:check && npm run health:check
 # OTP/CAPTCHA di browser: npm run auth:setup:headed
 ```
 
+> **Wizard menulis pin sendiri.** `npm run setup` menulis `config/environments/.active-env`
+> untuk `local` / `dev` / `staging`, jadi perintah berikutnya (`auth:setup`, `qa:run`,
+> `health:check`) otomatis menargetkan environment yang sama. Untuk `production` pin
+> **tidak** ditulis otomatis — jalankan `npm run env:use:production` secara eksplisit.
+>
+> Setelah sesi dibuat, verifikasi liveness dengan `npm run auth:verify`
+> (`setup:check` hanya cek file sesi ada & tidak kosong; `auth:verify` benar-benar
+> membuka browser dan mengecek sesi masih hidup).
+
 Manual (tanpa wizard):
 
 ```bash
@@ -192,15 +201,18 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 
 ## Kalau Gagal — Cek Ini Dulu
 
-| Gejala                       | Pertama Cek                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------- |
-| `health_check` fail          | `npm run mcp:build` lalu **restart `qa-playwright-kit`** / IDE                    |
-| Tool MCP baru tidak muncul   | `npm run mcp:build` → restart `qa-playwright-kit`                                 |
-| `validate_requirement` error | Baca hint di output → perbaiki → coba lagi                                        |
-| Test gagal semua satu role   | Cek `.auth/{APP_ENV}/<role>.json` ada atau belum                                  |
-| Auth file missing            | `npm run auth:setup` / `auth:setup:headed`                                        |
-| `@network-assert` timeout    | `waitForApi` **sebelum** click; cek urlIncludes/method; `serviceWorkers: 'block'` |
-| Exit `2` (escalate)          | Hubungi Framework Maintainer                                                      |
+| Gejala                                                                   | Pertama Cek                                                                       | Fix                                                                  |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `health_check` fail                                                      | `npm run mcp:build` lalu **restart `qa-playwright-kit`** / IDE                    | —                                                                    |
+| Tool MCP baru tidak muncul                                               | `npm run mcp:build` → restart `qa-playwright-kit`                                 | —                                                                    |
+| `validate_requirement` error                                             | Baca hint di output → perbaiki → coba lagi                                        | —                                                                    |
+| Test gagal semua satu role                                               | Cek `.auth/{APP_ENV}/<role>.json` ada atau belum                                  | —                                                                    |
+| Auth file missing                                                        | `npm run auth:setup` / `auth:setup:headed`                                        | —                                                                    |
+| `auth:setup` bilang `local.env not found` atau "placeholder credentials" | `npm run env:status` → lihat `APP_ENV` dan `file`                                 | `npm run env:use:<env>` lalu `npm run auth:setup`                    |
+| `setup:check` bilang sesi `pending` padahal sudah login                  | `.auth/{APP_ENV}/<role>.json` ukuran > 100 byte                                   | `npm run auth:verify` — kalau VALID, laporkan ke maintainer          |
+| Sesi dibuat tapi test tetap redirect ke `/login`                         | `npm run auth:verify`                                                             | `npm run auth:setup` (login ulang asli; jangan inject storage state) |
+| `@network-assert` timeout                                                | `waitForApi` **sebelum** click; cek urlIncludes/method; `serviceWorkers: 'block'` | —                                                                    |
+| Exit `2` (escalate)                                                      | Hubungi Framework Maintainer                                                      | —                                                                    |
 
 ---
 

@@ -16,7 +16,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { type AppEnv } from '../utils/app-env';
+import { type AppEnv, writeActiveEnvPin } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
 import { type WizardRoleInput, normalizeWizardRoles } from '../shared/utils/role-credentials';
 import { parseEnvText } from '../utils/env-text';
@@ -171,6 +171,29 @@ export function writeEnvFile(options: EnvWriteOptions): EnvWriteResult {
  */
 export function resolveEnvPath(appEnv: AppEnv): string {
   return path.join(findRepoRoot(), 'config', 'environments', `${appEnv}.env`);
+}
+
+export interface PinResult {
+  pinned: boolean;
+  reason?: 'production-requires-explicit-pin';
+}
+
+/**
+ * Publish the wizard's APP_ENV as the active pin.
+ *
+ * Without this the wizard writes `config/environments/<env>.env` but the next
+ * command still resolves the default `local` profile (which the wizard never
+ * created), so `auth:setup` falls back to the `.example` template and fails
+ * with "missing or placeholder credentials" — while the wizard reported
+ * success. Production is deliberately NOT auto-pinned: `env:use:production`
+ * owns that decision (it requires --i-know).
+ */
+export function pinEnvAfterSetup(repoRoot: string, appEnv: AppEnv): PinResult {
+  if (appEnv === 'production') {
+    return { pinned: false, reason: 'production-requires-explicit-pin' };
+  }
+  writeActiveEnvPin(repoRoot, appEnv);
+  return { pinned: true };
 }
 
 function findRepoRoot(): string {

@@ -10,7 +10,7 @@
 
 import prompts from 'prompts';
 import { KNOWN_APP_ENVS, type AppEnv } from '../utils/app-env';
-import { type ChallengeMode, CHALLENGE_MODES } from '../support/human-challenge';
+import { type ChallengeMode } from '../support/human-challenge';
 import { isPlaceholderCredential } from '../shared/utils/role-credentials';
 import { checkReachable } from './reachability';
 import { type WizardLang, t, LANG_LABELS, KNOWN_LANGS } from './i18n';
@@ -531,6 +531,51 @@ export async function promptRoles(lang: WizardLang, existingRoles?: string[]): P
   return uniqueRoles;
 }
 
+export interface ChallengeChoice {
+  title: string;
+  value: ChallengeMode;
+  description: string;
+}
+
+/**
+ * Every mode states its real cost. `auto` used to be labelled "(disarankan)"
+ * while it silently forces HEADLESS=false and stretches the post-login redirect
+ * wait to AUTH_CHALLENGE_TIMEOUT_MS (default 3 minutes) — for an app without
+ * OTP/CAPTCHA, `none` is the correct answer, so `none` is first.
+ */
+const CHALLENGE_DESCRIPTIONS: Record<ChallengeMode, { id: string; en: string }> = {
+  none: {
+    id: 'tanpa OTP/CAPTCHA — paling cepat, HEADLESS=true (disarankan)',
+    en: 'no OTP/CAPTCHA — fastest, HEADLESS=true (recommended)',
+  },
+  auto: {
+    id: 'deteksi otomatis; HEADLESS=false & tunggu redirect s/d AUTH_CHALLENGE_TIMEOUT_MS (default 3 menit)',
+    en: 'auto-detect; HEADLESS=false & redirect wait up to AUTH_CHALLENGE_TIMEOUT_MS (default 3 minutes)',
+  },
+  'otp-browser': {
+    id: 'OTP diisi manual di browser; HEADLESS=false',
+    en: 'OTP entered manually in the browser; HEADLESS=false',
+  },
+  'otp-stdin': {
+    id: 'OTP diketik di terminal; HEADLESS=true',
+    en: 'OTP typed in the terminal; HEADLESS=true',
+  },
+  'captcha-browser': {
+    id: 'CAPTCHA diselesaikan di browser; HEADLESS=false',
+    en: 'CAPTCHA solved in the browser; HEADLESS=false',
+  },
+};
+
+/** Ordered challenge-mode choices — `none` first because it is the recommended default. */
+export function challengeModeChoices(lang: WizardLang): ChallengeChoice[] {
+  const order: ChallengeMode[] = ['none', 'auto', 'otp-browser', 'otp-stdin', 'captcha-browser'];
+  return order.map((m) => ({
+    title: m,
+    value: m,
+    description: t(lang, CHALLENGE_DESCRIPTIONS[m].id, CHALLENGE_DESCRIPTIONS[m].en),
+  }));
+}
+
 /**
  * Prompt for AUTH_CHALLENGE_MODE.
  */
@@ -541,23 +586,8 @@ export async function promptChallengeMode(
   return promptNumberedChoice<ChallengeMode>({
     lang,
     message: t(lang, 'Mode challenge autentikasi', 'Auth challenge mode'),
-    existing: existing ?? 'auto',
-    choices: CHALLENGE_MODES.map((m) => ({
-      title: m,
-      value: m as ChallengeMode,
-      description:
-        m === 'auto'
-          ? t(lang, 'Otomatis deteksi (disarankan)', 'Auto detect (recommended)')
-          : m === 'none'
-            ? t(lang, 'Tanpa challenge', 'No challenge')
-            : m === 'otp-browser'
-              ? t(lang, 'OTP via browser', 'OTP via browser')
-              : m === 'otp-stdin'
-                ? t(lang, 'OTP via terminal', 'OTP via terminal')
-                : m === 'captcha-browser'
-                  ? t(lang, 'CAPTCHA via browser', 'CAPTCHA via browser')
-                  : undefined,
-    })),
+    existing: existing ?? 'none',
+    choices: challengeModeChoices(lang),
   });
 }
 

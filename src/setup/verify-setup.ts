@@ -74,6 +74,43 @@ function keysFileExists(repoRoot: string): boolean {
   return resolveLocalKeysCandidates(repoRoot).some((p) => fs.existsSync(p));
 }
 
+/** A session dump below this size is an empty/failed write, not a usable session. */
+const MIN_SESSION_BYTES = 100;
+
+export interface AuthSessionStatus {
+  ready: string[];
+  /** Present but implausibly small — an empty or failed session dump. */
+  tooSmall: string[];
+  missing: string[];
+}
+
+/**
+ * Filesystem-only session status (no browser, no network).
+ *
+ * Shared by the wizard's artifact checklist and `npm run setup:check` so the
+ * two can never disagree. Existence + size is not proof of a LIVE session —
+ * use `npm run auth:verify` for that; this only rules out "never created" and
+ * "created but empty".
+ */
+export function authSessionStatus(
+  repoRoot: string,
+  appEnv: AppEnv,
+  roles: string[],
+): AuthSessionStatus {
+  const ready: string[] = [];
+  const tooSmall: string[] = [];
+  const missing: string[] = [];
+  for (const role of roles) {
+    const abs = path.join(repoRoot, '.auth', appEnv, `${role}.json`);
+    if (!fs.existsSync(abs)) {
+      missing.push(role);
+      continue;
+    }
+    (fs.statSync(abs).size > MIN_SESSION_BYTES ? ready : tooSmall).push(role);
+  }
+  return { ready, tooSmall, missing };
+}
+
 /**
  * Run all artifact checks. `decrypt_roundtrip` spawns the real dotenvx CLI —
  * everything else is filesystem-only and fast.
@@ -319,30 +356,30 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
 
   // ── 11. Auth session files per role ──
   if (roles.length > 0) {
-    const missingAuth = roles
-      .map((r) => `.auth/${appEnv}/${r}.json`)
-      .filter((rel) => !fs.existsSync(path.join(repoRoot, rel)));
-    const authReady = missingAuth.length === 0;
+    const sessions = authSessionStatus(repoRoot, appEnv, roles);
+    const authReady = sessions.missing.length === 0 && sessions.tooSmall.length === 0;
+    const problems = [
+      ...sessions.missing,
+      ...sessions.tooSmall.map((r) => `${r} (file too small)`),
+    ];
     add({
       id: 'auth_files',
       label: labelFor(lang, 'Sesi login role (.auth/)', 'Role login sessions (.auth/)'),
-      status: missingAuth.length === 0 ? 'pass' : 'warn',
-      detail:
-        missingAuth.length > 0
-          ? labelFor(
-              lang,
-              `pending — belum dibuat: ${missingAuth.join(', ')}`,
-              `pending — not created yet: ${missingAuth.join(', ')}`,
-            )
-          : labelFor(lang, 'ready', 'ready'),
-      fix:
-        missingAuth.length > 0
-          ? labelFor(
-              lang,
-              'npm run auth:setup (OTP/CAPTCHA: npm run auth:setup:headed)',
-              'npm run auth:setup (OTP/CAPTCHA: npm run auth:setup:headed)',
-            )
-          : undefined,
+      status: authReady ? 'pass' : 'warn',
+      detail: authReady
+        ? labelFor(
+            lang,
+            'ready — verifikasi liveness: npm run auth:verify',
+            'ready — verify liveness: npm run auth:verify',
+          )
+        : labelFor(lang, `belum siap: ${problems.join(', ')}`, `not ready: ${problems.join(', ')}`),
+      fix: authReady
+        ? undefined
+        : labelFor(
+            lang,
+            'npm run auth:setup (OTP/CAPTCHA: npm run auth:setup:headed)',
+            'npm run auth:setup (OTP/CAPTCHA: npm run auth:setup:headed)',
+          ),
     });
     add({
       id: 'pipeline_ready',

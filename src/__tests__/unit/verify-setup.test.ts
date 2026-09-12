@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { hasCriticalFailure, verifySetupArtifacts } from '@/setup/verify-setup';
+import { hasCriticalFailure, verifySetupArtifacts, authSessionStatus } from '@/setup/verify-setup';
 import { encryptSecretKeysInFile } from '@/utils/env-secrets';
 
 function makeRepo(opts: { withNodeModules?: boolean; envContent?: string }): string {
@@ -124,7 +124,15 @@ test('present artifacts pass: skills, mcp configs, auth file, login requirement'
     fs.writeFileSync(path.join(repo, '.codex', 'config.toml'), 'x');
     fs.writeFileSync(path.join(repo, 'claude_desktop_config.json'), '{}');
     fs.mkdirSync(path.join(repo, '.auth', 'dev'), { recursive: true });
-    fs.writeFileSync(path.join(repo, '.auth', 'dev', 'user.json'), '{}');
+    // Realistic session payload: a 2-byte `{}` is an empty/failed dump, which
+    // authSessionStatus now classifies as tooSmall rather than ready.
+    fs.writeFileSync(
+      path.join(repo, '.auth', 'dev', 'user.json'),
+      JSON.stringify({
+        cookies: [],
+        origins: [{ origin: 'http://localhost:3000', localStorage: [] }],
+      }).padEnd(200, ' '),
+    );
 
     const checks = verifySetupArtifacts(baseOpts(repo));
     for (const id of ['login_requirement', 'skills_synced', 'mcp_configs', 'auth_files']) {
@@ -176,4 +184,43 @@ test('real decrypt roundtrip passes after genuine dotenvx encryption', () => {
     }
     fs.rmSync(repo, { recursive: true, force: true });
   }
+});
+
+test.describe('authSessionStatus (shared by wizard checklist and setup:check)', () => {
+  test('separates ready, empty and missing session files', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-status-'));
+    try {
+      fs.mkdirSync(path.join(tmp, '.auth', 'dev'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.auth', 'dev', 'user.json'), 'x'.repeat(200));
+      fs.writeFileSync(path.join(tmp, '.auth', 'dev', 'finance.json'), 'x'.repeat(10));
+
+      const status = authSessionStatus(tmp, 'dev', ['user', 'finance', 'hrd']);
+      expect(status.ready).toEqual(['user']);
+      expect(status.tooSmall).toEqual(['finance']);
+      expect(status.missing).toEqual(['hrd']);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('is honest when no roles are configured', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-status-'));
+    try {
+      expect(authSessionStatus(tmp, 'dev', [])).toEqual({ ready: [], tooSmall: [], missing: [] });
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('scopes the lookup to the given APP_ENV', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-status-'));
+    try {
+      fs.mkdirSync(path.join(tmp, '.auth', 'dev'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.auth', 'dev', 'user.json'), 'x'.repeat(200));
+      expect(authSessionStatus(tmp, 'staging', ['user']).missing).toEqual(['user']);
+      expect(authSessionStatus(tmp, 'dev', ['user']).ready).toEqual(['user']);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });

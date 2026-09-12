@@ -40,6 +40,8 @@ function isLoginRequirement(reqRelPath: string, markdown: string): boolean {
 export interface AgentPromptOptions {
   baseUrl?: string;
   appEnv?: string;
+  /** Resolution source from resolveAppEnv() — decides how the env line is worded. */
+  appEnvSource?: string;
 }
 
 /**
@@ -66,16 +68,23 @@ export function buildAgentPrompt(
   const featureName = loginLike ? 'auth' : 'default';
   const pageName = startHint.replace(/^\//, '') || (loginLike ? 'login' : 'home');
 
+  // The env line must state the REAL resolution source. Claiming a pin when
+  // resolveAppEnv() actually fell back to the default profile sends the agent
+  // (and QA) after a file that does not exist.
+  const envSource = (options?.appEnvSource || 'unknown').trim();
+  const envOrigin =
+    envSource === 'pin' ? 'pin: config/environments/.active-env' : `source: ${envSource}`;
+
   const envContext = t(
     lang,
     `[KONTEKS ENV]\n` +
-      `- APP_ENV aktif: ${appEnv} (pin: config/environments/.active-env)\n` +
+      `- APP_ENV aktif: ${appEnv} (${envOrigin})\n` +
       `- BASE_URL: ${baseUrl || 'BELUM DI-SET'}\n` +
       `- Requirement: ${reqRelPath}\n` +
       `- Kredensial role: config/environments/${appEnv}.env (secret terenkripsi dotenvx — JANGAN dibaca manual; nilai dipakai otomatis oleh npm scripts)\n` +
       `- Sesi role: .auth/${appEnv}/<role>.json (materialisasi: npm run auth:setup)`,
     `[ENV CONTEXT]\n` +
-      `- Active APP_ENV: ${appEnv} (pin: config/environments/.active-env)\n` +
+      `- Active APP_ENV: ${appEnv} (${envOrigin})\n` +
       `- BASE_URL: ${baseUrl || 'NOT SET'}\n` +
       `- Requirement: ${reqRelPath}\n` +
       `- Role credentials: config/environments/${appEnv}.env (dotenvx encrypted secrets — DO NOT read manually; values used automatically by npm scripts)\n` +

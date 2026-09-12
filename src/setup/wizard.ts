@@ -46,6 +46,7 @@ import {
   readExistingEnv,
   isEncryptedValue,
   resolveEnvPath,
+  pinEnvAfterSetup,
   type EnvWriteResult,
 } from './wizard-writer';
 
@@ -53,7 +54,8 @@ import { validateSetup, type ValidationResult } from './wizard-validate';
 import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
 import { openTerminalFor } from './terminal';
-import { verifySetupArtifacts, type SetupCheck } from './verify-setup';
+import { binSpawn, npmCommand } from './spawn-bin';
+import { verifySetupArtifacts, authSessionStatus, type SetupCheck } from './verify-setup';
 import { printBanner, printChecklist, printSection, printStep, stepLine } from './ui';
 import {
   buildLoginRequirement,
@@ -133,8 +135,8 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   stepLine(
     t(
       lang,
-      `${TOTAL_STEPS} langkah singkat — bahasa, environment, URL, kredensial, challenge, verifikasi.`,
-      `${TOTAL_STEPS} short steps — language, environment, URL, credentials, challenge, verification.`,
+      `${TOTAL_STEPS} tahap singkat — bahasa, environment, URL, kredensial, challenge, verifikasi. Setiap tahap bisa menanyakan 1-3 pertanyaan.`,
+      `${TOTAL_STEPS} short stages — language, environment, URL, credentials, challenge, verification. Each stage may ask 1-3 questions.`,
     ),
   );
 
@@ -239,12 +241,31 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     challengeMode,
   });
 
+  // Publish the chosen APP_ENV immediately: every later command (auth:setup,
+  // qa:run, health:check) resolves APP_ENV through this pin. Without it the
+  // wizard writes dev.env but the next command reads the default `local`
+  // profile, which does not exist.
+  const pin = pinEnvAfterSetup(process.cwd(), appEnv);
+
   stepLine(
     t(
       lang,
       `✓ File env ditulis: ${shortPath(writeResult.envFilePath)}`,
       `✓ Env file written: ${shortPath(writeResult.envFilePath)}`,
     ),
+  );
+  stepLine(
+    pin.pinned
+      ? t(
+          lang,
+          `✓ Environment aktif di-pin: APP_ENV=${appEnv} (config/environments/.active-env)`,
+          `✓ Active environment pinned: APP_ENV=${appEnv} (config/environments/.active-env)`,
+        )
+      : t(
+          lang,
+          'ℹ Production tidak di-pin otomatis — jalankan: npm run env:use:production',
+          'ℹ Production is not auto-pinned — run: npm run env:use:production',
+        ),
   );
   if (writeResult.keysEncrypted.length > 0) {
     stepLine(
@@ -391,12 +412,12 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
       stepLine(
         t(lang, `Menjalankan ${authCmd} (mohon tunggu)...`, `Running ${authCmd} (please wait)...`),
       );
-      const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
       const scriptName = challengeMode === 'none' ? 'auth:setup' : 'auth:setup:headed';
-      const authRes = spawnSync(npmCmd, ['run', scriptName], {
+      const spawnSpec = binSpawn(npmCommand(), ['run', scriptName]);
+      const authRes = spawnSync(spawnSpec.command, spawnSpec.args, {
         cwd: process.cwd(),
         stdio: 'inherit',
-        shell: false,
+        shell: spawnSpec.shell,
       });
 
       if (authRes.status === 0) {
@@ -407,12 +428,31 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
             `✓ Login sessions successfully created in .auth/${appEnv}/`,
           ),
         );
+      } else if (authRes.error) {
+        // The spawn itself failed (e.g. EINVAL on Windows). `status` is null in
+        // that case, which used to be reported as the meaningless "exit code
+        // null" while the real cause was discarded.
+        const err = authRes.error as NodeJS.ErrnoException;
+        stepLine(
+          t(
+            lang,
+            `⚠ Sesi login gagal dijalankan: ${err.code ?? err.name} — ${err.message}`,
+            `⚠ Login session could not run: ${err.code ?? err.name} — ${err.message}`,
+          ),
+        );
+        stepLine(
+          t(
+            lang,
+            `  Pemulihan: npm run env:use:${appEnv}  →  npm run auth:setup  →  npm run auth:verify`,
+            `  Recovery: npm run env:use:${appEnv}  →  npm run auth:setup  →  npm run auth:verify`,
+          ),
+        );
       } else {
         stepLine(
           t(
             lang,
-            `⚠ Pembuatan sesi login belum berhasil (exit code ${authRes.status}). Anda dapat menjalankannya nanti: ${authCmd}`,
-            `⚠ Login session creation incomplete (exit code ${authRes.status}). You can run it later: ${authCmd}`,
+            `⚠ Sesi login belum terbentuk (exit code ${authRes.status}). Lihat pesan di atas, lalu: npm run auth:setup  →  npm run auth:verify`,
+            `⚠ Login session was not created (exit code ${authRes.status}). Check the output above, then: npm run auth:setup  →  npm run auth:verify`,
           ),
         );
       }
@@ -420,8 +460,8 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
       stepLine(
         t(
           lang,
-          `ℹ Sesi login dilewati. Jalankan '${authCmd}' sebelum mengeksekusi test.`,
-          `ℹ Login sessions skipped. Run '${authCmd}' before executing tests.`,
+          `ℹ Sesi login dilewati. Jalankan '${authCmd}' lalu 'npm run auth:verify' sebelum mengeksekusi test.`,
+          `ℹ Login sessions skipped. Run '${authCmd}' then 'npm run auth:verify' before executing tests.`,
         ),
       );
     }
@@ -645,14 +685,26 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
   console.log(
     `   ${t(lang, 'Requirement', 'Requirement')}: ${loginRequirementValidation ? (loginRequirementValidation.valid ? 'valid' : 'invalid') : 'pending'}`,
   );
+  // Session state comes from the filesystem, not a hardcoded "pending" string —
+  // the old version reported pending even when a valid session existed, which
+  // contradicted `npm run auth:verify`.
+  const sessions = authSessionStatus(process.cwd(), appEnv, validation.rolesConfigured);
+  const authLine =
+    sessions.ready.length > 0
+      ? `ready — ${sessions.ready.join(', ')} (live check: npm run auth:verify)`
+      : sessions.tooSmall.length > 0
+        ? `invalid — file terlalu kecil: ${sessions.tooSmall.join(', ')} (jalankan npm run auth:setup)`
+        : `pending — belum dibuat: ${sessions.missing.join(', ') || 'no configured roles'}`;
+  console.log(`   ${t(lang, 'Auth session', 'Auth sessions')}: ${authLine}`);
   console.log(
-    `   ${t(lang, 'Auth session', 'Auth sessions')}: pending — ${validation.rolesConfigured.join(', ') || 'no configured roles'}`,
+    `   ${t(lang, 'Pipeline', 'Pipeline')}: ${
+      sessions.ready.length > 0 && validation.valid
+        ? 'ready — jalankan npm run qa:run'
+        : 'blocked — perbaiki config/sesi dulu'
+    }`,
   );
   console.log(
-    `   ${t(lang, 'Pipeline', 'Pipeline')}: ${loginRequirementValidation?.valid && validation.valid ? 'pending — auth sessions must be created and verified' : 'blocked — fix config/requirement first'}`,
-  );
-  console.log(
-    `   ${t(lang, 'Role siap', 'Roles ready')}: ${validation.rolesReady.join(', ') || t(lang, 'tidak ada', 'none')}`,
+    `   ${t(lang, 'Role siap', 'Roles ready')}: ${sessions.ready.join(', ') || t(lang, 'tidak ada', 'none')}`,
   );
   if (agentSync.skillsSynced.length > 0) {
     const dest = agentSync.hermesProfileSkillsDir ? ` (${agentSync.hermesProfileSkillsDir})` : '';
@@ -726,11 +778,25 @@ function printSummary(data: {
       `  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementValidation.valid ? 'valid' : 'invalid'}`,
     );
   }
-  stepLine(
-    `  ${t(lang, 'Auth session', 'Auth sessions')}: pending — jalankan npm run auth:setup${data.challengeMode !== 'none' ? ':headed' : ''}`,
+  // Session + pipeline lines come from the filesystem, not a hardcoded
+  // "pending" string. The summary used to contradict the checklist printed
+  // ~20 lines earlier (and `npm run auth:verify`).
+  const sessions = authSessionStatus(
+    process.cwd(),
+    data.appEnv,
+    data.roles.map((r) => r.name),
   );
   stepLine(
-    `  ${t(lang, 'Pipeline', 'Pipeline')}    : ${data.loginRequirementValidation?.valid && data.validation.valid ? 'pending — auth sessions belum diverifikasi' : 'blocked — config/requirement belum valid'}`,
+    sessions.ready.length > 0
+      ? `  ${t(lang, 'Auth session', 'Auth sessions')}: ready — ${sessions.ready.join(', ')} (verify: npm run auth:verify)`
+      : `  ${t(lang, 'Auth session', 'Auth sessions')}: pending — jalankan npm run auth:setup${data.challengeMode !== 'none' ? ':headed' : ''}${sessions.tooSmall.length > 0 ? ` (file terlalu kecil: ${sessions.tooSmall.join(', ')})` : ''}`,
+  );
+  stepLine(
+    `  ${t(lang, 'Pipeline', 'Pipeline')}    : ${
+      sessions.ready.length > 0 && data.validation.valid
+        ? 'ready — jalankan npm run qa:run'
+        : 'blocked — selesaikan sesi/config dulu'
+    }`,
   );
 
   const roleSummary: string[] = [];
@@ -829,6 +895,7 @@ function printSummary(data: {
     const prompt = buildAgentPrompt(data.loginRequirementPath, data.loginMarkdown, lang, {
       baseUrl: data.baseUrl,
       appEnv: data.appEnv,
+      appEnvSource: resolveAppEnv({ repoRoot: process.cwd() }).source,
     });
     console.log('');
     console.log('  ' + '─'.repeat(52));

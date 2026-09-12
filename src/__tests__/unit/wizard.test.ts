@@ -7,13 +7,44 @@ import { isEncryptedValue, buildEnvFileContent } from '@/setup/wizard-writer';
 import { isSecretEnvKey, secretKeysFromEnvText } from '@/utils/env-secrets';
 import { validateSetup, isSetupReady, roleCredentialErrors } from '@/setup/wizard-validate';
 import { parseRolesFromEnvMap } from '@/shared/utils/role-credentials';
-import { parseNumberedChoice, normalizeAppPath, isValidAppPathInput } from '@/setup/wizard-prompts';
+import {
+  parseNumberedChoice,
+  normalizeAppPath,
+  isValidAppPathInput,
+  challengeModeChoices,
+} from '@/setup/wizard-prompts';
 import { browsersDir, hasChromiumInstalled, buildInstallCommand } from '@/setup/browser-check';
 import { buildTerminalCommand } from '@/setup/terminal';
 import {
   buildAgentPrompt,
   parseRequirementPromptHints,
 } from '../../../tools/scripts/qa-run-prompt';
+import { binSpawn, localBin, npmCommand } from '@/setup/spawn-bin';
+import { pinEnvAfterSetup } from '@/setup/wizard-writer';
+import { resolveAppEnv, readActiveEnvPin } from '@/utils/app-env';
+
+/**
+ * Temp repo fixture: a throwaway dir with package.json + config/environments,
+ * chdir'd into it. Hoisted to module scope so every describe can use it.
+ */
+function withTempRepo(seedEnv?: string): (cleanup?: boolean) => void {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wizard-writer-'));
+  const originalCwd = process.cwd();
+  fs.writeFileSync(
+    path.join(tmp, 'package.json'),
+    JSON.stringify({ name: 'wizard-writer-fixture' }),
+  );
+  const envDir = path.join(tmp, 'config', 'environments');
+  fs.mkdirSync(envDir, { recursive: true });
+  if (seedEnv !== undefined) {
+    fs.writeFileSync(path.join(envDir, 'dev.env'), seedEnv, 'utf-8');
+  }
+  process.chdir(tmp);
+  return (skipRemove = false) => {
+    process.chdir(originalCwd);
+    if (!skipRemove) fs.rmSync(tmp, { recursive: true, force: true });
+  };
+}
 
 test.describe('wizard reachability predicate', () => {
   test('alive statuses (2xx, 302, 304, 401)', () => {
@@ -30,25 +61,6 @@ test.describe('wizard reachability predicate', () => {
 });
 
 test.describe('buildEnvFileContent generates a clean env file', () => {
-  function withTempRepo(seedEnv?: string): (cleanup?: boolean) => void {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wizard-writer-'));
-    const originalCwd = process.cwd();
-    fs.writeFileSync(
-      path.join(tmp, 'package.json'),
-      JSON.stringify({ name: 'wizard-writer-fixture' }),
-    );
-    const envDir = path.join(tmp, 'config', 'environments');
-    fs.mkdirSync(envDir, { recursive: true });
-    if (seedEnv !== undefined) {
-      fs.writeFileSync(path.join(envDir, 'dev.env'), seedEnv, 'utf-8');
-    }
-    process.chdir(tmp);
-    return (skipRemove = false) => {
-      process.chdir(originalCwd);
-      if (!skipRemove) fs.rmSync(tmp, { recursive: true, force: true });
-    };
-  }
-
   test('fresh setup: sections + wizard values, no example comments or placeholders', () => {
     const cleanup = withTempRepo();
     try {
@@ -573,5 +585,160 @@ test.describe('Hermes prompt builder (mode-aware)', () => {
     expect(prompt).toContain('[ARAHAN EKSEKUSI]');
     expect(prompt).toContain('[KUALITAS KODE]');
     expect(prompt).toContain('\n\n');
+  });
+});
+
+test.describe('cross-platform bin spawn (Windows .cmd safety)', () => {
+  test('win32 requires shell:true (Node blocks .cmd spawn otherwise)', () => {
+    const s = binSpawn('npm.cmd', ['run', 'auth:setup'], 'win32');
+    expect(s.shell).toBe(true);
+    expect(s.command).toBe('npm.cmd');
+    expect(s.args).toEqual(['run', 'auth:setup']);
+  });
+
+  test('posix does not use a shell', () => {
+    const s = binSpawn('npm', ['run', 'auth:setup'], 'linux');
+    expect(s.shell).toBe(false);
+  });
+
+  test('localBin resolves node_modules/.bin with the right extension', () => {
+    expect(localBin('C:/repo', 'biome', 'win32')).toBe(
+      path.join('C:/repo', 'node_modules', '.bin', 'biome') + '.cmd',
+    );
+    expect(localBin('/repo', 'biome', 'linux')).toBe(
+      path.join('/repo', 'node_modules', '.bin', 'biome'),
+    );
+    // Extension is the platform signal — separators come from path.join.
+    expect(localBin('/repo', 'biome', 'win32').endsWith('biome.cmd')).toBe(true);
+    expect(localBin('/repo', 'biome', 'darwin').endsWith('biome')).toBe(true);
+  });
+
+  test('npmCommand picks the platform binary name', () => {
+    expect(npmCommand('win32')).toBe('npm.cmd');
+    expect(npmCommand('linux')).toBe('npm');
+    expect(npmCommand('darwin')).toBe('npm');
+  });
+
+  test('auth-session spawn descriptor uses a shell on win32', () => {
+    const s = binSpawn(npmCommand('win32'), ['run', 'auth:setup'], 'win32');
+    expect(s.shell).toBe(true);
+  });
+});
+
+test.describe('pinEnvAfterSetup publishes the wizard APP_ENV', () => {
+  /**
+   * Pin resolution must not be masked by an APP_ENV inherited from the runner,
+   * and must be deterministic even when CI=true (pin is skipped in CI).
+   */
+  function withPinRepo(): (cleanup?: boolean) => void {
+    const saved = process.env.APP_ENV;
+    delete process.env.APP_ENV;
+    const cleanupRepo = withTempRepo();
+    return (skipRemove = false) => {
+      cleanupRepo(skipRemove);
+      if (saved === undefined) delete process.env.APP_ENV;
+      else process.env.APP_ENV = saved;
+    };
+  }
+
+  test('pins local/dev/staging so the next command resolves the same env', () => {
+    for (const env of ['local', 'dev', 'staging'] as const) {
+      const cleanup = withPinRepo();
+      try {
+        const result = pinEnvAfterSetup(process.cwd(), env);
+        expect(result.pinned, env).toBe(true);
+        expect(readActiveEnvPin(process.cwd()), env).toBe(env);
+        const resolved = resolveAppEnv({ repoRoot: process.cwd(), ci: false });
+        expect(resolved.appEnv, env).toBe(env);
+        expect(resolved.source, env).toBe('pin');
+      } finally {
+        cleanup();
+      }
+    }
+  });
+
+  test('refuses to pin production (env:use:production guard owns that)', () => {
+    const cleanup = withPinRepo();
+    try {
+      const result = pinEnvAfterSetup(process.cwd(), 'production');
+      expect(result.pinned).toBe(false);
+      expect(result.reason).toBe('production-requires-explicit-pin');
+      expect(fs.existsSync(path.join(process.cwd(), 'config', 'environments', '.active-env'))).toBe(
+        false,
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  test('is idempotent and overwrites a stale pin', () => {
+    const cleanup = withPinRepo();
+    try {
+      expect(pinEnvAfterSetup(process.cwd(), 'staging').pinned).toBe(true);
+      expect(pinEnvAfterSetup(process.cwd(), 'dev').pinned).toBe(true);
+      expect(readActiveEnvPin(process.cwd())).toBe('dev');
+      expect(resolveAppEnv({ repoRoot: process.cwd(), ci: false }).appEnv).toBe('dev');
+    } finally {
+      cleanup();
+    }
+  });
+});
+
+test.describe('agent prompt env context is honest about the pin', () => {
+  test('reports pin only when the source really is a pin', () => {
+    const pinned = buildAgentPrompt('requirements/login.md', '# REQ-1\n', 'id', {
+      baseUrl: 'https://x.example',
+      appEnv: 'dev',
+      appEnvSource: 'pin',
+    });
+    expect(pinned).toContain('APP_ENV aktif: dev (pin: config/environments/.active-env)');
+  });
+
+  test('reports the actual source when not pinned', () => {
+    const fallback = buildAgentPrompt('requirements/login.md', '# REQ-1\n', 'id', {
+      baseUrl: 'https://x.example',
+      appEnv: 'local',
+      appEnvSource: 'default',
+    });
+    expect(fallback).not.toContain('pin: config/environments/.active-env');
+    expect(fallback).toContain('APP_ENV aktif: local (source: default)');
+  });
+
+  test('english copy when lang=en', () => {
+    const en = buildAgentPrompt('requirements/login.md', '# REQ-1\n', 'en', {
+      baseUrl: 'https://x.example',
+      appEnv: 'dev',
+      appEnvSource: 'os',
+    });
+    expect(en).toContain('Active APP_ENV: dev (source: os)');
+    expect(en).not.toContain('pin: config/environments/.active-env');
+  });
+});
+
+test.describe('challenge mode choices (default + consequences)', () => {
+  test('none is first (the recommended default) and auto is not labelled recommended', () => {
+    const choices = challengeModeChoices('id');
+    expect(choices[0].value).toBe('none');
+    expect(choices[0].description).toContain('disarankan');
+    const auto = choices.find((c) => c.value === 'auto');
+    expect(auto?.description ?? '').not.toContain('disarankan');
+  });
+
+  test('every mode explains its side effects', () => {
+    for (const c of challengeModeChoices('id')) {
+      expect(c.description.length, c.value).toBeGreaterThan(10);
+    }
+  });
+
+  test('covers all five modes with no duplicates', () => {
+    const values = challengeModeChoices('id').map((c) => c.value);
+    expect(new Set(values).size).toBe(5);
+    expect(values).toContain('otp-browser');
+    expect(values).toContain('otp-stdin');
+    expect(values).toContain('captcha-browser');
+  });
+
+  test('english copy when lang=en', () => {
+    expect(challengeModeChoices('en')[0].description).toContain('recommended');
   });
 });

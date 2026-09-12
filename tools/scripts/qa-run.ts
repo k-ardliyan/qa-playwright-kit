@@ -462,8 +462,8 @@ async function main(): Promise<void> {
       process.stdout.write('─'.repeat(64) + '\n');
       const reqMarkdown = fs.readFileSync(resolvedReq, 'utf-8');
 
-      const resolvedAppEnv = resolveAppEnv({ repoRoot }).appEnv;
-      const appEnv = (process.env.APP_ENV || resolvedAppEnv).trim();
+      const resolvedEnv = resolveAppEnv({ repoRoot });
+      const appEnv = (process.env.APP_ENV || resolvedEnv.appEnv).trim();
       let envBaseUrl = '';
       const envPath = path.join(repoRoot, 'config', 'environments', `${appEnv}.env`);
       if (fs.existsSync(envPath)) {
@@ -480,6 +480,7 @@ async function main(): Promise<void> {
         buildAgentPrompt(relReq, reqMarkdown, 'id', {
           baseUrl,
           appEnv,
+          appEnvSource: resolvedEnv.source,
         }),
       );
       process.stdout.write('─'.repeat(64) + '\n\n');

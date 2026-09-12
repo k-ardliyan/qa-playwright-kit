@@ -89,6 +89,10 @@ npm run setup
 
 Wizard **generate** `config/environments/{APP_ENV}.env` sebagai file data yang bersih: hanya key yang aktif, dikelompokkan per section, tanpa komentar placeholder (`.env.example` tetap jadi dokumentasi lengkap). Lalu **auto-encrypt secret saja** (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`); URL, flag, email/username/phone tetap plaintext — boleh diedit di file. `npm run env:edit` pakai helper encrypt yang sama, plus aksi **Rapikan file** untuk rebuild file lama ke format bersih.
 
+Wizard juga **menulis pin `config/environments/.active-env`** untuk `local`, `dev`, dan `staging`, sehingga perintah berikutnya (`auth:setup`, `qa:run`, `health:check`) menargetkan environment yang sama tanpa `npm run env:use` manual. Untuk `production` pin **tidak** ditulis otomatis — jalankan `npm run env:use:production` secara eksplisit (aksi itu memerlukan `--i-know`).
+
+> **`setup:check` vs `auth:verify`.** `npm run setup:check` hanya memeriksa berkas sesi ada dan tidak kosong (> 100 byte) — cepat dan tanpa browser. Untuk membuktikan sesi benar-benar **hidup**, jalankan `npm run auth:verify` (membuka browser, live-check per role).
+
 ---
 
 ## Ganti password / tambah role: `npm run env:edit`
