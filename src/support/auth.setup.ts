@@ -20,7 +20,7 @@ import { resolveAppUrl } from './app-url';
 /**
  * Auth Setup — modular, customizable login runner.
  *
- * Roles in scope: "user" (fully role-aware — no general/user mode)
+ * Roles in scope: 'user' (fully role-aware — no general/user mode)
  *
  * Runs once during setup project to materialize .auth/{APP_ENV}/<role>.json.
  * If your app requires extra login steps (profile picker, tenant selector, 2-step login),

@@ -16,6 +16,7 @@ import {
   type LoginTemplateState,
   type RoleSpec,
 } from '../wizard-login-template';
+import { formatMarkdownInText } from '../format-markdown';
 
 let passed = 0;
 let failed = 0;
@@ -211,7 +212,9 @@ test('form none: no OTP/CAPTCHA manual scenario', () => {
   assert.ok(!md.includes('AUTH_CHALLENGE_MODE=otp'), 'none must not mention otp mode');
   assert.ok(md.includes('SC-01: Submit dengan Identifier Kosong'), 'negatives start first');
   assert.ok(md.includes('SC-04: Submit dengan Identifier Hanya Spasi'), 'whitespace case present');
-  assert.ok(md.includes('literal:   '), 'whitespace literal must keep trailing spaces');
+  // Whitespace is DATA — it must be backtick-delimited, because raw trailing
+  // spaces are silently normalized by the markdown formatter (3 → 2 = hard break).
+  assert.ok(md.includes('literal:`   `'), 'whitespace literal must be delimited, not raw');
   assert.ok(md.includes('SC-07: Login Berhasil'), 'success is last auto scenario');
 });
 
@@ -377,6 +380,29 @@ test('writeLoginRequirementFile overwrites AUTO-GENERATED login.md', () => {
   const next = fs.readFileSync(path.join(dir, 'login.md'), 'utf-8');
   assert.ok(next.includes('# REQ-AUTH-001: Login — erpku'), 'autogen file should be rewritten');
   fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+// ─── generated markdown must survive the repo's markdown formatter ────────────
+// A wizard-generated requirements/login.md used to fail `npm run format:check`:
+// the whitespace-only identifier (AC-04) was written as raw trailing spaces,
+// which the formatter normalizes (3 spaces → 2 = a markdown hard break),
+// silently changing the test data.
+
+test('generated login.md is already markdown-formatted (no trailing-space data)', () => {
+  const md = buildLoginRequirement(baseState());
+  assert.equal(
+    formatMarkdownInText(md),
+    md,
+    'generated login.md must be stable under the markdown formatter',
+  );
+});
+
+test('whitespace-only identifier is delimited so the formatter cannot eat it', () => {
+  const md = buildLoginRequirement(baseState());
+  assert.ok(
+    md.includes('literal:`   `'),
+    'whitespace-only input must be backtick-delimited (raw trailing spaces are corrupted)',
+  );
 });
 
 // ─── reporter ───────────────────────────────────────────────────────────────

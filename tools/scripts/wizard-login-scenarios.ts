@@ -263,7 +263,11 @@ export function formScenarios(state: LoginTemplateState, challengeMode: Challeng
     layer: 'FE',
     role: roleName,
     precondition: `Pengguna di \`${state.baseUrl}${loginUrl}\`, belum login.`,
-    inputLines: ['identifier: literal:   ', `password: ${credentialKey(roleName, 'password')}`],
+    // Whitespace-only input is DATA for AC-04. Raw trailing spaces get eaten by
+    // the markdown formatter (3 spaces → 2, a hard-break), which silently
+    // corrupts the value and fails `npm run format:check`. Backtick-delimit it
+    // like the other values that need quoting (see the XSS scenario below).
+    inputLines: ['identifier: literal:`   `', `password: ${credentialKey(roleName, 'password')}`],
     steps: [
       'Buka halaman login',
       'Isi field login dengan karakter spasi saja (nilai di Input Data)',

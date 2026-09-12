@@ -39,7 +39,27 @@ export interface AuthTemplateOptions {
  * keeps apostrophes and Unicode raw.
  */
 function tsLiteral(value: string): string {
-  return JSON.stringify(value);
+  // Must match Biome's `quoteStyle: single` so the generated file passes
+  // `npm run format:check` without a second formatting pass:
+  //   - value contains a single quote (but no double quote) → double-quoted,
+  //     which avoids escaping — Biome's own preference;
+  //   - otherwise → single-quoted, escaping `\` and `'`.
+  if (value.includes("'") && !value.includes('"')) return JSON.stringify(value);
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+/** Valid JS identifier — Biome's `quoteProperties: asNeeded` keeps it unquoted. */
+function isIdentifier(name: string): boolean {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name);
+}
+
+/**
+ * Object key literal. Biome removes quotes from keys that are valid
+ * identifiers (`'admin':` → `admin:`), so emit them unquoted and quote only
+ * what actually needs it (e.g. `o'brien`).
+ */
+function tsKey(name: string): string {
+  return isIdentifier(name) ? name : tsLiteral(name);
 }
 
 /**
@@ -61,14 +81,17 @@ export function generateAuthSetupContent(opts: AuthTemplateOptions): string {
       const roleSuccess = role.successUrlPath || successUrlPath;
       // Only emit overrides when they differ from the global defaults
       if (roleLogin === loginUrl && roleSuccess === successUrlPath) return null;
-      return `  ${tsLiteral(name)}: { loginUrl: ${tsLiteral(roleLogin)}, successUrl: ${tsLiteral(roleSuccess)} },`;
+      return `  ${tsKey(name)}: { loginUrl: ${tsLiteral(roleLogin)}, successUrl: ${tsLiteral(roleSuccess)} },`;
     })
     .filter(Boolean);
 
-  // Always emit the override table (possibly empty) so the runtime fallback
-  // `typeof ROLE_URL_OVERRIDES` reference below stays type-safe even when no
-  // role differs from the global defaults.
-  const overridesBlock = `\nconst ROLE_URL_OVERRIDES: Record<string, { loginUrl: string; successUrl: string }> = {\n${roleOverrides.join('\n')}\n};\n`;
+  // Always emit the override table so the runtime `typeof ROLE_URL_OVERRIDES`
+  // reference below stays type-safe. An empty table must render single-line:
+  // `= {\n\n};` is a Biome formatting error in the generated file.
+  const overridesBlock =
+    roleOverrides.length === 0
+      ? `\nconst ROLE_URL_OVERRIDES: Record<string, { loginUrl: string; successUrl: string }> = {};\n`
+      : `\nconst ROLE_URL_OVERRIDES: Record<string, { loginUrl: string; successUrl: string }> = {\n${roleOverrides.join('\n')}\n};\n`;
 
   // Load the role's EXISTING session into this setup test's context so the
   // reuse gate (isSessionValid) can actually see it — without this, the setup
@@ -86,13 +109,13 @@ export function generateAuthSetupContent(opts: AuthTemplateOptions): string {
 
   return `import * as fs from 'node:fs';
 import { test as setup, test } from '@playwright/test';
-	import {
-	  parseRolesFromEnvMap,
-	  roleCredentialKeys,
-	  isPlaceholderCredential,
-	  type RoleCredentialRef,
-	} from '../shared/utils/role-credentials';
-	import type { Page } from '@playwright/test';
+import {
+  parseRolesFromEnvMap,
+  roleCredentialKeys,
+  isPlaceholderCredential,
+  type RoleCredentialRef,
+} from '../shared/utils/role-credentials';
+import type { Page } from '@playwright/test';
 import { setTestMetadata, captureActualResult } from './test-metadata';
 import { isSessionValid, saveSessionState, resolveRoleCredentials } from './auth-helpers';
 import {
@@ -119,7 +142,8 @@ ${overridesBlock}
 async function loginRole(roleName: string, page: Page): Promise<void> {
   const cred = resolveRoleCredentials(roleName);
   const authFile = cred.authFile; // scoped: .auth/{APP_ENV}/<role>.json
-  const overrides = (typeof ROLE_URL_OVERRIDES !== 'undefined' && ROLE_URL_OVERRIDES[roleName]) || null;
+  const overrides =
+    (typeof ROLE_URL_OVERRIDES !== 'undefined' && ROLE_URL_OVERRIDES[roleName]) || null;
   const roleLoginUrl = cred.loginUrl || (overrides?.loginUrl ?? ${tsLiteral(loginUrl)});
   const roleSuccessUrl = cred.successUrl || (overrides?.successUrl ?? ${tsLiteral(successUrlPath)});
   console.log(\`ℹ [Auth] Menyiapkan session untuk role: "\${roleName}"...\`);
@@ -245,7 +269,9 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
 // ─── Setup blocks per role ─────────────────────────────────────────────────────
 function configuredRoles(): RoleCredentialRef[] {
   const env = Object.fromEntries(
-    Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
   );
   const roles = parseRolesFromEnvMap(env);
   return roles.length > 0 ? roles : [roleCredentialKeys('user')];

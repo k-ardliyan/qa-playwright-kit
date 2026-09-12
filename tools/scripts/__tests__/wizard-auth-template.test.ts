@@ -14,7 +14,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import ts from 'typescript';
+import { spawnSync } from 'node:child_process';
 import { writeAuthSetup, generateAuthSetupContent } from '../wizard-auth-template';
+import { localBin } from '../../../src/setup/spawn-bin';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-setup-'));
 const out = path.join(tmp, 'auth.setup.ts');
@@ -78,8 +80,35 @@ function generateFor(opts: Parameters<typeof generateAuthSetupContent>[0]): stri
   return generateAuthSetupContent(opts);
 }
 
-// Query strings, apostrophes, backslashes, Unicode — all must survive as
-// valid TS string literals (JSON.stringify output, double-quoted).
+// Literal quoting follows Biome's `quoteStyle: single`: single-quoted, except
+// when the value itself contains a single quote — then double-quoted, which
+// avoids escaping (Biome's own preference). These assertions decode the emitted
+// literal instead of byte-matching it, so escaping stays verifiable.
+
+/** Decode a TS string-literal source the way the generated file will. */
+function decodeTsLiteral(source: string): string {
+  const quote = source[0]!;
+  return source.slice(1, -1).replace(/\\(.)/g, (_m, c: string) => {
+    if (c === 'n') return '\n';
+    if (c === 't') return '\t';
+    if (c === 'r') return '\r';
+    if (c === quote) return quote;
+    return c;
+  });
+}
+
+/** First TS string literal appearing after `anchor`, or null. */
+function literalAfter(text: string, anchor: string): string | null {
+  const idx = text.indexOf(anchor);
+  if (idx < 0) return null;
+  const m = text
+    .slice(idx + anchor.length)
+    .match(/^\s*((?:'(?:[^'\\]|\\.)*')|(?:"(?:[^"\\]|\\.)*"))/);
+  return m ? m[1]! : null;
+}
+
+// Query strings, apostrophes, backslashes, Unicode — all must survive as valid
+// TS literals that decode back to the original value.
 const nasty = generateFor({
   roles: [
     { name: 'user', authFile: '.auth/local/user.json' },
@@ -94,44 +123,54 @@ const nasty = generateFor({
   successUrlPath: 'C:\\path\\dashboard',
 });
 
-// URL fallback literals are JSON.stringify'd (double-quoted, escaped)
-assert.ok(
-  nasty.includes('?? "/login?next=/x&from=O\'Brien"'),
-  'loginUrl fallback must be a JSON.stringify literal',
-);
-assert.ok(
-  nasty.includes('?? "C:\\\\path\\\\dashboard"'),
-  'successUrlPath fallback must escape backslashes',
-);
-// override table keys + values escaped
-assert.ok(nasty.includes('"o\'brien": {'), 'role name key must be JSON.stringify literal');
-assert.ok(
-  nasty.includes('loginUrl: "/sso?next=/y\\\\backslash"'),
-  'override loginUrl must escape backslashes',
-);
-assert.ok(
-  nasty.includes('successUrl: "/beranda/仪表板/über"'),
-  'override successUrl must keep Unicode raw',
-);
-// no raw single-quoted interpolation of the nasty values survives
-assert.ok(!nasty.includes("'/login?next=/x&from=O'Brien'"), 'raw single-quoted loginUrl leaked');
-assert.ok(!nasty.includes("'C:\\path\\dashboard'"), 'raw single-quoted backslash path leaked');
+// loginUrl contains an apostrophe → double-quoted, decodes unchanged
+const loginLit = literalAfter(nasty, 'overrides?.loginUrl ??');
+assert.ok(loginLit, 'loginUrl fallback literal missing');
+assert.equal(loginLit![0], '"', 'value with an apostrophe must be double-quoted');
+assert.equal(decodeTsLiteral(loginLit!), "/login?next=/x&from=O'Brien", 'loginUrl must round-trip');
 
-// Unicode paths survive raw (JSON.stringify keeps them readable)
+// successUrlPath has no apostrophe → single-quoted, backslashes escaped
+const successLit = literalAfter(nasty, 'overrides?.successUrl ??');
+assert.ok(successLit, 'successUrlPath fallback literal missing');
+assert.equal(successLit![0], "'", 'value without an apostrophe must be single-quoted');
+assert.equal(decodeTsLiteral(successLit!), 'C:\\path\\dashboard', 'successUrlPath must round-trip');
+
+// override table: role key with an apostrophe stays double-quoted
+assert.ok(
+  nasty.includes('"o\'brien": {'),
+  'role name key with an apostrophe must stay double-quoted',
+);
+const overrideRow = nasty.split('\n').find((l) => l.includes('"o\'brien": {'));
+assert.ok(overrideRow, 'override table row for the apostrophe role missing');
+const ovrLogin = literalAfter(overrideRow!, 'loginUrl: ');
+assert.ok(ovrLogin, 'override loginUrl literal missing');
+assert.equal(
+  decodeTsLiteral(ovrLogin!),
+  '/sso?next=/y\\backslash',
+  'override loginUrl must round-trip',
+);
+const ovrSuccess = literalAfter(overrideRow!, 'successUrl: ');
+assert.ok(ovrSuccess, 'override successUrl literal missing');
+assert.equal(
+  decodeTsLiteral(ovrSuccess!),
+  '/beranda/仪表板/über',
+  'override successUrl must round-trip raw Unicode',
+);
+
+// Unicode fallback survives raw
 const unicode = generateFor({
   roles: [{ name: 'user', authFile: '.auth/local/user.json' }],
   loginUrl: '/login',
   successUrlPath: '/beranda/仪表板',
 });
-assert.ok(
-  unicode.includes('?? "/beranda/仪表板"'),
-  'Unicode successUrlPath must survive as a literal',
-);
+const uniLit = literalAfter(unicode, 'overrides?.successUrl ??');
+assert.ok(uniLit, 'unicode fallback literal missing');
+assert.equal(decodeTsLiteral(uniLit!), '/beranda/仪表板', 'Unicode successUrlPath must round-trip');
 
 // Role names in the header comment are quoted literals too (the `// ` prefix
 // is stripped when the comment is embedded in the file docstring)
 assert.ok(
-  nasty.includes('Roles in scope: "user", "o\'brien"'),
+  nasty.includes("Roles in scope: 'user', \"o'brien\""),
   'role names comment must quote literals',
 );
 
@@ -421,6 +460,96 @@ for (const variant of matrixVariants) {
     `variant "${variant.name}" failed to compile:\n${errors.join('\n')}`,
   );
   process.stdout.write(`  ✓ matrix variant compiles: ${variant.name}\n`);
+}
+
+// ─── Task 8.6 — generated file must already be Biome-formatted ────────────────
+// A regenerated src/support/auth.setup.ts used to break `npm run format:check`
+// straight after setup: tab-indented imports, an empty override table rendered
+// as `= {\n\n};`, unwrapped long lines, and double-quoted literals under
+// `quoteStyle: single`. This gate fails if the formatter would rewrite the
+// generated file — i.e. if the template drifts from the repo's format rules.
+{
+  const biome = localBin(repoRoot, 'biome', process.platform);
+  assert.ok(fs.existsSync(biome), `biome binary not found at ${biome} (run npm install)`);
+
+  const assertBiomeFormatted = (content: string, label: string): void => {
+    assert.ok(!/^\t/m.test(content), `${label}: generated file must not contain tab indentation`);
+    const res = spawnSync(biome, ['format', '--stdin-file-path=src/support/auth.setup.ts'], {
+      input: content,
+      encoding: 'utf-8',
+      shell: process.platform === 'win32',
+    });
+    assert.equal(res.status, 0, `${label}: biome format failed\n${res.stderr ?? ''}`);
+    assert.equal(
+      res.stdout,
+      content,
+      `${label}: generated file is not Biome-formatted (the formatter would rewrite it)`,
+    );
+  };
+
+  const gateVariants: Array<{
+    label: string;
+    opts: Parameters<typeof generateAuthSetupContent>[0];
+  }> = [
+    {
+      label: 'single-role-no-overrides',
+      opts: {
+        roles: [{ name: 'user', authFile: '.auth/dev/user.json' }],
+        loginUrl: '/login',
+        successUrlPath: '/dashboard',
+      },
+    },
+    {
+      label: 'multi-role-with-overrides',
+      opts: {
+        roles: [
+          { name: 'user', authFile: '.auth/dev/user.json' },
+          {
+            name: 'admin',
+            authFile: '.auth/dev/admin.json',
+            loginUrl: '/admin/login',
+            successUrlPath: '/admin/dashboard',
+          },
+        ],
+        loginUrl: '/login',
+        successUrlPath: '/dashboard',
+      },
+    },
+    {
+      label: 'apostrophe-role-and-unicode',
+      opts: {
+        roles: [
+          {
+            name: "o'brien",
+            authFile: '.auth/dev/o-brien.json',
+            loginUrl: '/sso?next=/y\\backslash',
+            successUrlPath: '/beranda/仪表板',
+          },
+        ],
+        loginUrl: "/login?next=/x&from=O'Brien",
+        successUrlPath: 'C:\\path\\dashboard',
+      },
+    },
+  ];
+
+  for (const v of gateVariants) {
+    assertBiomeFormatted(generateAuthSetupContent(v.opts), v.label);
+    process.stdout.write(`  ✓ biome-formatted: ${v.label}\n`);
+  }
+
+  // An empty override table must be single-line — `= {\n\n};` is a format error.
+  assert.ok(
+    generateAuthSetupContent(gateVariants[0]!.opts).includes(
+      'const ROLE_URL_OVERRIDES: Record<string, { loginUrl: string; successUrl: string }> = {};',
+    ),
+    'empty override table must render as a single line `= {};`',
+  );
+  // A populated override table must still render.
+  assert.ok(
+    // Biome's `quoteProperties: asNeeded` keeps identifier-safe keys unquoted.
+    generateAuthSetupContent(gateVariants[1]!.opts).includes('  admin: {'),
+    'populated override table must still render',
+  );
 }
 
 fs.rmSync(tmp, { recursive: true, force: true });
