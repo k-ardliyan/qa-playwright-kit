@@ -423,7 +423,9 @@ async function main(): Promise<void> {
       });
       process.exit(EXIT.FIXABLE);
     }
-    printOk(`Setup lengkap (env=${process.env.APP_ENV ?? 'local'})`);
+    printOk(
+      `Setup lengkap (env=${(process.env.APP_ENV || resolveAppEnv({ repoRoot }).appEnv).trim()})`,
+    );
 
     // Step 2/3: Validate requirement
     printStep(2, 3, 'Validate requirement');

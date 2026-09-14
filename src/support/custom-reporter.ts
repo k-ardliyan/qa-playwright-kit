@@ -523,6 +523,17 @@ export default class CustomReporter implements Reporter {
       console.log(
         `  📊 Run complete: ${summary.passed}✅ ${summary.failed}❌ ${summary.skipped}⏭️  (${summary.passRate}%)`,
       );
+      // The demo suite ships deliberately failing specs to exercise the
+      // dashboard. Without this note a first-time QA reads those failures as a
+      // broken framework.
+      const intentional = this.collectedTests.filter(
+        (t) => t.status !== 'passed' && t.filePath.replace(/\\/g, '/').includes('/demo/'),
+      ).length;
+      if (intentional > 0) {
+        console.log(
+          `  ℹ  ${intentional} failure(s) come from tests/demo/** — intentionally failing specs. Not a framework problem.`,
+        );
+      }
       console.log('  🌐 View & save via dashboard:  npm run dashboard');
       console.log('  💾 Save via CLI:               npm run archive:save');
       console.log('  📋 View history:               npm run archive:view');
