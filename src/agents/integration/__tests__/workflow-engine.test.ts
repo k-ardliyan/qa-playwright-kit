@@ -873,6 +873,56 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(controller.getState().workflow?.lastFeedback?.loopTarget).toBe('fix-environment');
   });
 
+  /**
+   * Regression: a feedback route back to Generate must preserve WHICH spec
+   * files to re-check. A PASSED Generate payload carries `generatedFiles`, not
+   * `requiredOutputPaths`; when the real spec filename differs from the derived
+   * default the target list was dropped and the re-entry could only ever answer
+   * `awaiting-generator` — an unrecoverable pipeline deadlock.
+   */
+  test('feedback re-entry to generate preserves the generated file target list', async () => {
+    const tracking = { calls: [] as string[] };
+    const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
+    const evidencePath = writeEvidence(process.env['QA_REPORT_DIR']!);
+
+    const failingValidateAdapters = {
+      ...recordingAdapters(tracking),
+      async generate() {
+        tracking.calls.push('generate-adapter');
+        // Deliberately NOT tests/flow.spec.ts (the derived default).
+        return {
+          mode: 'completed' as const,
+          generatedFiles: ['tests/flow-login.spec.ts'],
+          testCount: 2,
+        };
+      },
+      async validate() {
+        tracking.calls.push('validate-adapter');
+        return {
+          unresolvedFailures: 1,
+          substage: 'needs-heal' as const,
+          failureList: [
+            { failureSource: 'test', message: 'locator timeout on #submit', authRedirect: false },
+          ],
+        };
+      },
+    };
+
+    const controller = new WorkflowController(
+      { orchestrationMode: 'automatic', requirementPath, repoRoot },
+      failingValidateAdapters,
+    );
+    await controller.run({
+      requirementPath,
+      orchestrationMode: 'automatic',
+      evidence: [{ path: evidencePath }],
+    });
+
+    const generate = controller.getState().workflow?.generate;
+    expect(generate?.status).toBe('blocked');
+    expect(generate?.requiredOutputPaths).toEqual(['tests/flow-login.spec.ts']);
+  });
+
   test('Task D4: awaiting-generator then explicit generated output resumes to Generate passed', async () => {
     const tracking = { calls: [] as string[] };
     const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);

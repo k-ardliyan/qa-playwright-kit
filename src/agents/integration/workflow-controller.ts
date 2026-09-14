@@ -320,7 +320,12 @@ export class WorkflowController {
     // Keep the handoff target list alive across the generate↔validate loop:
     // a Generate feedback route wipes the `generate` payload, but the QA or
     // agent still needs to know WHICH files to (re)write on the next pass.
-    const requiredOutputPaths = envelope.generate?.requiredOutputPaths;
+    // A PASSED payload carries `generatedFiles` (not `requiredOutputPaths`), so
+    // fall back to it — without that fallback the re-entry loses its target
+    // list, and Generate can only answer `awaiting-generator` forever whenever
+    // the real spec filename differs from the derived default.
+    const requiredOutputPaths =
+      envelope.generate?.requiredOutputPaths ?? envelope.generate?.generatedFiles;
     const next: WorkflowEnvelope = {
       ...envelope,
       stages,
