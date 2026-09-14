@@ -230,6 +230,33 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 
 ---
 
+### Error #7b: Semua Tool MCP `qa-playwright-kit` Gagal (`WORKSPACE_MANIFEST_MISSING`)
+
+**Gejala:** MCP terlihat sehat (`✓ Connected`, daftar tool muncul, status bar `3 servers`), tetapi **setiap** pemanggilan tool balas:
+
+```json
+{ "status": "error", "error": { "code": "TOOL_ERROR",
+  "message": "WORKSPACE_MANIFEST_MISSING: Workspace manifest \"config\\qa-kit.workspace.json\" is missing in root \"C:\\Users\\<user>\"." } }
+```
+
+**Root cause:** host MCP (Hermes / Cursor / VS Code / Codex) menjalankan server dari cwd sembarang — biasanya home direktori. Server lama me-resolve repo root dari `process.cwd()`, sehingga mencari manifest di tempat yang salah.
+
+**Fix:**
+
+1. Update framework (perbaikan sudah masuk — root kini di-resolve dari lokasi modul, bukan cwd):
+
+   ```bash
+   git pull && npm install && npm run mcp:build
+   ```
+
+2. Restart server MCP di IDE (agar build baru termuat).
+3. Verifikasi: `npm run health:check` → baris `workspace_root` harus `ok` dan menyebut path repo yang benar.
+4. Jika repo berada di luar jalur launcher: set `QA_REPO_ROOT` ke path repo absolut pada konfigurasi MCP server.
+
+**Catatan:** `hermes mcp test <server>` **tidak** mendeteksi masalah ini — ia hanya menguji handshake. Gunakan `health_check` untuk verifikasi nyata.
+
+---
+
 ### Error #8: `Cannot find module '@playwright/test'`
 
 **Gejala:** Saat run test atau `qa:run`, error `MODULE_NOT_FOUND`.

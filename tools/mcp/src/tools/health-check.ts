@@ -450,6 +450,34 @@ function checkAuthStorageState(strictAuth: boolean): HealthCheckItem {
 }
 
 /**
+ * Workspace-root sanity — the failure this guards against is silent: an MCP
+ * host spawns the server from an arbitrary cwd, the root resolves somewhere
+ * else, and every tool call fails while `hermes mcp test` still reports a
+ * healthy connection. Report where the root came from so the fix is obvious.
+ */
+function checkWorkspaceRoot(): HealthCheckItem {
+  const root = mcpWorkspace.rootDir;
+  const manifestPath = path.join(root, 'config', 'qa-kit.workspace.json');
+  const manifestPresent = fs.existsSync(manifestPath);
+  const insideRoot = process.cwd().startsWith(root);
+  const detail = `root=${root} (cwd=${process.cwd()})`;
+  if (manifestPresent) {
+    return {
+      name: 'workspace_root',
+      status: 'ok',
+      message: `${detail} — manifest present`,
+    };
+  }
+  return {
+    name: 'workspace_root',
+    status: 'fail',
+    message: `${detail} — manifest missing at config/qa-kit.workspace.json${
+      insideRoot ? '' : '; the resolved root is not the repo the server was launched from'
+    }. Fix: launch the MCP server with its cwd inside the repo, or set QA_REPO_ROOT to the repo path.`,
+  };
+}
+
+/**
  * Full health check.
  *
  * Default is strict auth (the MCP pre-flight contract: abort before running
@@ -461,6 +489,7 @@ export function healthCheck(options: HealthCheckOptions = {}): HealthCheckOutput
   const checks = [
     checkNodeVersion(),
     checkMcpBuild(),
+    checkWorkspaceRoot(),
     checkPlaywrightMcp(),
     checkPlaywrightTest(),
     checkEnvironmentFile(),

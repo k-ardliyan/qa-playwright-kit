@@ -60,6 +60,57 @@ const MANIFEST_RELATIVE_PATH = path.join('config', 'qa-kit.workspace.json');
 const MAX_PARENT_HOPS = 12;
 
 /**
+ * A genuine repository root: it carries the workspace manifest, or a root
+ * Playwright config. Used to tell a real root apart from a nested package
+ * (e.g. `tools/mcp/package.json`), which must never win the anchor walk.
+ */
+function isRepoRoot(dir: string): boolean {
+  return (
+    fs.existsSync(path.join(dir, MANIFEST_RELATIVE_PATH)) ||
+    fs.existsSync(path.join(dir, 'playwright.config.ts'))
+  );
+}
+
+/**
+ * Repo root derived from THIS module's own location instead of the caller's
+ * working directory.
+ *
+ * An MCP stdio server is spawned by the host with an arbitrary cwd (Hermes,
+ * Cursor, VS Code and Codex launch it from the user's home), so
+ * `process.cwd()` is not a reliable anchor. Module location is: the file lives
+ * inside the repository it belongs to, on every OS.
+ *
+ * Returns null when no anchor resolves to a real repo root (bundled or
+ * single-file deployments) so callers can fall back to cwd.
+ */
+function findAnchoredRepoRoot(): string | null {
+  const anchors: unknown[] = [
+    typeof __dirname === 'string' ? __dirname : undefined,
+    typeof __filename === 'string' ? __filename : undefined,
+  ];
+  for (const anchor of anchors) {
+    if (typeof anchor !== 'string' || anchor === '') continue;
+    try {
+      const candidate = findRepoRoot(anchor);
+      if (isRepoRoot(candidate)) return candidate;
+    } catch {
+      // try the next anchor
+    }
+  }
+  return null;
+}
+
+/**
+ * Default root when no explicit dir is given: `QA_REPO_ROOT` override, then
+ * this module's own location, then cwd (legacy behavior).
+ */
+function resolveDefaultRoot(): string {
+  const override = process.env['QA_REPO_ROOT']?.trim();
+  if (override) return override;
+  return findAnchoredRepoRoot() ?? process.cwd();
+}
+
+/**
  * Manifest-presence policy. `strict` throws when the manifest is absent or
  * invalid (MCP server default); `compat` falls back to the default manifest
  * (framework default).
@@ -69,25 +120,33 @@ export type WorkspaceManifestMode = 'strict' | 'compat';
 /**
  * Finds the repository root by walking up directories looking for
  * config/qa-kit.workspace.json, package.json, or playwright.config.ts.
+ *
+ * A nested `package.json` (e.g. `tools/mcp/package.json` for the MCP server
+ * package) is NOT a repo root marker: preferring it made the walk stop inside
+ * the workspace and resolve every path against the wrong directory. Real roots
+ * carry the manifest or the root Playwright config, so those win; a bare
+ * package.json is only accepted as a last resort when nothing better is found.
  */
 export function findRepoRoot(startDir: string = process.cwd()): string {
   let current = path.resolve(startDir);
+  let packageJsonCandidate: string | null = null;
   for (let i = 0; i < MAX_PARENT_HOPS; i++) {
     const manifestPath = path.join(current, MANIFEST_RELATIVE_PATH);
     const pkgPath = path.join(current, 'package.json');
     const playwrightConfigPath = path.join(current, 'playwright.config.ts');
-    if (
-      fs.existsSync(manifestPath) ||
-      fs.existsSync(pkgPath) ||
-      fs.existsSync(playwrightConfigPath)
-    ) {
+    if (fs.existsSync(manifestPath) || fs.existsSync(playwrightConfigPath)) {
       return current;
+    }
+    if (fs.existsSync(pkgPath) && packageJsonCandidate === null) {
+      // Remember the first package.json seen, but keep walking: a nested
+      // package (tools/mcp) must not shadow the real workspace root.
+      packageJsonCandidate = current;
     }
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
   }
-  return path.resolve(startDir);
+  return packageJsonCandidate ?? path.resolve(startDir);
 }
 
 export class WorkspacePathRegistry {
@@ -97,7 +156,7 @@ export class WorkspacePathRegistry {
   private _fallbackWarningEmitted = false;
 
   constructor(rootDir?: string, mode?: WorkspaceManifestMode) {
-    this._rootDir = rootDir ? path.resolve(rootDir) : findRepoRoot();
+    this._rootDir = rootDir ? path.resolve(rootDir) : resolveDefaultRoot();
     this._mode = mode ?? this.resolveMode();
   }
 

@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { findRepoRoot } from './safety';
+import { mcpWorkspace } from './workspace-paths';
 
 type LoadEnvironmentFn = (options?: { adapterEnv?: { dir: string; name: string } }) => void;
 
@@ -22,7 +22,9 @@ export function bootstrapMcpEnvironment(startDir: string): string {
   // Must be set before any logger.info from env-loader — stdout is reserved for JSON-RPC.
   process.env.MCP_STDIO = '1';
 
-  const repoRoot = findRepoRoot(startDir);
+  // Anchor at the workspace registry, which resolves the repo from this
+  // module's own location: the host may spawn the server with any cwd.
+  const repoRoot = mcpWorkspace.rootDir;
   process.chdir(repoRoot);
 
   let resolved = { appEnv: process.env.APP_ENV || 'local', source: 'default' };

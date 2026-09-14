@@ -79,6 +79,43 @@ test.describe('Workspace Path Closure & Cross-Platform Resolver Contract (Phase 
     expect(customRegistry.selectorCatalogRel).toBe('artifacts/selector-catalog');
   });
 
+  test('MCP registry anchors the repo root from its own module location, not cwd', () => {
+    // An MCP host (Hermes / Cursor / VS Code / Codex) spawns the server from an
+    // arbitrary cwd — often the user's home. Resolving from cwd made every tool
+    // call fail with WORKSPACE_MANIFEST_MISSING even though the manifest exists.
+    const originalCwd = process.cwd();
+    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-ws-cwd-'));
+    try {
+      process.chdir(elsewhere);
+      // A registry built with no explicit root must NOT resolve to `elsewhere`.
+      const registry = new McpWorkspacePathRegistry();
+      expect(registry.rootDir).not.toBe(elsewhere);
+      expect(registry.requirementsRel).toBe('requirements');
+      expect(fs.existsSync(path.join(registry.rootDir, 'config', 'qa-kit.workspace.json'))).toBe(
+        true,
+      );
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  test('QA_REPO_ROOT overrides the resolved workspace root', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-ws-override-'));
+    fs.mkdirSync(path.join(root, 'config'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'config', 'qa-kit.workspace.json'),
+      JSON.stringify({ schemaVersion: 1, paths: { requirements: 'reqs' } }),
+    );
+    const previous = process.env['QA_REPO_ROOT'];
+    try {
+      process.env['QA_REPO_ROOT'] = root;
+      expect(new McpWorkspacePathRegistry().requirementsRel).toBe('reqs');
+    } finally {
+      if (previous === undefined) delete process.env['QA_REPO_ROOT'];
+      else process.env['QA_REPO_ROOT'] = previous;
+    }
+  });
+
   test('MCP registry is strict by default and only compat mode falls back', () => {
     const missing = path.join('/non/existent/path/for/testing', 'child');
     expect(() => new McpWorkspacePathRegistry(missing).manifest).toThrow(
