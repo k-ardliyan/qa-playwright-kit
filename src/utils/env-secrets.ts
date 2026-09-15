@@ -97,8 +97,37 @@ function quoteForCmd(p: string): string {
   return `"${p.replace(/"/g, '\\"')}"`;
 }
 
+/**
+ * Absolute path to this framework's own `node_modules/.bin/dotenvx`.
+ *
+ * Resolved from the module's location, NOT from `process.cwd()`: callers
+ * (`npm run setup`, `env:edit`, tests) `chdir` into the project or a fixture
+ * directory, so cwd-based lookup silently falls back to `npx` — which reports
+ * success without writing the keys file in some environments. Climbing from
+ * the module directory finds the framework's install regardless of cwd.
+ */
+function resolveLocalDotenvx(): string | null {
+  let dir = __dirname;
+  for (let i = 0; i < 6; i += 1) {
+    const candidate = path.join(dir, 'node_modules', '.bin', 'dotenvx');
+    const binary = process.platform === 'win32' ? `${candidate}.cmd` : candidate;
+    if (fs.existsSync(binary)) return binary;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
 function runDotenvx(args: string, cwd: string, filePath?: string): string {
-  return execSync(`npx @dotenvx/dotenvx ${args}`, {
+  // Prefer the locally installed binary over `npx`. `npx @dotenvx/dotenvx`
+  // reports success but writes NO keys file in some environments (observed on
+  // Windows with npm 11: the env file gets a `DOTENV_PUBLIC_KEY_*` line
+  // pointing at a `.env.keys` that is never created), so the following decrypt
+  // always fails. `npx` remains the fallback for images that install on demand.
+  const localBinary = resolveLocalDotenvx();
+  const command = localBinary ? `"${localBinary}"` : 'npx @dotenvx/dotenvx';
+  return execSync(`${command} ${args}`, {
     cwd,
     encoding: 'utf-8',
     env: buildChildEnv(filePath),
