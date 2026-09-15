@@ -29,7 +29,7 @@
           softline: '#e4e9f0',
           ink: '#16202e',
           muted: '#46515f',
-          faint: '#67738a',
+          faint: '#5b6779',  // 5.34:1 on base — was #67738a (4.45:1, under AA for small text)
           accent: '#0f766e',
           amber: '#92400e',
           rose: '#be123c',
@@ -130,7 +130,7 @@
   .editor-lang {
     margin-left: auto;
     font-size: 10px;
-    color: #858585;
+    color: #9d9d9d;
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
@@ -141,7 +141,7 @@
     padding: 12px 0;
     text-align: right;
     border-right: 1px solid #2f2f2f;
-    color: #858585;
+    color: #9d9d9d;
     user-select: none;
     flex-shrink: 0;
   }
@@ -182,7 +182,7 @@
     text-transform: uppercase;
   }
   .explorer-bar .bar-icon { font-size: 13px; color: #e8e8e8; }
-  .explorer-title { margin-left: auto; font-size: 10px; color: #858585; text-transform: none; letter-spacing: 0; }
+  .explorer-title { margin-left: auto; font-size: 10px; color: #9d9d9d; text-transform: none; letter-spacing: 0; }  /* was #858585 — borderline 4.52:1 */
   .tree-row {
     display: flex; align-items: center; gap: 7px;
     padding: 4px 12px;
@@ -197,7 +197,7 @@
   .tree-folder .ph { color: #d0b66b; }         /* warna folder ala VS Code */
   .tree-indent-1 { padding-left: 34px; }
   .tree-indent-2 { padding-left: 56px; }
-  .tree-note { margin-left: auto; color: #858585; font-size: 11.5px; }
+  .tree-note { margin-left: auto; color: #9d9d9d; font-size: 11.5px; }
 
   /* Chat: prompt ke AI + balasan AI */
   .chat { display: flex; flex-direction: column; gap: 12px; }
@@ -267,7 +267,7 @@
      horizontal — deck ini dibaca ulang, bukan hanya dipresentasikan. */
   .term-body.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
   .term-body .p { color: #22c55e; }
-  .term-body .cm { color: #64748b; }
+  .term-body .cm { color: #8b98ad; }  /* was #64748b — 3.93:1 on terminal bg */
 
   /* Notes / kertas bergaris untuk blok markdown (requirement) */
   .notes-block {
@@ -386,7 +386,7 @@
   .trace-ribbon .trace-link { height: 1px; width: 38px; background: currentColor; opacity: 0.35; }
   .trace-ribbon .trace-label { margin-left: 9px; opacity: 0.7; }
   .source-foot {
-    margin-top: 1.5rem; color: #67738a; font-size: 11px; line-height: 1.45;
+    margin-top: 1.5rem; color: #5b6779;  /* was #67738a — 4.45:1, under AA */ font-size: 11px; line-height: 1.45;
   }
   .source-foot code { color: #46515f; font-family: 'JetBrains Mono', ui-monospace, monospace; }
   .eyebrow {
@@ -399,7 +399,7 @@
     min-height: 150px; border: 1px solid #ccd5e2; border-radius: 14px;
     background: rgba(255,255,255,0.78); padding: 17px;
   }
-  .phase-card .phase-kicker { color: #67738a; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+  .phase-card .phase-kicker { color: #5b6779;  /* was #67738a — 4.45:1, under AA */ font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
   .phase-card .phase-title { margin-top: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 800; }
   .phase-card .phase-copy { margin-top: 7px; color: #46515f; font-size: 13px; line-height: 1.5; }
   .badge-runtime, .badge-illustration {
@@ -415,7 +415,7 @@
   .table-scroll { overflow-x: auto; }
   .table-scroll table { min-width: 620px; width: 100%; border-collapse: collapse; }
   .table-scroll th, .table-scroll td { border-bottom: 1px solid #e4e9f0; padding: 10px 12px; text-align: left; vertical-align: top; }
-  .table-scroll th { color: #67738a; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .table-scroll th { color: #5b6779;  /* was #67738a — 4.45:1, under AA */ font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
   .table-scroll td { color: #46515f; font-size: 13px; line-height: 1.45; }
   .table-scroll code { color: #0f766e; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
   :focus-visible { outline: 3px solid rgba(29,78,216,0.45); outline-offset: 4px; }
@@ -478,7 +478,7 @@
     color: #0f766e; padding-bottom: 8px; border-bottom: 1px solid #ccd5e2;
     display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
   }
-  .toc-group-name .toc-group-count { color: #67738a; font-weight: 700; letter-spacing: 0.06em; }
+  .toc-group-name .toc-group-count { color: #5b6779;  /* was #67738a — 4.45:1, under AA */ font-weight: 700; letter-spacing: 0.06em; }
   .toc-list { margin-top: 8px; display: grid; gap: 1px; }
   .toc-item {
     display: flex; align-items: baseline; gap: 10px;
@@ -490,16 +490,21 @@
   .toc-item:hover { background: rgba(15,118,110,0.09); color: #0f766e; }
   .toc-item .toc-num {
     font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
-    color: #67738a; min-width: 24px; flex-shrink: 0;
+    color: #5b6779;  /* was #67738a — 4.45:1, under AA */ min-width: 24px; flex-shrink: 0;
   }
   .toc-item.current {
     background: #0f766e; color: #ffffff; font-weight: 700;
     border-color: #0f766e;
   }
-  .toc-item.current .toc-num { color: rgba(255,255,255,0.8); font-weight: 700; }
-  .toc-item.current .toc-here { color: rgba(255,255,255,0.85); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .toc-item.current .toc-num { color: #ffffff; font-weight: 700; }
+  /* Marker "sedang dibaca" — sembunyikan default, tampilkan hanya di item aktif.
+     Urutan penting: aturan `display:none` harus lebih dulu, karena
+     `.toc-item.current .toc-here` (0,3,0) dan `.toc-item .toc-here` (0,2,0)
+     punya specificity berbeda tapi yang belakangan menang saat sama-sama
+     menargetkan properti yang sama. */
   .toc-item .toc-here { display: none; }
-  .toc-item .toc-sub { color: #67738a; font-size: 12px; }
+  .toc-item.current .toc-here { display: inline; color: #ffffff; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .toc-item .toc-sub { color: #5b6779;  /* was #67738a — 4.45:1, under AA */ font-size: 12px; }
   .toc-head {
     display: flex; align-items: flex-end; justify-content: space-between;
     gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2.5rem;
@@ -968,15 +973,15 @@ Keputusan: APPROVE · FILE BUG · REVISE REQUIREMENT · FIX TEST · FIX ENVIRONM
         <p class="mt-3 sub-lead max-w-2xl">Explore the app. Model the flow. Challenge the assumptions. Generate the test. Validate the trust.</p>
         <p class="mt-2 text-sm text-faint">Di-enforce di runtime oleh WorkflowController: gerbang Challenge mengunci Generate sampai asumsi teruji; Validate menjalankan browser &amp; self-heal.</p>
         <div class="mt-12 flex flex-wrap items-stretch justify-center gap-3">
-          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker">01 · Explore</p><p class="phase-title text-base mt-1">The App Answers</p><p class="phase-copy text-xs">snapshot UI nyata</p></div>
+          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker">01 · Explore</p><p class="phase-title text-[16px] mt-1">The App Answers</p><p class="phase-copy text-xs">snapshot UI nyata</p></div>
           <div class="self-center text-faint text-lg">→</div>
-          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-blue">02 · Model</p><p class="phase-title text-base mt-1">Shared Model</p><p class="phase-copy text-xs">user journey &amp; plan</p></div>
+          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-blue">02 · Model</p><p class="phase-title text-[16px] mt-1">Shared Model</p><p class="phase-copy text-xs">user journey &amp; plan</p></div>
           <div class="self-center text-faint text-lg">→</div>
-          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-amber">03 · Challenge</p><p class="phase-title text-base mt-1">The Gate</p><p class="phase-copy text-xs">uji asumsi &amp; gap</p></div>
+          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-amber">03 · Challenge</p><p class="phase-title text-[16px] mt-1">The Gate</p><p class="phase-copy text-xs">uji asumsi &amp; gap</p></div>
           <div class="self-center text-faint text-lg">→</div>
-          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-violet">04 · Generate</p><p class="phase-title text-base mt-1">Fourth, Not First</p><p class="phase-copy text-xs">Playwright spec</p></div>
+          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-violet">04 · Generate</p><p class="phase-title text-[16px] mt-1">Fourth, Not First</p><p class="phase-copy text-xs">Playwright spec</p></div>
           <div class="self-center text-faint text-lg">→</div>
-          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-green">05 · Validate</p><p class="phase-title text-base mt-1">Earned Trust</p><p class="phase-copy text-xs">run · heal · analyze</p></div>
+          <div class="phase-card text-center min-w-[150px] shadow-sm"><p class="phase-kicker text-green">05 · Validate</p><p class="phase-title text-[16px] mt-1">Earned Trust</p><p class="phase-copy text-xs">run · heal · analyze</p></div>
         </div>
         <div class="mt-10 grid gap-4 sm:grid-cols-2">
           <div class="callout !py-4"><span class="font-bold text-ink">MCP Engine</span>: tool <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">workflow_run</code> mengendalikan 5 stage secara fail-closed (Generate diblokir jika Challenge belum lolos; Validate membatasi loop self-heal max 3 siklus).</div>
@@ -1466,34 +1471,74 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
     </div>
   </section>
 
-  <!-- 25. CLONE -->
+  <!-- 26. INSTALL HERMES AGENT (langkah pertama) -->
+  <section class="slide" id="s28-hermes-install" data-section="Pemasangan" role="region" aria-labelledby="s28-hermes-install-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Panduan 1/7 · Hermes</span>
+        <h2 id="s28-hermes-install-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Install Hermes Agent</h2>
+        <p class="mt-4 sub-lead max-w-2xl">QA Playwright Kit <strong>direkomendasikan dipakai bersama Hermes Agent</strong>. Hermes yang menjalankan peran Planner, Generator, Healer, dan Reporter lewat MCP — framework menyediakan kontrak dan alatnya.</p>
+
+        <div class="mt-9 grid gap-5 md:grid-cols-2">
+          <div class="phase-card">
+            <span class="badge-runtime">Jalur utama · direkomendasikan</span>
+            <p class="phase-title">Hermes Desktop</p>
+            <p class="phase-copy">Satu installer, langsung dapat aplikasi + perintah <code class="font-mono">hermes</code>. QA tidak perlu menyentuh terminal untuk memulai.</p>
+            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">browser</span></div><div class="term-body wrap"><span class="cm"># 1. buka situs resmi</span>
+hermes-agent.nousresearch.com
+<span class="cm"># 2. unduh installer untuk Windows/macOS</span>
+<span class="cm"># 3. jalankan → selesai</span></div></div>
+          </div>
+          <div class="phase-card">
+            <span class="badge-illustration">Alternatif · CLI saja</span>
+            <p class="phase-title">Lewat terminal</p>
+            <p class="phase-copy">Kalau tidak ingin memasang aplikasi desktop, atau memasang di server tanpa tampilan.</p>
+            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">powershell — Windows</span></div><div class="term-body wrap"><span class="p">&gt;</span> iex (irm https://hermes-agent.nousresearch.com/install.ps1)</div></div>
+            <div class="term mt-3"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — Linux / macOS / WSL2</span></div><div class="term-body wrap"><span class="p">$</span> curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash</div></div>
+          </div>
+        </div>
+
+        <div class="mt-8 grid gap-3 sm:grid-cols-3">
+          <div class="callout !py-4"><strong>Prasyarat: hanya <code class="font-mono">git</code></strong><br/>Installer menyiapkan Python, Node.js, ripgrep, dan ffmpeg sendiri — tidak perlu dipasang manual.</div>
+          <div class="callout !py-4"><strong>Langkah berikutnya</strong><br/>Buka Hermes Desktop, lalu pilih provider LLM (<code class="font-mono">hermes setup --portal</code> atau <code class="font-mono">hermes model</code>). <code class="font-mono">hermes doctor</code> memeriksa apa yang kurang.</div>
+          <div class="callout !py-4"><strong>Urutan pemasangan</strong><br/>Hermes dulu, baru proyeknya (slide berikutnya) — karena wizard kit menyalin skill pack ke profil Hermes Anda saat dijalankan.</div>
+        </div>
+
+        <p class="source-foot">Sumber: <a class="text-accent underline underline-offset-2 decoration-accent/40" href="https://hermes-agent.nousresearch.com/docs/getting-started/installation" target="_blank" rel="noopener">hermes-agent.nousresearch.com/docs</a> · <code>src/setup/agent-sync.ts</code> (skill disalin ke profil Hermes saat setup)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 27. AMBIL PROYEK -->
   <section class="slide" id="s26" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-4xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 1/7</p>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 2/7</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Ambil Proyek</h2>
-        <div class="mt-10 grid gap-10 md:grid-cols-2">
+        <p class="mt-8 sub-lead">Setelah Hermes terpasang, ambil proyeknya. Dua cara — pilih salah satu.</p>
+        <div class="mt-6 grid gap-10 md:grid-cols-2">
           <div>
-            <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Melalui Git</p>
-            <div class="term"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — clone + install</span></div><div class="term-body"><span class="p">$</span> git clone https://github.com/k-ardliyan/qa-playwright-kit.git
+            <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Cara 1 · Git (disarankan — mudah diperbarui)</p>
+            <div class="term"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — clone + install</span></div><div class="term-body wrap"><span class="p">$</span> git clone https://github.com/k-ardliyan/qa-playwright-kit.git
 <span class="p">$</span> cd qa-playwright-kit
 <span class="p">$</span> npm install
 <span class="cm"># butuh Node.js &gt;=20.19.0</span></div></div>
           </div>
           <div>
-            <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Melalui ZIP</p>
-            <div class="term"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">zip — download</span></div><div class="term-body"><span class="cm"># Unduh ZIP dari GitHub</span>
+            <p class="mb-2 text-[11px] uppercase tracking-[0.1em] text-faint">Cara 2 · ZIP (tanpa Git)</p>
+            <div class="term"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">zip — download</span></div><div class="term-body wrap"><span class="cm"># Unduh ZIP dari GitHub</span>
 <span class="cm"># Ekstrak ke folder kerja</span>
 <span class="p">$</span> cd qa-playwright-kit
-<span class="cm"># pastikan .mcp.json ikut</span></div></div>
+<span class="p">$</span> npm install
+<span class="cm"># pastikan .mcp.json ikut terbawa</span></div></div>
           </div>
         </div>
         <div class="mt-8">
           <p class="mb-3 text-sm font-semibold">Prasyarat</p>
           <div class="flex flex-wrap gap-2">
+            <span class="rounded-full border border-violet/40 bg-violet/10 px-3 py-1.5 text-xs text-violet">Hermes Agent sudah terpasang</span>
             <span class="rounded-full border border-green/40 bg-green/10 px-3 py-1.5 text-xs text-green">Node.js &gt;=20.19.0</span>
-            <span class="rounded-full border border-blue/40 bg-blue/10 px-3 py-1.5 text-xs text-blue">Git (opsional)</span>
-            <span class="rounded-full border border-violet/40 bg-violet/10 px-3 py-1.5 text-xs text-violet">VS Code + Hermes</span>
+            <span class="rounded-full border border-blue/40 bg-blue/10 px-3 py-1.5 text-xs text-blue">Git (hanya untuk Cara 1)</span>
             <span class="rounded-full border border-amber/40 bg-amber/10 px-3 py-1.5 text-xs text-amber">Akses URL aplikasi</span>
           </div>
         </div>
@@ -1501,11 +1546,11 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
     </div>
   </section>
 
-  <!-- 26. WIZARD -->
+  <!-- 28. WIZARD -->
   <section class="slide" id="s27" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-4xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 2/7</p>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 3/7</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Wizard, Enam Langkah</h2>
         <div class="term mt-8"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — wizard</span></div><div class="term-body text-center"><span class="p">$</span> npm run setup</div></div>
         <div class="mt-10 grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
@@ -1522,49 +1567,13 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
     </div>
   </section>
 
-  <!-- 28A. INSTALL HERMES -->
-  <section class="slide" id="s28-hermes-install" data-section="Pemasangan" role="region" aria-labelledby="s28-hermes-install-title" tabindex="-1" aria-hidden="true">
-    <div class="flex min-h-full items-center justify-center">
-      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
-        <span class="eyebrow">Panduan 3/7 · Hermes</span>
-        <h2 id="s28-hermes-install-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Install Hermes Agent</h2>
-        <p class="mt-4 sub-lead max-w-2xl">QA Playwright Kit <strong>direkomendasikan dipakai bersama Hermes Agent</strong>. Hermes yang menjalankan peran Planner, Generator, Healer, dan Reporter lewat MCP — framework menyediakan kontrak dan alatnya.</p>
-
-        <div class="mt-9 grid gap-5 md:grid-cols-2">
-          <div class="phase-card">
-            <span class="badge-runtime">Disarankan</span>
-            <p class="phase-title">Installer Desktop</p>
-            <p class="phase-copy">Sekali jalan, langsung dapat CLI + aplikasi desktop. Paling sedikit gesekan untuk QA yang belum terbiasa terminal.</p>
-            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">browser</span></div><div class="term-body wrap"><span class="cm"># unduh &amp; jalankan installer dari</span>
-hermes-agent.nousresearch.com</div></div>
-          </div>
-          <div class="phase-card">
-            <span class="badge-illustration">Tanpa desktop app</span>
-            <p class="phase-title">Lewat terminal</p>
-            <p class="phase-copy">CLI saja. Pilih perintah sesuai sistem operasi Anda.</p>
-            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">powershell — Windows</span></div><div class="term-body wrap"><span class="p">&gt;</span> iex (irm https://hermes-agent.nousresearch.com/install.ps1)</div></div>
-            <div class="term mt-3"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — Linux / macOS / WSL2</span></div><div class="term-body wrap"><span class="p">$</span> curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash</div></div>
-          </div>
-        </div>
-
-        <div class="mt-8 grid gap-3 sm:grid-cols-3">
-          <div class="callout !py-4"><strong>Prasyarat: hanya <code class="font-mono">git</code></strong><br/>Installer menyiapkan Python, Node.js, ripgrep, dan ffmpeg sendiri — tidak perlu dipasang manual.</div>
-          <div class="callout !py-4"><strong>Setelah install</strong><br/><code class="font-mono">hermes doctor</code> memeriksa apa yang kurang. <code class="font-mono">hermes setup --portal</code> atau <code class="font-mono">hermes model</code> untuk memilih provider LLM.</div>
-          <div class="callout !py-4"><strong>Tanpa Hermes pun jalan</strong><br/>Jalur manual first-class: tulis spec sendiri saat pipeline jeda di Generate, lalu resume. Lihat slide "Saat pipeline jeda".</div>
-        </div>
-
-        <p class="source-foot">Sumber: <a class="text-accent underline underline-offset-2 decoration-accent/40" href="https://hermes-agent.nousresearch.com/docs/getting-started/installation" target="_blank" rel="noopener">hermes-agent.nousresearch.com/docs</a> · <code>src/setup/verify-setup.ts</code> (check <code>hermes</code> non-kritis)</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 28B. HERMES SEBAGAI KOORDINATOR -->
+  <!-- 29. HUBUNGKAN HERMES + MCP -->
   <section class="slide" id="s28" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 4/7</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Hubungkan Hermes + MCP</h2>
-        <p class="mt-3 sub-lead">Hermes membaca <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.mcp.json</code> di akar proyek secara langsung.</p>
+        <p class="mt-3 sub-lead">Tidak ada konfigurasi manual: Hermes membaca <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.mcp.json</code> di akar proyek begitu Anda membuka folder itu di Hermes Desktop.</p>
         <div class="mt-10 grid gap-10 md:grid-cols-2">
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-plugs-connected"></i><p class="font-display text-2xl font-bold">3 server MCP</p></div>
@@ -1573,19 +1582,19 @@ hermes-agent.nousresearch.com</div></div>
             <p class="mini-line"><strong>qa-playwright-kit</strong>: 25 custom tools untuk semantic engine (workflow_run), UI snapshot, contract, report, dan artifact</p>
           </div>
           <div>
-            <div class="flex items-center gap-3"><i class="ph-big ph ph-check-square"></i><p class="font-display text-2xl font-bold">Cek di VS Code</p></div>
-            <p class="mini-line mt-4">Buka Hermes Agent (sidebar)</p>
-            <p class="mini-line">Status bar: <strong class="text-accent">MCP ● 3 servers</strong></p>
-            <p class="mini-line">Kurang? Muat ulang MCP / restart VS Code</p>
+            <div class="flex items-center gap-3"><i class="ph-big ph ph-check-square"></i><p class="font-display text-2xl font-bold">Cek di Hermes Desktop</p></div>
+            <p class="mini-line mt-4">Buka folder proyek di Hermes Desktop</p>
+            <p class="mini-line">Panel MCP menunjukkan <strong class="text-accent">3 server</strong> terhubung</p>
+            <p class="mini-line">Kurang? Muat ulang MCP, lalu cek <code class="font-mono">npm run mcp:check</code></p>
           </div>
         </div>
-        <div class="term mt-7"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — health check</span></div><div class="term-body"><span class="p">$</span> npm run health:check
+        <div class="term mt-7"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — health check</span></div><div class="term-body wrap"><span class="p">$</span> npm run health:check
 <span class="cm"># lingkungan, Playwright, MCP build, URL</span></div></div>
       </div>
     </div>
   </section>
 
-  <!-- 28. MEMBUAT FITUR BERIKUTNYA -->
+  <!-- 31. SIAPA MENGERJAKAN APA -->
   <section class="slide" id="s28-hermes-roles" data-section="Pemasangan" role="region" aria-labelledby="s28-hermes-roles-title" tabindex="-1" aria-hidden="true">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-6xl px-6 py-12 slide-content-safe">
@@ -1616,7 +1625,7 @@ hermes-agent.nousresearch.com</div></div>
     </div>
   </section>
 
-  <!-- 28C. SAAT PIPELINE JEDA -->
+  <!-- 32. SAAT PIPELINE BERHENTI -->
   <section class="slide" id="s28-hermes-pauses" data-section="Pemasangan" role="region" aria-labelledby="s28-hermes-pauses-title" tabindex="-1" aria-hidden="true">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
@@ -1655,7 +1664,7 @@ hermes-agent.nousresearch.com</div></div>
     </div>
   </section>
 
-  <!-- 28. HERMES + MCP -->
+  <!-- 33. MEMBUAT SKENARIO BARU -->
   <section class="slide" id="s29" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
@@ -1815,7 +1824,7 @@ hermes-agent.nousresearch.com</div></div>
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Aksi Nyata</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Kartu Prompt Chat Hermes</h2>
-        <p class="mt-3 sub-lead">Tinggal salin salah satu contoh prompt di bawah ini ke chat Hermes di VS Code:</p>
+        <p class="mt-3 sub-lead">Tinggal salin salah satu contoh prompt di bawah ini ke chat Hermes Desktop:</p>
         <div class="mt-8 grid gap-4 md:grid-cols-3">
           <div class="phase-card flex flex-col justify-between hover:border-accent/60 transition-all">
             <div>
@@ -1864,14 +1873,15 @@ hermes-agent.nousresearch.com</div></div>
         <h1 id="s32-title" class="font-display text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight">Siap <span class="text-accent">Mencoba?</span></h1>
         <p class="mt-6 text-lg leading-relaxed text-muted">Manual + chat AI = mulai cepat.<br/><span class="font-semibold text-ink">QA Playwright Kit</span> = terukur, terstandar, siap keputusan.</p>
         <div class="mx-auto mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
-          <div><span class="step-lg">1</span><p class="mt-2 font-semibold">Clone + wizard</p><p class="text-xs text-faint mt-1">npm run setup</p></div>
-          <div><span class="step-lg">2</span><p class="mt-2 font-semibold">Install &amp; hubungkan Hermes</p><p class="text-xs text-faint mt-1">MCP ● 3 servers</p></div>
+          <div><span class="step-lg">1</span><p class="mt-2 font-semibold">Install Hermes Desktop</p><p class="text-xs text-faint mt-1">hermes-agent.nousresearch.com</p></div>
+          <div><span class="step-lg">2</span><p class="mt-2 font-semibold">Ambil proyek + wizard</p><p class="text-xs text-faint mt-1">npm run setup</p></div>
           <div><span class="step-lg">3</span><p class="mt-2 font-semibold">Pipeline 1 kebutuhan</p><p class="text-xs text-faint mt-1">sampai dashboard</p></div>
         </div>
         <div class="callout mx-auto mt-9 max-w-xl text-left">
           <span class="font-bold text-ink">Dibaca ulang?</span> Tekan <kbd>T</kbd> untuk daftar isi. Bagian <strong>Referensi</strong> di akhir deck dirancang untuk dipakai mandiri — glossary, checklist requirement, dan source index tanpa perlu membaca ulang seluruh deck.
         </div>
         <p class="mt-6 text-xs text-faint">Dokumen: <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/GUIDE.md</code> · <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/CHEATSHEET.md</code> · <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/REPORT-GUIDE.md</code></p>
+        <p class="mt-4 text-xs text-faint">Urutan pemasangan: <span class="font-semibold text-ink">Hermes Desktop → ambil proyek → wizard → hubungkan MCP</span></p>
         <p class="mt-4 text-xs text-faint">Repo: <a class="font-semibold text-accent underline underline-offset-2 decoration-accent/40" href="https://github.com/k-ardliyan/qa-playwright-kit" target="_blank" rel="noopener">github.com/k-ardliyan/qa-playwright-kit</a></p>
         <p class="mt-4 text-xs text-faint">QA PLAYWRIGHT KIT · SHARING SESSION</p>
       </div>
