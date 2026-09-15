@@ -6,7 +6,7 @@
 
 **QA menulis *apa* yang harus dites. Framework mengerjakan *bagaimana*nya.**
 
-Markdown requirement → test plan → Playwright test → self-heal → dashboard triage.
+Markdown requirement → test plan → Playwright test → AI-heal → dashboard triage.
 
 Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MCP tools · quality-gated CI
 
@@ -33,31 +33,31 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MC
 
 ## Kenapa framework ini?
 
-|                   | Sebelum (manual)                  | Sesudah (QA Playwright Kit)                            |
-| ----------------- | --------------------------------- | ------------------------------------------------------ |
-| **Menulis test**  | Playwright spec dari nol          | Tulis requirement Markdown, AI generate spec           |
-| **Menjalankan**   | Klik Run, lihat terminal          | `npm run qa:run` — preflight + prompt Hermes           |
-| **Test gagal**    | Debug manual, cek locator         | Self-heal: AI fix locator → re-snapshot → rerun        |
-| **Melihat hasil** | Scroll terminal, tebak yang merah | Dashboard triage: filter by role/module/priority       |
-| **Multi-role**    | Copy test, ganti storageState     | Requirement metadata → test terpisah otomatis per role |
+|                   | Sebelum (manual)                  | Sesudah (QA Playwright Kit)                              |
+| ----------------- | --------------------------------- | -------------------------------------------------------- |
+| **Menulis test**  | Playwright spec dari nol          | Tulis requirement Markdown, AI generate spec             |
+| **Menjalankan**   | Klik Run, lihat terminal          | `npm run qa:run` — preflight + prompt Hermes             |
+| **Test gagal**    | Debug manual, cek locator         | AI healer: diagnosis + fix locator → re-snapshot → rerun |
+| **Melihat hasil** | Scroll terminal, tebak yang merah | Dashboard triage: filter by role/module/priority         |
+| **Multi-role**    | Copy test, ganti storageState     | Requirement metadata → test terpisah otomatis per role   |
 
 ---
 
 ## Yang kamu dapatkan
 
-|                       | Fitur                                                   | Apa artinya                                        |
-| --------------------- | ------------------------------------------------------- | -------------------------------------------------- |
-| **Evidence-driven**   | Explore → Model → Challenge → Generate → Validate       | AI amati app, uji asumsi, baru buat test           |
-| **Requirement-first** | QA tulis Markdown, AI generate test                     | Tidak perlu tahu Playwright API untuk menulis test |
-| **5-Phase Engine**    | Plan → Generate → Execute → Heal → Report(Analyze)      | Satu perintah, hasil lengkap dengan self-heal      |
-| **Self-healing**      | Test gagal → AI fix → re-snapshot → rerun               | Locator berubah? Framework memperbaiki sendiri     |
-| **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                |
-| **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi            |
-| **25 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                 |
-| **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                 |
-| **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                     |
-| **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                   |
-| **Encrypted creds**   | dotenvx after setup — secret keys only (`*_PASSWORD`)   | URL/flag tetap plaintext; env file gitignored      |
+|                       | Fitur                                                   | Apa artinya                                                                                                   |
+| --------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Evidence-driven**   | Explore → Model → Challenge → Generate → Validate       | AI amati app, uji asumsi, baru buat test                                                                      |
+| **Requirement-first** | QA tulis Markdown, AI generate test                     | Tidak perlu tahu Playwright API untuk menulis test                                                            |
+| **5-Phase Engine**    | Plan → Generate → Execute → Heal → Report(Analyze)      | Satu perintah, hasil lengkap dengan AI-heal                                                                   |
+| **Self-healing**      | Test gagal → AI diagnosis → fix → rerun                 | AI healer memperbaiki lewat MCP (`get_test_failures`, `record_ai_note`); routing kegagalan di-enforce runtime |
+| **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                                                                           |
+| **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi                                                                       |
+| **25 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                                                                            |
+| **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                                                                            |
+| **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                                                                                |
+| **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                                                                              |
+| **Encrypted creds**   | dotenvx after setup — secret keys only (`*_PASSWORD`)   | URL/flag tetap plaintext; env file gitignored                                                                 |
 
 ---
 
