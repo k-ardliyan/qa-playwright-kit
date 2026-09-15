@@ -44,6 +44,7 @@ import {
   type UnresolvedFailure,
 } from '../reporter/report-builder';
 import { loadLatestTestNotes } from '../reporter/test-notes';
+import { extractTestMetadataFromSpec } from '../../support/traceability/test-index';
 
 /** One report coverage row (scenario → status) derived from the trace graph. */
 type BuildCoverageScenario = BuildReportInput['scenarios'][number];
@@ -246,6 +247,26 @@ function listSpecFiles(dirAbs: string): string[] {
   };
   walk(dirAbs);
   return out.sort();
+}
+
+/**
+ * Count the `test(...)` declarations across generated spec files.
+ *
+ * `generatedFiles.length` is a FILE count — reporting it as "Tests Generated"
+ * alongside a TEST count (`testsPassing`) mixed two units in one table (a run
+ * showed "Tests Generated 1 / Tests Passing 18"). Count real declarations.
+ */
+function countTestDeclarations(repoRoot: string, files: string[]): number {
+  let total = 0;
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(path.resolve(repoRoot, file), 'utf-8');
+      total += extractTestMetadataFromSpec(content, file).length;
+    } catch {
+      // Unreadable file — it is still a generated artifact; do not invent tests.
+    }
+  }
+  return total;
 }
 
 /**
@@ -496,7 +517,7 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
         return {
           mode: 'completed',
           generatedFiles: input.generatedFiles,
-          testCount: input.generatedFiles.length,
+          testCount: countTestDeclarations(root, input.generatedFiles),
           reason: 'External generated files exist and validate successfully.',
         };
       }
@@ -519,7 +540,7 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
       return {
         mode: 'awaiting-generator',
         generatedFiles: existingFiles,
-        testCount: existingFiles.length,
+        testCount: countTestDeclarations(root, existingFiles),
         reason:
           'No generator is wired into the semantic runtime yet. Run the Generator agent to produce tests/<feature>[-<role>].spec.ts, then resume.',
       };
@@ -730,7 +751,7 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
             completedAt,
             requirementPath: input.requirementPath,
             scenariosPlanned: plannedScenarios,
-            testsGenerated: input.generatedFiles.length,
+            testsGenerated: countTestDeclarations(root, input.generatedFiles),
             testResults: { passing: passed, failing: failed, skipped },
             // Heal count comes from the trace graph — 0 while no heal pass
             // exists, never a placeholder that claims healing happened.

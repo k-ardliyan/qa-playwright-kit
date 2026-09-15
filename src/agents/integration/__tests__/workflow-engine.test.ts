@@ -1070,6 +1070,36 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(directoryResult.mode).toBe('blocked');
   });
 
+  test('testCount counts test declarations, not files (unit-mixing regression)', async () => {
+    const dir = tmpDir();
+    const testsDir = path.join(dir, 'tests');
+    fs.mkdirSync(testsDir, { recursive: true });
+    // One file, three declarations (one of them skipped) — the report previously
+    // claimed "Tests Generated: 1" next to a TEST count, mixing two units.
+    fs.writeFileSync(
+      path.join(testsDir, 'many.spec.ts'),
+      [
+        "test('TC-A: one', async () => {});",
+        "test('TC-B: two', async () => {});",
+        "test.skip('TC-C: manual', async () => {});",
+      ].join('\n'),
+    );
+    const adapters = createMcpAdapters({
+      repoRoot: dir,
+      tools: { validateGeneratedTests: async () => ({ status: 'success' }) },
+    });
+
+    const result = await adapters.generate({
+      requirementPath: 'requirements/flow.md',
+      planPath: 'specs/flow-test-plan.md',
+      generatedFiles: ['tests/many.spec.ts'],
+    });
+
+    expect(result.mode).toBe('completed');
+    expect(result.generatedFiles).toHaveLength(1);
+    expect(result.testCount).toBe(3);
+  });
+
   test('Task B1/B2: Validate result carries the controller runId', async () => {
     const tracking = { calls: [] as string[] };
     const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
