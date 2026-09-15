@@ -263,6 +263,9 @@
     white-space: pre;
     overflow-x: auto;
   }
+  /* Perintah panjang (URL install) harus membungkus, bukan memaksa scroll
+     horizontal — deck ini dibaca ulang, bukan hanya dipresentasikan. */
+  .term-body.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
   .term-body .p { color: #22c55e; }
   .term-body .cm { color: #64748b; }
 
@@ -406,6 +409,9 @@
   .badge-runtime { border: 1px solid rgba(21,128,61,0.3); color: #15803d; background: rgba(21,128,61,0.08); }
   .badge-illustration { border: 1px solid rgba(29,78,216,0.25); color: #1d4ed8; background: rgba(29,78,216,0.07); }
   .slide-content-safe { padding-bottom: 6rem; }
+  /* Nav pill mengapung di bawah; slide terakhir di tiap halaman butuh ruang
+     agar tidak tertutup tombol navigasi (ditemukan saat pemeriksaan visual). */
+  .slide > div { padding-bottom: 4.5rem; }
   .table-scroll { overflow-x: auto; }
   .table-scroll table { min-width: 620px; width: 100%; border-collapse: collapse; }
   .table-scroll th, .table-scroll td { border-bottom: 1px solid #e4e9f0; padding: 10px 12px; text-align: left; vertical-align: top; }
@@ -429,19 +435,87 @@
     html, body { height: auto; overflow: visible !important; background: #fff; }
     body { font-size: 11pt; }
     .deck-bg { min-height: 0; overflow: visible !important; background: #fff; }
-    .deck-bg::before, .progress, .nav-pill, #section-badge { display: none !important; }
-    .slide, .slide.active, .slide.leaving {
-      position: relative; inset: auto; display: block; visibility: visible !important; opacity: 1 !important;
-      transform: none !important; pointer-events: auto; overflow: visible;
+    .deck-bg::before, .progress, .nav-pill, #section-badge, .toc-overlay { display: none !important; }
+    /* Semua slide dicetak berurutan. `visibility: visible` saja tidak cukup:
+       elemen tetap memakan ruang dan transisi 0.3s menahan nilai lama,
+       sehingga PDF keluar jauh lebih banyak halaman dari jumlah slide
+       (terukur: 45 slide -> 53 halaman sebelum perbaikan ini). */
+    .slide, .slide.active, .slide.leaving, .slide[aria-hidden] {
+      position: relative !important; inset: auto !important;
+      display: block !important;
+      visibility: visible !important; opacity: 1 !important;
+      transform: none !important; transition: none !important;
+      pointer-events: auto; overflow: visible;
       min-height: 170mm; break-after: page; page-break-after: always;
     }
     .slide:last-of-type { break-after: auto; page-break-after: auto; }
-    .slide > div { min-height: 0 !important; }
+    .slide > div { min-height: 0 !important; padding-bottom: 0 !important; }
     .source-foot { display: block !important; }
+    /* TOC tidak dicetak; tombol hero juga tidak relevan di kertas. */
+    .toc-close { display: none !important; }
   }
 
+  /* ── Daftar Isi (TOC) ──────────────────────────────────────────────── */
+  .toc-overlay {
+    position: fixed; inset: 0; z-index: 60;
+    background: #f5f7fa;
+    overflow-y: auto;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+  }
+  .toc-overlay.open {
+    opacity: 1; visibility: visible; pointer-events: auto;
+    transition: opacity 0.2s ease;
+  }
+  .toc-inner { max-width: 1120px; margin: 0 auto; padding: 3.5rem 1.5rem 6rem; }
+  /* Multi-column (bukan grid): grup mengalir turun dulu, baru ke kolom berikutnya —
+     grid 2 kolom membuat nomor slide zigzag 01-03 | 04-05 dan sulit dibaca. */
+  .toc-grid { columns: 2; column-gap: 3rem; }
+  @media (max-width: 899px) { .toc-grid { columns: 1; } }
+  .toc-group { break-inside: avoid; margin-bottom: 2rem; }
+  .toc-group-name {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #0f766e; padding-bottom: 8px; border-bottom: 1px solid #ccd5e2;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  }
+  .toc-group-name .toc-group-count { color: #67738a; font-weight: 700; letter-spacing: 0.06em; }
+  .toc-list { margin-top: 8px; display: grid; gap: 1px; }
+  .toc-item {
+    display: flex; align-items: baseline; gap: 10px;
+    width: 100%; text-align: left;
+    padding: 7px 10px; border-radius: 8px;
+    border: 1px solid transparent; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 14px; color: #16202e; line-height: 1.45;
+  }
+  .toc-item:hover { background: rgba(15,118,110,0.09); color: #0f766e; }
+  .toc-item .toc-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: #67738a; min-width: 24px; flex-shrink: 0;
+  }
+  .toc-item.current {
+    background: #0f766e; color: #ffffff; font-weight: 700;
+    border-color: #0f766e;
+  }
+  .toc-item.current .toc-num { color: rgba(255,255,255,0.8); font-weight: 700; }
+  .toc-item.current .toc-here { color: rgba(255,255,255,0.85); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .toc-item .toc-here { display: none; }
+  .toc-item .toc-sub { color: #67738a; font-size: 12px; }
+  .toc-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2.5rem;
+    padding-bottom: 1.25rem; border-bottom: 2px solid #16202e;
+  }
+  .toc-close {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid #cbd6e4; background: #ffffff; color: #374151;
+    border-radius: 999px; padding: 8px 15px; cursor: pointer;
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+  }
+  .toc-close:hover { border-color: #0f766e; color: #0f766e; }
+  body.toc-open { overflow: hidden; }
+
   @media (prefers-reduced-motion: reduce) {
-    .slide, .anim, .nav-pill { transition: none !important; }
+    .slide, .anim, .nav-pill, .toc-overlay { transition: none !important; }
   }
 </style>
 </head>
@@ -472,10 +546,16 @@
           <div class="key-row">
             <span class="key-group"><span class="key">←</span><span class="key">→</span></span>
             <span class="text-xs text-faint">pindah slide</span>
+            <span class="key-group"><span class="key key-lg">T</span></span>
+            <span class="text-xs text-faint">daftar isi</span>
             <span class="key-group"><span class="key key-lg">Home</span><span class="key key-lg">End</span></span>
             <span class="text-xs text-faint">lompat awal / akhir</span>
           </div>
           <p class="text-xs text-faint">Bisa juga dengan tombol Next / Prev di bawah, atau geser di layar sentuh</p>
+        </div>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <button type="button" class="toc-close" id="btn-toc-hero"><i class="ph-bold ph-list-dashes"></i> Buka daftar isi</button>
+          <a class="toc-close" href="#s28-hermes-install"><i class="ph-bold ph-robot"></i> Langsung ke panduan Hermes</a>
         </div>
         <p class="mt-4 text-xs text-faint">Repo: <a class="text-accent font-semibold underline underline-offset-2 decoration-accent/40" href="https://github.com/k-ardliyan/qa-playwright-kit" target="_blank" rel="noopener">github.com/k-ardliyan/qa-playwright-kit</a></p>
       </div>
@@ -510,9 +590,9 @@
           <div class="phase-card"><p class="phase-kicker">01 · Konteks</p><p class="phase-title">Kenapa bukan chat saja?</p><p class="phase-copy">Kita mulai dari problem QA yang berulang dan sulit dilacak.</p></div>
           <div class="phase-card"><p class="phase-kicker">02 · Mekanisme</p><p class="phase-title">Bagaimana pipeline bekerja?</p><p class="phase-copy">Requirement, Plan, Generate, Execute, Heal, dan Report.</p></div>
           <div class="phase-card"><p class="phase-kicker">03 · Batas</p><p class="phase-title">Apa yang tidak dijanjikan?</p><p class="phase-copy">Auth challenge, manual scenario, healing bounded, dan review manusia.</p></div>
-          <div class="phase-card"><p class="phase-kicker">04 · Praktik</p><p class="phase-title">Bagaimana mulai dengan aman?</p><p class="phase-copy">Setup, contoh login, role-aware invoice, dashboard, dan command reference.</p></div>
+          <div class="phase-card"><p class="phase-kicker">04 · Praktik</p><p class="phase-title">Bagaimana mulai dengan aman?</p><p class="phase-copy">Setup kit, install &amp; hubungkan Hermes, lalu contoh login dan role-aware.</p></div>
         </div>
-        <div class="callout mt-8"><span class="font-bold text-accent">Cara pakai ulang:</span> baca slide alur untuk orientasi; gunakan slide kontrak, tag, command, dan glossary sebagai referensi setelah sesi.</div>
+        <div class="callout mt-8"><span class="font-bold text-accent">Cara pakai ulang:</span> tekan <kbd>T</kbd> untuk daftar isi kapan saja; baca slide alur untuk orientasi, lalu pakai bagian <strong>Referensi</strong> (glossary, checklist, source index) sebagai rujukan setelah sesi.</div>
       </div>
     </div>
   </section>
@@ -1315,7 +1395,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
         <div class="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div><p class="font-display text-6xl font-extrabold text-accent">7</p><p class="mt-2 font-semibold">fase alur kerja</p><p class="text-sm text-muted">dari persiapan sampai laporan</p></div>
           <div><p class="font-display text-6xl font-extrabold text-blue">3</p><p class="mt-2 font-semibold">server MCP</p><p class="text-sm text-muted">browser · run · QA tools</p></div>
-          <div><p class="font-display text-6xl font-extrabold text-violet">76</p><p class="mt-2 font-semibold">capability Playwright MCP</p><p class="text-sm text-muted">23 custom tools di server QA</p></div>
+          <div><p class="font-display text-6xl font-extrabold text-violet">25</p><p class="mt-2 font-semibold">custom tool server QA</p><p class="text-sm text-muted">+ 76 capability Playwright MCP</p></div>
           <div><p class="font-display text-6xl font-extrabold text-green">6</p><p class="mt-2 font-semibold">keputusan QA</p><p class="text-sm text-muted">dari setuju sampai blokir</p></div>
         </div>
         <div class="callout mx-auto mt-12 max-w-2xl"><span class="font-bold text-ink">Bukan sekadar banyak alat, </span> capability tersedia sesuai profile dan fase; tidak semua dipanggil pada setiap run.</div>
@@ -1390,7 +1470,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
   <section class="slide" id="s26" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-4xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 1/4</p>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 1/7</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Ambil Proyek</h2>
         <div class="mt-10 grid gap-10 md:grid-cols-2">
           <div>
@@ -1425,7 +1505,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
   <section class="slide" id="s27" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-4xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 2/4</p>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 2/7</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Satu Wizard, Enam Langkah</h2>
         <div class="term mt-8"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — wizard</span></div><div class="term-body text-center"><span class="p">$</span> npm run setup</div></div>
         <div class="mt-10 grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
@@ -1442,11 +1522,47 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
     </div>
   </section>
 
-  <!-- 27. HERMES + MCP -->
+  <!-- 28A. INSTALL HERMES -->
+  <section class="slide" id="s28-hermes-install" data-section="Pemasangan" role="region" aria-labelledby="s28-hermes-install-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Panduan 3/7 · Hermes</span>
+        <h2 id="s28-hermes-install-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Install Hermes Agent</h2>
+        <p class="mt-4 sub-lead max-w-2xl">QA Playwright Kit <strong>direkomendasikan dipakai bersama Hermes Agent</strong>. Hermes yang menjalankan peran Planner, Generator, Healer, dan Reporter lewat MCP — framework menyediakan kontrak dan alatnya.</p>
+
+        <div class="mt-9 grid gap-5 md:grid-cols-2">
+          <div class="phase-card">
+            <span class="badge-runtime">Disarankan</span>
+            <p class="phase-title">Installer Desktop</p>
+            <p class="phase-copy">Sekali jalan, langsung dapat CLI + aplikasi desktop. Paling sedikit gesekan untuk QA yang belum terbiasa terminal.</p>
+            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">browser</span></div><div class="term-body wrap"><span class="cm"># unduh &amp; jalankan installer dari</span>
+hermes-agent.nousresearch.com</div></div>
+          </div>
+          <div class="phase-card">
+            <span class="badge-illustration">Tanpa desktop app</span>
+            <p class="phase-title">Lewat terminal</p>
+            <p class="phase-copy">CLI saja. Pilih perintah sesuai sistem operasi Anda.</p>
+            <div class="term mt-4"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">powershell — Windows</span></div><div class="term-body wrap"><span class="p">&gt;</span> iex (irm https://hermes-agent.nousresearch.com/install.ps1)</div></div>
+            <div class="term mt-3"><div class="term-bar"><span class="term-dot red"></span><span class="term-dot amber"></span><span class="term-dot green"></span><span class="term-title">bash — Linux / macOS / WSL2</span></div><div class="term-body wrap"><span class="p">$</span> curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash</div></div>
+          </div>
+        </div>
+
+        <div class="mt-8 grid gap-3 sm:grid-cols-3">
+          <div class="callout !py-4"><strong>Prasyarat: hanya <code class="font-mono">git</code></strong><br/>Installer menyiapkan Python, Node.js, ripgrep, dan ffmpeg sendiri — tidak perlu dipasang manual.</div>
+          <div class="callout !py-4"><strong>Setelah install</strong><br/><code class="font-mono">hermes doctor</code> memeriksa apa yang kurang. <code class="font-mono">hermes setup --portal</code> atau <code class="font-mono">hermes model</code> untuk memilih provider LLM.</div>
+          <div class="callout !py-4"><strong>Tanpa Hermes pun jalan</strong><br/>Jalur manual first-class: tulis spec sendiri saat pipeline jeda di Generate, lalu resume. Lihat slide "Saat pipeline jeda".</div>
+        </div>
+
+        <p class="source-foot">Sumber: <a class="text-accent underline underline-offset-2 decoration-accent/40" href="https://hermes-agent.nousresearch.com/docs/getting-started/installation" target="_blank" rel="noopener">hermes-agent.nousresearch.com/docs</a> · <code>src/setup/verify-setup.ts</code> (check <code>hermes</code> non-kritis)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 28B. HERMES SEBAGAI KOORDINATOR -->
   <section class="slide" id="s28" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 3/4</p>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 4/7</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Hubungkan Hermes + MCP</h2>
         <p class="mt-3 sub-lead">Hermes membaca <code class="font-mono text-sm bg-panel px-1.5 py-0.5 rounded">.mcp.json</code> di akar proyek secara langsung.</p>
         <div class="mt-10 grid gap-10 md:grid-cols-2">
@@ -1454,7 +1570,7 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-plugs-connected"></i><p class="font-display text-2xl font-bold">3 server MCP</p></div>
             <p class="mini-line mt-4"><strong>playwright</strong>: membuka browser &amp; inspeksi UI</p>
             <p class="mini-line"><strong>playwright-test</strong>: menjalankan &amp; memeriksa test</p>
-            <p class="mini-line"><strong>qa-playwright-kit</strong>: 26 custom tools untuk semantic engine (workflow_run), UI snapshot, contract, report, dan artifact</p>
+            <p class="mini-line"><strong>qa-playwright-kit</strong>: 25 custom tools untuk semantic engine (workflow_run), UI snapshot, contract, report, dan artifact</p>
           </div>
           <div>
             <div class="flex items-center gap-3"><i class="ph-big ph ph-check-square"></i><p class="font-display text-2xl font-bold">Cek di VS Code</p></div>
@@ -1470,10 +1586,80 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
   </section>
 
   <!-- 28. MEMBUAT FITUR BERIKUTNYA -->
+  <section class="slide" id="s28-hermes-roles" data-section="Pemasangan" role="region" aria-labelledby="s28-hermes-roles-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-6xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Panduan 5/7 · Peran</span>
+        <h2 id="s28-hermes-roles-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Siapa mengerjakan apa</h2>
+        <p class="mt-4 sub-lead max-w-2xl">Hermes memakai empat peran agen. Satu peran per pekerjaan, supaya hasilnya bisa diperiksa — bukan satu AI yang mengerjakan semuanya sekaligus.</p>
+
+        <div class="mt-9 table-scroll rounded-xl border border-line bg-surface">
+          <table>
+            <thead><tr><th>Stage</th><th>Peran</th><th>Yang dikerjakan</th><th>Hasil</th></tr></thead>
+            <tbody>
+              <tr><td><strong>01</strong> Explore</td><td><code>browser_snapshot</code></td><td>Membuka UI nyata, mencatat elemen &amp; selector</td><td>selector catalog</td></tr>
+              <tr><td><strong>02</strong> Model</td><td>Planner</td><td>Membaca requirement, menyusun skenario &amp; coverage gap</td><td>test plan (<code>specs/</code>)</td></tr>
+              <tr><td><strong>03</strong> Challenge</td><td>Planner + validator</td><td>Menguji asumsi; <em>gate</em> yang mengunci Generate</td><td>diagnostics + gap</td></tr>
+              <tr><td><strong>04</strong> Generate</td><td>Generator</td><td>Menulis spec Playwright dari plan + catalog</td><td><code>tests/&lt;fitur&gt;.spec.ts</code></td></tr>
+              <tr><td><strong>05</strong> Validate</td><td>Healer + Reporter</td><td>Menjalankan, men-triase kegagalan, menyusun laporan</td><td>report + AI notes</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-8 grid gap-4 md:grid-cols-2">
+          <div class="callout"><span class="font-bold text-ink">Yang di-<em>enforce</em> runtime, bukan prompt:</span> urutan stage, gerbang Challenge, batas 3 siklus heal, dan gate APPROVE. Agen mengerjakan isinya; controller yang memutuskan boleh lanjut atau tidak.</div>
+          <div class="callout"><span class="font-bold text-ink">Peran agen ada di repo:</span> <code class="font-mono">.github/agents/</code> — <code class="font-mono">planner</code>, <code class="font-mono">generator</code>, <code class="font-mono">healer</code>, <code class="font-mono">reporter</code>. Skill pack disinkronkan otomatis ke profil Hermes saat <code class="font-mono">npm run setup</code>.</div>
+        </div>
+
+        <p class="source-foot">Sumber: <code>AGENTS.md</code> · <code>.github/agents/*.agent.md</code> · <code>src/setup/agent-sync.ts</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 28C. SAAT PIPELINE JEDA -->
+  <section class="slide" id="s28-hermes-pauses" data-section="Pemasangan" role="region" aria-labelledby="s28-hermes-pauses-title" tabindex="-1" aria-hidden="true">
+    <div class="flex min-h-full items-center justify-center">
+      <div class="mx-auto w-full max-w-5xl px-6 py-12 slide-content-safe">
+        <span class="eyebrow">Panduan 6/7 · Operasional</span>
+        <h2 id="s28-hermes-pauses-title" class="font-display mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight">Saat pipeline berhenti</h2>
+        <p class="mt-4 sub-lead max-w-2xl">Berhenti bukan rusak. Pipeline memang <em>fail-closed</em>: ia berhenti di titik yang butuh keputusan, bukan menebak lalu lanjut.</p>
+
+        <div class="mt-9 grid gap-4 md:grid-cols-2">
+          <div class="phase-card">
+            <p class="phase-kicker text-amber">Pause 1 · Generate</p>
+            <p class="phase-title">awaiting-generator</p>
+            <p class="phase-copy">Runtime tidak punya generator internal. Hermes menulis spec dari plan, lalu resume. Tanpa Hermes: tulis manual, ikuti <code>nextRequiredAction</code>.</p>
+            <div class="code-block wrap mt-3">workflow_run({ requirementPath, resume: true, runId })</div>
+          </div>
+          <div class="phase-card">
+            <p class="phase-kicker text-rose">Pause 2 · Auth</p>
+            <p class="phase-title">sesi kedaluwarsa</p>
+            <p class="phase-copy">Gejala: halaman mendarat di <code>/login</code> padahal seharusnya sudah masuk. <strong>Jangan tambal locator.</strong> Perbarui sesi dengan login UI asli, lalu ulangi file yang terdampak.</p>
+            <div class="code-block wrap mt-3">npm run auth:setup</div>
+          </div>
+          <div class="phase-card">
+            <p class="phase-kicker text-blue">Pause 3 · Heal</p>
+            <p class="phase-title">needs-heal</p>
+            <p class="phase-copy">Ada kegagalan dan perbaikan belum dijalankan. Healer men-triase; maksimum <strong>3 siklus per file</strong>, lalu diklasifikasi jujur (bug aplikasi tidak ditutupi).</p>
+          </div>
+          <div class="phase-card">
+            <p class="phase-kicker text-violet">Pause 4 · Review</p>
+            <p class="phase-title">qa-decision-required</p>
+            <p class="phase-copy">Semua stage selesai. QA memilih satu dari enam keputusan; arsip hanya tersimpan setelah keputusan itu eksplisit.</p>
+          </div>
+        </div>
+
+        <div class="callout mt-8"><span class="font-bold text-accent">Cek dulu sebelum mengulang:</span> <code class="font-mono">pipeline_status</code> menunjukkan fase aktif, sesi yang siap, dan artefak yang hilang dalam satu panggilan — jauh lebih murah daripada menebak lalu menjalankan ulang.</div>
+        <p class="source-foot">Sumber: <code>AGENTS.md</code> § Auth Recovery &amp; Pipeline State · <code>skills/qa-playwright-kit/references/mcp-tools-for-qa.md</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 28. HERMES + MCP -->
   <section class="slide" id="s29" data-section="Pemasangan">
     <div class="flex min-h-full items-center justify-center">
       <div class="mx-auto w-full max-w-5xl px-6 py-12">
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 4/4</p>
+        <p class="text-sm font-bold uppercase tracking-[0.2em] text-muted">Panduan 7/7</p>
         <h2 class="font-display mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">Membuat Skenario &amp; Fitur Baru</h2>
         <p class="mt-3 sub-lead">Setelah login selesai, bagaimana menguji fitur berikutnya? <strong>Cukup lewat chat Hermes.</strong></p>
         <div class="mt-8 grid gap-5 md:grid-cols-3">
@@ -1679,17 +1865,37 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
         <p class="mt-6 text-lg leading-relaxed text-muted">Manual + chat AI = mulai cepat.<br/><span class="font-semibold text-ink">QA Playwright Kit</span> = terukur, terstandar, siap keputusan.</p>
         <div class="mx-auto mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
           <div><span class="step-lg">1</span><p class="mt-2 font-semibold">Clone + wizard</p><p class="text-xs text-faint mt-1">npm run setup</p></div>
-          <div><span class="step-lg">2</span><p class="mt-2 font-semibold">Hubungkan Hermes</p><p class="text-xs text-faint mt-1">MCP ● 3 servers</p></div>
+          <div><span class="step-lg">2</span><p class="mt-2 font-semibold">Install &amp; hubungkan Hermes</p><p class="text-xs text-faint mt-1">MCP ● 3 servers</p></div>
           <div><span class="step-lg">3</span><p class="mt-2 font-semibold">Pipeline 1 kebutuhan</p><p class="text-xs text-faint mt-1">sampai dashboard</p></div>
         </div>
-        <p class="mt-9 text-xs text-faint">Dokumen: <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/GUIDE.md</code> · <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/CHEATSHEET.md</code> · <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/REPORT-GUIDE.md</code></p>
+        <div class="callout mx-auto mt-9 max-w-xl text-left">
+          <span class="font-bold text-ink">Dibaca ulang?</span> Tekan <kbd>T</kbd> untuk daftar isi. Bagian <strong>Referensi</strong> di akhir deck dirancang untuk dipakai mandiri — glossary, checklist requirement, dan source index tanpa perlu membaca ulang seluruh deck.
+        </div>
+        <p class="mt-6 text-xs text-faint">Dokumen: <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/GUIDE.md</code> · <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/CHEATSHEET.md</code> · <code class="font-mono text-xs bg-panel px-1.5 py-0.5 rounded">docs/REPORT-GUIDE.md</code></p>
         <p class="mt-4 text-xs text-faint">Repo: <a class="font-semibold text-accent underline underline-offset-2 decoration-accent/40" href="https://github.com/k-ardliyan/qa-playwright-kit" target="_blank" rel="noopener">github.com/k-ardliyan/qa-playwright-kit</a></p>
         <p class="mt-4 text-xs text-faint">QA PLAYWRIGHT KIT · SHARING SESSION</p>
       </div>
     </div>
   </section>
 
+  <!-- DAFTAR ISI (di-generate dari DOM oleh script, agar tidak drift) -->
+  <div class="toc-overlay" id="toc-overlay" role="dialog" aria-modal="true" aria-labelledby="toc-title" aria-hidden="true">
+    <div class="toc-inner">
+      <div class="toc-head">
+        <div>
+          <p class="text-sm font-bold uppercase tracking-[0.25em] text-accent">Daftar Isi</p>
+          <h2 id="toc-title" class="font-display mt-2 text-4xl font-extrabold tracking-tight">QA Playwright Kit</h2>
+          <p class="mt-2 text-sm text-muted">48 slide · klik untuk lompat · <kbd>T</kbd> buka/tutup · <kbd>Esc</kbd> tutup</p>
+        </div>
+        <button type="button" class="toc-close" id="toc-close"><i class="ph-bold ph-x"></i> Tutup (Esc)</button>
+      </div>
+      <div class="toc-grid" id="toc-grid"></div>
+      <p class="mt-10 text-xs text-faint">Deck ini untuk dibaca ulang. Bagian <strong>Referensi</strong> (glossary, checklist, source index) dirancang sebagai rujukan mandiri setelah sesi selesai.</p>
+    </div>
+  </div>
+
   <nav class="nav-pill fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full px-2 py-1.5" aria-label="Navigasi slide">
+    <button id="btn-toc" type="button" class="nav-btn" title="Daftar isi (T)" aria-label="Daftar isi"><i class="ph-bold ph-list-dashes"></i></button>
     <button id="btn-prev" type="button" class="nav-btn" title="Sebelumnya (←)" aria-label="Sebelumnya">◀</button>
     <span id="slide-counter" class="min-w-[80px] text-center font-mono text-sm text-muted" aria-live="polite" aria-atomic="true">— / —</span>
     <button id="btn-next" type="button" class="nav-btn" title="Berikutnya (→)" aria-label="Berikutnya">▶</button>
@@ -1778,6 +1984,17 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
 
   wakeNav();
 
+  // Nav mengapung di bawah; saat isi slide lebih tinggi dari viewport, teks
+  // lewat di bawahnya. Sembunyikan selama scroll, muncul lagi setelah berhenti.
+  var scrollHideTimer = null;
+  slides.forEach(function (slide) {
+    slide.addEventListener('scroll', function () {
+      nav.classList.add('nav-hidden');
+      clearTimeout(scrollHideTimer);
+      scrollHideTimer = setTimeout(wakeNav, 900);
+    }, { passive: true });
+  });
+
   prevButton.addEventListener('click', function () { show(idx - 1); });
   nextButton.addEventListener('click', function () { show(idx + 1); });
 
@@ -1826,6 +2043,132 @@ artifacts/reports/archive/&lt;runId&gt;/</div>
   window.addEventListener('hashchange', function () {
     var targetIndex = slides.findIndex(function (slide) { return slide.id === window.location.hash.replace('#', ''); });
     if (targetIndex >= 0) show(targetIndex);
+  });
+
+  // ── Daftar Isi: dibangun dari DOM, jadi slide baru/berubah otomatis ikut ──
+  // Satu sumber kebenaran = judul di dalam slide (h1/h2 pertama), bukan daftar terpisah.
+  var tocOverlay = document.getElementById('toc-overlay');
+  var tocGrid = document.getElementById('toc-grid');
+  var tocButton = document.getElementById('btn-toc');
+  var tocClose = document.getElementById('toc-close');
+
+  function slideTitle(slide) {
+    var h = slide.querySelector('h1, h2');
+    if (!h) return slide.id;
+    // <br> is a line break in the slide but must become a space in a flat list,
+    // otherwise "QA<br>PLAYWRIGHT KIT" collapses into "QAPLAYWRIGHT KIT".
+    var clone = h.cloneNode(true);
+    Array.prototype.forEach.call(clone.querySelectorAll('br'), function (br) {
+      br.replaceWith(document.createTextNode(' '));
+    });
+    return clone.textContent.replace(/\s+/g, ' ').trim();
+  }
+
+  function buildToc() {
+    var groups = [];
+    var byName = {};
+    slides.forEach(function (slide, index) {
+      var name = slide.getAttribute('data-section') || 'Lainnya';
+      if (!byName[name]) {
+        byName[name] = { name: name, items: [] };
+        groups.push(byName[name]);
+      }
+      byName[name].items.push({ index: index, title: slideTitle(slide) });
+    });
+
+    tocGrid.innerHTML = '';
+    groups.forEach(function (group) {
+      var block = document.createElement('section');
+      block.className = 'toc-group';
+      var head = document.createElement('p');
+      head.className = 'toc-group-name';
+      var label = document.createElement('span');
+      label.textContent = group.name;
+      var count = document.createElement('span');
+      count.className = 'toc-group-count';
+      count.textContent = group.items.length + ' slide';
+      head.appendChild(label);
+      head.appendChild(count);
+      block.appendChild(head);
+
+      var list = document.createElement('div');
+      list.className = 'toc-list';
+      group.items.forEach(function (item) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'toc-item';
+        button.setAttribute('data-slide-index', String(item.index));
+        var num = document.createElement('span');
+        num.className = 'toc-num';
+        num.textContent = String(item.index + 1).padStart(2, '0');
+        var text = document.createElement('span');
+        text.textContent = item.title;
+        var here = document.createElement('span');
+        here.className = 'toc-here';
+        here.textContent = '● sekarang';
+        button.appendChild(num);
+        button.appendChild(text);
+        button.appendChild(here);
+        button.addEventListener('click', function () {
+          closeToc();
+          show(item.index);
+        });
+        list.appendChild(button);
+      });
+      block.appendChild(list);
+      tocGrid.appendChild(block);
+    });
+  }
+
+  function syncTocCurrent() {
+    Array.prototype.forEach.call(tocGrid.querySelectorAll('.toc-item'), function (item) {
+      item.classList.toggle('current', Number(item.getAttribute('data-slide-index')) === idx);
+    });
+  }
+
+  function openToc() {
+    if (!tocOverlay.classList.contains('open')) {
+      buildToc();
+      syncTocCurrent();
+    }
+    tocOverlay.classList.add('open');
+    tocOverlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('toc-open');
+    tocClose.focus({ preventScroll: true });
+  }
+
+  function closeToc() {
+    tocOverlay.classList.remove('open');
+    tocOverlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('toc-open');
+  }
+
+  function tocIsOpen() { return tocOverlay.classList.contains('open'); }
+
+  tocButton.addEventListener('click', function () {
+    if (tocIsOpen()) closeToc();
+    else openToc();
+  });
+  var tocHero = document.getElementById('btn-toc-hero');
+  if (tocHero) tocHero.addEventListener('click', openToc);
+  tocClose.addEventListener('click', closeToc);
+  tocOverlay.addEventListener('click', function (e) {
+    if (e.target === tocOverlay) closeToc();
+  });
+
+  // Tombol T + Esc (Esc juga menutup saat fokus ada di dalam overlay)
+  document.addEventListener('keydown', function (e) {
+    var tag = document.activeElement && document.activeElement.tagName;
+    var isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if (isTyping) return;
+    if (e.key === 't' || e.key === 'T') {
+      e.preventDefault();
+      if (tocIsOpen()) closeToc();
+      else openToc();
+    } else if (e.key === 'Escape' && tocIsOpen()) {
+      e.preventDefault();
+      closeToc();
+    }
   });
 })();
 </script>
