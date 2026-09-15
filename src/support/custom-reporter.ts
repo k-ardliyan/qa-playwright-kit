@@ -470,7 +470,10 @@ export default class CustomReporter implements Reporter {
       try {
         const configuredReportDir = resolveWorkspaceReportDir();
         const legacyReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
-        if (configuredReportDir !== legacyReportDir) {
+        // QA_REPORT_DIR is the documented test override (see resolveWorkspaceReportDir).
+        // Mirroring while it is set writes synthetic test output into the real
+        // artifacts/reports — overwriting the latest QA run. Never mirror then.
+        if (configuredReportDir !== legacyReportDir && !process.env['QA_REPORT_DIR']) {
           if (fs.existsSync(legacyReportDir) || fs.existsSync(path.dirname(legacyReportDir))) {
             if (!fs.existsSync(legacyReportDir)) fs.mkdirSync(legacyReportDir, { recursive: true });
             fs.writeFileSync(path.join(legacyReportDir, 'custom-dashboard.html'), html, 'utf-8');
@@ -510,7 +513,11 @@ export default class CustomReporter implements Reporter {
         // Also mirror .latest-run into artifacts/reports only if REPORT_DIR is different
         const configuredReportDir = resolveWorkspaceReportDir();
         const legacyReportDir = path.resolve(process.cwd(), 'artifacts', 'reports');
-        if (configuredReportDir !== legacyReportDir && fs.existsSync(legacyReportDir)) {
+        if (
+          configuredReportDir !== legacyReportDir &&
+          !process.env['QA_REPORT_DIR'] &&
+          fs.existsSync(legacyReportDir)
+        ) {
           fs.writeFileSync(path.join(legacyReportDir, '.latest-run'), markerPayload, 'utf-8');
         }
       } catch {

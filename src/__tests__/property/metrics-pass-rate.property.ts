@@ -12,33 +12,16 @@
 
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import {
   recordPipelineRun,
   loadMetricsStore,
   saveMetricsStore,
 } from '../../observability/metrics-collector';
+import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
 
-const METRICS_FILE = path.resolve('reports', 'pipeline-metrics.json');
-
-function backupMetrics(): string | null {
-  if (fs.existsSync(METRICS_FILE)) {
-    const backup = `${METRICS_FILE}.bak`;
-    fs.copyFileSync(METRICS_FILE, backup);
-    return backup;
-  }
-  return null;
-}
-
-function restoreMetrics(backup: string | null): void {
-  if (backup && fs.existsSync(backup)) {
-    fs.copyFileSync(backup, METRICS_FILE);
-    fs.unlinkSync(backup);
-  } else if (fs.existsSync(METRICS_FILE)) {
-    fs.unlinkSync(METRICS_FILE);
-  }
-}
+// Metrics writes go to a temp dir via QA_REPORT_DIR (resolveWorkspaceReportDir),
+// never to the real artifacts/reports/pipeline-metrics.json.
+const isolate = createIsolatedReportDir();
 
 function resetMetricsFile(): void {
   const emptyStore = {
@@ -72,8 +55,6 @@ function resetMetricsFile(): void {
 }
 
 async function main(): Promise<void> {
-  const backup = backupMetrics();
-
   try {
     await fc.assert(
       fc.asyncProperty(
@@ -132,7 +113,7 @@ async function main(): Promise<void> {
       '✓ Property 23 passed: metrics pass rate bounded — all recorded passRate values are in [0, 100]',
     );
   } finally {
-    restoreMetrics(backup);
+    isolate.teardown();
   }
 }
 

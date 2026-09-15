@@ -17,6 +17,11 @@ import type {
   TestResult,
 } from '@playwright/test/reporter';
 import CustomReporter from '../../support/custom-reporter';
+import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
+
+// All report writes go to a temp dir via QA_REPORT_DIR; the real
+// artifacts/reports is never touched (see report-dir-isolation.ts).
+const isolate = createIsolatedReportDir();
 
 type SyntheticStatus = 'passed' | 'failed' | 'skipped' | 'timedOut' | 'interrupted';
 
@@ -723,6 +728,7 @@ async function main(): Promise<void> {
     await property15ModuleFeatureAnnotationExtraction();
   } finally {
     cleanReportArtifacts();
+    isolate.teardown();
   }
 }
 

@@ -12,36 +12,19 @@
 
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import {
   recordPipelineRun,
   loadMetricsStore,
   saveMetricsStore,
 } from '../../observability/metrics-collector';
 import type { PipelineMetricsStore, PipelineRun } from '../../shared/types/pipeline-metrics.schema';
+import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
 
-const METRICS_FILE = path.resolve('reports', 'pipeline-metrics.json');
+// Metrics writes go to a temp dir via QA_REPORT_DIR (resolveWorkspaceReportDir),
+// never to the real artifacts/reports/pipeline-metrics.json.
+const isolate = createIsolatedReportDir();
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RETENTION_DAYS = 90;
-
-function backupMetrics(): string | null {
-  if (fs.existsSync(METRICS_FILE)) {
-    const backup = `${METRICS_FILE}.bak`;
-    fs.copyFileSync(METRICS_FILE, backup);
-    return backup;
-  }
-  return null;
-}
-
-function restoreMetrics(backup: string | null): void {
-  if (backup && fs.existsSync(backup)) {
-    fs.copyFileSync(backup, METRICS_FILE);
-    fs.unlinkSync(backup);
-  } else if (fs.existsSync(METRICS_FILE)) {
-    fs.unlinkSync(METRICS_FILE);
-  }
-}
 
 function emptyAggregate() {
   return {
@@ -89,8 +72,6 @@ function makePipelineRun(daysAgo: number, index: number): PipelineRun {
 }
 
 async function main(): Promise<void> {
-  const backup = backupMetrics();
-
   try {
     await fc.assert(
       fc.asyncProperty(
@@ -150,7 +131,7 @@ async function main(): Promise<void> {
       '✓ Property 24 passed: metrics retention bounded — no run older than 90 days retained after recording',
     );
   } finally {
-    restoreMetrics(backup);
+    isolate.teardown();
   }
 }
 
