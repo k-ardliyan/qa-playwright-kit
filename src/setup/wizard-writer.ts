@@ -18,7 +18,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { type AppEnv, writeActiveEnvPin } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
-import { type WizardRoleInput, normalizeWizardRoles } from '../shared/utils/role-credentials';
+import {
+  type WizardRoleInput,
+  normalizeWizardRoles,
+  ROLE_KEY_RE,
+} from '../shared/utils/role-credentials';
 import { parseEnvText } from '../utils/env-text';
 import { buildCleanEnvContent, ENV_FILE_DEFAULTS } from '../utils/env-clean';
 import { encryptSecretKeysInFile } from '../utils/env-secrets';
@@ -99,8 +103,6 @@ export function buildEnvFileContent(options: EnvWriteOptions): BuiltEnvFile {
     put(key, value);
   }
 
-  const ROLE_ATTR_RE =
-    /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF|LOGIN_URL_PATH|SUCCESS_URL_PATH)$/;
   const configuredPrefixes = new Set(
     roles.map((r) => (r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_'))),
   );
@@ -113,7 +115,7 @@ export function buildEnvFileContent(options: EnvWriteOptions): BuiltEnvFile {
     if (value.trim() === '') continue;
 
     // Do NOT preserve credential/path keys of removed roles (e.g. stale TEST_USER_* when switching to admin,guru,murid)
-    const m = ROLE_ATTR_RE.exec(key);
+    const m = ROLE_KEY_RE.exec(key);
     if (m && !configuredPrefixes.has(m[1])) {
       continue;
     }

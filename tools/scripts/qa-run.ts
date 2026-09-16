@@ -37,7 +37,7 @@ import { buildAgentPrompt } from './qa-run-prompt';
 import { isInteractiveStdin, pickRequirementFile } from './pick-requirement';
 import { resolveAppEnv } from '../../src/utils/app-env';
 import { parseEnvText } from '../../src/utils/env-text';
-import { isPlaceholderCredential } from '../../src/shared/utils/role-credentials';
+import { findPlaceholderCredentialKeys } from './qa-run-lib';
 
 const REPO_MARKERS = ['config/qa-kit.workspace.json', 'tools/mcp', 'package.json'];
 const MAX_HOPS = 12;
@@ -200,6 +200,12 @@ function showHelp(): void {
   );
 }
 
+/**
+ * Credential keys still holding a template placeholder — see qa-run-lib.ts.
+ * (Pure helper lives in the lib module so importing it does not execute this CLI.)
+ */
+export { findPlaceholderCredentialKeys } from './qa-run-lib';
+
 function preflight(repoRoot: string, options?: { requireCredentials?: boolean }): PreFlightResult {
   const issues: string[] = [];
   const requireCredentials = options?.requireCredentials ?? true;
@@ -252,11 +258,7 @@ function preflight(repoRoot: string, options?: { requireCredentials?: boolean })
     // fresh checkouts legitimately run dry-run against the example template.
     if (requireCredentials) {
       const envMap = parseEnvText(content);
-      const placeholderKeys = Object.entries(envMap)
-        .filter(
-          ([k, v]) => /_(EMAIL|USERNAME|PHONE|PASSWORD)$/i.test(k) && isPlaceholderCredential(v),
-        )
-        .map(([k]) => k);
+      const placeholderKeys = findPlaceholderCredentialKeys(envMap);
       if (placeholderKeys.length > 0) {
         issues.push(
           `Kredensial masih placeholder di ${path.relative(repoRoot, targetEnv)}: ${placeholderKeys.join(', ')}. ` +

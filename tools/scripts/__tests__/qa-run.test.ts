@@ -12,9 +12,42 @@ import * as path from 'node:path';
 import * as exitCodes from '../exit-codes';
 import * as formatError from '../format-error';
 import { buildAgentPrompt, parseRequirementPromptHints } from '../qa-run-prompt';
+import { findPlaceholderCredentialKeys } from '../qa-run-lib';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const qaRunCli = path.join(repoRoot, 'tools', 'scripts', 'qa-run.ts');
+
+test.describe('qa:run preflight credential check', () => {
+  test('flags placeholder identity/password/company, ignores optional empties', () => {
+    const flagged = findPlaceholderCredentialKeys({
+      TEST_USER_EMAIL: 'your_email',
+      TEST_USER_PASSWORD: 'changeme',
+      FINANCE_COMPANY: 'placeholder-tenant',
+      // Optional / override keys — must NOT block a fresh checkout:
+      TEST_USER_COMPANY: '',
+      TEST_USER_COMPANY_SELECTOR: '',
+      FINANCE_LOGIN_URL_PATH: '',
+      FINANCE_SUCCESS_URL_PATH: '',
+    });
+    expect(flagged.sort()).toEqual(['FINANCE_COMPANY', 'TEST_USER_EMAIL', 'TEST_USER_PASSWORD']);
+  });
+
+  test('real values pass, and COMPANY is optional when absent', () => {
+    expect(
+      findPlaceholderCredentialKeys({
+        TEST_USER_EMAIL: 'qa@acme.test',
+        TEST_USER_PASSWORD: 's3cret-value',
+        FINANCE_COMPANY: 'acme',
+      }),
+    ).toEqual([]);
+    expect(
+      findPlaceholderCredentialKeys({
+        TEST_USER_EMAIL: 'qa@acme.test',
+        TEST_USER_PASSWORD: 's3cret',
+      }),
+    ).toEqual([]);
+  });
+});
 
 test.describe('qa:run prompt builder', () => {
   test('parseRequirementPromptHints reads auth and start page', () => {

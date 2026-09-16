@@ -17,6 +17,29 @@
 
 export type LoginIdKind = 'email' | 'username' | 'phone';
 
+/**
+ * Role credential suffixes, in canonical render order.
+ * Single source of truth for `{PREFIX}_{SUFFIX}` parsing — imported by
+ * env-clean, the setup wizard, and env-edit so the copies can never drift.
+ */
+export const ROLE_SUFFIXES = [
+  'COMPANY',
+  'COMPANY_SELECTOR',
+  'EMAIL',
+  'USERNAME',
+  'PHONE',
+  'PASSWORD',
+  'LOGIN_ID_PREF',
+  'LOGIN_URL_PATH',
+  'SUCCESS_URL_PATH',
+] as const;
+
+/** Longest suffix first so `COMPANY_SELECTOR` wins over `COMPANY`. */
+const ROLE_SUFFIX_ALT = [...ROLE_SUFFIXES].sort((a, b) => b.length - a.length).join('|');
+
+/** `{PREFIX}_{SUFFIX}` key parser shared by env-clean, wizard, and env-edit. */
+export const ROLE_KEY_RE = new RegExp(`^([A-Z0-9_]+?)_(${ROLE_SUFFIX_ALT})$`);
+
 export interface RoleCredentialRef {
   /** Public role id (kebab). Always `user` for default account — never `default`/`general`. */
   name: string;
@@ -30,6 +53,10 @@ export interface RoleCredentialRef {
   loginUrlPathKey: string;
   /** Key for role-specific post-login redirect path (e.g. ADMIN_SUCCESS_URL_PATH). */
   successUrlPathKey: string;
+  /** Key for the company/tenant code typed into the login form (e.g. FINANCE_COMPANY). */
+  companyKey: string;
+  /** Optional selector override for the company input (e.g. FINANCE_COMPANY_SELECTOR). */
+  companySelectorKey: string;
 }
 
 export interface ResolvedLoginId {
@@ -52,6 +79,7 @@ export interface WizardRoleInput {
     loginIdPref?: string;
     loginUrlPath?: string;
     successUrlPath?: string;
+    company?: string;
   };
 }
 
@@ -107,6 +135,8 @@ export function roleCredentialKeys(roleName: string, appEnv?: string): RoleCrede
   return {
     name,
     authFile: roleAuthFile(name, appEnv),
+    companyKey: `${prefix}_COMPANY`,
+    companySelectorKey: `${prefix}_COMPANY_SELECTOR`,
     emailKey: `${prefix}_EMAIL`,
     usernameKey: `${prefix}_USERNAME`,
     phoneKey: `${prefix}_PHONE`,
@@ -240,6 +270,9 @@ export function roleFieldsToEnvUpserts(
   if (fields.successUrlPath?.trim()) {
     out[ref.successUrlPathKey] = fields.successUrlPath.trim();
   }
+  if (fields.company?.trim()) {
+    out[ref.companyKey] = fields.company.trim();
+  }
   return out;
 }
 
@@ -366,10 +399,7 @@ export function parseRolesFromEnvMap(map: Record<string, string>): RoleCredentia
   consider('user');
 
   for (const key of Object.keys(map)) {
-    const m =
-      /^([A-Z0-9_]+)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF|LOGIN_URL_PATH|SUCCESS_URL_PATH)$/.exec(
-        key,
-      );
+    const m = ROLE_KEY_RE.exec(key);
     if (!m) continue;
     const prefix = m[1];
     if (prefix === 'TEST_USER' || prefix === 'DOTENV_PUBLIC_KEY' || prefix === 'DOTENV') continue;
