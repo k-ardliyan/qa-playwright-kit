@@ -19,13 +19,46 @@ import {
   roleCredentialKeys,
   canonicalRoleName,
 } from '../shared/utils/role-credentials';
-import { authStateFileExpiryVerdict } from '../shared/mcp/auth-probe';
+import { authStateFileExpiryVerdict, readSessionCompany } from '../shared/mcp/auth-probe';
 import { pathRoleFromStatePath, runAuthProbeCheck } from './session-guard';
 
 export interface SessionValidationOptions {
   authFile: string;
   checkUrl: string;
   loginUrl: string;
+  /**
+   * Configured company/tenant code. When set, a session stamped for a
+   * DIFFERENT company is stale even if the browser still considers it alive —
+   * otherwise switching `{ROLE}_COMPANY` silently keeps the old tenant's data.
+   */
+  company?: string;
+}
+
+/**
+ * Heuristic company/tenant input on a login form. Override per role with
+ * `{ROLE}_COMPANY_SELECTOR` when the app names the field differently.
+ * Shared so the live setup and the wizard generator can never drift.
+ */
+export const COMPANY_FIELD_SELECTOR =
+  'input[name*="company" i], input[id*="company" i], input[name*="tenant" i], input[id*="tenant" i], input[name*="organization" i], input[name*="workspace" i], select[name*="company" i], select[id*="company" i], select[name*="tenant" i], select[id*="tenant" i]';
+
+/**
+ * Tenant binding helpers. The READER lives in the shared (twinned) auth-probe
+ * module so discovery/snapshot and the runner agree on one implementation.
+ */
+export { readSessionCompany } from '../shared/mcp/auth-probe';
+
+/** Stamp the tenant binding onto a just-saved session file (no-op when empty). */
+export function stampSessionCompany(authFile: string, company: string): void {
+  if (!company) return;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(authFile, 'utf-8')) as Record<string, unknown>;
+    parsed._qaKit = { ...(parsed._qaKit as object | undefined), company };
+    fs.writeFileSync(authFile, `${JSON.stringify(parsed, null, 2)}\n`);
+  } catch {
+    // A session we cannot stamp still works — the guard only ever ADDS a
+    // re-login, never blocks a valid session.
+  }
 }
 
 /**
@@ -41,8 +74,14 @@ export async function isSessionValid(
   page: Page,
   options: SessionValidationOptions,
 ): Promise<boolean> {
-  const { authFile, checkUrl, loginUrl } = options;
+  const { authFile, checkUrl, loginUrl, company } = options;
   if (!fs.existsSync(authFile)) {
+    return false;
+  }
+
+  // Tenant binding: the session file records which company it was created for.
+  // Mismatch (or an unstamped legacy file) → treat as stale and log in again.
+  if (company && readSessionCompany(authFile) !== company) {
     return false;
   }
 
@@ -75,6 +114,8 @@ export async function isSessionValid(
         return false;
       }
       await page.context().storageState({ path: authFile });
+      // The re-save above drops the tenant stamp — put it back.
+      if (company) stampSessionCompany(authFile, company);
       return true;
     }
   } catch {
@@ -126,6 +167,10 @@ export interface ResolvedRoleCredentials {
   loginId: string;
   idKind: 'email' | 'username' | 'phone';
   password: string;
+  /** Company/tenant code typed into the login form; '' = no company step. */
+  company: string;
+  /** Optional selector override for the company input. */
+  companySelector: string;
   loginUrl: string;
   successUrl: string;
   authFile: string;
@@ -149,6 +194,10 @@ export function resolveRoleCredentials(
   const username = (process.env[ref.usernameKey] ?? '').trim();
   const phone = (process.env[ref.phoneKey] ?? '').trim();
   const password = (process.env[ref.passwordKey] ?? '').trim();
+
+  const rawCompany = (process.env[ref.companyKey] ?? '').trim();
+  const company = isPlaceholderCredential(rawCompany) ? '' : rawCompany;
+  const companySelector = (process.env[ref.companySelectorKey] ?? '').trim();
 
   const roleLoginUrl = normalizeConfiguredPath(
     process.env[ref.loginUrlPathKey] || process.env.AUTH_LOGIN_URL_PATH,
@@ -186,6 +235,8 @@ export function resolveRoleCredentials(
     loginId,
     idKind,
     password,
+    company,
+    companySelector,
     loginUrl: roleLoginUrl,
     successUrl: roleSuccessUrl,
     authFile: ref.authFile,

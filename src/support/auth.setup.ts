@@ -8,7 +8,14 @@ import {
 } from '../shared/utils/role-credentials';
 import type { Page } from '@playwright/test';
 import { setTestMetadata, captureActualResult } from './test-metadata';
-import { isSessionValid, saveSessionState, resolveRoleCredentials } from './auth-helpers';
+import {
+  isSessionValid,
+  saveSessionState,
+  resolveRoleCredentials,
+  stampSessionCompany,
+  readSessionCompany,
+  COMPANY_FIELD_SELECTOR,
+} from './auth-helpers';
 import {
   handlePostLoginChallenge,
   resolveChallengeMode,
@@ -79,11 +86,22 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
       authFile,
       checkUrl: roleSuccessUrl,
       loginUrl: roleLoginUrl,
+      company: cred.company,
     });
     if (valid) {
       console.log(`✔ [Auth] Session ${roleName} masih valid, reuse session.`);
       captureActualResult(`Session ${roleName} masih valid (reused), tersimpan di ` + authFile);
       return;
+    }
+    // One reason, one line. Do not call every failed reuse a company mismatch —
+    // an expired session with the right company is a different fix.
+    const stamped = readSessionCompany(authFile);
+    if (cred.company && stamped && stamped !== cred.company) {
+      console.log(
+        `ℹ [Auth] Session ${roleName} milik company "${stamped}", env minta "${cred.company}" — login ulang.`,
+      );
+    } else {
+      console.log(`ℹ [Auth] Session ${roleName} tidak valid (expired / belum ada) — login ulang.`);
     }
   }
 
@@ -104,6 +122,26 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
       // Page never reached the app origin — nothing was seeded to clear.
     }
     await page.goto(resolveAppUrl(roleLoginUrl));
+  });
+
+  await test.step('Isi kode company/tenant (jika dikonfigurasi)', async () => {
+    if (!cred.company) return;
+    const selector = cred.companySelector || COMPANY_FIELD_SELECTOR;
+    const field = page.locator(selector).first();
+    if ((await field.count()) === 0) {
+      throw new Error(
+        `Role "${roleName}": ${roleRef.companyKey} is set but no company/tenant input matched. ` +
+          `Set ${roleRef.companySelectorKey} to the real field selector.`,
+      );
+    }
+    // Dropdown tenants: pick by value or label, whichever matches.
+    if ((await field.evaluate((el) => el.tagName)) === 'SELECT') {
+      await field.selectOption([{ value: cred.company }, { label: cred.company }], {
+        timeout: 10_000,
+      });
+      return;
+    }
+    await field.fill(cred.company, { timeout: 10_000 });
   });
 
   await test.step('Isi kredensial dan submit form login', async () => {
@@ -145,6 +183,8 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
     await test.step('Tunggu redirect sukses dan simpan session baru', async () => {
       await page.waitForURL('**' + roleSuccessUrl + '**', { timeout: successTimeout });
       await saveSessionState(page, authFile);
+      // Bind the session to its tenant so a later company change forces re-login.
+      stampSessionCompany(authFile, cred.company);
     });
     console.log(`✔ [Auth] Session baru ${roleName} tersimpan di`, authFile);
     captureActualResult(`Sesi baru ${roleName} berhasil dibuat dan disimpan di ` + authFile);
@@ -154,6 +194,22 @@ async function loginRole(roleName: string, page: Page): Promise<void> {
         `✖ [Auth] ${roleName}: assisted login failed (AUTH_CHALLENGE_MODE=${challengeMode}).`,
         error instanceof Error ? error.message : error,
       );
+    }
+    // Diagnose the most common multi-tenant mistake: the login form HAS a
+    // company/tenant field but {ROLE}_COMPANY is not configured, so the login
+    // failed as a generic "wrong credentials" error. Say so explicitly.
+    if (!cred.company) {
+      const hasCompanyField = await page
+        .locator(COMPANY_FIELD_SELECTOR)
+        .count()
+        .catch(() => 0);
+      if (hasCompanyField > 0) {
+        console.error(
+          `ℹ [Auth] ${roleName}: halaman login punya field company/tenant, tetapi ` +
+            `${roleRef.companyKey} belum di-set — login gagal sebagai kredensial salah. ` +
+            `Set lewat: npm run env:edit`,
+        );
+      }
     }
     throw error;
   }

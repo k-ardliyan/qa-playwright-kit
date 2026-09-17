@@ -6,9 +6,16 @@ import type { Page } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { isSessionValid, saveSessionState, resolveRoleCredentials } from '@/support/auth-helpers';
+import {
+  isSessionValid,
+  saveSessionState,
+  resolveRoleCredentials,
+  readSessionCompany,
+  stampSessionCompany,
+} from '@/support/auth-helpers';
 import { runAuthProbeCheck } from '@/support/session-guard';
 import { authProbeChecks } from '@/support/auth.probe';
+import { sessionTenantVerdict } from '@/shared/mcp/auth-probe';
 
 /**
  * AUTH_FORCE_LOGIN is NOT observable through the exported helpers: it gates
@@ -149,6 +156,30 @@ test.describe('resolveRoleCredentials', () => {
     expect(resolveRoleCredentials('../admin', '../../outside')).toMatchObject({
       authFile: '.auth/local/user.json',
     });
+  });
+
+  test('resolves company code and selector override per role', () => {
+    process.env.FINANCE_COMPANY = 'acme';
+    process.env.FINANCE_COMPANY_SELECTOR = '#tenant-code';
+    process.env.FINANCE_PASSWORD = 'secret-finance';
+    process.env.FINANCE_USERNAME = 'finance1';
+
+    const cred = resolveRoleCredentials('finance', 'dev');
+    expect(cred.company).toBe('acme');
+    expect(cred.companySelector).toBe('#tenant-code');
+    expect(cred.authFile).toBe('.auth/dev/finance.json');
+  });
+
+  test('company is empty when unset or still a placeholder', () => {
+    delete process.env.FINANCE_COMPANY_SELECTOR;
+    process.env.FINANCE_PASSWORD = 'secret-finance';
+    process.env.FINANCE_USERNAME = 'finance1';
+
+    delete process.env.FINANCE_COMPANY;
+    expect(resolveRoleCredentials('finance', 'dev').company).toBe('');
+
+    process.env.FINANCE_COMPANY = 'your_company_here';
+    expect(resolveRoleCredentials('finance', 'dev').company).toBe('');
   });
 });
 
@@ -323,5 +354,89 @@ test.describe('saveSessionState', () => {
     await saveSessionState(page, authFile);
     expect(page.storageWrites).toEqual([authFile]);
     expect(fs.existsSync(path.join(dir, 'deep', 'nested', '.auth', 'local'))).toBe(true);
+  });
+});
+
+test.describe('tenant binding on saved sessions', () => {
+  function writeState(file: string, extra?: Record<string, unknown>): void {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ cookies: [], origins: [], ...extra }, null, 2));
+  }
+
+  test('stamps company and reads it back; empty company is a no-op', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-tenant-'));
+    const authFile = path.join(dir, 'user.json');
+    writeState(authFile);
+
+    stampSessionCompany(authFile, 'acme');
+    expect(readSessionCompany(authFile)).toBe('acme');
+
+    stampSessionCompany(authFile, 'globex');
+    expect(readSessionCompany(authFile)).toBe('globex');
+
+    stampSessionCompany(authFile, '');
+    expect(readSessionCompany(authFile)).toBe('globex');
+  });
+
+  test('unstamped or unreadable file → undefined (never throws)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-tenant-'));
+    const authFile = path.join(dir, 'user.json');
+    writeState(authFile);
+    expect(readSessionCompany(authFile)).toBeUndefined();
+    expect(readSessionCompany(path.join(dir, 'missing.json'))).toBeUndefined();
+    expect(readSessionCompany(dir)).toBeUndefined();
+  });
+
+  test('session stamped for another company is rejected before any navigation', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-tenant-'));
+    const authFile = path.join(dir, 'user.json');
+    writeState(authFile, { _qaKit: { company: 'globex' } });
+
+    const page = makeMockPage();
+    const valid = await isSessionValid(page, {
+      authFile,
+      checkUrl: '/dashboard',
+      loginUrl: '/login',
+      company: 'acme',
+    });
+
+    expect(valid).toBe(false);
+    expect(page.gotoCalls).toEqual([]);
+  });
+
+  test('sessionTenantVerdict guards discovery against the wrong tenant', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-tenant-'));
+    const authFile = path.join(dir, 'user.json');
+    writeState(authFile, { _qaKit: { company: 'acme' } });
+
+    // Matching tenant, no tenant configured, and legacy unstamped files are
+    // all safe to use; only a real mismatch blocks the session.
+    expect(sessionTenantVerdict(authFile, 'acme')).toBe('match');
+    expect(sessionTenantVerdict(authFile, undefined)).toBe('unverified');
+    expect(sessionTenantVerdict(authFile, '  ')).toBe('unverified');
+    expect(sessionTenantVerdict(authFile, 'globex')).toBe('mismatch');
+
+    const unstamped = path.join(dir, 'legacy.json');
+    writeState(unstamped);
+    expect(sessionTenantVerdict(unstamped, 'acme')).toBe('unverified');
+  });
+
+  test('matching stamp does not short-circuit the normal liveness check', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-tenant-'));
+    const authFile = path.join(dir, 'user.json');
+    writeState(authFile, { _qaKit: { company: 'acme' } });
+
+    const page = makeMockPage();
+    const valid = await isSessionValid(page, {
+      authFile,
+      checkUrl: '/dashboard',
+      loginUrl: '/login',
+      company: 'acme',
+    });
+
+    // A matching stamp must NOT be treated as proof of liveness on its own:
+    // the live navigation still runs, so a dead session cannot pass as green.
+    expect(page.gotoCalls.length).toBeGreaterThan(0);
+    expect(valid).toBe(true);
   });
 });

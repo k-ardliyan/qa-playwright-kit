@@ -253,6 +253,39 @@ assert.ok(v2.includes('Page never reached the app origin'), 'best-effort catch c
 assert.ok(v2.includes("process.env.AUTH_FORCE_LOGIN === 'true'"), 'AUTH_FORCE_LOGIN gate missing');
 assert.ok(v2.includes('if (!forceLogin) {'), 'force-login skip gate missing');
 
+// Company/tenant fill step: uses the resolved company value, hints the
+// selector override key, and runs BEFORE the identifier fill.
+assert.ok(v2.includes('cred.company'), 'company fill must use the resolved company value');
+assert.ok(v2.includes('companySelectorKey'), 'company selector override hint missing');
+assert.ok(v2.includes('Isi kode company/tenant'), 'company step title missing');
+assert.ok(
+  v2.includes('company: cred.company'),
+  'generated setup must pass company into isSessionValid (tenant binding)',
+);
+assert.ok(
+  v2.includes('stampSessionCompany(authFile, cred.company)'),
+  'generated setup must stamp the tenant onto the saved session',
+);
+assert.ok(
+  v2.includes('readSessionCompany(authFile)'),
+  'generated setup must distinguish a company mismatch from an expired session',
+);
+assert.ok(
+  v2.includes('tidak valid (expired / belum ada)'),
+  'generated setup must have a non-company reuse-failure line',
+);
+assert.ok(
+  v2.includes('COMPANY_FIELD_SELECTOR'),
+  'generated setup must reuse the shared company selector const',
+);
+assert.ok(v2.includes('selectOption'), 'generated setup must handle <select> company dropdowns');
+const companyIdx = v2.indexOf('cred.company');
+const identifierIdx = v2.indexOf('input[type="email"]');
+assert.ok(
+  companyIdx > -1 && companyIdx < identifierIdx,
+  'company fill must precede identifier fill',
+);
+
 // ─── Task 8.3 — compile matrix of generated variants ───────────────────────────
 
 const repoRoot = path.resolve(__dirname, '../../..');
@@ -330,6 +363,8 @@ function writeStubModules(dir: string): void {
     `export interface RoleCredentialRef {
   name: string;
   authFile: string;
+  companyKey: string;
+  companySelectorKey: string;
   emailKey: string;
   usernameKey: string;
   phoneKey: string;
@@ -343,6 +378,8 @@ export function roleCredentialKeys(roleName: string): RoleCredentialRef {
   return {
     name: roleName,
     authFile: '.auth/local/' + roleName + '.json',
+    companyKey: 'X_COMPANY',
+    companySelectorKey: 'X_COMPANY_SELECTOR',
     emailKey: 'X_EMAIL',
     usernameKey: 'X_USERNAME',
     phoneKey: 'X_PHONE',
@@ -373,15 +410,20 @@ export interface ResolvedRoleCredentials {
   loginId: string;
   idKind: 'email' | 'username' | 'phone';
   password: string;
+  company: string;
+  companySelector: string;
   loginUrl: string;
   successUrl: string;
   authFile: string;
 }
 export function resolveRoleCredentials(roleName: string): ResolvedRoleCredentials {
-  return { loginId: 'x', idKind: 'email', password: 'x', loginUrl: '/login', successUrl: '/dashboard', authFile: '.auth/local/' + roleName + '.json' };
+  return { loginId: 'x', idKind: 'email', password: 'x', company: '', companySelector: '', loginUrl: '/login', successUrl: '/dashboard', authFile: '.auth/local/' + roleName + '.json' };
 }
-export async function isSessionValid(page: { goto(url: string): Promise<unknown> }, options: { authFile: string; checkUrl: string; loginUrl: string }): Promise<boolean> { return false; }
+export async function isSessionValid(page: { goto(url: string): Promise<unknown> }, options: { authFile: string; checkUrl: string; loginUrl: string; company?: string }): Promise<boolean> { return false; }
 export async function saveSessionState(page: { context(): { storageState(o: { path: string }): Promise<unknown> } }, authFile: string): Promise<void> {}
+export function stampSessionCompany(authFile: string, company: string): void {}
+export function readSessionCompany(authFile: string): string | undefined { return undefined; }
+export const COMPANY_FIELD_SELECTOR = 'input[name*="company" i]';
 `,
   );
   fs.writeFileSync(
