@@ -336,6 +336,21 @@ test.describe('buildEnvFileContent with custom multi-roles', () => {
     }
   });
 
+  test('writes COMPANY for a tenant-scoped role', () => {
+    const cleanup = withIsolatedRepo();
+    try {
+      const built = buildEnvFileContent({
+        appEnv: 'dev',
+        baseUrl: 'http://localhost:3000',
+        roles: [{ name: 'finance', fields: { username: 'fin1', password: 'p', company: 'acme' } }],
+        challengeMode: 'none',
+      });
+      expect(built.content).toContain('FINANCE_COMPANY=acme');
+    } finally {
+      cleanup();
+    }
+  });
+
   test('clears stale TEST_USER_* credentials from old env when switching to new roles', () => {
     const cleanup = withIsolatedRepo();
     try {
@@ -394,6 +409,8 @@ test.describe('dynamic roles and credential gates', () => {
       {
         name: 'analyst',
         authFile: '.auth/dev/analyst.json',
+        companyKey: 'ANALYST_COMPANY',
+        companySelectorKey: 'ANALYST_COMPANY_SELECTOR',
         emailKey: 'ANALYST_EMAIL',
         usernameKey: 'ANALYST_USERNAME',
         phoneKey: 'ANALYST_PHONE',

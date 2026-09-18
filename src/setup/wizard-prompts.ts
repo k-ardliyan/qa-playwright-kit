@@ -23,6 +23,7 @@ export interface RoleFields {
   loginIdPref?: 'email' | 'username' | 'phone';
   loginUrlPath?: string;
   successUrlPath?: string;
+  company?: string;
 }
 
 /** Sentinel returned when the user picks "back" on a numbered choice. */
@@ -348,19 +349,22 @@ export async function promptRoleCredentials(
     return true;
   };
 
-  // 6-step loop:
+  // 7-step loop:
   // 0 = method picker (username/email/phone)
   // 1 = identifier value
   // 2 = password
   // 3 = password confirm
   // 4 = loginUrlPath (e.g. /login or /admin/login)
   // 5 = successUrlPath (e.g. /dashboard or /guru/kelas)
-  let step: 0 | 1 | 2 | 3 | 4 | 5 = 0;
+  // 6 = company/tenant code (opsional, Enter = tidak ada)
+  let step: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 0;
   let id: 'email' | 'username' | 'phone' = pickId;
   let identValue = '';
   let password = '';
   let loginPath = '';
-  let successPath: string;
+  // Pre-seeded with the step-5 default: step 6 always runs after step 5, but
+  // TypeScript cannot prove that across the block boundary.
+  let successPath = existing?.successUrlPath || '/dashboard';
 
   for (;;) {
     if (step === 0) {
@@ -457,24 +461,43 @@ export async function promptRoleCredentials(
       continue;
     }
 
-    // step === 5: success redirect path
-    const defaultSuccess = existing?.successUrlPath || '/dashboard';
-    const value = await promptTextWithBack({
+    if (step === 5) {
+      const defaultSuccess = existing?.successUrlPath || '/dashboard';
+      const value = await promptTextWithBack({
+        lang,
+        message: t(
+          lang,
+          `Path redirect sukses untuk ${role} (Enter = ${defaultSuccess})`,
+          `Success redirect path for ${role} (Enter = ${defaultSuccess})`,
+        ),
+        initial: defaultSuccess,
+        validate: (v: string) =>
+          isValidAppPathInput(v) || t(lang, 'Format path tidak valid', 'Invalid path format'),
+      });
+      if (value === BACK) {
+        step = 4;
+        continue;
+      }
+      successPath = normalizeAppPath(value, defaultSuccess);
+      step = 6;
+      continue;
+    }
+
+    // step === 6: company/tenant code
+    const companyValue = await promptTextWithBack({
       lang,
       message: t(
         lang,
-        `Path redirect sukses untuk ${role} (Enter = ${defaultSuccess})`,
-        `Success redirect path for ${role} (Enter = ${defaultSuccess})`,
+        `Kode company/tenant untuk ${role} (Enter = tidak ada)`,
+        `Company/tenant code for ${role} (Enter = none)`,
       ),
-      initial: defaultSuccess,
-      validate: (v: string) =>
-        isValidAppPathInput(v) || t(lang, 'Format path tidak valid', 'Invalid path format'),
+      initial: existing?.company ?? '',
     });
-    if (value === BACK) {
-      step = 4;
+    if (companyValue === BACK) {
+      step = 5;
       continue;
     }
-    successPath = normalizeAppPath(value, defaultSuccess);
+    const company = companyValue.trim();
 
     const fields: RoleFields = {
       password,
@@ -483,6 +506,7 @@ export async function promptRoleCredentials(
     };
     fields[id] = identValue;
     fields.loginIdPref = id;
+    if (company) fields.company = company;
     return fields;
   }
 }

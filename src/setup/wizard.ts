@@ -24,7 +24,11 @@
 
 import { type AppEnv, resolveAppEnv } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
-import { type WizardRoleInput } from '../shared/utils/role-credentials';
+import {
+  ROLE_KEY_RE,
+  roleCredentialKeys,
+  type WizardRoleInput,
+} from '../shared/utils/role-credentials';
 import {
   promptLanguage,
   promptAppEnv,
@@ -298,6 +302,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     loginIdPref: primaryRole?.fields.loginIdPref,
     loginUrl: primaryRole?.fields.loginUrlPath || '/login',
     successUrlPath: primaryRole?.fields.successUrlPath || '/dashboard',
+    company: primaryRole?.fields.company,
   });
   const loginFile = writeLoginRequirementFile(process.cwd(), loginState);
   const loginMarkdown = loginFile.skipped
@@ -590,8 +595,9 @@ function printPreview(opts: {
     const id = r.fields.email ?? r.fields.username ?? r.fields.phone ?? '-';
     const login = r.fields.loginUrlPath || '/login';
     const redir = r.fields.successUrlPath || '/dashboard';
+    const company = r.fields.company ? ` [${r.fields.company}]` : '';
     stepLine(
-      `  ${prefix.padEnd(13)}${id} / ${maskPassword(r.fields.password)}  [${login} → ${redir}]`,
+      `  ${prefix.padEnd(13)}${id} / ${maskPassword(r.fields.password)}  [${login} → ${redir}]${company}`,
     );
   }
 }
@@ -600,10 +606,7 @@ function detectExistingRoles(envMap: Record<string, string>): string[] {
   const roles = new Set<string>();
 
   for (const key of Object.keys(envMap)) {
-    const m =
-      /^([A-Z0-9_]+?)_(EMAIL|USERNAME|PHONE|PASSWORD|LOGIN_ID_PREF|LOGIN_URL_PATH|SUCCESS_URL_PATH)$/.exec(
-        key,
-      );
+    const m = ROLE_KEY_RE.exec(key);
     if (!m) continue;
     const prefix = m[1];
     if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
@@ -649,6 +652,11 @@ function getExistingRoleFields(
     fields.successUrlPath = roleSuccess;
   }
 
+  const company = envMap[`${prefix}_COMPANY`];
+  if (company && !isEncryptedValue(company)) {
+    fields.company = company;
+  }
+
   return Object.keys(fields).length > 0 ? fields : undefined;
 }
 
@@ -688,14 +696,26 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
   // Session state comes from the filesystem, not a hardcoded "pending" string —
   // the old version reported pending even when a valid session existed, which
   // contradicted `npm run auth:verify`.
-  const sessions = authSessionStatus(process.cwd(), appEnv, validation.rolesConfigured);
+  const sessions = authSessionStatus(
+    process.cwd(),
+    appEnv,
+    validation.rolesConfigured,
+    (role) => existing?.[roleCredentialKeys(role).companyKey],
+  );
   const authLine =
     sessions.ready.length > 0
       ? `ready — ${sessions.ready.join(', ')} (live check: npm run auth:verify)`
-      : sessions.tooSmall.length > 0
-        ? `invalid — file terlalu kecil: ${sessions.tooSmall.join(', ')} (jalankan npm run auth:setup)`
-        : `pending — belum dibuat: ${sessions.missing.join(', ') || 'no configured roles'}`;
+      : sessions.wrongTenant.length > 0
+        ? `stale — sesi milik company lain: ${sessions.wrongTenant.join(', ')} (jalankan npm run auth:setup)`
+        : sessions.tooSmall.length > 0
+          ? `invalid — file terlalu kecil: ${sessions.tooSmall.join(', ')} (jalankan npm run auth:setup)`
+          : `pending — belum dibuat: ${sessions.missing.join(', ') || 'no configured roles'}`;
   console.log(`   ${t(lang, 'Auth session', 'Auth sessions')}: ${authLine}`);
+  if (sessions.ready.length > 0 && sessions.wrongTenant.length > 0) {
+    console.log(
+      `   ⚠ ${t(lang, 'Company lain', 'Wrong company')}: ${sessions.wrongTenant.join(', ')} — npm run auth:setup`,
+    );
+  }
   console.log(
     `   ${t(lang, 'Pipeline', 'Pipeline')}: ${
       sessions.ready.length > 0 && validation.valid
@@ -785,11 +805,12 @@ function printSummary(data: {
     process.cwd(),
     data.appEnv,
     data.roles.map((r) => r.name),
+    (role) => data.roles.find((r) => r.name === role)?.fields.company,
   );
   stepLine(
     sessions.ready.length > 0
-      ? `  ${t(lang, 'Auth session', 'Auth sessions')}: ready — ${sessions.ready.join(', ')} (verify: npm run auth:verify)`
-      : `  ${t(lang, 'Auth session', 'Auth sessions')}: pending — jalankan npm run auth:setup${data.challengeMode !== 'none' ? ':headed' : ''}${sessions.tooSmall.length > 0 ? ` (file terlalu kecil: ${sessions.tooSmall.join(', ')})` : ''}`,
+      ? `  ${t(lang, 'Auth session', 'Auth sessions')}: ready — ${sessions.ready.join(', ')}${sessions.wrongTenant.length > 0 ? ` | ⚠ company lain: ${sessions.wrongTenant.join(', ')} → npm run auth:setup` : ''} (verify: npm run auth:verify)`
+      : `  ${t(lang, 'Auth session', 'Auth sessions')}: pending — jalankan npm run auth:setup${data.challengeMode !== 'none' ? ':headed' : ''}${sessions.wrongTenant.length > 0 ? ` (sesi company lain: ${sessions.wrongTenant.join(', ')})` : ''}${sessions.tooSmall.length > 0 ? ` (file terlalu kecil: ${sessions.tooSmall.join(', ')})` : ''}`,
   );
   stepLine(
     `  ${t(lang, 'Pipeline', 'Pipeline')}    : ${

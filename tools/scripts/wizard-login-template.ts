@@ -39,6 +39,13 @@ export interface LoginTemplateState {
   challengeMode?: ChallengeMode;
   /** LOGIN_ID_PREF for primary role — drives credential:<role>.<field>. */
   loginIdPref?: 'email' | 'username' | 'phone';
+  /**
+   * Company/tenant code typed into the login form for the primary role
+   * ({ROLE}_COMPANY). When set, the generated requirement gains a tenant
+   * acceptance criterion + `company:` input data instead of silently
+   * omitting the field.
+   */
+  company?: string;
   /** Opsional: hint field login (email/username/phone). */
   loginFieldHints?: string[];
   /** Opsional: hint field password. */
@@ -229,6 +236,7 @@ export function loginStateFromWizard(opts: {
   loginUrl?: string;
   successUrlPath?: string;
   loginIdPref?: string;
+  company?: string;
 }): LoginTemplateState {
   const roles = (opts.roles.length > 0 ? opts.roles : ['user']).map((name) => {
     const n = canonicalRole(name);
@@ -243,6 +251,7 @@ export function loginStateFromWizard(opts: {
     mechanism: 'form',
     challengeMode: opts.challengeMode,
     loginIdPref: parseLoginIdPref(opts.loginIdPref),
+    company: opts.company?.trim() || undefined,
   };
 }
 

@@ -438,6 +438,12 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
       message: `Path redirect sukses ${roleName} (Enter = ${map[ref.successUrlPathKey] || '/dashboard'}):`,
       initial: map[ref.successUrlPathKey] || '',
     },
+    {
+      type: 'text',
+      name: 'company',
+      message: `${ref.companyKey} (opsional, kode company/tenant di form login):`,
+      initial: map[ref.companyKey] || '',
+    },
   ]);
   if (ans.email === undefined && ans.username === undefined && ans.password === undefined)
     return content;
@@ -451,6 +457,7 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
   const phone = String(ans.phone ?? '').trim();
   const loginUrlPath = String(ans.loginUrlPath ?? '').trim();
   const successUrlPath = String(ans.successUrlPath ?? '').trim();
+  const company = String(ans.company ?? '').trim();
   if (!password) {
     printWarn('Password wajib untuk role yang login.');
     return content;
@@ -474,6 +481,7 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
     values[ref.successUrlPathKey] = successUrlPath.startsWith('/')
       ? successUrlPath
       : `/${successUrlPath}`;
+  if (company) values[ref.companyKey] = company;
 
   const trial = { ...map, ...values };
   // Cleared fields must not linger from previous map
@@ -497,6 +505,7 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
   if ((!pref || pref === 'auto') && map[ref.loginIdPrefKey] !== undefined) {
     toRemove.push(ref.loginIdPrefKey);
   }
+  if (!company && map[ref.companyKey] !== undefined) toRemove.push(ref.companyKey);
   if (toRemove.length > 0) next = removeEnvKeys(next, toRemove);
   return next;
 }
@@ -550,6 +559,11 @@ async function actionAddRole(content: string, map: Record<string, string>): Prom
       message: 'Path redirect sukses (Enter = /dashboard):',
       initial: '/dashboard',
     },
+    {
+      type: 'text',
+      name: 'company',
+      message: 'Kode company/tenant (opsional, Enter skip):',
+    },
   ]);
   if (!ans.roleName || !ans.password) return content;
 
@@ -558,6 +572,7 @@ async function actionAddRole(content: string, map: Record<string, string>): Prom
   const phone = String(ans.phone ?? '').trim();
   const loginUrlPath = String(ans.loginUrlPath ?? '').trim();
   const successUrlPath = String(ans.successUrlPath ?? '').trim();
+  const company = String(ans.company ?? '').trim();
   if (!email && !username && !phone) {
     printWarn('Isi minimal satu identitas: email, username, atau telepon.');
     return content;
@@ -580,6 +595,7 @@ async function actionAddRole(content: string, map: Record<string, string>): Prom
       ? successUrlPath
       : `/${successUrlPath}`;
   }
+  if (company) values[ref.companyKey] = company;
 
   const next = upsertEnvContent(content, values, 'Kredensial per role');
   printOk(`Role ${ref.name} ditambahkan`);

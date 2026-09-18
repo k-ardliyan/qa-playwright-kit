@@ -22,7 +22,7 @@ export const DEFAULT_LOGOUT_BUTTONS = ['Logout', 'Keluar', 'Sign out'];
 
 export function credentialKey(
   roleName: string,
-  field: 'email' | 'username' | 'phone' | 'password',
+  field: 'email' | 'username' | 'phone' | 'password' | 'company',
 ): string {
   return `credential:${canonicalRole(roleName)}.${field}`;
 }
@@ -338,6 +338,7 @@ export function formScenarios(state: LoginTemplateState, challengeMode: Challeng
   const scSuccess = includeAutoSuccess
     ? (() => {
         const id7 = take();
+        const company = state.company?.trim();
         return scenarioBlock({
           heading: id7.heading('Login Berhasil dengan Kredensial Valid (@success)'),
           testId: id7.testId,
@@ -345,13 +346,18 @@ export function formScenarios(state: LoginTemplateState, challengeMode: Challeng
           role: roleName,
           precondition:
             `Akun \`${envPrefix}_EMAIL\` (atau USERNAME/PHONE) terdaftar di aplikasi ` +
-            `(lihat \`config/environments/{APP_ENV}.env\` — JANGAN tulis nilainya di sini).`,
+            `(lihat \`config/environments/{APP_ENV}.env\` — JANGAN tulis nilainya di sini).` +
+            (company
+              ? ` Aplikasi multi-tenant: kode company \`${envPrefix}_COMPANY\` terdaftar dan field company/tenant ada di halaman login.`
+              : ''),
           inputLines: [
+            ...(company ? [`company: ${credentialKey(roleName, 'company')}`] : []),
             `identifier: ${identCred}`,
             `password: ${credentialKey(roleName, 'password')}`,
           ],
           steps: [
             'Buka halaman login',
+            ...(company ? ['Isi field company/tenant dengan kode company dari Input Data'] : []),
             `Isi field login (${loginFields})`,
             `Isi field password (${passwordFields})`,
             `Klik tombol submit (${submitButtons})`,

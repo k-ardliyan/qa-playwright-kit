@@ -98,6 +98,27 @@ test('form: multi-role adds Role scope metadata', () => {
   assert.ok(md.includes('finance'), 'role name missing');
 });
 
+test('form: multi-tenant adds company input + step, never a hardcoded tenant', () => {
+  const md = buildLoginRequirement(baseState({ company: 'acme' }));
+  assert.ok(md.includes('company: credential:user.company'), 'company input line missing');
+  assert.ok(md.includes('TEST_USER_COMPANY'), 'company env key not documented in precondition');
+  assert.ok(
+    md.includes('Isi field company/tenant dengan kode company dari Input Data'),
+    'company step missing',
+  );
+  // The tenant value itself must never be written into the requirement.
+  assert.ok(!md.includes('acme'), 'tenant value must not be inlined into the requirement');
+});
+
+test('form: no company input when the app is single-tenant', () => {
+  const md = buildLoginRequirement(baseState());
+  assert.ok(
+    !md.includes('credential:user.company'),
+    'company input leaked into single-tenant form',
+  );
+  assert.ok(!md.includes('field company/tenant'), 'company step leaked into single-tenant form');
+});
+
 test('form: uses loginUrl from state', () => {
   const md = buildLoginRequirement(baseState({ loginUrl: '/auth/sign-in' }));
   assert.ok(md.includes('/auth/sign-in'), 'custom loginUrl missing');
