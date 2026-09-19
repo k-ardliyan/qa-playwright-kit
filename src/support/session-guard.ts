@@ -17,7 +17,8 @@
  */
 import * as path from 'node:path';
 import { test, type Page } from '@playwright/test';
-import { authStateFileExpiryVerdict } from '../shared/mcp/auth-probe';
+import { authStateFileExpiryVerdict, readSessionCompany } from '../shared/mcp/auth-probe';
+import { roleCredentialKeys } from '../shared/utils/role-credentials';
 import { authProbeChecks, type AuthProbeCheck } from './auth.probe';
 
 const GUARD_NAV_TIMEOUT_MS = 10_000;
@@ -34,6 +35,20 @@ export function isAuthClassifierMessage(message: string): boolean {
 /** Deterministic failure message consumed by the healer + classifier. */
 export function sessionExpiredMessage(role: string, loginUrl: string): string {
   return `SESSION EXPIRED for role "${role}" — redirected to login (${loginUrl}). Re-run: npm run auth:setup (real UI login; never inject storage state).`;
+}
+
+/**
+ * Deterministic message for a session stamped for the wrong company. Wording
+ * matches the classifier auth regex (`storage state` / `session expired`) so
+ * the healer classifies it `failureSource: 'env'` instead of patching locators
+ * against another tenant's UI.
+ */
+export function sessionTenantMismatchMessage(role: string, expected: string): string {
+  return (
+    `SESSION EXPIRED for role "${role}" — stored session belongs to another company ` +
+    `(expected ${expected} from ${roleCredentialKeys(role).companyKey}). ` +
+    'Re-run: npm run auth:setup (real UI login; never inject storage state).'
+  );
 }
 
 /**
@@ -54,6 +69,7 @@ export function sessionExpiredMessage(role: string, loginUrl: string): string {
 export async function checkSessionRedirect(
   page: Page,
   checkUrl: string,
+  loginUrl: string = process.env.AUTH_LOGIN_URL_PATH || '/login',
 ): Promise<{ redirectedToLogin: boolean; finalUrl: string }> {
   const baseUrl = (process.env.BASE_URL ?? '').replace(/\/$/, '');
   const target = /^https?:\/\//i.test(checkUrl)
@@ -77,7 +93,7 @@ export async function checkSessionRedirect(
   }
 
   const finalUrl = page.url();
-  const loginPath = (process.env.AUTH_LOGIN_URL_PATH || '/login').replace(/\/$/, '');
+  const loginPath = loginUrl.replace(/\/$/, '');
   const redirectedToLogin =
     finalUrl.includes(loginPath) || /(^|\/)(login|signin|sign-in|masuk)([/?#]|$)/i.test(finalUrl);
 
@@ -140,6 +156,26 @@ export async function runAuthProbeCheck(
 }
 
 /**
+ * Pure tenant-binding check for a session about to be used by an authenticated
+ * spec. Returns the abort message when the stored session belongs to a
+ * different company than `{ROLE}_COMPANY`, else null.
+ *
+ * Legacy/unstamped files (no `_qaKit.company`) stay usable — only a real
+ * mismatch blocks, so existing workspaces keep working after upgrade.
+ */
+export function sessionTenantMismatch(
+  stateFile: string,
+  role: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const expected = env[roleCredentialKeys(role).companyKey]?.trim();
+  if (!expected) return null;
+  const stamped = readSessionCompany(stateFile);
+  if (stamped === undefined || stamped === expected) return null;
+  return sessionTenantMismatchMessage(role, expected);
+}
+
+/**
  * Auto-fixture body: throws the classifier-matching session-expired error when
  * an authenticated spec shows auth rejection (redirect, 401/403, or missing
  * success marker). Best-effort — internal failure is swallowed so the suite
@@ -162,20 +198,26 @@ export async function sessionGuardFixture(
     return;
   }
   const role = pathRoleFromStatePath(statePath) ?? 'user';
-  const checkUrl =
-    process.env[roleSessionCheckKey(role)] || process.env.AUTH_SUCCESS_URL_PATH || '/dashboard';
-  const loginUrl = process.env.AUTH_LOGIN_URL_PATH || '/login';
+  const { checkUrl, loginUrl } = resolveGuardUrls(role);
+  const stateFile = path.isAbsolute(statePath) ? statePath : path.resolve(statePath);
+
+  // Tenant binding (static, zero-config): a session stamped for a different
+  // company than {ROLE}_COMPANY would run every test against ANOTHER tenant's
+  // data and still pass — the exact false green this feature exists to stop.
+  const tenantMismatch = sessionTenantMismatch(stateFile, role);
+  if (tenantMismatch) {
+    test.abort(tenantMismatch);
+  }
 
   // Layer 0 (static, zero-config): the session file itself carries TTL
   // evidence — auto-discovered JWT `exp` claims and client expiry records.
   // Resolves without any navigation, so a provably dead session fails the
   // test instantly with zero network cost.
-  const stateFile = path.isAbsolute(statePath) ? statePath : path.resolve(statePath);
   if (authStateFileExpiryVerdict(stateFile) === true) {
     test.abort(sessionExpiredMessage(role, loginUrl));
   }
 
-  const { redirectedToLogin } = await checkSessionRedirect(page, checkUrl);
+  const { redirectedToLogin } = await checkSessionRedirect(page, checkUrl, loginUrl);
   if (redirectedToLogin) {
     test.abort(sessionExpiredMessage(role, loginUrl));
   }
@@ -192,9 +234,21 @@ export async function sessionGuardFixture(
   await run();
 }
 
-function roleSessionCheckKey(role: string): string {
-  const suffix = role.trim().toUpperCase().replace(/-/g, '_');
-  return `AUTH_${suffix}_SUCCESS_URL_PATH`;
+/**
+ * Resolve the guard's success + login URLs for a role.
+ * Role key → global key → default. Uses roleCredentialKeys so role `user`
+ * reads TEST_USER_* (the old AUTH_USER_* key never existed).
+ */
+export function resolveGuardUrls(
+  role: string,
+  env: NodeJS.ProcessEnv = process.env,
+): { checkUrl: string; loginUrl: string } {
+  const ref = roleCredentialKeys(role);
+  return {
+    checkUrl:
+      env[ref.successUrlPathKey]?.trim() || env.AUTH_SUCCESS_URL_PATH?.trim() || '/dashboard',
+    loginUrl: env[ref.loginUrlPathKey]?.trim() || env.AUTH_LOGIN_URL_PATH?.trim() || '/login',
+  };
 }
 
 /** Extract `<role>` from `.auth/{env}/{role}.json` (POSIX or Windows separators). */

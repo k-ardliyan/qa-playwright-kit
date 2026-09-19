@@ -25,6 +25,8 @@ interface StorageStatePayload {
     origin: string;
     localStorage?: Array<{ name: string; value: string }>;
   }>;
+  /** Framework-owned tenant binding — see readSessionCompany. */
+  _qaKit?: { company?: string };
 }
 
 // ─── Client-token TTL evidence (auto-discovery, zero app-specific config) ─────
@@ -165,6 +167,23 @@ export function authStateFileExpiryVerdict(filePath: string): boolean | null {
 }
 
 /**
+ * Tenant binding stored next to the session (`.auth/*.json` `_qaKit.company`).
+ * Returns undefined for unstamped/legacy/unreadable files.
+ *
+ * Playwright tolerates an unknown top-level key when LOADING a storageState but
+ * DROPS it on every `storageState()` re-save, so callers that save a session
+ * must re-stamp it (see `stampSessionCompany` in src/support/auth-helpers.ts).
+ */
+export function readSessionCompany(authFile: string): string | undefined {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(authFile, 'utf-8')) as StorageStatePayload;
+    return parsed._qaKit?.company;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Probe a storage state JSON file for structural validity and cookie expiration.
  */
 export function probeAuthStateFile(filePath: string): AuthStateProbeResult {
@@ -263,6 +282,26 @@ export function probeAuthStateFile(filePath: string): AuthStateProbeResult {
   }
 }
 
+/**
+ * Tenant-binding verdict for a session file about to be reused.
+ *
+ * Discovery/snapshot load a saved session directly (no `auth.setup`), so a
+ * session stamped for a different company would silently crawl the WRONG
+ * tenant. `mismatch` means the caller must re-login (`npm run auth:setup`)
+ * before trusting the result; `unverified` means nothing to compare (no
+ * configured company, or an unstamped legacy file).
+ */
+export function sessionTenantVerdict(
+  authFile: string,
+  configuredCompany: string | undefined,
+): 'match' | 'mismatch' | 'unverified' {
+  const configured = configuredCompany?.trim();
+  if (!configured) return 'unverified';
+  const stamped = readSessionCompany(authFile);
+  if (stamped === undefined) return 'unverified';
+  return stamped === configured ? 'match' : 'mismatch';
+}
+
 /** Per-role auth readiness for health_check / pipeline_status (static probe only). */
 export interface AuthRoleStatus {
   role: string;
@@ -277,8 +316,15 @@ export interface AuthRoleStatus {
  * valid, and no TTL evidence proves expiry (cookie TTLs or client-token
  * evidence). `ready: null` means nothing decidable on disk — a live check
  * (`auth:verify`) or the runtime guard layers decide.
+ *
+ * `companyForRole` (optional) resolves a role to its configured `{ROLE}_COMPANY`.
+ * A session stamped for a DIFFERENT tenant is reported not-ready: it would
+ * log in as the wrong company, so "ready" would be a false green.
  */
-export function probeAuthRoles(authDir: string): AuthRoleStatus[] {
+export function probeAuthRoles(
+  authDir: string,
+  companyForRole?: (role: string) => string | undefined,
+): AuthRoleStatus[] {
   if (!fs.existsSync(authDir)) return [];
   return fs
     .readdirSync(authDir)
@@ -286,7 +332,17 @@ export function probeAuthRoles(authDir: string): AuthRoleStatus[] {
     .sort()
     .map((f) => {
       const role = f.replace(/\.json$/, '');
-      const probe = probeAuthStateFile(path.join(authDir, f));
+      const authFile = path.join(authDir, f);
+      const probe = probeAuthStateFile(authFile);
+      const configured = companyForRole?.(role)?.trim();
+      if (configured && sessionTenantVerdict(authFile, configured) === 'mismatch') {
+        return {
+          role,
+          status: probe.status,
+          ready: false,
+          reason: `session belongs to another company (expected ${configured}) — run npm run auth:setup`,
+        };
+      }
       // ready: true   → cookies present and not expired (cookie-session apps)
       // ready: false  → all cookies expired (needs re-login via auth:setup)
       // ready: null   → nothing decidable on disk: no cookies (localStorage

@@ -17,6 +17,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { type AppEnv } from '../utils/app-env';
 import { parseEnvText, isEncryptedEnvText } from '../utils/env-text';
+import { sessionTenantVerdict } from '../shared/mcp/auth-probe';
+import { roleCredentialKeys } from '../shared/utils/role-credentials';
 import { isSecretEnvKey, decryptEnvFileToText, EnvEncryptError } from '../utils/env-secrets';
 import { getGlobalKeysPath } from '../utils/dotenv-keys';
 import { hasChromiumInstalled } from './browser-check';
@@ -82,6 +84,11 @@ export interface AuthSessionStatus {
   /** Present but implausibly small — an empty or failed session dump. */
   tooSmall: string[];
   missing: string[];
+  /**
+   * Session exists but was stamped for a DIFFERENT company than `{ROLE}_COMPANY`
+   * — reusing it would log in as the wrong tenant, so it must not read "ready".
+   */
+  wrongTenant: string[];
 }
 
 /**
@@ -89,26 +96,37 @@ export interface AuthSessionStatus {
  *
  * Shared by the wizard's artifact checklist and `npm run setup:check` so the
  * two can never disagree. Existence + size is not proof of a LIVE session —
- * use `npm run auth:verify` for that; this only rules out "never created" and
- * "created but empty".
+ * use `npm run auth:verify` for that; this only rules out "never created",
+ * "created but empty", and "created for another tenant".
  */
 export function authSessionStatus(
   repoRoot: string,
   appEnv: AppEnv,
   roles: string[],
+  companyForRole?: (role: string) => string | undefined,
 ): AuthSessionStatus {
   const ready: string[] = [];
   const tooSmall: string[] = [];
   const missing: string[] = [];
+  const wrongTenant: string[] = [];
   for (const role of roles) {
     const abs = path.join(repoRoot, '.auth', appEnv, `${role}.json`);
     if (!fs.existsSync(abs)) {
       missing.push(role);
       continue;
     }
-    (fs.statSync(abs).size > MIN_SESSION_BYTES ? ready : tooSmall).push(role);
+    if (fs.statSync(abs).size <= MIN_SESSION_BYTES) {
+      tooSmall.push(role);
+      continue;
+    }
+    const configured = companyForRole?.(role)?.trim();
+    if (configured && sessionTenantVerdict(abs, configured) === 'mismatch') {
+      wrongTenant.push(role);
+      continue;
+    }
+    ready.push(role);
   }
-  return { ready, tooSmall, missing };
+  return { ready, tooSmall, missing, wrongTenant };
 }
 
 /**
@@ -356,11 +374,20 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
 
   // ── 11. Auth session files per role ──
   if (roles.length > 0) {
-    const sessions = authSessionStatus(repoRoot, appEnv, roles);
-    const authReady = sessions.missing.length === 0 && sessions.tooSmall.length === 0;
+    const sessions = authSessionStatus(
+      repoRoot,
+      appEnv,
+      roles,
+      (role) => envMap?.[roleCredentialKeys(role).companyKey],
+    );
+    const authReady =
+      sessions.missing.length === 0 &&
+      sessions.tooSmall.length === 0 &&
+      sessions.wrongTenant.length === 0;
     const problems = [
       ...sessions.missing,
       ...sessions.tooSmall.map((r) => `${r} (file too small)`),
+      ...sessions.wrongTenant.map((r) => `${r} (session is for another company — re-login)`),
     ];
     add({
       id: 'auth_files',

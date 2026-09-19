@@ -7,7 +7,9 @@ import { test, expect } from '@playwright/test';
 import {
   isAuthClassifierMessage,
   pathRoleFromStatePath,
+  resolveGuardUrls,
   sessionExpiredMessage,
+  sessionTenantMismatch,
   runAuthProbeCheck,
 } from '../../support/session-guard';
 import type { AuthProbeCheck } from '../../support/auth.probe';
@@ -97,6 +99,24 @@ test.describe('pathRoleFromStatePath', () => {
   });
 });
 
+test.describe('resolveGuardUrls (per-role)', () => {
+  test('uses role-specific keys, then the global key, then the default', () => {
+    const env = {
+      FINANCE_SUCCESS_URL_PATH: '/finance/home',
+      FINANCE_LOGIN_URL_PATH: 'https://acme.example.com/login',
+      AUTH_SUCCESS_URL_PATH: '/dashboard',
+      AUTH_LOGIN_URL_PATH: '/login',
+    };
+    expect(resolveGuardUrls('finance', env)).toEqual({
+      checkUrl: '/finance/home',
+      loginUrl: 'https://acme.example.com/login',
+    });
+    // role `user` resolves TEST_USER_* — not AUTH_USER_*
+    expect(resolveGuardUrls('user', env)).toEqual({ checkUrl: '/dashboard', loginUrl: '/login' });
+    expect(resolveGuardUrls('hrd', {})).toEqual({ checkUrl: '/dashboard', loginUrl: '/login' });
+  });
+});
+
 test.describe('probeAuthRoles', () => {
   test('missing dir → empty, expired cookies → ready:false, localStorage-only → ready:null', async () => {
     const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs');
@@ -171,6 +191,69 @@ test.describe('probeAuthRoles', () => {
     const probe = probeAuthStateFile('no/such/file.json');
     expect(probe.status).toBe('missing');
     expect(probe.valid).toBe(false);
+  });
+
+  test('a session stamped for another company is never ready (health_check/pipeline_status)', async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    const { stampSessionCompany } = await import('../../support/auth-helpers');
+    const dir = mkdtempSync(path.join(tmpdir(), 'pwkit-tenant-'));
+    try {
+      const file = path.join(dir, 'finance.json');
+      mkdirSync(dir, { recursive: true });
+      // Cookies present and unexpired — only the tenant verdict can demote it.
+      writeFileSync(
+        file,
+        JSON.stringify({
+          cookies: [{ name: 'sid', value: 'x', expires: Math.floor(Date.now() / 1000) + 3600 }],
+          origins: [],
+        }),
+      );
+      stampSessionCompany(file, 'acme');
+
+      const mismatch = probeAuthRoles(dir, (role) => (role === 'finance' ? 'globex' : undefined));
+      expect(mismatch[0]).toMatchObject({ role: 'finance', ready: false });
+      expect(mismatch[0].reason).toContain('another company');
+
+      // Matching company, and nothing configured, both keep the normal verdict.
+      expect(probeAuthRoles(dir, () => 'acme')[0]).toMatchObject({ ready: true });
+      expect(probeAuthRoles(dir, () => undefined)[0]).toMatchObject({ ready: true });
+      expect(probeAuthRoles(dir)[0]).toMatchObject({ ready: true });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+test.describe('sessionTenantMismatch (runtime guard, before any navigation)', () => {
+  test('blocks a wrong-tenant session; message matches the auth classifier regex', async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    const { stampSessionCompany } = await import('../../support/auth-helpers');
+    const dir = mkdtempSync(path.join(tmpdir(), 'pwkit-guard-tenant-'));
+    try {
+      const file = path.join(dir, 'user.json');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(file, JSON.stringify({ cookies: [], origins: [] }));
+      stampSessionCompany(file, 'acme');
+
+      const msg = sessionTenantMismatch(file, 'user', { TEST_USER_COMPANY: 'globex' });
+      expect(msg).toContain('another company');
+      expect(msg).toContain('TEST_USER_COMPANY');
+      // Healer must classify this as env, not patch locators on the wrong tenant.
+      expect(isAuthClassifierMessage(msg as string)).toBe(true);
+
+      // Matching tenant, no configured tenant, and a legacy unstamped file: no block.
+      expect(sessionTenantMismatch(file, 'user', { TEST_USER_COMPANY: 'acme' })).toBeNull();
+      expect(sessionTenantMismatch(file, 'user', {})).toBeNull();
+      const legacy = path.join(dir, 'legacy.json');
+      writeFileSync(legacy, JSON.stringify({ cookies: [], origins: [] }));
+      expect(sessionTenantMismatch(legacy, 'user', { TEST_USER_COMPANY: 'globex' })).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

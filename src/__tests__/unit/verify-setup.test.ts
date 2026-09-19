@@ -8,6 +8,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { hasCriticalFailure, verifySetupArtifacts, authSessionStatus } from '@/setup/verify-setup';
+import { stampSessionCompany } from '@/support/auth-helpers';
 import { encryptSecretKeysInFile } from '@/utils/env-secrets';
 
 function makeRepo(opts: { withNodeModules?: boolean; envContent?: string }): string {
@@ -206,7 +207,12 @@ test.describe('authSessionStatus (shared by wizard checklist and setup:check)', 
   test('is honest when no roles are configured', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-status-'));
     try {
-      expect(authSessionStatus(tmp, 'dev', [])).toEqual({ ready: [], tooSmall: [], missing: [] });
+      expect(authSessionStatus(tmp, 'dev', [])).toEqual({
+        ready: [],
+        tooSmall: [],
+        missing: [],
+        wrongTenant: [],
+      });
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -219,6 +225,28 @@ test.describe('authSessionStatus (shared by wizard checklist and setup:check)', 
       fs.writeFileSync(path.join(tmp, '.auth', 'dev', 'user.json'), 'x'.repeat(200));
       expect(authSessionStatus(tmp, 'staging', ['user']).missing).toEqual(['user']);
       expect(authSessionStatus(tmp, 'dev', ['user']).ready).toEqual(['user']);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('a session for another company is not ready (no false green)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-status-'));
+    try {
+      fs.mkdirSync(path.join(tmp, '.auth', 'dev'), { recursive: true });
+      const file = path.join(tmp, '.auth', 'dev', 'user.json');
+      fs.writeFileSync(file, JSON.stringify({ cookies: [], origins: [] }));
+      stampSessionCompany(file, 'acme');
+      // Big enough to pass the size check, so only the tenant verdict can demote it.
+      fs.appendFileSync(file, ' '.repeat(200));
+
+      const mismatch = authSessionStatus(tmp, 'dev', ['user'], () => 'globex');
+      expect(mismatch.ready).toEqual([]);
+      expect(mismatch.wrongTenant).toEqual(['user']);
+
+      // Matching company, and no company configured, both stay ready.
+      expect(authSessionStatus(tmp, 'dev', ['user'], () => 'acme').ready).toEqual(['user']);
+      expect(authSessionStatus(tmp, 'dev', ['user'], () => undefined).ready).toEqual(['user']);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
