@@ -26,6 +26,8 @@ import {
   type SnapshotResult,
   DEFAULT_MAX_ELEMENTS,
 } from './_internal/snapshot-core';
+import { sessionTenantVerdict } from '../utils/auth-probe';
+import { roleCredentialKeys } from '../utils/role-credentials';
 
 const BLOCKED_EXTENSIONS = new Set([
   '.jpg',
@@ -108,6 +110,8 @@ export interface DiscoverPagesOutput {
   errorCount?: number;
   pageMapPath?: string;
   durationMs?: number;
+  /** Non-fatal problems the agent must see (stderr is invisible over MCP). */
+  warnings?: string[];
   message: string;
   error?: ToolError;
 }
@@ -393,6 +397,9 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
   const absoluteDir = dirResolved.absolutePath;
   if (!fs.existsSync(absoluteDir)) fs.mkdirSync(absoluteDir, { recursive: true });
 
+  // Warnings the caller must see — stderr never reaches the MCP agent.
+  const warnings: string[] = [];
+
   const ctx: CrawlContext = {
     browser: await chromium.launch({ headless: true }),
     baseUrl: input.baseUrl,
@@ -429,7 +436,19 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
         : null;
 
       if (scopedAuth && fs.existsSync(scopedAuth)) {
-        contextOptions.storageState = scopedAuth;
+        // Same tenant-binding guard as snapshot_page: a session stamped for
+        // another company would silently crawl the wrong tenant's UI.
+        const roleRef = roleCredentialKeys(roleName);
+        if (sessionTenantVerdict(scopedAuth, process.env[roleRef.companyKey]) === 'mismatch') {
+          const msg =
+            `Session for role "${roleName}" belongs to a different company than ${roleRef.companyKey}. ` +
+            'Crawled WITHOUT a session — re-login (npm run auth:setup) and re-run, ' +
+            'otherwise this catalog describes the wrong tenant (or the login page).';
+          logger.warn(`[discover_pages] ${msg}`);
+          warnings.push(msg);
+        } else {
+          contextOptions.storageState = scopedAuth;
+        }
       }
     }
 
@@ -570,6 +589,9 @@ async function runDiscover(input: RunDiscoverInput): Promise<DiscoverPagesOutput
     errorCount: ctx.errors.length,
     pageMapPath: relativePageMapPath,
     durationMs: Date.now() - input.startedAt,
-    message: `Discovered ${ctx.pages.length} page(s) under ${input.featureName}/ (skipped ${ctx.skipped.length}, errors ${ctx.errors.length}).`,
+    ...(warnings.length > 0 ? { warnings } : {}),
+    message:
+      (warnings.length > 0 ? `⚠ ${warnings.join(' ')} ` : '') +
+      `Discovered ${ctx.pages.length} page(s) under ${input.featureName}/ (skipped ${ctx.skipped.length}, errors ${ctx.errors.length}).`,
   };
 }

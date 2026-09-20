@@ -50,6 +50,8 @@ export interface SnapshotPageOutput {
   };
   skipped?: boolean;
   skipReason?: string;
+  /** Non-fatal problems the agent must see (stderr is invisible over MCP). */
+  warnings?: string[];
   message: string;
   error?: ToolError;
 }
@@ -181,9 +183,12 @@ export async function snapshotPage(
       semanticSummary,
       skipped: result.skipped,
       skipReason: result.skipReason,
-      message: result.skipped
-        ? `Catalog already fresh for "${result.pageName}". Reuse ${result.selectorsJsonRelativePath}.`
-        : `Captured ${result.elementCount} element(s) → ${result.selectorsJsonRelativePath}`,
+      warnings: result.warnings,
+      message:
+        (result.warnings?.length ? `⚠ ${result.warnings.join(' ')} ` : '') +
+        (result.skipped
+          ? `Catalog already fresh for "${result.pageName}". Reuse ${result.selectorsJsonRelativePath}.`
+          : `Captured ${result.elementCount} element(s) → ${result.selectorsJsonRelativePath}`),
     };
   } catch (error) {
     if (error instanceof SnapshotCoreError) {

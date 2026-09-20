@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
   parseLauncherArgs,
   resolveLauncherConfig,
+  launcherTenantWarning,
 } from '../../../tools/scripts/playwright-mcp-launch';
 import { buildPlaywrightMcpArgs } from '../../shared/mcp/arg-builder';
 import { resolveAllowedOrigins, normalizeOrigin } from '../../shared/mcp/origin-resolver';
@@ -91,5 +95,22 @@ test.describe('Playwright MCP Launcher & Config (MCP-017)', () => {
 
     const resolved = resolveAllowedOrigins({ baseUrl: 'http://localhost:8080/app' });
     expect(resolved).toContain('http://localhost:8080');
+  });
+
+  test('warns when --role session belongs to another company, still attaches it', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-tenant-'));
+    const authFile = path.join(dir, 'finance.json');
+    fs.writeFileSync(
+      authFile,
+      JSON.stringify({ cookies: [], origins: [], _qaKit: { company: 'acme' } }),
+    );
+    const config = { role: 'finance', storageStatePath: authFile };
+    const env = { FINANCE_COMPANY: 'globex' };
+    const warning = launcherTenantWarning(config, env);
+    expect(warning).toContain('FINANCE_COMPANY');
+    expect(warning).toContain('npm run auth:setup');
+    expect(launcherTenantWarning(config, { FINANCE_COMPANY: 'acme' })).toBeNull();
+    expect(launcherTenantWarning({ role: 'finance' }, env)).toBeNull();
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });

@@ -154,11 +154,14 @@ const REQUIREMENTS_TEXT_OR_PATH: JsonSchemaObject = {
   },
 };
 
+const ROLE_AUTH_DESC =
+  'Optional role (e.g. "finance"). Loads .auth/{APP_ENV}/{role}.json. A session stamped for another company than {ROLE}_COMPANY is NOT used; the result carries warnings — re-run npm run auth:setup before trusting the catalog.';
+
 export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'health_check',
     description:
-      'Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline.',
+      'Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline. A role whose saved session belongs to another company than {ROLE}_COMPANY is reported not ready.',
     inputSchema: { type: 'object', properties: {} },
     stability: 'stable',
     readOnly: true,
@@ -168,7 +171,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'pipeline_status',
     description:
-      'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.',
+      'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. A role whose session is stamped for another company than {ROLE}_COMPANY is not ready. Call before deciding to resume or start a fresh run.',
     inputSchema: { type: 'object', properties: {} },
     stability: 'stable',
     readOnly: true,
@@ -464,8 +467,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         },
         role: {
           type: 'string',
-          description:
-            'Optional role auth context (e.g. "finance", "user"). Injects .auth/{APP_ENV}/{role}.json storageState.',
+          description: ROLE_AUTH_DESC,
         },
         exploreModals: {
           type: 'boolean',
@@ -565,8 +567,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         },
         role: {
           type: 'string',
-          description:
-            'Optional role name to use authenticated session state (.auth/{APP_ENV}/{role}.json).',
+          description: ROLE_AUTH_DESC,
         },
         maxDepth: { type: 'number', description: 'BFS depth limit (default 2).' },
         maxPages: { type: 'number', description: 'Total pages cap (default 25).' },

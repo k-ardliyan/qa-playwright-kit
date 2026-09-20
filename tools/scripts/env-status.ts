@@ -103,7 +103,10 @@ function main(): void {
         const ready = isRoleLoginReady(roleMap, r);
         const resolvedId = resolveLoginIdentifier(roleMap, r);
         const idPart = 'error' in resolvedId ? 'no-id' : `${resolvedId.kind}(${resolvedId.source})`;
-        return `${r.name}:${ready ? 'ready' : 'NOT_READY'}/${idPart}`;
+        // Surface the tenant so QA can confirm which company the session serves.
+        const company = (roleMap[r.companyKey] ?? '').trim();
+        const tenantPart = company ? `@${company}` : '';
+        return `${r.name}:${ready ? 'ready' : 'NOT_READY'}/${idPart}${tenantPart}`;
       });
       if (roleRefs.length > 0 && !hasDefaultUserCredentials(roleMap)) {
         process.stdout.write('  default user = MISSING (general authenticated pipeline at risk)\n');

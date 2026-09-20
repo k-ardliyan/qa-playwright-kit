@@ -8,6 +8,8 @@ import { resolveMcpOutputDir } from '../../src/shared/mcp/output-resolver';
 import { buildPlaywrightMcpArgs } from '../../src/shared/mcp/arg-builder';
 import { PLAYWRIGHT_MCP_BASELINE_VERSION } from '../../src/shared/mcp/version';
 import { authStatePath } from '../../src/support/auth-paths';
+import { sessionTenantVerdict } from '../../src/shared/mcp/auth-probe';
+import { roleCredentialKeys } from '../../src/shared/utils/role-credentials';
 import type { McpIntent, McpRuntimeConfig } from '../../src/shared/mcp/types';
 import type { McpCapability } from '../../src/shared/mcp/capability-manifest';
 
@@ -91,6 +93,17 @@ export function resolveLauncherConfig(argv: string[]): McpRuntimeConfig {
   };
 }
 
+/** Warn when --role would attach another company's session. Non-blocking: QA still sees the page. */
+export function launcherTenantWarning(
+  config: Pick<McpRuntimeConfig, 'role' | 'storageStatePath'>,
+  env: Record<string, string | undefined> = process.env,
+): string | null {
+  if (!config.role || !config.storageStatePath) return null;
+  const companyKey = roleCredentialKeys(config.role).companyKey;
+  if (sessionTenantVerdict(config.storageStatePath, env[companyKey]) !== 'mismatch') return null;
+  return `Session for role "${config.role}" belongs to a different company than ${companyKey}. Re-login first: npm run auth:setup (this session is another tenant).`;
+}
+
 async function main(): Promise<void> {
   // CLI entry only — importing this module must stay side-effect free
   // (pure helpers are unit-tested; bootstrap loads real env into process.env).
@@ -116,6 +129,8 @@ Options:
   }
 
   const config = resolveLauncherConfig(rawArgs);
+  const tenantWarning = launcherTenantWarning(config);
+  if (tenantWarning) process.stderr.write(`⚠ ${tenantWarning}\n`);
   const mcpCliArgs = buildPlaywrightMcpArgs(config);
   const packageSpecifier = `@playwright/mcp@${PLAYWRIGHT_MCP_BASELINE_VERSION}`;
 

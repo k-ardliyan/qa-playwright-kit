@@ -21,7 +21,7 @@ import { bootstrapMcpEnvironment } from './mcp-bootstrap';
 import { probeAuthRoles } from '../mcp/src/utils/auth-probe';
 import { resolveAppUrl } from '../../src/support/app-url';
 import { isSessionValid, resolveRoleCredentials } from '../../src/support/auth-helpers';
-import { parseRolesFromEnvMap } from '../../src/shared/utils/role-credentials';
+import { parseRolesFromEnvMap, roleCredentialKeys } from '../../src/shared/utils/role-credentials';
 
 interface RoleOutcome {
   role: string;
@@ -61,6 +61,7 @@ async function verifyRole(role: string): Promise<RoleOutcome> {
       authFile,
       checkUrl: cred.successUrl,
       loginUrl: cred.loginUrl,
+      company: cred.company,
     });
     if (valid) {
       return { role, status: 'valid', detail: `session alive (${cred.authFile})` };
@@ -90,14 +91,17 @@ async function main(): Promise<void> {
 
   const roles = discoverRoles();
   const authDir = path.resolve('.auth', process.env.APP_ENV || 'local');
-  const staticProbe = probeAuthRoles(authDir);
+  const staticProbe = probeAuthRoles(
+    authDir,
+    (role) => process.env[roleCredentialKeys(role).companyKey],
+  );
 
   // Fast-fail: expired/malformed cookies need no browser.
   const staticDead = staticProbe.filter((r) => roles.includes(r.role) && r.ready === false);
   const staticOk = staticProbe.filter((r) => roles.includes(r.role) && r.ready === true);
   if (staticDead.length > 0) {
     for (const r of staticDead) {
-      console.log(`✖ [auth:verify] ${r.role}: EXPIRED — ${r.reason ?? 'session cookies expired'}`);
+      console.log(`✖ [auth:verify] ${r.role}: ${r.reason ?? 'EXPIRED — session cookies expired'}`);
     }
     console.log(
       '\nFix: npm run auth:setup (real UI login; OTP/CAPTCHA: npm run auth:setup:headed)',

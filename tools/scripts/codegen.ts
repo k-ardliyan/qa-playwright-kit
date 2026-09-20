@@ -25,6 +25,8 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { authStatePath, currentAppEnv } from '../../src/support/auth-paths';
+import { sessionTenantVerdict } from '../../src/shared/mcp/auth-probe';
+import { roleCredentialKeys } from '../../src/shared/utils/role-credentials';
 import { resolveAppUrl } from '../../src/support/app-url';
 import { loadEnvironment } from '../../src/utils/env-loader';
 import { resolveAppEnv } from '../../src/utils/app-env';
@@ -98,6 +100,15 @@ function main(): void {
     const absStoragePath = path.resolve(process.cwd(), storageFile);
 
     if (fs.existsSync(absStoragePath)) {
+      // Tenant binding: recording against another company's session produces
+      // selectors from the wrong tenant. Warn loudly, still let QA record.
+      const roleRef = roleCredentialKeys(role);
+      if (sessionTenantVerdict(absStoragePath, process.env[roleRef.companyKey]) === 'mismatch') {
+        logger.warn(
+          `Session for role "${role}" belongs to a different company than ${roleRef.companyKey}. ` +
+            'Re-login first: npm run auth:setup (recorded selectors may belong to the wrong tenant).',
+        );
+      }
       codegenArgs.push(`--load-storage=${absStoragePath}`);
       logger.info(`Using auth state for role "${role}" (${env}): ${storageFile}`);
     } else {

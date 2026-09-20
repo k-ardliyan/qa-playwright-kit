@@ -14,6 +14,7 @@ import { mcpWorkspace } from '../utils/workspace-paths';
 import { readTextFile } from '../utils/file-reader';
 import { safeJsonParse } from '../utils/json-parser';
 import { probeAuthRoles, type AuthRoleStatus } from '../utils/auth-probe';
+import { roleCredentialKeys } from '../utils/role-credentials';
 import { computeSourceHash } from '../contracts';
 import { ensurePendingRun } from '../utils/run-context';
 
@@ -252,7 +253,11 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
   });
   const appEnv = resolved.appEnv;
   const authDir = path.join(repoRoot, '.auth', appEnv);
-  const authRoleStatus = probeAuthRoles(authDir);
+  // A session stamped for another tenant must not read as "ready".
+  const authRoleStatus = probeAuthRoles(
+    authDir,
+    (role) => process.env[roleCredentialKeys(role).companyKey],
+  );
   const authRoles = authRoleStatus.map((r) => r.role);
 
   const environment: PipelineStatusOutput['environment'] = {

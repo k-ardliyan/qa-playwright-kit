@@ -8,6 +8,7 @@ import {
 import { getRepoRoot } from '../utils/safety';
 import { mcpWorkspace } from '../utils/workspace-paths';
 import { probeAuthRoles } from '../utils/auth-probe';
+import { roleCredentialKeys } from '../utils/role-credentials';
 
 export interface HealthCheckItem {
   name: string;
@@ -406,7 +407,10 @@ function checkAuthStorageState(strictAuth: boolean): HealthCheckItem {
     };
   }
 
-  const roleStatus = probeAuthRoles(authDir);
+  const roleStatus = probeAuthRoles(
+    authDir,
+    (role) => process.env[roleCredentialKeys(role).companyKey],
+  );
   if (roleStatus.length === 0) {
     return {
       name: 'auth_storage',

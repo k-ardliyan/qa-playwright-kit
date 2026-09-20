@@ -23,6 +23,8 @@ import { resolveAllowedPath, getRepoRoot } from '../../utils/safety';
 import { mcpWorkspace } from '../../utils/workspace-paths';
 import { logger } from '../../utils/logger';
 import { extractSemanticCatalog } from './semantic-extractor';
+import { sessionTenantVerdict } from '../../utils/auth-probe';
+import { roleCredentialKeys } from '../../utils/role-credentials';
 import type { SemanticCatalog } from '../../contracts/semantic-catalog';
 
 export const SELECTOR_CATALOG_MAX_FILES = Number.parseInt(
@@ -91,6 +93,12 @@ export interface SnapshotResult {
   semantic?: SemanticCatalog;
   skipped?: boolean;
   skipReason?: string;
+  /**
+   * Non-fatal problems the CALLER must see (stderr is invisible to an MCP
+   * agent) — e.g. the saved session belongs to another tenant, so the catalog
+   * was captured without a session.
+   */
+  warnings?: string[];
 }
 
 export class SnapshotCoreError extends Error {
@@ -392,6 +400,9 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
     );
   }
 
+  // Warnings the caller must see — stderr never reaches the MCP agent.
+  const warnings: string[] = [];
+
   const featureName = sanitizeFeatureName(options.featureName);
   const pageName = sanitizePageName(options.pageName);
 
@@ -453,11 +464,29 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
         : null;
 
       if (scopedAuth && fs.existsSync(scopedAuth)) {
-        contextOptions.storageState = scopedAuth;
+        // A session stamped for a DIFFERENT tenant would silently crawl the
+        // wrong company's UI — refuse it and tell the CALLER (stderr is
+        // invisible to an MCP agent), not just the log.
+        const roleRef = roleCredentialKeys(roleName);
+        if (sessionTenantVerdict(scopedAuth, process.env[roleRef.companyKey]) === 'mismatch') {
+          const msg =
+            `Session for role "${roleName}" belongs to a different company than ${roleRef.companyKey}. ` +
+            'Captured WITHOUT a session — re-login (npm run auth:setup) and re-snapshot, ' +
+            'otherwise this catalog describes the wrong tenant (or the login page).';
+          logger.warn(`[snapshot_page] ${msg}`);
+          warnings.push(msg);
+        } else {
+          contextOptions.storageState = scopedAuth;
+        }
       } else {
         logger.warn(
           `[snapshot_page] Auth storage state for role "${options.role}" in env "${appEnv}" not found. Running unauthenticated.`,
         );
+        if (options.role) {
+          warnings.push(
+            `No session found for role "${options.role}" in env "${appEnv}" — captured unauthenticated.`,
+          );
+        }
       }
     }
 
@@ -514,6 +543,7 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
       ariaYmlRelativePath: ariaRelPath,
       selectorsJsonRelativePath: jsonRelPath,
       semantic,
+      ...(warnings.length > 0 ? { warnings } : {}),
     };
   } finally {
     if (context) await context.close();
