@@ -97,6 +97,9 @@
 - invoiceId: seed:invoice.pending
 - note: literal:Approved for Q3 payout
 
+> Multi-tenant login: nilai tenant yang diketik di form memakai `credential:<role>.company`
+> (dibaca dari `{ROLE}_COMPANY`), bukan `literal:`. Lihat `requirements/auth/login-multi-tenant.md`.
+
 **Langkah:**
 
 1. Buka halaman detail invoice dari daftar `/finance/invoices`

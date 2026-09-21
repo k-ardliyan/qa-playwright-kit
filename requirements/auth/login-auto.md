@@ -5,6 +5,8 @@
   Locator berbeda per website: Generator WAJIB snapshot_page dulu, lalu live-verify selector.
   Jangan tulis password/secret di file ini.
   OTP/CAPTCHA di requirement tetap (@manual). AUTH_CHALLENGE_MODE hanya membantu npm run auth:setup.
+  Multi-tenant (company/tenant diketik di form): set {ROLE}_COMPANY lebih dulu —
+  lihat requirements/auth/login-multi-tenant.md.
 -->
 
 ## Metadata

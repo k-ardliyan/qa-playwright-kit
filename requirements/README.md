@@ -39,6 +39,7 @@ Catalog mode (bukan file target app):
 - [`login-otp-browser.md`](auth/login-otp-browser.md) — OTP di browser
 - [`login-otp-stdin.md`](auth/login-otp-stdin.md) — OTP di terminal
 - [`login-captcha-browser.md`](auth/login-captcha-browser.md) — CAPTCHA di browser
+- [`login-multi-tenant.md`](auth/login-multi-tenant.md) — katalog multi-tenant (company code / tenant link)
 
 Skenario OTP/CAPTCHA tetap `(@manual)`. `AUTH_CHALLENGE_MODE` hanya membantu `auth:setup` menyimpan sesi.
 
