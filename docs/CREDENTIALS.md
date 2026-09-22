@@ -23,13 +23,15 @@ Env lain: `npm run env:use:staging` (atau `env:use:dev` / `env:use:local`) lalu 
 
 Setiap role memakai **skema yang sama**:
 
-| Key                 | Wajib?           | Keterangan                       |
-| ------------------- | ---------------- | -------------------------------- |
-| `{P}_PASSWORD`      | Ya (untuk login) | Secret                           |
-| `{P}_EMAIL`         | Opsional         | Identitas email                  |
-| `{P}_USERNAME`      | Opsional         | Identitas username               |
-| `{P}_PHONE`         | Opsional         | Identitas telepon                |
-| `{P}_LOGIN_ID_PREF` | Opsional         | `email` \| `username` \| `phone` |
+| Key                    | Wajib?           | Keterangan                                                    |
+| ---------------------- | ---------------- | ------------------------------------------------------------- |
+| `{P}_PASSWORD`         | Ya (untuk login) | Secret                                                        |
+| `{P}_EMAIL`            | Opsional         | Identitas email                                               |
+| `{P}_USERNAME`         | Opsional         | Identitas username                                            |
+| `{P}_PHONE`            | Opsional         | Identitas telepon                                             |
+| `{P}_LOGIN_ID_PREF`    | Opsional         | `email` \| `username` \| `phone`                              |
+| `{P}_COMPANY`          | Opsional         | Kode company/tenant yang diketik di form login (multi-tenant) |
+| `{P}_COMPANY_SELECTOR` | Opsional         | Override selector field company bila heuristik tidak cocok    |
 
 Prefix `{P}`: role `user` → `TEST_USER`; role `finance` → `FINANCE`; `super-admin` → `SUPER_ADMIN`.
 

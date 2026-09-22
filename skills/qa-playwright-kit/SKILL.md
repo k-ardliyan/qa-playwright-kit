@@ -89,27 +89,28 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 
 ## Quick Reference
 
-| Need                                                        | Reference                                                                                        |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| "What still needs work?" — coverage map across requirements | `qa-playwright-kit:list_requirement_status`                                                      |
-| Orient / resume after an interrupted run                    | `qa-playwright-kit:pipeline_status`                                                              |
-| Which MCP tool for which task (full map)                    | [mcp-tools-for-qa.md](references/mcp-tools-for-qa.md)                                            |
-| Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                            |
-| First-time setup or setup error                             | [first-run-checklist.md](references/first-run-checklist.md)                                      |
-| Requirement format                                          | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md)      |
-| Validate format                                             | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")` |
-| Scenario types and capability tags                          | [scenario-tags.md](references/scenario-tags.md)                                                  |
-| Auth / multi-role testing                                   | [auth-and-roles.md](references/auth-and-roles.md)                                                |
-| Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md)                                |
-| Per-test notes (QA + AI)                                    | [report-column-contract.md](references/report-column-contract.md)                                |
-| AI insight format, taxonomy & guardrails (record_ai_note)   | [ai-insight-format.md](references/ai-insight-format.md)                                          |
-| Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                  |
-| Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                         |
-| Resolusi `ERR_BLOCKED_BY_CLIENT` & Browser MCP Checklist    | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                 |
-| Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                     |
-| SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                         |
-| Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                              |
-| QA vs maintainer boundary                                   | [qa-vs-maintainer.md](references/qa-vs-maintainer.md)                                            |
+| Need                                                        | Reference                                                                                               |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| "What still needs work?" — coverage map across requirements | `qa-playwright-kit:list_requirement_status`                                                             |
+| Orient / resume after an interrupted run                    | `qa-playwright-kit:pipeline_status`                                                                     |
+| Which MCP tool for which task (full map)                    | [mcp-tools-for-qa.md](references/mcp-tools-for-qa.md)                                                   |
+| Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                                   |
+| First-time setup or setup error                             | [first-run-checklist.md](references/first-run-checklist.md)                                             |
+| Requirement format                                          | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md)             |
+| Validate format                                             | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`        |
+| Scenario types and capability tags                          | [scenario-tags.md](references/scenario-tags.md)                                                         |
+| Auth / multi-role testing                                   | [auth-and-roles.md](references/auth-and-roles.md)                                                       |
+| Multi-tenant login (company code, tenant link)              | [auth-and-roles.md](references/auth-and-roles.md) → Recipe 4; `requirements/auth/login-multi-tenant.md` |
+| Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md)                                       |
+| Per-test notes (QA + AI)                                    | [report-column-contract.md](references/report-column-contract.md)                                       |
+| AI insight format, taxonomy & guardrails (record_ai_note)   | [ai-insight-format.md](references/ai-insight-format.md)                                                 |
+| Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                         |
+| Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                                |
+| Resolusi `ERR_BLOCKED_BY_CLIENT` & Browser MCP Checklist    | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                        |
+| Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                            |
+| SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                                |
+| Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                                     |
+| QA vs maintainer boundary                                   | [qa-vs-maintainer.md](references/qa-vs-maintainer.md)                                                   |
 
 ## Procedure (01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate)
 
@@ -157,7 +158,7 @@ Validate runs the execution, diagnosis, reporting, and review loop:
 - **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Failures route intelligently to the smallest useful stage (UI unknown → Explore; requirement conflict → Model; weak assertion → Challenge; test bug → Generate; app defect → FILE BUG; auth/env issue → FIX ENVIRONMENT).
 - **QA Review & Gated Archive:** Ask QA. For a pipeline run, **APPROVE is gated**: allowed only when `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact sidecar evidence counts match, a Reporter Analyze insight exists, and there are no unresolved failures. Archive via `archive_report`.
 
-**Auth failure mid-run (401 / redirected to login / session expired):** stop healing that file, re-run `npm run auth:setup` (real UI login — the ONLY session producer), re-run the affected spec files. Max 1 re-auth cycle per role per run. NEVER inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) and NEVER log in inside a spec — see [auth-and-roles.md](references/auth-and-roles.md).
+**Auth failure mid-run (401 / redirected to login / session expired / wrong company):** stop healing that file, re-run `npm run auth:setup` (real UI login — the ONLY session producer), re-run the affected spec files. Max 1 re-auth cycle per role per run. A `warnings` entry on `snapshot_page` / `discover_pages` means the role session was another company and the capture ran WITHOUT it — same fix, do not trust that catalog. NEVER inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) and NEVER log in inside a spec — see [auth-and-roles.md](references/auth-and-roles.md).
 
 **NEVER duplicate/rename `.auth/*.json` to fake a role** (e.g. `user-2.json`): roles exist ONLY when registered in `config/environments/{APP_ENV}.env`; sessions are produced ONLY by `npm run auth:setup`. Need another account → `npm run env:edit` → `npm run auth:setup`. `validate_generated_tests` fails specs referencing unregistered roles.
 

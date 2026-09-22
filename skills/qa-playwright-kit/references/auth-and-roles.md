@@ -175,6 +175,21 @@ await test.step('Konfirmasi disclaimer/persetujuan setelah login', async () => {
 
 ---
 
+### Recipe 4: Company / Tenant Code Typed at Login
+
+Most multi-tenant apps need the company code **before** the credentials. Configure it in env — no code edit needed:
+
+```bash
+# config/environments/{APP_ENV}.env
+FINANCE_COMPANY=acme
+# only when auto-detection misses the field:
+# FINANCE_COMPANY_SELECTOR=#tenant-code
+```
+
+Tenant delivered by link (subdomain / path / query) needs **no** company key — put it in the role URL instead: `FINANCE_LOGIN_URL_PATH=https://acme.app.com/login` or `/login?company=acme`. If the app instead shows a tenant picker **after** login, use Recipe 1.
+
+---
+
 ## Pitfalls
 
 - `general` is a pipeline mode (non-role-aware), NEVER a role name. The sole default role is `user` (with `TEST_USER_*` credentials and `.auth/{APP_ENV}/user.json`). Never output `Role: general` or `role: 'general'`.
@@ -184,3 +199,5 @@ await test.step('Konfirmasi disclaimer/persetujuan setelah login', async () => {
 - Specs never log in inside the test body — provisioning sesi hanya lewat setup project.
 - Role hanya dari env: file `.auth/*.json` yang tidak ada kredensialnya di env adalah orphan (artefak duplikasi), bukan role sah — `auth:verify` menandainya, `validate_generated_tests` menolak spec yang memakainya.
 - Do not share one account across multiple QA members on a shared environment — create isolated accounts per team member.
+- Tenant mismatch: a saved session stamped for another company is refused — `snapshot_page` / `discover_pages` return `warnings` and capture WITHOUT that session; `health_check` / `pipeline_status` report the role not-ready; specs abort before navigation. Fix is `npm run auth:setup`, not a locator heal. Set `{ROLE}_COMPANY` (or the tenant-scoped login URL) per role; the framework throws when the key is set but no company input matches — fix the selector, do not delete the key.
+- Company `<select>` is filled via `selectOption` (value or label). Set `{ROLE}_COMPANY_SELECTOR` only when the field name is not company/tenant/organization/workspace.

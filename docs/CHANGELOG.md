@@ -6,6 +6,40 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Tenant binding, dropdown tenant, dan diagnosa multi-tenant — 2026-09-22
+
+- **Tenant binding pada session** — `.auth/{APP_ENV}/<role>.json` menyimpan `_qaKit.company`. Bila `{ROLE}_COMPANY` berubah, session lama DITOLAK dan `auth.setup` login ulang — sebelumnya session tenant lama dipakai ulang tanpa peringatan. Playwright membuang key tak dikenal pada setiap `storageState()` re-save, jadi framework men-stamp ulang setelah tiap save (terverifikasi via probe: same company → reuse, company berubah → re-login).
+- **Dropdown `<select>` company didukung** — step company memilih `selectOption` (match by value ATAU label) saat elemennya `<select>`, `fill` untuk input teks. Sebelumnya `fill` throw pada `<select>`.
+- **Diagnosa saat COMPANY belum di-set** — bila login gagal dan halaman login punya field company/tenant tetapi `{ROLE}_COMPANY` kosong, `auth.setup` mencetak penyebabnya (bukan sekadar "kredensial salah") plus saran `npm run env:edit`.
+- **Selector company jadi satu sumber** — `COMPANY_FIELD_SELECTOR` diekspor dari `src/support/auth-helpers.ts`; `auth.setup.ts` dan generator wizard memakainya, sehingga tidak bisa drift. Ini sekaligus menutup duplikasi terakhir regex/selector di alur login.
+- **`parseRolesFromEnvMap` memakai `ROLE_KEY_RE`** — menghapus salinan regex suffix terakhir di root (dan twin MCP); `qa-run.ts` juga memakainya untuk deteksi key kredensial.
+- **Dokumentasi**: glossary multi-tenancy (`docs/CONTEXT.md`), entri `Kamus Istilah` (`docs/GUIDE.md`), baris perintah `env:edit` (`docs/CHEATSHEET.md`), pointer di `skills/qa-playwright-kit/SKILL.md`, catatan tenant di `requirements/_TEMPLATE.md`, dan penanda status TEMPLATE di katalog `requirements/auth/login-multi-tenant.md` (locator belum diverifikasi ke app nyata).
+
+### Wizard + discovery mengikuti tenant, `env:status` menampilkan tenant — 2026-09-22
+
+- **Requirement login hasil wizard tahu multi-tenant** — `requirements/login.md` (dari `npm run setup`) menambahkan input `company: credential:<role>.company`, langkah "Isi field company/tenant", dan prekondisi `{ROLE}_COMPANY` ketika wizard mengisi kode company. Nilai tenant tidak pernah ditulis ke file (hanya provenance `credential:`).
+- **`snapshot_page` / `discover_pages` menolak session tenant yang salah** — sebelumnya keduanya memuat `.auth/<role>.json` apa adanya, jadi katalog bisa ter-crawl dari company yang keliru tanpa peringatan. Sekarang verdict `mismatch` → warning + saran `npm run auth:setup`, dan sesi tidak dipakai.
+- **`npm run env:status` menampilkan tenant** — format `role:ready/email(env)@company`, supaya QA bisa memastikan sesi mewakili company yang benar sebelum menjalankan pipeline.
+
+### Alasan reuse jujur, summary wizard tidak menyembunyikan tenant salah — 2026-09-22
+
+- **Log reuse `auth.setup` membedakan penyebab** — sebelumnya setiap gagal-reuse dengan `{ROLE}_COMPANY` terisi dicetak "tidak cocok untuk company", padahal `isSessionValid` juga gagal karena sesi expired. Sekarang baris company hanya muncul bila stamp `_qaKit.company` benar-benar beda (`milik X, env minta Y`); selain itu "tidak valid (expired / belum ada)". Generator wizard (`wizard-auth-template.ts`) identik — ia tidak boleh import `auth-probe` (file disalin ke repo user), jadi memakai `readSessionCompany` yang sudah di-re-export `auth-helpers`.
+- **Summary wizard tidak menelan `wrongTenant`** — bila satu role ready dan role lain milik company lain, baris ready sekarang menyertakan `⚠ company lain: … → npm run auth:setup` (checklist `printSummary` dan daftar langkah akhir). Sebelumnya prioritas `ready` menyembunyikan role yang rusak.
+- **Dua launcher terakhir ikut cek stamp** — `playwright-mcp-launch --role` (browser MCP) menempel sesi tanpa suara; sekarang stderr `⚠` bila stamp beda, sesi tetap terpasang (non-blocking, sama seperti codegen). `auth:verify` memanggil `probeAuthRoles` tanpa company, jadi "cookie TTL valid" hijau di tenant salah; sekarang company ikut, mismatch = `ready: false` + alasan company (bukan label EXPIRED), tanpa buka browser.
+
+### Guard tenant menyeluruh: runtime, readiness, dan caller MCP — 2026-09-22
+
+- **Runtime guard menolak session tenant salah** — `sessionGuardFixture` (auto-fixture setiap spec ber-sesi) kini memverifikasi `_qaKit.company` SEBELUM navigasi apa pun. Sebelumnya hanya TTL + redirect yang dicek, jadi sesi tenant lama lolos dan spec hijau di data company lain — false green yang justru ingin dicegah fitur ini. Pesan kegagalannya cocok dengan regex classifier auth, sehingga Healer mengklasifikasi `failureSource: 'env'` (bukan mem-patch locator di UI tenant yang salah).
+- **Readiness tidak lagi melaporkan "ready" untuk tenant salah** — `health_check` / `pipeline_status` (`probeAuthRoles`) dan `setup:check` / wizard (`authSessionStatus`) menerima resolver company; sesi dengan stamp company berbeda dilaporkan not-ready (`wrongTenant` / `reason: session belongs to another company`). Sesi legacy tanpa stamp tetap dianggap valid (hanya mismatch nyata yang memblokir), dan `auth.setup` akan men-stamp ulang saat login berikutnya.
+- **Warning discovery sampai ke agent** — `snapshot_page` / `discover_pages` mengembalikan `warnings[]` plus prefix `⚠` pada `message`; sebelumnya peringatan hanya ditulis ke stderr, yang tidak pernah sampai ke MCP client, sehingga capture tanpa sesi tampak sukses. `codegen --role` memakai guard yang sama.
+
+### Login multi-tenant: company code sebagai key env — 2026-09-22
+
+- **Tenant-by-link sudah didukung sejak awal** — `{ROLE}_LOGIN_URL_PATH` menerima URL absolut dan query (`https://acme.app.com/login`, `/login?company=acme`); kini didokumentasikan eksplisit di `docs/AUTH-CONTEXT-CONVENTION.md` bersama matriks pola tenant.
+- **Key baru `{ROLE}_COMPANY`** (+ `{ROLE}_COMPANY_SELECTOR`): `auth.setup.ts` mengisi field company/tenant sebelum identifier. Nilai kosong/placeholder = langkah dilewati; key diisi tapi field tidak ketemu = gagal cepat dengan pesan yang menyebut key selector (bukan sesi tenant yang salah diam-diam).
+- **Regex suffix role kini satu sumber** (`ROLE_SUFFIXES` + `ROLE_KEY_RE` di `src/shared/utils/role-credentials.ts`), dipakai `env-clean`, wizard, dan `env-edit` — sebelumnya regex yang sama hidup di 4 tempat dan bisa drift.
+- **Session guard membaca key per-role yang benar:** helper baru `resolveGuardUrls()` memakai `roleCredentialKeys`, jadi role `user` membaca `TEST_USER_SUCCESS_URL_PATH` (sebelumnya `AUTH_USER_*` yang tidak pernah ada).
+
 ### Gate tidak lagi merusak artefak QA, satuan report, dan dead code — 2026-09-15
 
 - **Bug nyata ditemukan & diperbaiki — gate kualitas menghapus artefak QA:** `npm run test:quality` menulis output test sintetis ke `artifacts/reports/` yang sebenarnya, jadi gate hijau diam-diam menghancurkan run QA terbaru. Dua akar masalah independen: (1) `CustomReporter` selalu mirror ke `artifacts/reports/` bila report dir berbeda, mengabaikan `QA_REPORT_DIR` — teardown isolasi di test tidak bisa mencegahnya karena penulisnya sendiri yang bocor; (2) dua property test metrik memakai `path.resolve('reports', ...)` sementara penulisnya `resolveWorkspaceReportDir()` (`artifacts/reports/`), sehingga backup membaca file yang tidak ada dan `restoreMetrics(null)` menghapus path yang salah — backup/restore manual tidak melindungi apa pun. Kini mirror dijaga `!process.env['QA_REPORT_DIR']`, dan ketiga test memakai `createIsolatedReportDir()` yang sudah ada. **Verifikasi:** sentinel byte-identik setelah gate penuh; guard terbukti bergigi (di-stash → artefak ditimpa, dipulihkan → utuh); penulis lain ke `artifacts/reports/` diaudit read-only.

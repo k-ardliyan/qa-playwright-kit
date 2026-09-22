@@ -347,29 +347,30 @@ Buat POM scaffold dari halaman target:
 
 ## Kamus Istilah
 
-| Untuk QA (Bahasa Indonesia) | Nama di framework                                                   |
-| --------------------------- | ------------------------------------------------------------------- |
-| Dokumen kebutuhan           | `requirements/*.md`                                                 |
-| Test plan                   | `specs/*-test-plan.md`                                              |
-| Kode tes                    | `tests/**/*.spec.ts`                                                |
-| Tes per role                | `tests/<fitur>-<role>.spec.ts`                                      |
-| Auth state per role         | `.auth/{APP_ENV}/<role>.json` (helper: `authStatePath`)             |
-| Katalog selector            | `artifacts/selector-catalog/<fitur>/<halaman>.json`                 |
-| Scaffold POM                | `tests/pages/<NamaHalaman>.ts`                                      |
-| Daftarkan POM               | `src/fixtures/project.fixture.ts`                                   |
-| Server QA custom            | `qa-playwright-kit`                                                 |
-| Cek kesehatan               | tool `health_check`                                                 |
-| Status & resume pipeline    | tool `pipeline_status`                                              |
-| Workflow semantik penuh     | tool `workflow_run` / `npx tsx tools/scripts/workflow-run.ts <req>` |
-| Validasi format             | `validate_requirement` / `npm run validate:requirement`             |
-| Validasi kode tes           | `npm run validate`                                                  |
-| Arsip laporan               | `archive_report` / `artifacts/reports/archive/<runId>/`             |
-| Agent perencana             | Planner                                                             |
-| Agent penulis tes           | Generator                                                           |
-| Agent perbaikan             | Healer                                                              |
-| Agent pelapor               | Reporter                                                            |
-| Koordinator pipeline        | Orchestrator                                                        |
-| Maintainer framework        | Tim yang maintain `tools/mcp/`, CI, parser                          |
+| Untuk QA (Bahasa Indonesia) | Nama di framework                                                          |
+| --------------------------- | -------------------------------------------------------------------------- |
+| Dokumen kebutuhan           | `requirements/*.md`                                                        |
+| Test plan                   | `specs/*-test-plan.md`                                                     |
+| Kode tes                    | `tests/**/*.spec.ts`                                                       |
+| Tes per role                | `tests/<fitur>-<role>.spec.ts`                                             |
+| Auth state per role         | `.auth/{APP_ENV}/<role>.json` (helper: `authStatePath`)                    |
+| Kode company / tenant       | `{ROLE}_COMPANY` (+ `{ROLE}_COMPANY_SELECTOR` bila field tidak terdeteksi) |
+| Katalog selector            | `artifacts/selector-catalog/<fitur>/<halaman>.json`                        |
+| Scaffold POM                | `tests/pages/<NamaHalaman>.ts`                                             |
+| Daftarkan POM               | `src/fixtures/project.fixture.ts`                                          |
+| Server QA custom            | `qa-playwright-kit`                                                        |
+| Cek kesehatan               | tool `health_check`                                                        |
+| Status & resume pipeline    | tool `pipeline_status`                                                     |
+| Workflow semantik penuh     | tool `workflow_run` / `npx tsx tools/scripts/workflow-run.ts <req>`        |
+| Validasi format             | `validate_requirement` / `npm run validate:requirement`                    |
+| Validasi kode tes           | `npm run validate`                                                         |
+| Arsip laporan               | `archive_report` / `artifacts/reports/archive/<runId>/`                    |
+| Agent perencana             | Planner                                                                    |
+| Agent penulis tes           | Generator                                                                  |
+| Agent perbaikan             | Healer                                                                     |
+| Agent pelapor               | Reporter                                                                   |
+| Koordinator pipeline        | Orchestrator                                                               |
+| Maintainer framework        | Tim yang maintain `tools/mcp/`, CI, parser                                 |
 
 ---
 

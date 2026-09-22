@@ -138,6 +138,33 @@ Lihat [CREDENTIALS.md](CREDENTIALS.md) — skema seragam per role; multi N=1 mir
 
 ---
 
+## Multi-tenant login (company / tenant code)
+
+Pilih **satu** pola sesuai aplikasi Anda:
+
+| Pola tenant                | Contoh                                | Konfigurasi kit                                                                      |
+| -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------ |
+| Link — subdomain           | `https://acme.app.com/login`          | `FINANCE_LOGIN_URL_PATH=https://acme.app.com/login` + `FINANCE_SUCCESS_URL_PATH=...` |
+| Link — path                | `https://app.com/acme/login`          | `FINANCE_LOGIN_URL_PATH=/acme/login`                                                 |
+| Link — query               | `https://app.com/login?company=acme`  | `FINANCE_LOGIN_URL_PATH=/login?company=acme`                                         |
+| Diketik di form            | field company/tenant di halaman login | `FINANCE_COMPANY=acme` (+ `FINANCE_COMPANY_SELECTOR` bila field tidak terdeteksi)    |
+| Pilih setelah login        | picker workspace setelah password     | langkah kustom di `src/support/auth.setup.ts` (Recipe 1)                             |
+| Satu tenant per deployment | staging khusus tenant                 | `BASE_URL` per `APP_ENV`                                                             |
+| Satu role, dua tenant      | akun sama di dua tenant               | dua role: `ADMIN_ACME_*` + `ADMIN_GLOBEX_*` → auth file terpisah                     |
+
+- `{P}_COMPANY` diisi **sebelum** identifier; nilai kosong/placeholder = langkah dilewati (tanpa perubahan perilaku).
+- Field company boleh `<input>` **atau** `<select>` (dropdown dipilih by value/label). Heuristik nama field: `company`, `tenant`, `organization`, `workspace`; set `{P}_COMPANY_SELECTOR` bila nama field berbeda.
+- Nilai company bukan secret — tetap plaintext di file env (hanya `*_PASSWORD` / `*_SECRET` / `*_TOKEN` yang dienkripsi).
+- **Session terikat tenant.** `.auth/{APP_ENV}/<role>.json` menyimpan `_qaKit.company`; bila `{P}_COMPANY` diubah, session lama ditolak dan `auth:setup` login ulang. `snapshot_page` / `discover_pages` juga menolak session yang tenant-nya tidak cocok (warning + jalan tanpa sesi) supaya katalog tidak ter-crawl dari tenant yang salah.
+- **Tiga lapis penolakan tenant** (semuanya membaca stamp yang sama):
+  1. `auth.setup` (saat menyiapkan sesi) — company berbeda → login ulang.
+  2. `sessionGuardFixture` (runtime, sebelum navigasi apa pun) — spec di-abort dengan pesan `failureSource: 'env'`, jadi Healer tidak mem-patch locator di UI tenant yang salah.
+  3. Readiness (`health_check`, `pipeline_status`, `setup:check`, wizard) — sesi dilaporkan **not-ready** (`wrongTenant`), bukan "ready".
+  Sesi legacy tanpa stamp tetap dianggap valid; hanya mismatch nyata yang memblokir, dan `auth:setup` berikutnya men-stamp ulang.
+- `npm run env:status` menampilkan tenant per role sebagai `role:ready/email(env)@company`.
+
+---
+
 ## Related
 
 | Dokumen                                            | Isi                                 |

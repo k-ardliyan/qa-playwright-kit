@@ -7,6 +7,11 @@
 - **QA User** — A manual/UI/E2E tester who is _non-programmer but tech-comfortable_. They use VS Code, run terminal commands, write markdown requirements, and interact with AI agents (e.g. Codex), but they do **not** write TypeScript or build automation frameworks. They are distinct from _Framework Maintainers_ who maintain the MCP server, CI, and parsers.
 - **Framework Maintainer** — The team member(s) who maintain the framework core: MCP server, CI workflows, parsers, base fixture seam, and env-loader module. They are the escalation point when the framework itself fails, but they are **not** in the critical path for daily test creation (see _Selector Discovery_).
 
+## Multi-tenancy
+
+- **Tenant / Company** — The organization a user account belongs to in a multi-tenant app. Which tenant a session serves is decided in one of three ways: **by link** (subdomain/path/query → `{ROLE}_LOGIN_URL_PATH` or per-`APP_ENV` `BASE_URL`), **by form** (company code typed at login → `{ROLE}_COMPANY`), or **by role variant** (one account per tenant → e.g. role `admin-acme`). See `docs/AUTH-CONTEXT-CONVENTION.md`.
+- **Tenant binding** — The company code a saved session was created for, stamped as `_qaKit.company` inside `.auth/{APP_ENV}/<role>.json`. If `{ROLE}_COMPANY` changes, the stamp no longer matches and `auth.setup` logs in again instead of reusing the other tenant's session. Playwright drops unknown keys on every `storageState()` re-save, so the framework re-stamps after each save.
+
 ## Toolchain
 
 - **Primary Stack** — VS Code + Codex extension, Cursor, or Kiro. All documentation, configuration, and setup guides support multi-platform AI clients. MCP configuration can be auto-generated for each platform via `npm run mcp:config`.

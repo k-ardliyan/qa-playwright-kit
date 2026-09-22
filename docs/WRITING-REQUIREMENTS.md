@@ -103,6 +103,29 @@ Lihat panduan lengkap: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md)
 
 ---
 
+## Requirement login multi-tenant
+
+Jika login butuh company/tenant, tulis tenant di **Input Data** dengan prefix `credential:` — jangan hardcode nilainya di langkah:
+
+```markdown
+**Input Data:**
+
+- companyCode: credential:finance.company
+- email: credential:finance.email
+- password: credential:finance.password
+
+**Langkah:**
+
+1. Pilih/isi kode company sesuai konfigurasi tenant
+2. Ketik email di field Email
+3. Ketik password di field Password
+4. Klik tombol "Masuk"
+```
+
+Katalog siap pakai: [`requirements/auth/login-multi-tenant.md`](../requirements/auth/login-multi-tenant.md).
+
+---
+
 ## Contoh & Referensi
 
 | File                                                                    | Untuk apa                                           |
