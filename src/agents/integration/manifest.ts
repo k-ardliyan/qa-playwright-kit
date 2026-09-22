@@ -101,13 +101,13 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'health_check',
     description:
-      'Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline.',
+      'Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline. A role whose saved session belongs to another company than {ROLE}_COMPANY is reported not ready.',
   },
   pipeline_status: {
     server: 'qa-playwright-kit',
     name: 'pipeline_status',
     description:
-      'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.',
+      'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. A role whose session is stamped for another company than {ROLE}_COMPANY is not ready. Call before deciding to resume or start a fresh run.',
   },
   workflow_run: {
     server: 'qa-playwright-kit',
