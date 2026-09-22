@@ -12,9 +12,15 @@ import {
   normalizeAppPath,
   isValidAppPathInput,
   challengeModeChoices,
+  normalizeCompanyCode,
 } from '@/setup/wizard-prompts';
 import { browsersDir, hasChromiumInstalled, buildInstallCommand } from '@/setup/browser-check';
 import { buildTerminalCommand } from '@/setup/terminal';
+import {
+  buildClipboardCommand,
+  buildDialogCommand,
+  buildXclipCommand,
+} from '@/setup/prompt-dialog';
 import {
   buildAgentPrompt,
   parseRequirementPromptHints,
@@ -217,17 +223,44 @@ test.describe('normalizeAppPath (pasted URL / path handling)', () => {
     expect(normalizeAppPath('//nested//path//', '/dashboard')).toBe('/nested/path');
   });
 
-  test('extracts pathname from pasted full URLs', () => {
-    expect(normalizeAppPath('https://erp.example.com/app/overview', '/dashboard')).toBe(
-      '/app/overview',
+  test('keeps every tenant shape QA can paste', () => {
+    const f = '/login';
+    // path tenant
+    expect(normalizeAppPath('/acme/login', f)).toBe('/acme/login');
+    expect(normalizeAppPath('acme/login', f)).toBe('/acme/login');
+    expect(normalizeAppPath('/acme/login/', f)).toBe('/acme/login');
+    expect(normalizeAppPath('/login/acme', f)).toBe('/login/acme');
+    expect(normalizeAppPath('login/acme', f)).toBe('/login/acme');
+    // query tenant, with or without a path
+    expect(normalizeAppPath('/login?company=acme', f)).toBe('/login?company=acme');
+    expect(normalizeAppPath('?company=acme', f)).toBe('/login?company=acme');
+    expect(normalizeAppPath('/login?company=acme&site=1', f)).toBe('/login?company=acme&site=1');
+    // subdomain tenant stays absolute — host IS the tenant
+    expect(normalizeAppPath('https://acme.app.com/login', f)).toBe('https://acme.app.com/login');
+    expect(normalizeAppPath('https://acme.app.com/login?x=1', f)).toBe(
+      'https://acme.app.com/login?x=1',
     );
-    expect(normalizeAppPath('http://localhost:3000/login', '/login')).toBe('/login');
-    expect(normalizeAppPath('http://localhost:3000/', '/dashboard')).toBe('/dashboard');
-  });
-
-  test('strips query and hash fragments', () => {
-    expect(normalizeAppPath('/login?redirect=%2Fdashboard', '/login')).toBe('/login');
+    expect(normalizeAppPath('http://acme.localhost:3000/acme/login/', f)).toBe(
+      'http://acme.localhost:3000/acme/login',
+    );
+    // same host as a path is still just a path
+    expect(normalizeAppPath('https://erp.example.com/app/overview', '/dashboard')).toBe(
+      'https://erp.example.com/app/overview',
+    );
+    // hash is noise
     expect(normalizeAppPath('/app/home#tab=orders', '/dashboard')).toBe('/app/home');
+    expect(normalizeAppPath('https://acme.app.com/login#s', f)).toBe('https://acme.app.com/login');
+    // SPA hash route is the page, not an anchor
+    expect(normalizeAppPath('#/login/acme', f)).toBe('#/login/acme');
+    expect(normalizeAppPath('/#/acme/login', f)).toBe('/#/acme/login');
+    expect(normalizeAppPath('https://app.com/#/login/acme', f)).toBe(
+      'https://app.com/#/login/acme',
+    );
+    // protocol-relative paste
+    expect(normalizeAppPath('//acme.app.com/login', f)).toBe('https://acme.app.com/login');
+    expect(normalizeAppPath('//localhost/acme/login', f)).toBe('https://localhost/acme/login');
+    expect(normalizeAppPath('//localhost:3000/login', f)).toBe('https://localhost:3000/login');
+    expect(normalizeAppPath('//LocalHost/login', f)).toBe('https://localhost/login');
   });
 
   test('empty string falls back to default', () => {
@@ -239,6 +272,9 @@ test.describe('normalizeAppPath (pasted URL / path handling)', () => {
     expect(isValidAppPathInput('')).toBe(true);
     expect(isValidAppPathInput('/login')).toBe(true);
     expect(isValidAppPathInput('https://x.com/login')).toBe(true);
+    expect(isValidAppPathInput('/login?company=acme')).toBe(true);
+    expect(isValidAppPathInput('#/login/acme')).toBe(true);
+    expect(isValidAppPathInput('/#/acme/login')).toBe(true);
     expect(isValidAppPathInput('/bad path')).toBe(false);
   });
 });
@@ -758,4 +794,29 @@ test.describe('challenge mode choices (default + consequences)', () => {
   test('english copy when lang=en', () => {
     expect(challengeModeChoices('en')[0].description).toContain('recommended');
   });
+});
+
+test('blank company code means no tenant', () => {
+  expect(normalizeCompanyCode('')).toBeUndefined();
+  expect(normalizeCompanyCode('   ')).toBeUndefined();
+  expect(normalizeCompanyCode('acme')).toBe('acme');
+  expect(normalizeCompanyCode('  acme  ')).toBe('acme');
+});
+
+test('clipboard command is clip/pbcopy/wl-copy by OS', () => {
+  expect(buildClipboardCommand('hi', 'win32')).toMatchObject({ command: 'clip.exe', input: 'hi' });
+  expect(buildClipboardCommand('hi', 'darwin')).toMatchObject({ command: 'pbcopy', input: 'hi' });
+  expect(buildClipboardCommand('hi', 'linux')!.command).toBe('wl-copy');
+});
+
+test('dialog command is a native box, prompt travels as data not as shell', () => {
+  const win = buildDialogCommand('paste "quoted"', 'win32')!;
+  expect(win.command).toBe('powershell.exe');
+  expect(win.args.join(' ')).toContain('MessageBox');
+  expect(win.args.join(' ')).toContain('paste "quoted"');
+  const mac = buildDialogCommand('hello', 'darwin')!;
+  expect(mac.command).toBe('osascript');
+  expect(mac.args.join(' ')).toContain('display dialog');
+  expect(buildDialogCommand('hello', 'linux')!.command).toBe('zenity');
+  expect(buildXclipCommand('x').args).toEqual(['-selection', 'clipboard']);
 });

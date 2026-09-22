@@ -244,5 +244,5 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 
 ---
 
-> **Tips:** Setup awal = `npm run setup` menulis `requirements/login.md` (mode challenge + URL/role) lalu print prompt Hermes.
+> **Tips:** Setup awal = `npm run setup` menulis `requirements/login.md` (mode challenge + URL/role) lalu print prompt Hermes. Prompt itu juga disalin ke clipboard dan muncul di dialog OS (Windows MessageBox / macOS dialog / zenity atau kdialog). Headless: dialog dilewati, blok terminal tetap. Company/tenant di wizard opsional — Enter = kosong, key `{ROLE}_COMPANY` tidak ditulis.
 > Catalog mode: `requirements/auth/login-none.md` / `login-auto.md` / `login-otp-browser.md` / `login-otp-stdin.md` / `login-captcha-browser.md`.

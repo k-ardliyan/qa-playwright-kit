@@ -33,6 +33,19 @@ test.describe('resolveAppUrl helper', () => {
     }
   });
 
+  test('keeps tenant path and query when joining BASE_URL', () => {
+    expect(resolveAppUrl('/acme/login', 'https://app.com')).toBe('https://app.com/acme/login');
+    expect(resolveAppUrl('/login?company=acme', 'https://app.com')).toBe(
+      'https://app.com/login?company=acme',
+    );
+    expect(resolveAppUrl('/login/acme', 'https://app.com')).toBe('https://app.com/login/acme');
+    expect(resolveAppUrl('/#/acme/login', 'https://app.com')).toBe('https://app.com/#/acme/login');
+    expect(resolveAppUrl('#/login/acme', 'https://app.com')).toBe('https://app.com/#/login/acme');
+    expect(resolveAppUrl('https://acme.app.com/login?x=1', 'https://app.com')).toBe(
+      'https://acme.app.com/login?x=1',
+    );
+  });
+
   test('returns path as-is if no BASE_URL and no override', () => {
     const prev = process.env.BASE_URL;
     delete process.env.BASE_URL;

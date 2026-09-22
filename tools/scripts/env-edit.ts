@@ -35,6 +35,7 @@ import {
 } from './env-edit-lib';
 import { getGlobalKeysPath, migrateWorkspaceEnvKeys } from '../../src/utils/dotenv-keys';
 import { resolveAppEnv, getEnvironmentsDir } from '../../src/utils/app-env';
+import { normalizeAppPath } from '../../src/setup/wizard-prompts';
 import { buildCleanEnvContent } from '../../src/utils/env-clean';
 import {
   decryptEnvFileToText,
@@ -349,14 +350,8 @@ async function actionEditBase(content: string, map: Record<string, string>): Pro
   const headless = fromMode.HEADLESS ?? userHeadless;
   const slowMo = fromMode.SLOW_MO ?? userSlow;
 
-  const normPath = (p: string, def: string): string => {
-    const s = p.trim().split('?')[0]!.split('#')[0]!;
-    if (!s) return def;
-    return s.startsWith('/') ? s.replace(/\/+$/, '') || '/' : `/${s.replace(/\/+$/, '')}`;
-  };
-
-  const loginPath = normPath(String(ans.loginUrlPath ?? ''), '/login');
-  const successPath = normPath(String(ans.successUrlPath ?? ''), '/dashboard');
+  const loginPath = normalizeAppPath(String(ans.loginUrlPath ?? ''), '/login');
+  const successPath = normalizeAppPath(String(ans.successUrlPath ?? ''), '/dashboard');
 
   return upsertEnvContent(content, {
     BASE_URL: String(ans.baseUrl).trim().replace(/\/$/, ''),
@@ -475,12 +470,9 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
   if (phone) values[ref.phoneKey] = phone;
   const pref = String(ans.loginIdPref ?? 'auto');
   if (pref && pref !== 'auto') values[ref.loginIdPrefKey] = pref;
-  if (loginUrlPath)
-    values[ref.loginUrlPathKey] = loginUrlPath.startsWith('/') ? loginUrlPath : `/${loginUrlPath}`;
+  if (loginUrlPath) values[ref.loginUrlPathKey] = normalizeAppPath(loginUrlPath, '/login');
   if (successUrlPath)
-    values[ref.successUrlPathKey] = successUrlPath.startsWith('/')
-      ? successUrlPath
-      : `/${successUrlPath}`;
+    values[ref.successUrlPathKey] = normalizeAppPath(successUrlPath, '/dashboard');
   if (company) values[ref.companyKey] = company;
 
   const trial = { ...map, ...values };
@@ -588,12 +580,10 @@ async function actionAddRole(content: string, map: Record<string, string>): Prom
   const pref = String(ans.loginIdPref ?? 'auto');
   if (pref && pref !== 'auto') values[ref.loginIdPrefKey] = pref;
   if (loginUrlPath && loginUrlPath !== '/login') {
-    values[ref.loginUrlPathKey] = loginUrlPath.startsWith('/') ? loginUrlPath : `/${loginUrlPath}`;
+    values[ref.loginUrlPathKey] = normalizeAppPath(loginUrlPath, '/login');
   }
   if (successUrlPath && successUrlPath !== '/dashboard') {
-    values[ref.successUrlPathKey] = successUrlPath.startsWith('/')
-      ? successUrlPath
-      : `/${successUrlPath}`;
+    values[ref.successUrlPathKey] = normalizeAppPath(successUrlPath, '/dashboard');
   }
   if (company) values[ref.companyKey] = company;
 
@@ -687,14 +677,10 @@ function regenAuthSetup(map: Record<string, string>): void {
   }
 
   const loginUrl = map.AUTH_LOGIN_URL_PATH
-    ? map.AUTH_LOGIN_URL_PATH.startsWith('/')
-      ? map.AUTH_LOGIN_URL_PATH
-      : `/${map.AUTH_LOGIN_URL_PATH}`
+    ? normalizeAppPath(map.AUTH_LOGIN_URL_PATH, '/login')
     : '/login';
   const successUrlPath = map.AUTH_SUCCESS_URL_PATH
-    ? map.AUTH_SUCCESS_URL_PATH.startsWith('/')
-      ? map.AUTH_SUCCESS_URL_PATH
-      : `/${map.AUTH_SUCCESS_URL_PATH}`
+    ? normalizeAppPath(map.AUTH_SUCCESS_URL_PATH, '/dashboard')
     : '/dashboard';
 
   if (fs.existsSync(AUTH_SETUP_OUT)) {

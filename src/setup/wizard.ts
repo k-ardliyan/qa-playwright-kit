@@ -58,6 +58,7 @@ import { validateSetup, type ValidationResult } from './wizard-validate';
 import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
 import { openTerminalFor } from './terminal';
+import { copyText, showPromptDialog } from './prompt-dialog';
 import { binSpawn, npmCommand } from './spawn-bin';
 import { verifySetupArtifacts, authSessionStatus, type SetupCheck } from './verify-setup';
 import { printBanner, printChecklist, printSection, printStep, stepLine } from './ui';
@@ -495,7 +496,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   printChecklist(checks.map(toChecklistItem));
 
   // ─── Summary ────────────────────────────────────────────────────────────
-  printSummary({
+  await printSummary({
     lang,
     appEnv,
     baseUrl,
@@ -563,12 +564,6 @@ function describeExistingEnv(lang: WizardLang, envMap: Record<string, string>): 
   }
 }
 
-function maskPassword(v: string): string {
-  if (v.length <= 4) return '****';
-  if (v.length <= 8) return `${v[0]!}****${v.slice(-1)}`;
-  return `${v.slice(0, 2)}****${v.slice(-2)}`;
-}
-
 function printPreview(opts: {
   lang: WizardLang;
   appEnv: AppEnv;
@@ -596,9 +591,7 @@ function printPreview(opts: {
     const login = r.fields.loginUrlPath || '/login';
     const redir = r.fields.successUrlPath || '/dashboard';
     const company = r.fields.company ? ` [${r.fields.company}]` : '';
-    stepLine(
-      `  ${prefix.padEnd(13)}${id} / ${maskPassword(r.fields.password)}  [${login} → ${redir}]${company}`,
-    );
+    stepLine(`  ${prefix.padEnd(13)}${id} / ********  [${login} → ${redir}]${company}`);
   }
 }
 
@@ -758,7 +751,7 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
   };
 }
 
-function printSummary(data: {
+async function printSummary(data: {
   lang: WizardLang;
   appEnv: AppEnv;
   baseUrl: string;
@@ -770,7 +763,7 @@ function printSummary(data: {
   loginRequirementPath?: string;
   loginMarkdown?: string;
   loginRequirementValidation?: RequirementValidationResult;
-}): void {
+}): Promise<void> {
   const { lang } = data;
   const line = '═'.repeat(54);
   console.log('');
@@ -964,6 +957,28 @@ function printSummary(data: {
       `  │     ${t(lang, 'Hermes membedah cerita menjadi acceptance criteria & skenario.', 'Hermes decomposes requirements into criteria & test scenarios.').padEnd(65)}│`,
     );
     console.log(`  └${boxBorder}┘`);
+
+    const pasted = prompt.trimEnd();
+    const copied = await copyText(pasted);
+    const shown = await showPromptDialog(
+      t(
+        lang,
+        `Prompt Hermes sudah disalin. Tempel (Ctrl+V) ke chat Hermes.\n\n${pasted}`,
+        `Hermes prompt copied. Paste (Ctrl+V) into the Hermes chat.\n\n${pasted}`,
+      ),
+    );
+    if (copied) {
+      stepLine(t(lang, 'Prompt disalin ke clipboard.', 'Prompt copied to clipboard.'));
+    }
+    if (!shown) {
+      stepLine(
+        t(
+          lang,
+          'Dialog tidak tersedia — salin blok di atas secara manual.',
+          'No dialog available — copy the block above by hand.',
+        ),
+      );
+    }
   }
 
   console.log(line);

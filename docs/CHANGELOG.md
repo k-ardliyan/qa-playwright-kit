@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Wizard: prompt Hermes lewat dialog OS — 2026-09-22
+
+- **Prompt akhir tidak hanya tercetak** — setelah ringkasan, teks `buildAgentPrompt` disalin ke clipboard (`clip.exe` / `pbcopy` / `wl-copy` lalu `xclip`) dan ditampilkan di dialog native (PowerShell MessageBox / `osascript` / `zenity` lalu `kdialog`). Gagal dialog tidak menghentikan wizard; blok terminal tetap. Headless tidak punya GUI, jadi dialog best-effort.
+- **Kode company tetap opsional** — label step 6 menyebut `Enter = kosong`. Nilai kosong atau spasi tidak menulis `{ROLE}_COMPANY`.
+- **Path login menyimpan bentuk tenant apa adanya** — path (`/acme/login`, `/login/acme`), query (`/login?company=acme` atau `?company=acme` menempel ke path default), URL absolut (`https://acme.app.com/login`, `//host`, `//localhost`), dan route SPA (`#/login`, `/#/acme`). Anchor biasa `#section` tetap dibuang. `env:edit` memakai fungsi yang sama. Pratinjau password `********`.
+
 ### Tenant binding, dropdown tenant, dan diagnosa multi-tenant — 2026-09-22
 
 - **Tenant binding pada session** — `.auth/{APP_ENV}/<role>.json` menyimpan `_qaKit.company`. Bila `{ROLE}_COMPANY` berubah, session lama DITOLAK dan `auth.setup` login ulang — sebelumnya session tenant lama dipakai ulang tanpa peringatan. Playwright membuang key tak dikenal pada setiap `storageState()` re-save, jadi framework men-stamp ulang setelah tiap save (terverifikasi via probe: same company → reuse, company berubah → re-login).

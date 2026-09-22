@@ -252,35 +252,70 @@ export async function promptBaseUrl(lang: WizardLang, existing?: string): Promis
 }
 
 /**
- * Normalize an app-path answer (login page / post-login redirect).
- * Accepts pasted full URLs (→ pathname only), adds the leading slash,
- * strips query/hash/trailing slash; empty → fallback default.
+ * Keep whatever shape QA pasted. Tenant can be a path, a query, a host, or an SPA hash.
+ * Empty → fallback. Trailing slash and duplicate slashes collapse. A bare `#anchor` is dropped.
+ * A hash that starts a route (`#/` or `/#/`) stays — that is the page.
+ * Absolute and protocol-relative URLs stay absolute (host is the tenant).
  */
 export function normalizeAppPath(raw: string, fallback: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return fallback;
-  let candidate = trimmed;
-  if (/^https?:\/\//i.test(candidate)) {
+
+  if (/^https?:\/\//i.test(trimmed) || isProtocolRelativeHost(trimmed)) {
+    const absolute = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
     try {
-      const parsed = new URL(candidate);
-      candidate = parsed.pathname || '/';
+      const parsed = new URL(absolute);
+      parsed.hash = spaHash(parsed.hash);
+      const path = parsed.pathname.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/';
+      if (path === '/' && !parsed.search && !parsed.hash) return fallback;
+      if (path !== '/') parsed.pathname = path;
+      return parsed.toString();
     } catch {
       return fallback;
     }
   }
-  candidate = candidate.split('?')[0]!.split('#')[0]!.trim();
-  if (!candidate) return fallback;
-  // Collapse duplicate slashes and ensure a single leading slash
-  candidate = '/' + candidate.replace(/^\/+/, '').replace(/\/+/g, '/').replace(/\/+$/, '');
-  return candidate.length > 1 ? candidate : fallback;
+
+  const hashAt = trimmed.indexOf('#');
+  const hash = hashAt >= 0 ? spaHash(trimmed.slice(hashAt)) : '';
+  const beforeHash = hashAt >= 0 ? trimmed.slice(0, hashAt) : trimmed;
+  const q = beforeHash.indexOf('?');
+  const query = q >= 0 ? beforeHash.slice(q) : '';
+  let path = (q >= 0 ? beforeHash.slice(0, q) : beforeHash).trim();
+
+  // `#/route` is the whole page. Do not glue it onto the fallback path.
+  if (hash.startsWith('#/') && !path) return hash;
+
+  if (!path) {
+    if (!query && !hash) return fallback;
+    const base = fallback.split('?')[0]!.split('#')[0]!;
+    return `${base}${query}${hash}`;
+  }
+
+  path = '/' + path.replace(/^\/+/, '').replace(/\/+/g, '/').replace(/\/+$/, '');
+  if (path === '/' && !query && !hash) return fallback;
+  return `${path}${query}${hash}`;
+}
+
+/** `#/route` is the page. `#section` is an anchor — drop it. */
+function spaHash(hash: string): string {
+  if (hash === '#' || hash === '') return '';
+  return hash.startsWith('#/') ? hash.replace(/\/+$/, '') : '';
+}
+
+/** `//acme.app.com/login` is a host. `//nested//path` is a sloppy path. `localhost` has no dot. */
+function isProtocolRelativeHost(value: string): boolean {
+  if (!value.startsWith('//')) return false;
+  const host = (value.slice(2).split('/')[0] ?? '').toLowerCase();
+  return host.includes('.') || host === 'localhost' || host.startsWith('localhost:');
 }
 
 /** Prompt validator for path inputs: empty (default) or a path / full URL. */
 export function isValidAppPathInput(v: string): boolean {
   const t = v.trim();
   if (!t) return true;
-  if (/^https?:\/\//i.test(t)) return true;
-  return !/\s/.test(t) && !t.includes('?') && !t.includes('#');
+  if (/^https?:\/\//i.test(t) || t.startsWith('//')) return true;
+  if (t.startsWith('#/') || t.startsWith('/#')) return !/\s/.test(t);
+  return !/\s/.test(t) && !t.includes('#');
 }
 
 /**
@@ -445,8 +480,8 @@ export async function promptRoleCredentials(
         lang,
         message: t(
           lang,
-          `Path halaman login untuk ${role} (Enter = ${defaultLogin})`,
-          `Login page path for ${role} (Enter = ${defaultLogin})`,
+          `Path halaman login untuk ${role} (Enter = ${defaultLogin}). Path, ?query, URL penuh, #/route tetap utuh.`,
+          `Login page path for ${role} (Enter = ${defaultLogin}). Path, ?query, full URL, #/route stay as pasted.`,
         ),
         initial: defaultLogin,
         validate: (v: string) =>
@@ -484,12 +519,13 @@ export async function promptRoleCredentials(
     }
 
     // step === 6: company/tenant code
+    // ponytail: selector override stays a manual env key; add a prompt when QA hits a non-matching field name more than once.
     const companyValue = await promptTextWithBack({
       lang,
       message: t(
         lang,
-        `Kode company/tenant untuk ${role} (Enter = tidak ada)`,
-        `Company/tenant code for ${role} (Enter = none)`,
+        `Kode company/tenant untuk ${role} (opsional, Enter = kosong)`,
+        `Company/tenant code for ${role} (optional, Enter = blank)`,
       ),
       initial: existing?.company ?? '',
     });
@@ -497,7 +533,7 @@ export async function promptRoleCredentials(
       step = 5;
       continue;
     }
-    const company = companyValue.trim();
+    const company = normalizeCompanyCode(companyValue);
 
     const fields: RoleFields = {
       password,
@@ -598,6 +634,11 @@ export function challengeModeChoices(lang: WizardLang): ChallengeChoice[] {
     value: m,
     description: t(lang, CHALLENGE_DESCRIPTIONS[m].id, CHALLENGE_DESCRIPTIONS[m].en),
   }));
+}
+
+export function normalizeCompanyCode(raw: string): string | undefined {
+  const company = raw.trim();
+  return company.length > 0 ? company : undefined;
 }
 
 /**
