@@ -45,6 +45,18 @@ function listFilesRecursive(dir: string, ext: string): string[] {
   return results;
 }
 
+/** Step 3: req path (exact or basename) OR compiled requirement id (case-insensitive). */
+export function entryMatchesRequirement(
+  entry: { requirementPath?: string },
+  requirementPath: string,
+  requirementId: string,
+): boolean {
+  const ref = entry.requirementPath;
+  if (!ref) return false;
+  if (ref === requirementPath || ref.endsWith(path.posix.basename(requirementPath))) return true;
+  return requirementId.length > 0 && ref.toLowerCase() === requirementId.toLowerCase();
+}
+
 function loadSummaryTestCases(
   summaryFilePath: string,
 ): Map<string, { status: string; error?: string }> {
@@ -127,12 +139,9 @@ export function buildTraceabilityMatrix(
       if (indexMatch) {
         linkageType = 'exact-scenario-id';
       } else {
-        // 3. Requirement ID match
-        indexMatch = testIndex.entries.find(
-          (e) =>
-            e.requirementPath &&
-            (e.requirementPath === requirementPath ||
-              e.requirementPath.endsWith(path.posix.basename(requirementPath))),
+        // 3. Requirement path, then compiled requirement id (before heuristic)
+        indexMatch = testIndex.entries.find((e) =>
+          entryMatchesRequirement(e, requirementPath, req.requirementId),
         );
         if (indexMatch) {
           linkageType = 'requirement-id';

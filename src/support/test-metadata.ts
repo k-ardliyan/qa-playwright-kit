@@ -12,6 +12,10 @@ export interface TestMetadata {
   testId?: string;
   /** Stable requirement scenario identifier (for example `SC-01`). */
   scenarioId?: string;
+  /** Requirement ref (e.g. `REQ-01` or `requirements/login.md`) for Express Mode. */
+  reqRef?: string;
+  /** Execution track: 'strict' (AI pipeline) or 'express' (SDET code-first). */
+  track?: 'strict' | 'express';
   priority?: 'HIGH' | 'MEDIUM' | 'LOW';
   role?: string;
   /** Module this test belongs to — matches requirement `- **Module:** <name>`. */
@@ -54,6 +58,12 @@ export function setTestMetadata(metadata: TestMetadata): void {
   }
   if (metadata.scenarioId) {
     info.annotations.push({ type: 'scenarioId', description: metadata.scenarioId });
+  }
+  if (metadata.reqRef) {
+    info.annotations.push({ type: 'requirement', description: metadata.reqRef });
+  }
+  if (metadata.track) {
+    info.annotations.push({ type: 'track', description: metadata.track });
   }
   if (metadata.priority) {
     info.annotations.push({ type: 'priority', description: metadata.priority });

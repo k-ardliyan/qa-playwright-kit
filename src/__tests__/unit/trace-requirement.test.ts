@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import {
   traceRequirement,
   buildTraceabilityMatrix,
+  entryMatchesRequirement,
 } from '../../../tools/mcp/src/tools/trace-requirement';
 import { extractTestMetadataFromSpec } from '../../../tools/mcp/src/utils/test-index';
 import { classifyFailureError } from '../../../tools/mcp/src/utils/failure-classifier';
@@ -39,6 +40,39 @@ test.describe('Sample Feature', () => {
     expect(entries[0].feature).toBe('login');
     expect(entries[0].actor).toBe('user');
     expect(entries[0].specFile).toBe('tests/auth/login.spec.ts');
+    expect(entries[0].requirementPath).toBe('requirements/auth/login.md');
+  });
+
+  test('reqRef equal to compiled requirement id links as requirement-id', () => {
+    expect(
+      entryMatchesRequirement(
+        { requirementPath: 'REQ-LOGIN' },
+        'requirements/login.md',
+        'REQ-LOGIN',
+      ),
+    ).toBe(true);
+    expect(
+      entryMatchesRequirement(
+        { requirementPath: 'req-login' },
+        'requirements/login.md',
+        'REQ-LOGIN',
+      ),
+    ).toBe(true);
+    expect(
+      entryMatchesRequirement(
+        { requirementPath: 'requirements/login.md' },
+        'requirements/login.md',
+        'REQ-LOGIN',
+      ),
+    ).toBe(true);
+    expect(
+      entryMatchesRequirement(
+        { requirementPath: 'REQ-OTHER' },
+        'requirements/login.md',
+        'REQ-LOGIN',
+      ),
+    ).toBe(false);
+    expect(entryMatchesRequirement({}, 'requirements/login.md', 'REQ-LOGIN')).toBe(false);
   });
 
   test('CF-201 & CF-203: trace_requirement builds complete TraceabilityContractV1 with 4D coverageState', () => {

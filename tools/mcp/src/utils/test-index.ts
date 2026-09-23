@@ -59,7 +59,12 @@ export function extractTestMetadataFromSpec(
       const testBlockText = lines.slice(i, lookaheadLimit).join('\n');
 
       const metaMatch = testBlockText.match(
-        /setTestMetadata\s*\(\s*test\.info\(\)\s*,\s*({[\s\S]*?})\s*\)/,
+        /setTestMetadata\s*\(\s*(?:test\.info\(\)\s*,\s*)?({[\s\S]*?})\s*\)/,
+      );
+      // Native Playwright annotation form, documented for Express mode:
+      //   test('...', { annotation: { type: 'requirement', description: 'REQ-01' } })
+      const annotationMatch = testBlockText.match(
+        /annotation\s*:\s*{[^}]*type\s*:\s*['"]requirement['"][^}]*description\s*:\s*['"]([^'"]+)['"]/,
       );
       if (metaMatch) {
         const objStr = metaMatch[1];
@@ -69,6 +74,7 @@ export function extractTestMetadataFromSpec(
         const featureMatch = objStr.match(/feature:\s*['"]([^'"]+)['"]/);
         const actorMatch = objStr.match(/actor:\s*['"]([^'"]+)['"]/);
         const reqMatch = objStr.match(/requirementPath:\s*['"]([^'"]+)['"]/);
+        const reqRefMatch = objStr.match(/reqRef:\s*['"]([^'"]+)['"]/);
 
         if (scenarioMatch) scenarioId = scenarioMatch[1];
         if (testIdMatch) testId = testIdMatch[1];
@@ -76,6 +82,9 @@ export function extractTestMetadataFromSpec(
         if (featureMatch) feature = featureMatch[1];
         if (actorMatch) actor = actorMatch[1];
         if (reqMatch) requirementPath = reqMatch[1];
+        else if (reqRefMatch) requirementPath = reqRefMatch[1];
+      } else if (annotationMatch) {
+        requirementPath = annotationMatch[1];
       }
 
       entries.push({

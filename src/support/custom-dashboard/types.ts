@@ -76,6 +76,10 @@ export interface CollectedTestData {
   // === Table view metadata ===
   testId: string;
   scenarioId: string;
+  /** Linked requirement ref for Express Mode. Not the run-level requirementId. */
+  reqRef?: string;
+  /** Execution track ('strict' | 'express'). */
+  track?: 'strict' | 'express';
   role: string;
   /** Module this test belongs to — from requirement metadata or folder. */
   module: string;
@@ -106,6 +110,10 @@ export interface CollectedTestCase {
   logicalKey?: string;
   testId: string;
   scenarioId: string;
+  /** Linked requirement ref for Express Mode. Not the run-level requirementId. */
+  reqRef?: string;
+  /** Execution track ('strict' | 'express'). */
+  track?: 'strict' | 'express';
   title: string;
   role: string;
   /** Module this test belongs to — from requirement metadata or folder. */

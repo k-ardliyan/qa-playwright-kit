@@ -112,6 +112,8 @@ export interface DetailScenario {
   testId?: string;
   scenarioId?: string;
   title?: string;
+  reqRef?: string;
+  track?: 'strict' | 'express';
   status?: string;
   role?: string;
   module?: string;
@@ -219,7 +221,7 @@ export function buildDetailPage(options: {
           <td class="tbl-test-id col-sticky-0" data-col="testId"><code>${escapeHtml(s.testId ?? '')}</code>${expandBtn}</td>
           <td class="tbl-module" data-col="module"><span class="module-chip">${escapeHtml(s.module ?? 'general')}</span></td>
           <td class="tbl-feature" data-col="feature"><span class="feature-chip">${escapeHtml(s.feature ?? 'general')}</span></td>
-          <td class="tbl-description" data-col="description"><span class="tbl-title">${escapeHtml(fullTitle)}</span></td>
+          <td class="tbl-description" data-col="description"><span class="tbl-title">${escapeHtml(fullTitle)}</span>${s.reqRef ? ` <code class="req-ref">${escapeHtml(s.reqRef)}</code>` : ''}${s.track === 'express' ? ' <span class="track-chip">express</span>' : ''}</td>
           <td class="tbl-status" data-col="status">${renderStatusBadge(status)}</td>
           <td class="tbl-priority" data-col="priority">${renderPriorityBadge(s.priority ?? 'medium')}</td>
           <td class="tbl-source" data-col="source">${renderFailureSourceCell({ status, failureSource: s.failureSource as FailureSource | undefined, errorMessage: s.errorMessage })}</td>

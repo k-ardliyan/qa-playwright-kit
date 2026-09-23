@@ -527,6 +527,65 @@ for (const pair of MCP_GENERATED_PAIRS) {
   }
 }
 
+// ─── Rule 14: No developer-specific absolute paths (PORTABILITY) ────────────
+// The kit is open source: it must run from any checkout path on any machine.
+// A hardcoded `C:/laragon/...` (or any drive-letter / home path) in runtime
+// code breaks every other user, so the gate rejects it structurally instead of
+// relying on a manual grep. Strings inside comments are allowed.
+// Drive letter only when it starts a REAL path: not part of a URL scheme
+// (`https:` is blocked by the lookbehind) and not a regex escape (`x:\s*` has
+// no path separator after its first segment). Requires drive + separator +
+// segment + separator/terminator, which every real hardcoded path has.
+const DEV_ABSOLUTE_PATH =
+  /(?<![A-Za-z0-9])[A-Za-z]:[\\/][A-Za-z0-9_.-]+(?:[\\/]|['"`\s])|(?:^|['"`(=\s])\/(?:Users|home)\/[A-Za-z0-9._-]+\//;
+
+function isDevPathAllowlisted(filePath: string): boolean {
+  const rel = path.relative(ROOT, filePath).replace(/\\/g, '/');
+  return (
+    rel.startsWith('.hermes/') ||
+    rel.startsWith('docs/') ||
+    rel.includes('/__tests__/') ||
+    rel.includes('/__test__/') ||
+    rel.endsWith('tools/validators/architecture.ts')
+  );
+}
+
+function scanForDevAbsolutePaths(dir: string, ext: string[]): void {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== 'node_modules' && entry.name !== '.git' && entry.name !== 'dist') {
+        scanForDevAbsolutePaths(fullPath, ext);
+      }
+    } else if (entry.isFile()) {
+      if (!ext.some((e) => entry.name.endsWith(e))) continue;
+      if (isDevPathAllowlisted(fullPath)) continue;
+      const lines = fs.readFileSync(fullPath, 'utf-8').split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('#'))
+          continue;
+        if (DEV_ABSOLUTE_PATH.test(line)) {
+          violations.push({
+            rule: 'ARCH-014: Developer Absolute Path',
+            file: path.relative(ROOT, fullPath).replace(/\\/g, '/'),
+            message: `Line ${i + 1}: developer-specific absolute path breaks other checkouts — resolve via findRepoRoot()/workspace registry instead (${trimmed.slice(0, 100)})`,
+          });
+        }
+      }
+    }
+  }
+}
+
+scanForDevAbsolutePaths(path.join(ROOT, 'src'), ['.ts', '.tsx']);
+scanForDevAbsolutePaths(path.join(ROOT, 'tools'), ['.ts', '.tsx']);
+scanForDevAbsolutePaths(path.join(ROOT, 'config'), ['.ts', '.js', '.mjs', '.json']);
+scanForDevAbsolutePaths(path.join(ROOT, 'tests'), ['.ts']);
+scanForDevAbsolutePaths(path.join(ROOT, 'examples'), ['.ts']);
+
 // ─── Reporting ──────────────────────────────────────────────────────────────
 if (violations.length > 0) {
   console.error(`  ❌ Architecture violations found (${violations.length}):\n`);

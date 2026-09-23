@@ -48,6 +48,7 @@ import {
 import { escapeHtml } from '../support/custom-dashboard/shared';
 import { resolveWorkspaceReportDir } from '../shared/workspace-paths';
 import { resolveCurrentRunIdentity } from '../agents/reporter/run-context';
+import { writePortableReport } from '../support/reporter/portable-html';
 
 import {
   jsonResponse,
@@ -71,6 +72,14 @@ import {
 } from './routes/render';
 import { handleNotesRoute } from './routes/notes';
 import { handleArchiveRoute } from './routes/archive';
+import { handleStudioRoute } from './routes/studio';
+import { getStudioEnvStatus } from './studio-env';
+import { startStudioRun, stopStudioRun } from './studio-run';
+import { startAuthRefresh, authRefreshState } from './studio-auth';
+import { studioChildRunning } from './spawn-playwright';
+import { switchStudioEnv } from './studio-env-switch';
+import { listStudioSpecs } from './studio-specs';
+import { findRepoRoot } from '../shared/workspace-paths';
 
 export {
   jsonResponse,
@@ -146,6 +155,12 @@ function resetHeartbeat() {
   if (!idleEnabled) return;
   if (shutdownTimer) clearTimeout(shutdownTimer);
   shutdownTimer = setTimeout(() => {
+    // A running spec/auth child is proof of an active user: the page that
+    // started it may be idle between requests. Never kill work in progress.
+    if (studioChildRunning()) {
+      resetHeartbeat();
+      return;
+    }
     console.log('\n[dashboard-server] No heartbeat received — shutting down.');
     process.exit(0);
   }, HEARTBEAT_TIMEOUT_MS);
@@ -342,6 +357,72 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     res.write(':connected\n\n');
     sseClients.add(res);
     req.on('close', () => sseClients.delete(res));
+    return;
+  }
+
+  // ── GET /export/portable — on-demand single-file HTML ───────────────────
+  if (pathname === '/export/portable' && method === 'GET') {
+    try {
+      const out = writePortableReport();
+      const html = fs.readFileSync(out);
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="portable-report.html"',
+        'Cache-Control': 'no-store',
+      });
+      res.end(html);
+    } catch {
+      jsonResponse(res, 404, {
+        error: 'Belum ada hasil run untuk diekspor. Jalankan tes dulu, lalu coba lagi.',
+      });
+    }
+    return;
+  }
+
+  if (await handleStudioRoute(req, res, pathname, method)) return;
+
+  if (pathname === '/api/studio/env' && method === 'GET') {
+    jsonResponse(res, 200, getStudioEnvStatus());
+    return;
+  }
+
+  if (pathname === '/api/studio/env' && method === 'POST') {
+    const body = await readBody(req);
+    const appEnv = isRecord(body) && typeof body.appEnv === 'string' ? body.appEnv : '';
+    const confirmProduction = isRecord(body) && body.confirmProduction === true;
+    const switched = switchStudioEnv(appEnv, findRepoRoot(), confirmProduction);
+    jsonResponse(res, switched.ok ? 200 : 400, switched);
+    return;
+  }
+
+  if (pathname === '/api/studio/auth' && method === 'GET') {
+    jsonResponse(res, 200, authRefreshState());
+    return;
+  }
+
+  if (pathname === '/api/studio/auth' && method === 'POST') {
+    const body = await readBody(req);
+    const headed = isRecord(body) && body.headed === true;
+    const started = startAuthRefresh(headed);
+    jsonResponse(res, started.ok ? 202 : 409, started);
+    return;
+  }
+
+  if (pathname === '/api/studio/specs' && method === 'GET') {
+    jsonResponse(res, 200, { specs: listStudioSpecs() });
+    return;
+  }
+
+  if (pathname === '/api/studio/run' && method === 'POST') {
+    const body = await readBody(req);
+    const spec = isRecord(body) && typeof body.spec === 'string' ? body.spec : '';
+    const started = startStudioRun(spec, broadcastEvent);
+    jsonResponse(res, started.ok ? 202 : 409, started);
+    return;
+  }
+
+  if (pathname === '/api/studio/run' && method === 'DELETE') {
+    jsonResponse(res, 200, { stopped: stopStudioRun() });
     return;
   }
 

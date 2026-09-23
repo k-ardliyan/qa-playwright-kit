@@ -68,9 +68,17 @@ export function AppNav({ activeTab = 'dashboard', hasLatestRun, latestRunArchive
             </a>
           );
         })}
+        <a href="/studio" class="app-nav__link">
+          <span class="app-nav__label">Studio</span>
+        </a>
       </nav>
 
       <div class="app-header__actions">
+        {hasLatestRun && (
+          <a class="btn-export-sm" href="/export/portable">
+            Export
+          </a>
+        )}
         {hasLatestRun &&
           !latestRunArchived &&
           activeTab !== 'history' &&

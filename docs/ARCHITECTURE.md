@@ -52,8 +52,18 @@ import { mockJson, waitAndAssertApi } from '@/support/pw';
 - Test naming: `tests/<feature>[-<role>].spec.ts`
 - Contract schemas: `qa.requirement/v1`, `qa.test-plan/v1`, `qa.traceability/v1`, `qa.mcp-result/v1`, `qa.selector-catalog/v1`, `qa.workflow/v1`
 - Ephemeral browser references (`tw-XXXX`, ephemeral ref IDs) must NEVER be persisted in test files or selector catalogs (ARCH-013)
+- Never hardcode a developer-specific absolute path (`C:/laragon/...`, drive-letter or `/Users/<name>/` paths) in runtime code — the kit is open source and must run from any checkout. Resolve through `findRepoRoot()` / the workspace registry (ARCH-014)
 - Specs with unknown selectors → call `browser_snapshot` first, NEVER guess
 - `Report(Analyze)` is a mandatory Analyze sub-phase inside Report; APPROVE is gated by `analysisVerdict=complete` and `analysisVerified=true`
 - Semantic workflow: `workflow_run` (MCP) / `npx tsx tools/scripts/workflow-run.ts <req>` drives Explore → Model → Challenge → Generate → Validate; the controller, not prompts, owns stage transitions (`canGenerate` blocks until Challenge passes)
 - One workspace supports one active pipeline run; `pipelineRunId` binds pre-run notes and `archiveRunId` identifies the canonical archive
 - Blocked scenario → `test.skip(true, '<reason>')`, NEVER delete
+
+## Web Studio (non-coder entry point)
+
+- UI tanpa terminal di `GET /studio` (`src/cli/routes/studio.ts`) — QA non-coder menulis requirement, ganti env, refresh auth, dan menjalankan spec dari browser.
+- Route: `GET /studio`, `POST /api/studio/requirement`, `GET|POST /api/studio/env`, `GET|POST /api/studio/auth`, `GET /api/studio/specs`, `POST|DELETE /api/studio/run`, `GET /export/portable`, SSE `GET /events` (`run-log`, `run-done`).
+- Ganti environment = tulis pin `config/environments/.active-env` via `writeActiveEnvPin` (`src/cli/studio-env-switch.ts`) — bukan baca file env; `production` wajib `confirmProduction`.
+- Refresh auth spawn proses terpisah; stdout/stderr TIDAK di-pipe ke browser (log auth bisa memuat kredensial) — OTP/CAPTCHA selesai di jendela browser.
+- Run spec disandbox ke `tests/**/*.spec.ts` (regex + path containment, `src/cli/studio-run.ts`) dan hanya SATU child process aktif — `DELETE /api/studio/run` untuk stop.
+- Export portable (`src/support/reporter/portable-html.ts`) = satu file HTML mandiri; screenshot PNG/JPEG di-inline base64 selama < 400KB (`MAX_INLINE_BYTES`).

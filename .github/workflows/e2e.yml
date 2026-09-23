@@ -150,6 +150,10 @@ jobs:
             artifacts/reports/html/
           retention-days: 30
 
+      - name: Build portable report
+        if: always() && steps.shard.outputs.skip != 'true'
+        run: npx tsx -e "import { writePortableReport } from './src/support/reporter/portable-html.ts'; try { console.log(writePortableReport()); } catch (e) { console.log('no summary', e.message); }"
+
       - name: Upload test results
         if: always() && steps.shard.outputs.skip != 'true'
         uses: actions/upload-artifact@v4

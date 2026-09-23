@@ -55,6 +55,23 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 ---
 
+## Web Studio (tanpa terminal)
+
+```bash
+npm run dashboard                     # server di http://localhost:4567 (default)
+npm run dashboard -- --port=4568      # port bisa diganti kalau 4567 terpakai
+```
+
+Buka `http://localhost:4567/studio` di browser — semua langkah di bawah tanpa terminal.
+
+- Tulis requirement lewat form (slug, title, module, feature, auth state, halaman awal, skenario) → tersimpan ke `requirements/<slug>.md` setelah lolos validator; slug yang sudah ada ditolak.
+- Ganti `APP_ENV` lewat dropdown **Pakai environment** (menulis pin `config/environments/.active-env`; `production` minta konfirmasi).
+- **Refresh auth** per environment — centang **Buka browser** kalau ada OTP/CAPTCHA; login diselesaikan di jendela browser yang terbuka.
+- Pilih spec dari `tests/` lalu **Run** — log tampil live; **Stop** menghentikan run. Hanya satu run aktif.
+- **Export portable HTML** (tombol Export di header dashboard) — satu file HTML mandiri, screenshot ter-inline — tersedia kalau sudah ada run.
+
+---
+
 ## Command Paling Sering
 
 | Command                                                                   | Kapan                                                                                                                                                                        |

@@ -2532,6 +2532,19 @@ html[data-theme="dark"] .app-nav__link.is-active {
   color: var(--on-accent);
 }
 
+a.btn-export-sm {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 /* ─── Breadcrumb ─────────────────────────────────────────────────────────── */
 
 .breadcrumb {

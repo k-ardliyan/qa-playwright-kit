@@ -241,6 +241,9 @@ export default class CustomReporter implements Reporter {
 
     const testId = getAnnotation(test, 'testId') || deriveTestId(test.title);
     const scenarioId = getAnnotation(test, 'scenarioId');
+    const reqRef = getAnnotation(test, 'requirement') || getAnnotation(test, 'reqRef') || undefined;
+    const track =
+      (getAnnotation(test, 'track') as 'strict' | 'express') || (reqRef ? 'express' : undefined);
     const role = getAnnotation(test, 'role');
     const module = resolveModuleFromPath(getAnnotation(test, 'module') || '', filePath);
     const feature = resolveFeatureFromPath(getAnnotation(test, 'feature') || '', filePath);
@@ -277,6 +280,8 @@ export default class CustomReporter implements Reporter {
       metadataIncomplete: !expectedResult || !actualResultAnnotation,
       testId,
       scenarioId,
+      reqRef,
+      track,
       role,
       module,
       feature,
@@ -352,6 +357,8 @@ export default class CustomReporter implements Reporter {
         logicalKey: t.logicalKey,
         testId: t.testId,
         scenarioId: t.scenarioId,
+        reqRef: t.reqRef,
+        track: t.track,
         title: t.title,
         role: t.role,
         module: t.module,
