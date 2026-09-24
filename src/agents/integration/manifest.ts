@@ -226,7 +226,7 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'synthesize_requirement',
     description:
-      'Synthesize a compliant requirement markdown file from selector-catalog semantic extractions (tables, forms, stat cards, modals) with active test scenarios and backlog suggestions.',
+      'Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios.',
   },
   archive_report: {
     server: 'qa-playwright-kit',

@@ -79,6 +79,7 @@
       "title",
       "entryUrl",
       "role",
+      "userScenarios",
       "catalogDirOverride",
       "outputPath"
     ]

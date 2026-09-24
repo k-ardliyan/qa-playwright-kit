@@ -510,7 +510,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'synthesize_requirement',
     description:
-      'Synthesize a compliant requirement markdown file from selector-catalog semantic extractions (tables, forms, stat cards, modals) with active test scenarios and backlog suggestions.',
+      'Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -533,6 +533,38 @@ export const TOOL_REGISTRY: ToolEntry[] = [
         role: {
           type: 'string',
           description: 'Primary role associated with this requirement.',
+        },
+        userScenarios: {
+          type: 'array',
+          maxItems: 20,
+          description:
+            'Optional QA-authored scenarios (maximum 20); validated and preserved in the generated requirement.',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              title: { type: 'string', description: 'Scenario title, maximum 200 characters.' },
+              type: {
+                type: 'string',
+                enum: ['success', 'failure', 'access-restriction', 'manual', 'general'],
+              },
+              role: { type: 'string', description: 'Optional role for this scenario.' },
+              preconditions: { type: 'array', items: { type: 'string' } },
+              steps: {
+                type: 'array',
+                minItems: 1,
+                items: { type: 'string', maxLength: 500 },
+                description: 'Non-empty list; each item maximum 500 characters.',
+              },
+              expectedResults: {
+                type: 'array',
+                minItems: 1,
+                items: { type: 'string', maxLength: 500 },
+                description: 'Non-empty list; each item maximum 500 characters.',
+              },
+            },
+            required: ['title', 'steps', 'expectedResults'],
+          },
         },
         catalogDirOverride: {
           type: 'string',

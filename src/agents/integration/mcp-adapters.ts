@@ -144,6 +144,13 @@ function firstString(record: Record<string, unknown>, key: string): string | und
   return typeof v === 'string' ? v : undefined;
 }
 
+function normalizeUrl(raw: string): string {
+  const url = new URL(raw);
+  url.hash = '';
+  if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
+  return url.href;
+}
+
 function firstNumber(record: Record<string, unknown>, key: string): number | undefined {
   const v = record[key];
   return typeof v === 'number' ? v : undefined;
@@ -342,46 +349,146 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
 
   return {
     async explore(input: ExploreAdapterInput): Promise<{ evidence: EvidenceReference[] }> {
-      const discovered = discoverExploreEvidence(input.requirementPath, input.role, root);
-      if (discovered.evidence.length > 0) {
+      const requirement = asRecord(
+        await requireTool(tools, 'compileRequirement')({ requirementPath: input.requirementPath }),
+      );
+      const status = firstString(requirement, 'status');
+      if (status !== 'success' && status !== 'warning') {
+        throw new Error(
+          `[mcp-adapters] Explore cannot compile requirement '${input.requirementPath}' (status=${status ?? 'unknown'}). Fix requirement errors before browsing.`,
+        );
+      }
+      const contract = asRecord(requirement.data);
+      const auth = asRecord(contract.auth);
+      const isUnauthenticated = auth.state === 'unauthenticated';
+      const role = isUnauthenticated
+        ? undefined
+        : (input.role ?? firstString(auth, 'defaultRole') ?? undefined);
+      if (!isUnauthenticated && !role) {
+        throw new Error(
+          '[mcp-adapters] Explore requires an explicit role or requirement auth.defaultRole for authenticated pages.',
+        );
+      }
+
+      const configuredBase = process.env.BASE_URL;
+      let configuredUrl: URL | undefined;
+      if (configuredBase) {
+        try {
+          configuredUrl = new URL(configuredBase);
+        } catch {
+          throw new Error('[mcp-adapters] Explore BASE_URL must be a valid absolute http(s) URL.');
+        }
+        if (!['http:', 'https:'].includes(configuredUrl.protocol)) {
+          throw new Error('[mcp-adapters] Explore BASE_URL must be an absolute http(s) URL.');
+        }
+      }
+      const explicitStartPage = input.startPage ?? firstString(contract, 'startPage') ?? undefined;
+      if (explicitStartPage && !configuredUrl) {
+        throw new Error(
+          '[mcp-adapters] Explore requires a valid BASE_URL to resolve the requested startPage.',
+        );
+      }
+
+      if (explicitStartPage && process.env.APP_ENV?.trim().toLowerCase() === 'production') {
+        throw new Error(
+          '[mcp-adapters] URL-driven Explore is blocked for APP_ENV=production. Select a non-production environment.',
+        );
+      }
+
+      const feature = deriveFeatureSlug(input.requirementPath);
+      let targetUrl: URL | undefined;
+      if (explicitStartPage && configuredUrl) {
+        try {
+          targetUrl = new URL(explicitStartPage, `${configuredUrl.origin}/`);
+        } catch {
+          throw new Error('[mcp-adapters] Explore startPage is not a valid URL or route.');
+        }
+        if (
+          !['http:', 'https:'].includes(targetUrl.protocol) ||
+          targetUrl.origin !== configuredUrl.origin
+        ) {
+          throw new Error(
+            '[mcp-adapters] Explore startPage must use the same http(s) origin as BASE_URL.',
+          );
+        }
+        if (targetUrl.username || targetUrl.password) {
+          throw new Error('[mcp-adapters] Explore startPage must not contain URL credentials.');
+        }
+      }
+
+      targetUrl ??= configuredUrl;
+      const requestedUrl = targetUrl?.href;
+      const discovered = discoverExploreEvidence(input.requirementPath, role, root, requestedUrl);
+      if (discovered.evidence.length > 0 && !input.force) {
         return { evidence: discovered.evidence };
       }
-      // No durable evidence (or only role-mismatched catalogs) — run live
-      // exploration via the MCP tools.
-      const feature = discovered.feature;
-      const startPage = input.startPage ?? '/';
-      const baseUrl = process.env.BASE_URL?.replace(/\/+$/, '') ?? '';
+      if (role && discovered.roleMismatch.length > 0 && !input.force) {
+        throw new Error(
+          `[mcp-adapters] Explore evidence exists for a different role or target URL. Re-capture with role '${role}'.`,
+        );
+      }
+
+      // No durable evidence for this exact route and role — snapshot it live.
+      const baseUrl = configuredUrl;
       if (!baseUrl) {
         throw new Error(
           '[mcp-adapters] Explore requires BASE_URL (set in config/environments/{APP_ENV}.env) to run live snapshot_page/discover_pages.',
         );
       }
-      const url = `${baseUrl}${startPage.startsWith('/') ? startPage : '/' + startPage}`;
-      const pageName = startPage.replace(/^\//, '') || 'home';
-
-      if (input.role) {
+      targetUrl ??= new URL(
+        contract.startPage ? String(contract.startPage) : '/',
+        `${baseUrl.origin}/`,
+      );
+      const routeName = `${targetUrl.pathname}${targetUrl.hash}`
+        .replace(/^\/+|\/+$/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/-+/g, '-');
+      const pageName = [routeName || 'home', role].filter(Boolean).join('-');
+      const snapshot = asRecord(
         await requireTool(
           tools,
           'snapshotPage',
         )({
-          url,
+          url: targetUrl.href,
           featureName: feature,
           pageName,
-          role: input.role,
-        });
-      } else {
-        await requireTool(
-          tools,
-          'snapshotPage',
-        )({
-          url,
-          featureName: feature,
-          pageName,
-        });
+          force: input.force === true,
+          ...(role ? { role } : {}),
+        }),
+      );
+      if (snapshot.status === 'error') {
+        throw new Error(
+          `[mcp-adapters] Explore snapshot failed: ${firstString(snapshot, 'message') ?? 'snapshot_page returned status=error'}`,
+        );
       }
-      return {
-        evidence: discoverExploreEvidence(input.requirementPath, input.role, root).evidence,
-      };
+      const warnings = Array.isArray(snapshot.warnings) ? snapshot.warnings : [];
+      const authWarning = warnings.find(
+        (warning): warning is string =>
+          typeof warning === 'string' && /auth|session|tenant|company/i.test(warning),
+      );
+      if (role && authWarning) {
+        throw new Error(`[mcp-adapters] Explore did not use role '${role}': ${authWarning}`);
+      }
+      if (
+        typeof snapshot.url === 'string' &&
+        normalizeUrl(snapshot.url) !== normalizeUrl(targetUrl.href)
+      ) {
+        throw new Error(
+          `[mcp-adapters] Explore snapshot landed on '${snapshot.url}' instead of requested URL '${targetUrl.href}'.`,
+        );
+      }
+      const freshEvidence = discoverExploreEvidence(
+        input.requirementPath,
+        role,
+        root,
+        targetUrl.href,
+      ).evidence;
+      if (freshEvidence.length === 0) {
+        throw new Error(
+          `[mcp-adapters] Explore snapshot produced no durable evidence for ${targetUrl.href}${role ? ` as role '${role}'` : ''}.`,
+        );
+      }
+      return { evidence: freshEvidence };
     },
 
     async model(input: ModelAdapterInput): Promise<ModelAdapterResult> {

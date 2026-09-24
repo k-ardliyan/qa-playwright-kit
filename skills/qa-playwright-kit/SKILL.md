@@ -60,9 +60,10 @@ Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<fe
 When QA chats naturally, immediately map the intent to the corresponding phase:
 1. **New Feature from Live URL** (e.g. *"Hermes, tolong buatkan test untuk halaman http://.../invoices (role: finance)"*):
    - Route to **Phase -0.5 (UI Discovery & Requirement Synthesis)**.
-   - Call `snapshot_page` (or `discover_pages`) with the URL, feature name, and role session (`.auth/{APP_ENV}/{role}.json`).
-   - Call `synthesize_requirement` to automatically produce `requirements/<feature>.md`.
-   - Validate with `validate_requirement`, then proceed directly to `workflow_run`.
+   - Run `health_check`; require non-production `APP_ENV`, matching configured `BASE_URL` origin, and a ready role session. Stop for auth setup when missing/expired/mismatched; never transfer Browser Use cookies or inject storage state.
+   - Call `snapshot_page` for the requested URL/role. Use `discover_pages` only when QA asks to map linked pages; reject auth warnings.
+   - Pass only QA-stated titles, steps, and expected results as structured `userScenarios` (maximum 20) to `synthesize_requirement`; do not invent business assertions from observed UI.
+   - Validate with `validate_requirement`, present the draft and backlog, and wait for QA review before `workflow_run`. Existing requirement paths are not overwritten.
 2. **New Feature from User Story / Jira Ticket** (e.g. *"Hermes, buatkan test dari tiket/PRD ini: [cerita]"*):
    - Route to **Phase -1 (PRD Decompose)**.
    - Decompose into acceptance criteria and scenarios in `requirements/<feature>.md` per `_TEMPLATE.md`.

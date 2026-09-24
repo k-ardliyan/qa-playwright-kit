@@ -22,6 +22,7 @@ export interface SynthesizeRequirementArgs {
   role?: unknown;
   outputPath?: unknown;
   catalogDirOverride?: unknown;
+  userScenarios?: unknown;
 }
 
 export interface SynthesizeRequirementOutput {
@@ -41,6 +42,79 @@ function readString(value: unknown, _field: string): string | null {
   return value.trim();
 }
 
+const USER_SCENARIO_TYPES = [
+  'success',
+  'failure',
+  'access-restriction',
+  'manual',
+  'general',
+] as const;
+type UserScenarioType = (typeof USER_SCENARIO_TYPES)[number];
+
+interface UserScenario {
+  title: string;
+  type: UserScenarioType;
+  role?: string;
+  preconditions: string[];
+  steps: string[];
+  expectedResults: string[];
+}
+
+function parseUserScenarios(value: unknown): UserScenario[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 20) return null;
+  let totalChars = 0;
+  const scenarios: UserScenario[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    const record = item as Record<string, unknown>;
+    if (
+      Object.keys(record).some(
+        (key) =>
+          !['title', 'type', 'role', 'preconditions', 'steps', 'expectedResults'].includes(key),
+      )
+    )
+      return null;
+    if (typeof record.title !== 'string' || !record.title.trim() || record.title.length > 200)
+      return null;
+    const type = record.type ?? 'general';
+    if (typeof type !== 'string' || !USER_SCENARIO_TYPES.includes(type as UserScenarioType))
+      return null;
+    if (
+      record.role !== undefined &&
+      (typeof record.role !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(record.role.trim()))
+    )
+      return null;
+
+    const readList = (input: unknown, required: boolean): string[] | null => {
+      if (input === undefined && !required) return [];
+      if (!Array.isArray(input) || (required && input.length === 0)) return null;
+      const result: string[] = [];
+      for (const entry of input) {
+        if (typeof entry !== 'string' || !entry.trim() || entry.length > 500) return null;
+        totalChars += entry.length;
+        result.push(entry.trim());
+      }
+      return result;
+    };
+
+    totalChars += record.title.length + (typeof record.role === 'string' ? record.role.length : 0);
+    const preconditions = readList(record.preconditions, false);
+    const steps = readList(record.steps, true);
+    const expectedResults = readList(record.expectedResults, true);
+    if (!preconditions || !steps || !expectedResults || totalChars > 20_000) return null;
+    scenarios.push({
+      title: record.title.trim().replace(/[\r\n]+/g, ' '),
+      type: type as UserScenarioType,
+      ...(typeof record.role === 'string' ? { role: record.role.trim() } : {}),
+      preconditions: preconditions.map((text) => text.replace(/[\r\n]+/g, ' ')),
+      steps: steps.map((text) => text.replace(/[\r\n]+/g, ' ')),
+      expectedResults: expectedResults.map((text) => text.replace(/[\r\n]+/g, ' ')),
+    });
+  }
+  return scenarios;
+}
+
 export async function synthesizeRequirement(
   args: SynthesizeRequirementArgs | undefined,
 ): Promise<SynthesizeRequirementOutput> {
@@ -56,7 +130,23 @@ export async function synthesizeRequirement(
   const moduleName = readString(args.moduleName, 'moduleName') ?? featureName ?? 'general';
   const rawTitle = readString(args.title, 'title') ?? `Fitur ${featureName ?? 'Baru'}`;
   const entryUrl = readString(args.entryUrl, 'entryUrl') ?? '/';
-  const role = readString(args.role, 'role') ?? 'user';
+  const requestedRole = readString(args.role, 'role') ?? 'user';
+  const userScenarios = parseUserScenarios(args.userScenarios);
+  if (!userScenarios) {
+    const err = createToolError(
+      'INVALID_INPUT',
+      '`userScenarios` must contain at most 20 valid scenarios with a title, non-empty steps, and expectedResults (20 KB max).',
+    );
+    return { status: 'error', message: err.error.message, error: err.error };
+  }
+  const role = requestedRole === 'unauthenticated' ? requestedRole : requestedRole.toLowerCase();
+  if (role !== 'unauthenticated' && !/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(role)) {
+    const err = createToolError(
+      'INVALID_INPUT',
+      '`role` must be a valid role slug or `unauthenticated`.',
+    );
+    return { status: 'error', message: err.error.message, error: err.error };
+  }
   const reqId = `REQ-${moduleName.toUpperCase().replace(/[^A-Z0-9]+/g, '-')}-001`;
 
   if (!featureName) {
@@ -111,6 +201,41 @@ export async function synthesizeRequirement(
   const acList: string[] = [];
   const scList: string[] = [];
   const backlogList: string[] = [];
+
+  const usedTestIds = new Set<string>();
+  for (const [index, scenario] of userScenarios.entries()) {
+    const acId = `AC-${String(acCounter++).padStart(2, '0')}`;
+    const scId = `SC-${String(scCounter).padStart(2, '0')}`;
+    scCounter += 1;
+    const scenarioRole = scenario.role ?? role;
+    const testId = `TC-${moduleName.toUpperCase()}-${String(index + 1).padStart(3, '0')}`;
+    if (usedTestIds.has(testId)) {
+      const err = createToolError(
+        'INVALID_INPUT',
+        `Duplicate generated Test ID '${testId}'. Use a shorter moduleName.`,
+      );
+      return { status: 'error', message: err.error.message, error: err.error };
+    }
+    usedTestIds.add(testId);
+    const headingType = scenario.type === 'general' ? '' : ` (@${scenario.type})`;
+    acList.push(`- **${acId}:** ${scenario.expectedResults.join('; ')}`);
+    scList.push(`### ${scId}: ${scenario.title}${headingType}
+
+- **Test ID:** ${testId}
+- **Covers:** ${acId}
+- **Role:** ${scenarioRole}
+- **Prioritas skenario:** high
+- **Layer terdampak:** FE
+
+**Prekondisi:** ${scenario.preconditions.length > 0 ? scenario.preconditions.join('; ') : `Pengguna membuka halaman ${entryUrl} dengan role ${scenarioRole}`}
+
+**Langkah:**
+${scenario.steps.map((step, stepIndex) => `${stepIndex + 1}. ${step}`).join('\n')}
+
+**Hasil yang Diharapkan:**
+${scenario.expectedResults.map((result) => `- ${result}`).join('\n')}
+`);
+  }
 
   // 1. Tables & Columns Scenarios
   for (const sem of semanticCatalogs) {
@@ -255,7 +380,7 @@ ${inputDataLines}
     }
   }
 
-  // Fallback if no catalogs found yet
+  // Fallback only when neither QA scenarios nor catalogs were available.
   if (acList.length === 0) {
     acList.push(`- **AC-01:** Halaman utama fitur ${featureName} dapat diakses dengan sukses.`);
     scList.push(`### SC-01: Akses Halaman Utama Fitur ${featureName} (@success)
@@ -276,22 +401,43 @@ ${inputDataLines}
     scCounter = 2;
   }
 
+  const scenarioRoles = [...new Set(userScenarios.map((scenario) => scenario.role ?? role))];
+  const roleScope = [...new Set([role, ...scenarioRoles])].filter(
+    (item) => item !== 'unauthenticated',
+  );
+  const metadataRoleScope = roleScope.length > 0 ? roleScope : ['user'];
+  const accessRows: string[] = [];
+  const accessExpectations: string[] = [];
+  for (const scenarioRole of scenarioRoles) {
+    const roleScenarios = userScenarios.filter(
+      (scenario) => (scenario.role ?? role) === scenarioRole,
+    );
+    const denied = roleScenarios.some((scenario) => scenario.type === 'access-restriction');
+    const expectation = roleScenarios.flatMap((scenario) => scenario.expectedResults).join('; ');
+    accessRows.push(
+      `| ${scenarioRole} | ${denied ? 'deny' : 'allow'} | ${expectation.replace(/\|/g, '\\|')} |`,
+    );
+    accessExpectations.push(`${scenarioRole}: ${denied ? 'tidak bisa' : 'bisa'} ${expectation}`);
+  }
+
   const markdown = `# ${reqId}: ${rawTitle}
 
 ## Metadata
 
 - **Tags:** #${moduleName.toLowerCase()} #ui #regression #discovered
 - **Prioritas:** high
-- **Auth state:** ${role && role !== 'unauthenticated' ? 'authenticated' : 'unauthenticated'}
+- **Auth state:** ${role !== 'unauthenticated' ? 'authenticated' : 'unauthenticated'}
 - **Halaman awal:** ${entryUrl}
 - **Module:** ${moduleName.toLowerCase()}
 - **Feature:** ${featureName.toLowerCase()}
-- **Role scope:** ${role}
-- **Default role:** ${role}
+- **Role scope:** ${metadataRoleScope.join(', ')}
+${accessExpectations.length > 0 ? `- **Access expectation:** ${accessExpectations.join('; ')}\n` : ''}- **Default role:** ${role === 'unauthenticated' ? 'user' : role}
 
 ## Kriteria Penerimaan
 
 ${acList.join('\n')}
+
+${accessRows.length > 0 ? `## Access Matrix\n\n| Role | Access | Expectation |\n| --- | --- | --- |\n${accessRows.join('\n')}\n` : ''}
 
 ## Skenario Uji
 
@@ -321,6 +467,7 @@ ${backlogList.join('\n')}
     }
     resolvedAbs = resolvedOutput.absolutePath;
   }
+
   const outputAbs =
     resolvedAbs ??
     path.join(
@@ -328,6 +475,13 @@ ${backlogList.join('\n')}
       mcpWorkspace.requirementsRel,
       `${featureName.toLowerCase().replace(/[^a-z0-9-_]+/g, '-')}.md`,
     );
+  if (fs.existsSync(outputAbs)) {
+    const err = createToolError(
+      'INVALID_INPUT',
+      `Requirement already exists at ${path.relative(getRepoRoot(), outputAbs).replace(/\\/g, '/')}; provide a new outputPath instead of overwriting it.`,
+    );
+    return { status: 'error', message: err.error.message, error: err.error };
+  }
   const outputRel = path.relative(getRepoRoot(), outputAbs).replace(/\\/g, '/');
 
   fs.mkdirSync(path.dirname(outputAbs), { recursive: true });

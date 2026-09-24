@@ -110,6 +110,14 @@ export function resolveEvidence(refs: EvidenceReference[], repoRoot: string): Ev
  */
 function isRoleEvidenceMatch(absPath: string, expectedRole: string): boolean {
   const needle = expectedRole.toLowerCase();
+  if (absPath.endsWith('.json')) {
+    try {
+      const catalog = JSON.parse(fs.readFileSync(absPath, 'utf8')) as { role?: unknown };
+      if (typeof catalog.role === 'string') return catalog.role.toLowerCase() === needle;
+    } catch {
+      return false;
+    }
+  }
   const segs = absPath.split(/[\\/]/);
   for (let i = 0; i < segs.length; i++) {
     if (segs[i].toLowerCase().includes(needle)) return true;

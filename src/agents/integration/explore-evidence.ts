@@ -30,6 +30,17 @@ export function deriveFeatureSlug(requirementPath: string): string {
   return ALLOWED_FEATURE_PATTERN.test(sanitized) ? sanitized : 'feature';
 }
 
+function normalizeUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    url.hash = '';
+    if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
+    return url.href;
+  } catch {
+    return raw;
+  }
+}
+
 /**
  * Discover selector-catalog evidence for a requirement.
  *
@@ -46,6 +57,7 @@ export function discoverExploreEvidence(
   requirementPath: string,
   role?: string,
   repoRoot: string = process.cwd(),
+  expectedUrl?: string,
 ): ExploreCatalogMatch {
   const feature = deriveFeatureSlug(requirementPath);
   const dir = path.join(repoRoot, 'artifacts', 'selector-catalog', feature);
@@ -75,9 +87,32 @@ export function discoverExploreEvidence(
 
   for (const candidate of candidates) {
     const rel = path.relative(repoRoot, candidate).replace(/\\/g, '/');
+    if (expectedUrl && candidate.endsWith('.json')) {
+      try {
+        const catalog = JSON.parse(fs.readFileSync(candidate, 'utf-8')) as { url?: unknown };
+        if (
+          typeof catalog.url !== 'string' ||
+          normalizeUrl(catalog.url) !== normalizeUrl(expectedUrl)
+        )
+          continue;
+      } catch {
+        continue;
+      }
+    }
     if (role) {
       const lower = rel.toLowerCase();
-      const roleMatch = lower.includes(role.toLowerCase());
+      let catalogRole: string | undefined;
+      if (candidate.endsWith('.json')) {
+        try {
+          const catalog = JSON.parse(fs.readFileSync(candidate, 'utf-8')) as { role?: unknown };
+          catalogRole = typeof catalog.role === 'string' ? catalog.role.toLowerCase() : undefined;
+        } catch {
+          continue;
+        }
+      }
+      const roleMatch = candidate.endsWith('.json')
+        ? catalogRole === role.toLowerCase()
+        : lower.split('/').includes(role.toLowerCase());
       if (!roleMatch) {
         // Catalogs captured with another role are a mismatch — never reuse them.
         roleMismatch.push(rel);

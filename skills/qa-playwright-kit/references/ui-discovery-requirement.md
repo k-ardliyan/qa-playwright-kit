@@ -6,7 +6,7 @@ Load when QA provides a live web URL and wants to synthesize a complete, valid `
 
 ## Capabilities & Overview
 
-This workflow extracts interactive components from live pages to generate precise requirement scenarios without manual typing:
+This workflow captures semantic UI evidence and keeps QA-stated scenario intent in the generated requirement. It does not invent business outcomes from observed labels.
 - **Session-Aware Navigation:** Injects `.auth/{APP_ENV}/{role}.json` so authenticated pages (e.g. `/invoices`) do not redirect to `/login`.
 - **Semantic Component Extraction:** Captures Tables (headers, sample row, row actions), KPI/Stat cards, Tabs, Steppers, Form inputs (types, labels, required flags, options), Upload dropzones, Modals/Drawers, and RBAC disabled buttons.
 - **Dynamic Route Deduplication:** Automatically normalises `/invoices/1` and `/invoices/2` into `/invoices/:id` and captures only 1 sample row to prevent URL explosion.
@@ -16,23 +16,23 @@ This workflow extracts interactive components from live pages to generate precis
 
 ## 4-Step Procedure
 
-### 1. Ensure Auth Session Exists (if page requires login)
+### 1. Preflight a Safe Target and Role Session
 
-Check if the requested role has a valid session file:
+Run `health_check`; verify `APP_ENV` is non-production, the supplied URL origin matches configured `BASE_URL`, and the role is ready. Never use production, transfer Browser Use/profile cookies, or inject storage state.
 
 ```bash
 npm run setup:check
 ```
 
-If missing or expired, prompt QA or run:
+If the role is missing, expired, or mismatched, stop and ask QA to refresh it through the real login flow:
 
 ```bash
 npm run auth:setup
 ```
 
-### 2. Run Authenticated Snapshot
+### 2. Capture the Requested Page
 
-Call the `qa-playwright-kit:snapshot_page` tool with the target URL, feature slug, and role:
+Call `qa-playwright-kit:snapshot_page` with the target URL, feature slug, and role. Review warnings and reject a capture that reports missing or mismatched auth. Use `discover_pages` only when QA asks to map linked pages; this is bounded UI discovery, not a sequence of business actions.
 
 ```json
 {
@@ -65,11 +65,19 @@ Call `qa-playwright-kit:synthesize_requirement`:
   "moduleName": "finance",
   "title": "Daftar & Pembuatan Invoice",
   "entryUrl": "/invoices",
-  "role": "finance"
+  "role": "finance",
+  "userScenarios": [
+    {
+      "title": "Finance can view approved invoices",
+      "type": "success",
+      "steps": ["Open approved invoices"],
+      "expectedResults": ["The approved invoices list is visible"]
+    }
+  ]
 }
 ```
 
-This automatically writes `requirements/invoices.md` matching `_TEMPLATE.md` with:
+Pass only user-stated scenarios (maximum 20) with explicit steps and expected results; pass `entryUrl` and role. Existing requirement paths are never overwritten. Synthesis also includes observed UI scenarios and writes `requirements/invoices.md` with:
 - Acceptance Criteria (`AC-01..AC-N`)
 - Executable Scenarios (`SC-01..SC-N`) tagged with `(@success)`, `(@failure)`, `(@access-restriction)`
 - Backlog recommendations block in HTML comments
@@ -92,4 +100,5 @@ Present the summary to QA with the list of active scenarios and backlog recommen
 
 1. **Never Click Destructive Actions:** Skenario aksi hapus (`/delete`, `/destroy`, button "Hapus") hanya dicatat sebagai metadata atau verifikasi dialog, jangan dieksekusi secara destruktif selama discovery.
 2. **Decoupled Role & URL:** Role ditentukan dari file auth `.auth/{APP_ENV}/<role>.json`, bukan dari struktur kata di URL.
-3. **One Sample per Table:** Jangan mengunjungi setiap ID baris tabel — 1 sampel baris (`:id`) sudah cukup mewakili UI detail view.
+3. **Review before pipeline:** Validate the synthesized requirement, present active and backlog scenarios, and wait for QA review before `workflow_run`.
+4. **One Sample per Table:** Jangan mengunjungi setiap ID baris tabel — 1 sampel baris (`:id`) sudah cukup mewakili UI detail view.

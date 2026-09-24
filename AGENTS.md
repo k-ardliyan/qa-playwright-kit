@@ -78,7 +78,7 @@ When driving the semantic workflow via the native `workflow_run` tool:
 ## Natural Language Chat Intent Routing
 
 When QA chats naturally in Hermes or IDE agents:
-- **"Tolong buatkan test untuk halaman <URL> (role: <role>)"** → Route to **Phase -0.5 (UI Discovery & Requirement Synthesis)**: call `snapshot_page` / `discover_pages`, extract components, call `synthesize_requirement` → validate → launch `workflow_run`.
+- **"Tolong buatkan test untuk halaman <URL> (role: <role>)"** → Route to **Phase -0.5 (UI Discovery & Requirement Synthesis)**: `health_check` → confirm non-production `APP_ENV` + matching `BASE_URL` origin + ready role session → `snapshot_page` with the supplied URL/role → `synthesize_requirement` with `entryUrl`, role, and QA-stated `userScenarios` → `validate_requirement` → present draft/backlog for QA review → launch `workflow_run`. Stop (do not navigate) when auth is missing/expired/mismatched, the link origin differs from `BASE_URL`, or `APP_ENV` is production.
 - **"Tolong buatkan test dari tiket / PRD ini: [...]"** → Route to **Phase -1 (PRD Decompose)**: decompose text into AC and scenarios per `_TEMPLATE.md` → validate → launch `workflow_run`.
 - **"Jalankan pipeline untuk requirements/<feature>.md"** → Call `workflow_run({ requirementPath, orchestrationMode: "automatic" })`.
 
@@ -166,11 +166,12 @@ List every tool explicitly by server:
 **Trigger:** QA provides a live web URL and wants to auto-generate `requirements/<feature-name>.md` from interactive UI snapshots.
 
 **Steps:**
-1. Call `snapshot_page` (or `discover_pages`) with `url`, `featureName`, and `role` (using `.auth/{APP_ENV}/{role}.json` session).
-2. Deep discovery extracts semantic structures (Tables, KPI Cards, Tabs, Form Inputs, Modals, Uploads, Sub-routes with `:id` deduplication).
-3. Call `synthesize_requirement` to compile extracted UI catalogs into `requirements/<feature-name>.md`.
-4. Validate generated requirement with `validate_requirement`.
-5. Present active scenarios and backlog recommendations to QA for confirmation before Plan stage.
+1. Run `health_check`; require a non-production `APP_ENV`, a target whose origin matches configured `BASE_URL`, and a ready role session. If the role session is missing, expired, or bound to another company, stop and have QA run `npm run auth:setup` (`auth:setup:headed` for OTP/CAPTCHA). Never transfer Browser Use/profile cookies, call `browser_set_storage_state`, or inject storage state.
+2. Call `snapshot_page` (or `discover_pages` when QA explicitly asks to map linked pages) with `url`, `featureName`, and `role` (using `.auth/{APP_ENV}/{role}.json` session). Reject a result that reports auth/session/tenant warnings — an unauthenticated catalog is not role evidence.
+3. Deep discovery extracts semantic structures (Tables, KPI Cards, Tabs, Form Inputs, Modals, Uploads, Sub-routes with `:id` deduplication).
+4. Call `synthesize_requirement` with `entryUrl`, `role`, and `userScenarios` built only from the QA's stated titles, steps, and expected results (maximum 20). Do not invent business assertions from observed UI labels. An existing requirement path is never overwritten.
+5. Validate generated requirement with `validate_requirement`.
+6. Present active scenarios and backlog recommendations to QA for confirmation before Plan stage.
 
 ---
 

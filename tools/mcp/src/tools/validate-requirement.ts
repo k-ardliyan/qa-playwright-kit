@@ -174,6 +174,10 @@ function isAuthSensitive(text: string): boolean {
 export function validateRequirementText(text: string): ValidateRequirementOutput {
   const violations: RequirementViolation[] = [];
 
+  // Backlog suggestions are emitted inside an HTML comment; a commented `###`
+  // heading must never be parsed as a scenario.
+  text = text.replace(/<!--[\s\S]*?-->/g, '');
+
   const sizeError = assertRequirementsTextSize(text);
   if (sizeError) {
     return {

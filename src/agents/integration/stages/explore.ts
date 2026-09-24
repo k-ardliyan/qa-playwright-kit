@@ -40,6 +40,7 @@ export async function runExploreStage(ctx: StageContext, input: StageInput): Pro
       const live = await ctx.adapters.explore({
         requirementPath: input.requirementPath,
         role: input.roleFilter?.[0],
+        force: true,
       });
       const refreshed = evaluateExplorePolicy({
         requirementPath: input.requirementPath,

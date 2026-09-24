@@ -113,7 +113,7 @@
   },
   {
     "name": "synthesize_requirement",
-    "description": "Synthesize a compliant requirement markdown file from selector-catalog semantic extractions (tables, forms, stat cards, modals) with active test scenarios and backlog suggestions.",
+    "description": "Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios.",
     "stability": "stable",
     "profiles": ["discovery", "planner", "author", "all"],
     "readOnly": false

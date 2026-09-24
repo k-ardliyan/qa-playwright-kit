@@ -416,6 +416,9 @@ function parseExpectedResultFormatted(
 }
 
 export function parseRequirementScenariosFromText(text: string): RequirementScenario[] {
+  // Backlog suggestions live inside an HTML comment; a commented `###` heading
+  // must never become a phantom scenario in plans or reports.
+  text = text.replace(/<!--[\s\S]*?-->/g, '');
   const lines = text
     .split(String.fromCharCode(10))
     .map((line) => (line.endsWith(String.fromCharCode(13)) ? line.slice(0, -1) : line));

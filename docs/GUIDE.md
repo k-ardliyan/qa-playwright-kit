@@ -142,7 +142,9 @@ npm run health:check:strict           # pra-run: sesi expired = fail, bukan warn
 ```
 
 Hermes menjalankan **Phase -0.5** (UI Discovery & Requirement Synthesis):
-`snapshot_page` → `synthesize_requirement` → `validate_requirement` → tampilkan skenario aktif vs backlog.
+`health_check` (non-production, `BASE_URL` origin cocok, role siap) → `snapshot_page` → `synthesize_requirement` dengan skenario yang QA nyatakan → `validate_requirement` → review QA → `workflow_run`.
+
+Jika sesi role hilang/expired/mismatch, berhenti dan minta QA menjalankan `npm run auth:setup` (`auth:setup:headed` untuk OTP/CAPTCHA). Jangan transfer cookies Browser Use atau mengarang expected result dari label UI.
 
 ```bash
 # 3) Review requirement hasil sintesis, lalu jalankan pipeline penuh

@@ -248,6 +248,26 @@ test.describe('Workflow Transition Reducer', () => {
 // ─── Explore policy ──────────────────────────────────────────────────────────
 
 test.describe('Explore Policy & Evidence Resolver', () => {
+  test('resolver matches role metadata embedded in generated JSON catalogs', () => {
+    const dir = tmpDir();
+    const repoRoot = path.join(dir, 'repo');
+    fs.mkdirSync(path.join(repoRoot, 'artifacts', 'selector-catalog', 'flow'), {
+      recursive: true,
+    });
+    const catalog = path.join('artifacts', 'selector-catalog', 'flow', 'list-finance.json');
+    fs.writeFileSync(
+      path.join(repoRoot, catalog),
+      '{"url":"https://staging.example.test/invoices","role":"finance"}',
+    );
+
+    expect(resolveEvidence([{ path: catalog, expectedRole: 'finance' }], repoRoot).outcome).toBe(
+      'matched',
+    );
+    expect(resolveEvidence([{ path: catalog, expectedRole: 'hrd' }], repoRoot).outcome).toBe(
+      'role-mismatch',
+    );
+  });
+
   test('resolver outcomes: invalid, matched, missing, stale', () => {
     const dir = tmpDir();
     const repoRoot = path.join(dir, 'repo');

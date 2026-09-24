@@ -34,6 +34,7 @@ export interface ExploreAdapterInput {
   requirementPath: string;
   role?: string;
   startPage?: string;
+  force?: boolean;
 }
 
 export interface ModelAdapterInput {

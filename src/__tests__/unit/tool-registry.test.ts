@@ -52,6 +52,14 @@ test.describe('MCP Tool Registry & Backward Compatibility (Phase 8)', () => {
     const qaNote = getToolEntry('set_test_note');
     expect(qaNote).toBeDefined();
     expect(qaNote?.name).toBe('set_test_note');
+
+    const synthesize = getToolEntry('synthesize_requirement');
+    expect(synthesize?.inputSchema.properties).toHaveProperty('userScenarios');
+    expect(synthesize?.inputSchema.properties.userScenarios).toMatchObject({
+      type: 'array',
+      maxItems: 20,
+    });
+    expect(synthesize?.description).toContain('QA-authored scenarios');
   });
 
   test('registry is the canonical 25-tool surface with one route per tool', () => {
@@ -66,6 +74,10 @@ test.describe('MCP Tool Registry & Backward Compatibility (Phase 8)', () => {
     expect(registryContract.map((tool: { name: string }) => tool.name)).toEqual(
       TOOL_REGISTRY.map((tool) => tool.name),
     );
+    expect(
+      registryContract.find((tool: { name: string }) => tool.name === 'synthesize_requirement')
+        .description,
+    ).toBe(getToolEntry('synthesize_requirement')?.description);
     for (const tool of TOOL_REGISTRY) {
       expect(tool.name).toBeTruthy();
     }

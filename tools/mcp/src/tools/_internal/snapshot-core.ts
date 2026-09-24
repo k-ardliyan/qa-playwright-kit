@@ -417,6 +417,13 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
     try {
       const existing = JSON.parse(fs.readFileSync(jsonAbsPath, 'utf8')) as CatalogIndex;
       const sameUrl = existing.url === options.url;
+      const sameRole = existing.role === options.role;
+      if (!sameUrl || !sameRole) {
+        throw new SnapshotCoreError(
+          `Catalog "${pageName}" already exists for a different URL or role. Set force=true to capture the requested target.`,
+          'INVALID_INPUT',
+        );
+      }
       return {
         featureName,
         pageName,
@@ -426,10 +433,11 @@ export async function snapshotPageCore(options: SnapshotOptions): Promise<Snapsh
         truncated: existing.truncated,
         ariaYmlRelativePath: ariaRelPath,
         selectorsJsonRelativePath: jsonRelPath,
-        skipped: sameUrl,
-        skipReason: sameUrl ? 'catalog_fresh' : 'catalog_url_changed_force_required',
+        skipped: true,
+        skipReason: 'catalog_fresh',
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof SnapshotCoreError) throw error;
       // Fall through to re-snapshot if the existing file is unreadable.
     }
   }
