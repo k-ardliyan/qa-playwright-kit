@@ -14,6 +14,7 @@ import * as path from 'path';
 import { spawnSync } from 'node:child_process';
 import { generateConfig } from '../agents/integration/mcp-config-generator';
 import { logger } from '../utils/logger';
+import { npmSpawn } from './spawn-bin';
 
 export interface AgentSyncResult {
   skillsSynced: string[];
@@ -102,28 +103,30 @@ export function ensureMcpServerBuild(repoRoot: string = process.cwd()): {
     return { built: false, ok: true };
   }
 
-  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-
   if (!fs.existsSync(mcpModules)) {
-    const ciRes = spawnSync(npmCmd, ['ci', '--prefix', 'tools/mcp'], {
+    const ciSpawn = npmSpawn(['ci', '--prefix', 'tools/mcp']);
+    const ciRes = spawnSync(ciSpawn.command, ciSpawn.args, {
       cwd: repoRoot,
       encoding: 'utf-8',
-      shell: false,
+      shell: ciSpawn.shell,
       timeout: 180_000,
     });
     if (ciRes.status !== 0) {
       return {
         built: false,
         ok: false,
-        error: `npm ci --prefix tools/mcp failed: ${ciRes.stderr || ciRes.stdout}`,
+        error: `npm ci --prefix tools/mcp failed: ${
+          ciRes.error?.message ?? ciRes.stderr ?? ciRes.stdout ?? `exit code ${ciRes.status}`
+        }`,
       };
     }
   }
 
-  const buildRes = spawnSync(npmCmd, ['run', 'mcp:build'], {
+  const buildSpawn = npmSpawn(['run', 'mcp:build']);
+  const buildRes = spawnSync(buildSpawn.command, buildSpawn.args, {
     cwd: repoRoot,
     encoding: 'utf-8',
-    shell: false,
+    shell: buildSpawn.shell,
     timeout: 180_000,
   });
 
@@ -131,7 +134,12 @@ export function ensureMcpServerBuild(repoRoot: string = process.cwd()): {
     return {
       built: false,
       ok: false,
-      error: `npm run mcp:build failed: ${buildRes.stderr || buildRes.stdout}`,
+      error: `npm run mcp:build failed: ${
+        buildRes.error?.message ??
+        buildRes.stderr ??
+        buildRes.stdout ??
+        `exit code ${buildRes.status}`
+      }`,
     };
   }
 
