@@ -8,7 +8,7 @@ import {
   type Diagnostic,
   createDiagnostic,
 } from '../../contracts';
-import { readLabel, readLabelFromSection } from './md-labels';
+import { readLabel, readLabelFromSection, splitRow } from './md-labels';
 
 export function readString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -299,6 +299,34 @@ export function parseAcceptanceCriteria(text: string): {
           ),
         );
       }
+      continue;
+    }
+
+    // Table form: | AC-01 | description |  (header/separator rows skipped)
+    if (inAcSection && /^\s*\|.*\|\s*$/.test(line)) {
+      if (/^\s*\|[\s:|-]+\|\s*$/.test(line)) continue;
+      const cells = splitRow(line);
+      if (cells.length < 2) continue;
+      const id = cells[0].replace(/`/g, '').trim().toUpperCase();
+      const description = cells[1].trim();
+      if (!/^AC-\d+$/.test(id)) {
+        // Header row (`| ID | Kriteria |`) or a row without an explicit AC id.
+        if (/^(id|kriteria|criterion|criteria)$/i.test(cells[0].trim())) continue;
+        if (!description) continue;
+        const generatedId = `AC-${String(counter).padStart(2, '0')}`;
+        counter++;
+        criteria.push({ id: generatedId, description });
+        diagnostics.push(
+          createDiagnostic(
+            'REQ_LEGACY_AC_BULLET',
+            'warning',
+            `Acceptance criterion authored without explicit ID. Assigned "${generatedId}".`,
+            { suggestion: `Use "| ${generatedId} | ${description} |"` },
+          ),
+        );
+        continue;
+      }
+      criteria.push({ id, description });
     }
   }
 
