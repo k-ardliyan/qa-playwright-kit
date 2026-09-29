@@ -44,6 +44,7 @@ import {
   type UnresolvedFailure,
 } from '../reporter/report-builder';
 import { loadLatestTestNotes } from '../reporter/test-notes';
+import { buildFailedGrepPattern } from '../../shared/mcp/failed-grep';
 import { extractTestMetadataFromSpec } from '../../support/traceability/test-index';
 
 /** One report coverage row (scenario → status) derived from the trace graph. */
@@ -675,6 +676,8 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
         testFiles: input.generatedFiles,
         resultsDir,
         requirementPath: input.requirementPath,
+        // Re-entry narrowing: grep only the previously failed titles.
+        ...(input.failedOnly ? { grep: buildFailedGrepPattern(input.failedOnly.titles) } : {}),
       });
       if (!run.ok) {
         throw new Error(
@@ -682,10 +685,22 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
         );
       }
 
+      // A narrowing pass that matched ZERO tests proves nothing: reporting it as
+      // "no unresolved failures" would be a false green. Fail loud instead.
+      if (input.failedOnly && run.total === 0) {
+        throw new Error(
+          `[mcp-adapters] Re-entry grep matched no tests (${input.failedOnly.titles.length} title(s) requested). Cannot verify the previous failures — inspect the titles and re-run.`,
+        );
+      }
+
       // B4/B5: failures and summaries must be attributed to THIS run's
       // manifest — write the completed manifest after runner execution
       // (Playwright wipes --output on launch), then verify it.
       const completedAt = new Date().toISOString();
+      const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
+      console.log(
+        `[validate] run ${input.runId}: ${run.total} test(s) — ${run.passed} passed, ${run.failed} failed, ${run.skipped} skipped in ${durationMs}ms`,
+      );
       writeValidateRunManifest(root, {
         runId: input.runId as string,
         requirementPath: input.requirementPath,
@@ -730,7 +745,13 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
           await traceRequirement({ requirementPath: input.requirementPath }),
         );
         traceCoverage = extractReportCoverageFromTrace(asRecord(traceResult.data));
-      } catch {
+      } catch (err) {
+        // Trace failure must not kill Validate, but it must be visible: a
+        // silent fallback ships healedCount 0 indistinguishable from "nothing
+        // was healed". Log the cause, keep the empty coverage.
+        console.warn(
+          `[validate] trace_requirement failed for ${input.requirementPath}: ${err instanceof Error ? err.message : String(err)}. Coverage falls back to executed-test counts.`,
+        );
         traceCoverage = { scenarios: [], healedScenarios: 0 };
       }
       const coverageScenarios = traceCoverage.scenarios;

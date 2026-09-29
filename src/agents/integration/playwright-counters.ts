@@ -7,6 +7,8 @@ export interface PlaywrightRunCounters {
   timedOut: number;
   interrupted: number;
   resultsJsonPath: string;
+  /** Set when the JSON report could not be parsed — never a silent zero run. */
+  parseError?: string;
 }
 
 export interface ParsePlaywrightJsonOptions {

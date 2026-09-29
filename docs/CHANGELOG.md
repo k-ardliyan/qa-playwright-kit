@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Loop engine diperketat + cluster legacy dihapus — 2026-09-29
+
+- **Batas re-entry kini ditegakkan di ENTRY, bukan label.** Sebelumnya `validate.ts` hanya mengganti label `loopTarget` menjadi `blocked` setelah melewati batas, tetapi tetap menjalankan suite penuh lagi — `AGENTS.md` mengklaim "max 3 loops enforced at runtime" padahal tidak ada satu pun titik masuk yang membaca `loopCounts`. Sekarang: `loopCounts ≥ 3` → `LOOP_LIMIT_REACHED` (blocked) dan adapter Validate **tidak pernah dipanggil lagi**. Terverifikasi test: adapter dipanggil tepat 3× lalu berhenti.
+- **Re-entry dipersempit ke test yang gagal saja.** `failedTitles` disimpan di envelope (bukan di dalam `validate`, karena routing feedback menghapus payload stage) dan diteruskan sebagai `failedOnly` → `--grep` ke runner. Pass pertama tetap full-suite; pass berikutnya hanya menjalankan judul yang gagal — bukan mengulang seluruh suite. Grep yang tidak match apa pun **melempar error**, bukan melaporkan "tidak ada kegagalan" (anti false-green).
+- **Cluster legacy dihapus (~2.900 baris).** `orchestrator.ts`, `protocol.ts`, `protocol-handlers.ts`, `protocol-validation.ts`, `index.ts` (barrel), `validator.ts`, `hooks.ts` + 7 test property/unit-nya. Semua ber-header `LEGACY` sendiri, konsumen hanya test, dan duplikasi `stampRequirementHash` / resume-validator / urutan fase hilang bersama mereka. Import `workflow-engine.test.ts` diarahkan ke rumah asli tiap modul. Verifikasi: `tsc --noEmit` bersih, `validate:architecture` lulus, `validate:coverage` **200 covered / 0 uncovered**.
+- **Anomali runtime diperbaiki:** ternary mati `(runnerFailed && hasCurrentEvidence ? 0 : 0)` dihapus; parse error JSON report kini muncul sebagai `parseError` di pesan (tidak lagi nol senyap); `render.ts` membaca `runMeta.appEnv` (top-level `appEnv` tidak pernah ditulis); kegagalan `trace_requirement` di-log alih-alih `catch {}` (healedCount 0 tak lagi ambigu); `formatSteps` di export klien memakai filter STEP_NOISE yang sama dengan server.
+- **Portabilitas spawn diperbaiki di 2 tempat:** `install-mcp-server.cjs` tidak lagi memakai `npm.cmd`+`shell:true` (jalankan `npm-cli.js` dengan `process.execPath`, shell:false, error `status===null` bernama); `env-secrets.ts` tidak lagi meng-interpolasi string ke `execSync` — pakai `execFileSync` + tokenizer quote-aware, dan resolve entry JS dotenvx (`.cmd` tidak bisa dijalankan tanpa shell di Windows).
+- **CI drift ditutup:** `mcp:typecheck` dan `validate:coverage` kini jalan di `quality.yml` (sebelumnya hanya ada di gate lokal, jadi PR bisa lolos).
+
 ### Wizard: generate config klien AI hanya yang terdeteksi — 2026-09-29
 
 - **Masalahnya:** setup wizard menulis config MCP + skills untuk **semua** klien (`.cursor/`, `.kiro/`, `.codex/`, `claude_desktop_config.json`, `.claude/skills/`) di setiap laptop, padahal kliennya belum tentu terpasang — direktori config yatim yang tidak pernah dibaca siapa pun.

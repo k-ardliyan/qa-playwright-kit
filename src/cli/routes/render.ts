@@ -364,7 +364,10 @@ export function renderLatestDetailPage(query?: DetailPageQuery): string {
   const displayName = deriveDisplayName({
     requirementTitle: rawSummary.requirementTitle as string,
     requirementPath: rawSummary.requirementPath as string,
-    appEnv: (rawSummary.appEnv as string) || (process.env.APP_ENV as string),
+    // appEnv lives under runMeta (custom-reporter) — top-level is never written.
+    appEnv:
+      ((rawSummary.runMeta as Record<string, unknown> | undefined)?.appEnv as string) ||
+      (process.env.APP_ENV as string),
     ranAt: rawSummary.timestamp as string,
   });
 

@@ -306,6 +306,12 @@ export interface WorkflowEnvelope {
   generate?: GenerateResult;
   validate?: ValidateResult;
   lastFeedback?: FeedbackDecision;
+  /**
+   * Failed test titles from the last Validate pass. Lives on the envelope
+   * (not inside `validate`) because feedback routing deletes the stage
+   * payloads — this field survives so a re-entry can narrow to those titles.
+   */
+  failedTitles?: string[];
   loopCounts: Partial<Record<WorkflowLoopTarget, number>>;
 }
 

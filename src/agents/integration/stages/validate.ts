@@ -23,6 +23,15 @@ function requirementPathToFeature(requirementPath: string): string {
   return requirementPath.split(/[/\\]/).pop()?.replace(/\.md$/i, '') ?? 'feature';
 }
 
+/** Failed test titles from a Validate failure payload (deduped, trimmed). */
+function failureTitles(failureList: unknown): string[] {
+  if (!Array.isArray(failureList)) return [];
+  const titles = failureList
+    .map((f) => (f as Record<string, unknown>)?.title)
+    .filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+  return [...new Set(titles)];
+}
+
 export async function runValidateStage(
   ctx: StageContext,
   input: StageInput,
@@ -72,6 +81,44 @@ export async function runValidateStage(
   state.workflow = { ...tx.envelope, currentSubstage: 'execute' };
   ctx.saveState(state);
 
+  // Bounded re-entry (PC-07): the loop bound is enforced at ENTRY, not merely
+  // relabelled after the run. Once a loop target hit the cap, a resumed run
+  // must not re-execute the suite — it stops here for a human/QA decision.
+  const exhausted = Object.entries(ctx.workflow().loopCounts).find(
+    ([, count]) => (count ?? 0) >= 3,
+  );
+  if (exhausted) {
+    const [target, count] = exhausted;
+    const reason = `Semantic re-entry limit reached for '${target}' (${count}, max 3). Human/QA decision required.`;
+    // Record the terminal routing (same shape the post-run relabel used to
+    // emit) so state, counters, and lastFeedback stay coherent — then stop.
+    const decision: FeedbackDecision = {
+      loopTarget: 'blocked',
+      failureSource: ctx.workflow().lastFeedback?.failureSource ?? 'unknown',
+      reason,
+      evidencePaths: [],
+    };
+    const txLimit = transitionWorkflow(ctx.workflow(), { type: 'feedback', decision });
+    if (txLimit.ok) state.workflow = txLimit.envelope;
+    ctx.markBlocked(reason);
+    return ctx.errorResponse(
+      state.runId,
+      [{ code: 'LOOP_LIMIT_REACHED', message: reason, retryable: false }],
+      'validate',
+      'blocked',
+      'Classify the remaining failures manually (file-bug / fix-environment / blocked) instead of re-running.',
+    );
+  }
+
+  // Re-entry narrowing: a feedback pass routes only the previously failed
+  // tests (the titles live on the envelope and survive stage invalidation).
+  // Nothing to narrow to (first pass, or a clean previous pass) keeps the
+  // full-suite behaviour — the honest fallback, not a silent skip.
+  const failedTitles = (ctx.workflow().failedTitles ?? []).filter(
+    (t): t is string => typeof t === 'string' && t.trim().length > 0,
+  );
+  const failedOnly = failedTitles.length > 0 ? { titles: failedTitles } : undefined;
+
   const generated = state.workflow.generate?.generatedFiles ?? [];
   if (generated.length === 0) {
     const reason = 'No executable generated files are available for Validate.';
@@ -96,6 +143,7 @@ export async function runValidateStage(
       requirementPath: input.requirementPath,
       generatedFiles: generated,
       runId: state.runId,
+      ...(failedOnly ? { failedOnly } : {}),
     });
     const analysisComplete =
       result.analysisCompleted === true &&
@@ -163,6 +211,14 @@ export async function runValidateStage(
       status: result.unresolvedFailures === 0 ? ('passed' as const) : ('needs-review' as const),
       substage: result.substage,
       unresolvedFailures: result.unresolvedFailures,
+    };
+    // Persist the failed titles on the ENVELOPE (survives the stage
+    // invalidation that feedback routing performs) so a re-entry narrows the
+    // run to exactly these tests instead of the whole suite.
+    const failedTitles = failureTitles(result.failureList);
+    state.workflow = {
+      ...ctx.workflow(),
+      ...(failedTitles.length > 0 ? { failedTitles } : { failedTitles: undefined }),
     };
     if (result.unresolvedFailures === 0) {
       const tx2 = transitionWorkflow(ctx.workflow(), {

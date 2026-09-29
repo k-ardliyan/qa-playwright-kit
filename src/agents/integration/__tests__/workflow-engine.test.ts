@@ -15,22 +15,14 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import {
-  createWorkflowEnvelope,
-  transitionWorkflow,
-  isStageUsable,
-  evaluateExplorePolicy,
-  resolveEvidence,
-  evaluateChallenge,
-  canGenerate,
-  routeFeedback,
-  WorkflowController,
-  ModelHandoffError,
-  type ChallengeGateInput,
-  type ExploreDecision,
-  type ModelResult,
-  type WorkflowResponse,
-} from '../index';
+import { createWorkflowEnvelope, transitionWorkflow, isStageUsable } from '../workflow-transitions';
+import { evaluateExplorePolicy, resolveEvidence } from '../explore-policy';
+import { evaluateChallenge, canGenerate, type ChallengeGateInput } from '../challenge-gate';
+import { routeFeedback } from '../feedback-router';
+import { WorkflowController } from '../workflow-controller';
+import { ModelHandoffError } from '../mcp-adapters';
+import type { ExploreDecision, ModelResult } from '../types';
+import type { WorkflowResponse } from '../workflow-controller-types';
 import {
   createMcpAdapters,
   resolveValidateResultsDir,
@@ -1361,6 +1353,56 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(controller.getState().completedPhases).not.toContain('heal');
   });
 
+  test('re-entry narrowing: the Validate adapter receives the failed titles as a failedOnly grep', async () => {
+    const tracking = { calls: [] as string[] };
+    const seen: Array<Record<string, unknown> | undefined> = [];
+    const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
+    const evidencePath = writeEvidence(process.env['QA_REPORT_DIR']!);
+
+    const narrowingAdapters = {
+      ...recordingAdapters(tracking),
+      async validate(input?: Record<string, unknown>) {
+        tracking.calls.push('validate-adapter');
+        seen.push(input);
+        return {
+          unresolvedFailures: 1,
+          substage: 'needs-heal' as const,
+          analysisCompleted: true,
+          analysisVerified: true,
+          analysisVerdict: 'complete' as const,
+          failureList: [
+            {
+              failureSource: 'test',
+              message: 'locator timeout on #submit',
+              authRedirect: false,
+              title: 'SC-01 Login Success',
+            },
+          ],
+        };
+      },
+    };
+
+    const controller = new WorkflowController(
+      { orchestrationMode: 'automatic', requirementPath, repoRoot },
+      narrowingAdapters as never,
+    );
+    // Two passes: pass 1 records the failed title, pass 2 must narrow to it.
+    await controller.run({
+      requirementPath,
+      orchestrationMode: 'automatic',
+      evidence: [{ path: evidencePath }],
+    });
+    await controller.run({
+      requirementPath,
+      orchestrationMode: 'automatic',
+      evidence: [{ path: evidencePath }],
+    });
+
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+    expect(seen[0]?.failedOnly).toBeUndefined();
+    expect(seen[1]?.failedOnly).toEqual({ titles: ['SC-01 Login Success'] });
+  });
+
   test('bounded re-entry: the 4th consecutive failure blocks instead of looping forever', async () => {
     const tracking = { calls: [] as string[] };
     const { requirementPath, repoRoot } = writeRequirement(process.env['QA_REPORT_DIR']!);
@@ -1405,6 +1447,10 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(wf.loopCounts.blocked).toBeGreaterThanOrEqual(1);
     expect(wf.lastFeedback?.loopTarget).toBe('blocked');
     expect(String(wf.lastFeedback?.reason)).toContain('re-entry limit');
+    // Enforcement, not just a relabel: once the bound is hit the Validate
+    // adapter is NEVER invoked again (3 real passes max, then blocked).
+    const validateRuns = tracking.calls.filter((c) => c === 'validate-adapter').length;
+    expect(validateRuns).toBe(3);
   });
 
   test('Task B4: getTestFailures resolves results.json even when newer run-manifest.json exists', () => {

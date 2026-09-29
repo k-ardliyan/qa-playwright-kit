@@ -87,6 +87,8 @@ const TOOLS = {
     testFiles: string[];
     resultsDir: string;
     requirementPath?: string;
+    /** Re-entry narrowing: run only these test titles (Playwright --grep). */
+    grep?: string;
   }) => {
     if (args.testFiles.length === 0) {
       return { ok: false, passed: 0, failed: 0, skipped: 0, message: 'No generated files to run.' };
@@ -110,6 +112,7 @@ const TOOLS = {
         args.resultsDir,
         `--reporter=${customReporterPath}`,
         '--add-reporter=json',
+        ...(args.grep ? ['--grep', args.grep] : []),
       ],
       {
         cwd: process.cwd(),
@@ -147,8 +150,14 @@ const TOOLS = {
           JSON.parse(fs.readFileSync(resultsJsonPath, 'utf-8')),
           resultsJsonPath,
         );
-      } catch {
-        // Invalid/missing JSON is not current-run proof; return a failed run.
+      } catch (err) {
+        // Invalid/missing JSON is not current-run proof; return a failed run
+        // with the parse error visible instead of silent zero counters.
+        counters = {
+          ...counters,
+          resultsJsonPath,
+          parseError: err instanceof Error ? err.message : String(err),
+        };
       }
     }
     const runnerFailed = result.status !== 0;
@@ -159,11 +168,7 @@ const TOOLS = {
       ok: hasCurrentEvidence,
       total: counters.total,
       passed: counters.passed,
-      failed:
-        counters.failed +
-        counters.timedOut +
-        counters.interrupted +
-        (runnerFailed && hasCurrentEvidence ? 0 : 0),
+      failed: counters.failed + counters.timedOut + counters.interrupted,
       skipped: counters.skipped,
       timedOut: counters.timedOut,
       interrupted: counters.interrupted,
@@ -173,7 +178,9 @@ const TOOLS = {
           ? 'Playwright completed with failing tests.'
           : hasCurrentEvidence
             ? undefined
-            : (result.stderr ?? result.stdout ?? '').slice(0, 500),
+            : counters.parseError
+              ? `Unreadable Playwright JSON report: ${counters.parseError}`
+              : (result.stderr ?? result.stdout ?? '').slice(0, 500),
     };
   },
 };

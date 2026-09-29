@@ -171,6 +171,12 @@ function isWorkflowEnvelope(value: unknown): value is WorkflowEnvelope {
       return false;
     }
   }
+  if (
+    value.failedTitles !== undefined &&
+    (!Array.isArray(value.failedTitles) || !value.failedTitles.every((t) => typeof t === 'string'))
+  ) {
+    return false;
+  }
   return true;
 }
 

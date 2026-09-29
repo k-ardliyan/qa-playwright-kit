@@ -32,10 +32,26 @@ for (const key of Object.keys(env)) {
 }
 
 const args = ['ci', '--no-audit', '--no-fund'];
-const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
+// Resolve npm's own JS entry and run it with the current Node — spawning
+// npm.cmd requires shell:true on Windows (EINVAL without it since Node 18.20)
+// and fails with ENOENT where cmd.exe is not on PATH (hosts shipping their own
+// Node). Same pattern as src/setup/spawn-bin.ts, which this file predates.
+const npmCli = path.join(
+  path.dirname(process.execPath),
+  'node_modules',
+  'npm',
+  'bin',
+  'npm-cli.js',
+);
+const result = spawnSync(process.execPath, [npmCli, ...args], {
   cwd: mcpDir,
   stdio: 'inherit',
   env,
-  shell: process.platform === 'win32',
+  shell: false,
 });
+if (result.status === null) {
+  console.error(
+    `[install-mcp-server] npm did not start: ${result.error?.message ?? 'unknown spawn error'}`,
+  );
+}
 process.exit(result.status ?? 1);

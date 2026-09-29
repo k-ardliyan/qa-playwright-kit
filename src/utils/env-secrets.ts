@@ -13,11 +13,18 @@
  * @module src/utils/env-secrets
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parseEnvText } from './env-text';
 import { getGlobalKeysPath, migrateWorkspaceEnvKeys } from './dotenv-keys';
+import { npmCommand, resolveNpmCli } from '../setup/spawn-bin';
+
+/** `[command, ...prefixArgs]` for npx — prefers npm's own JS entry (no shell). */
+function npxCommand(): [string, ...string[]] {
+  const cli = resolveNpmCli();
+  return cli ? [process.execPath, cli, 'exec', '--yes'] : [npmCommand(), 'exec', '--yes'];
+}
 
 /** Extra keys that are secrets even without a `_PASSWORD` / `_SECRET` / `_TOKEN` suffix. */
 const NAMED_SECRET_KEYS = new Set(['PASSWORD', 'SECRET', 'TOKEN', 'API_KEY', 'AUTH_TOKEN']);
@@ -98,20 +105,63 @@ function quoteForCmd(p: string): string {
 }
 
 /**
- * Absolute path to this framework's own `node_modules/.bin/dotenvx`.
+ * Split a command string into argv entries, honoring double quotes (with
+ * backslash escapes) and collapsing whitespace. The command strings are
+ * built with `quoteForCmd`, so a quoted path stays ONE argv entry with the
+ * quotes stripped — execFileSync receives it verbatim, no shell involved.
+ */
+function splitArgs(args: string): string[] {
+  const out: string[] = [];
+  let current = '';
+  let quoted = false;
+  let started = false;
+  for (let i = 0; i < args.length; i++) {
+    const ch = args[i];
+    if (ch === '\\' && quoted && args[i + 1] === '"') {
+      current += '"';
+      i += 1;
+      continue;
+    }
+    if (ch === '"') {
+      quoted = !quoted;
+      started = true;
+      continue;
+    }
+    if (!quoted && /\s/.test(ch)) {
+      if (started) out.push(current);
+      current = '';
+      started = false;
+      continue;
+    }
+    current += ch;
+    started = true;
+  }
+  if (started) out.push(current);
+  return out;
+}
+
+/**
+ * Absolute path to this framework's own dotenvx CLI JS entry.
  *
  * Resolved from the module's location, NOT from `process.cwd()`: callers
  * (`npm run setup`, `env:edit`, tests) `chdir` into the project or a fixture
  * directory, so cwd-based lookup silently falls back to `npx` — which reports
  * success without writing the keys file in some environments. Climbing from
  * the module directory finds the framework's install regardless of cwd.
+ *
+ * The JS entry (not `node_modules/.bin/dotenvx.cmd`) is resolved on purpose:
+ * execFileSync cannot run a `.cmd` without a shell on Windows (Node >= 18.20
+ * EINVAL), and running the JS with the current Node needs no shell at all.
  */
 function resolveLocalDotenvx(): string | null {
   let dir = __dirname;
   for (let i = 0; i < 6; i += 1) {
-    const candidate = path.join(dir, 'node_modules', '.bin', 'dotenvx');
-    const binary = process.platform === 'win32' ? `${candidate}.cmd` : candidate;
-    if (fs.existsSync(binary)) return binary;
+    const candidates = [
+      path.join(dir, 'node_modules', '@dotenvx', 'dotenvx', 'src', 'cli', 'dotenvx.js'),
+      path.join(dir, 'node_modules', '@dotenvx', 'dotenvx', 'lib', 'main.js'),
+    ];
+    const found = candidates.find((candidate) => fs.existsSync(candidate));
+    if (found) return found;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
@@ -125,8 +175,6 @@ function runDotenvx(args: string, cwd: string, filePath?: string): string {
   // Windows with npm 11: the env file gets a `DOTENV_PUBLIC_KEY_*` line
   // pointing at a `.env.keys` that is never created), so the following decrypt
   // always fails. `npx` remains the fallback for images that install on demand.
-  const localBinary = resolveLocalDotenvx();
-  const command = localBinary ? `"${localBinary}"` : 'npx @dotenvx/dotenvx';
   // `--no-native`: dotenvx >= 2.31 otherwise hands the private key to the OS
   // secret store instead of writing `<envDir>/.env.keys`, so the framework's
   // file-based key model (resolveKeysFile / ~/.dotenvx-keys migration) finds
@@ -134,7 +182,14 @@ function runDotenvx(args: string, cwd: string, filePath?: string): string {
   // repo, the wizard, and CI all read. `--no-armor` avoids the newer armor
   // envelope for the same reason: the file format must stay plain dotenvx.
   const argsWithFlags = args.includes('--no-native') ? args : `${args} --no-native`;
-  return execSync(`${command} ${argsWithFlags}`, {
+  const localEntry = resolveLocalDotenvx();
+  const command = localEntry ? process.execPath : npxCommand()[0];
+  const commandArgs = localEntry
+    ? [localEntry, ...splitArgs(argsWithFlags)]
+    : [...npxCommand().slice(1), '@dotenvx/dotenvx', ...splitArgs(argsWithFlags)];
+  // No shell: every argument is passed as an argv entry, so paths with spaces
+  // and quoting survive verbatim (the old interpolated string broke on both).
+  return execFileSync(command, commandArgs, {
     cwd,
     encoding: 'utf-8',
     env: buildChildEnv(filePath),

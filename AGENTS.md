@@ -255,14 +255,14 @@ Applies when the run hits auth failures — classification `auth`, `failureSourc
 ### Phase 4: Heal
 
 - Call `get_test_failures` on **qa-playwright-kit** to retrieve structured failure data.
-- Rank failures by fix likelihood from the payload itself: known error patterns first, shared fixtures prioritized, healability order respected (auth → `fix-environment`, never healed — see feedback router in `src/agents/integration/feedback-router.ts`; max 3 loops enforced at runtime in `stages/validate.ts`).
+- Rank failures by fix likelihood from the payload itself: known error patterns first, shared fixtures prioritized, healability order respected (auth → `fix-environment`, never healed — see feedback router in `src/agents/integration/feedback-router.ts`; max 3 loops enforced at ENTRY in `stages/validate.ts` — a 4th pass returns `LOOP_LIMIT_REACHED` blocked instead of re-running).
 - Use `tracePath` and `screenshotPath` from failure payload when present.
 - **Before healing any `locator` failure:** check the trace/screenshot final URL. If the page is the login page (session died mid-run), reclassify as `auth` and apply the Auth Recovery Protocol above instead of patching locators.
 - For each prioritized failure: lookup known pattern → apply or diagnose → fix → store outcome.
 - Classify failures that cannot be healed with a `failureSource`: `app | test | requirement | env | ai_generation`.
 - **AI notes (per heal cycle):** for every healed fix and every cannot-fix failure, call `record_ai_note` with a concise Indonesian explanation (root cause + suggested action) keyed by `scenarioId`/`testId` (plus `role` when role-aware). `failureSource` stays the machine-readable classification; the AI note is the human-readable narrative.
 - Re-run `validate_generated_tests`, then `run_tests` for affected files.
-- Max **3 heal cycles** per file. After 3 cycles with the same root error, classify as `cannotFix`.
+- Max **3 heal cycles** per file. After 3 cycles with the same root error, classify as `cannotFix`. Re-entry is narrowed: once a Validate pass fails, the next Validate runs only the previously failed titles (`failedOnly` → `--grep`), never the full suite again.
 
 ### Phase 5: Report & Traceability
 

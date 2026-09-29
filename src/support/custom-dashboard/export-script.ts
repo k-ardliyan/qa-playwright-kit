@@ -138,7 +138,16 @@ export function buildExportScript(
 
       function formatSteps(steps) {
         if (!steps || !steps.length) return '-';
-        return steps
+        // Same noise filter as the server-side export (export-helpers.ts
+        // STEP_NOISE) — this script is inlined into the dashboard HTML and
+        // cannot import the TS module, so the list is duplicated by design.
+        var NOISE = ['Before', 'After', 'Worker Cleanup', 'worker', 'Fixture'];
+        var filtered = steps.filter(function (s) {
+          var t = (typeof s === 'object' && s !== null) ? (s.title || '') : String(s);
+          return !NOISE.some(function (p) { return t.indexOf(p) === 0; });
+        });
+        if (!filtered.length) return '-';
+        return filtered
           .map(function (s, i) {
             if (typeof s === 'object' && s !== null) {
               return (i + 1) + '. ' + (s.title || '') + (s.subtitle ? ' (' + s.subtitle + ')' : '');

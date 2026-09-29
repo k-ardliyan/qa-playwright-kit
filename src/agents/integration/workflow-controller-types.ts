@@ -90,6 +90,11 @@ export interface ValidateAdapterInput {
   generatedFiles: string[];
   /** Explicit run identity so every Validate artifact is current-run scoped. */
   runId?: string;
+  /**
+   * Re-entry pass (feedback loop). When present, the runner narrows execution
+   * to these titles via `--grep` — the failed subset only, never the full suite.
+   */
+  failedOnly?: { titles: string[] };
 }
 
 export interface ValidateAdapterResult {
