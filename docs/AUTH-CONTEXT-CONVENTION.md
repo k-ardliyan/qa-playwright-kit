@@ -142,15 +142,15 @@ Lihat [CREDENTIALS.md](CREDENTIALS.md) — skema seragam per role; multi N=1 mir
 
 Pilih **satu** pola sesuai aplikasi Anda:
 
-| Pola tenant                | Contoh                                | Konfigurasi kit                                                                      |
-| -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------ |
-| Link — subdomain           | `https://acme.app.com/login`          | `FINANCE_LOGIN_URL_PATH=https://acme.app.com/login` + `FINANCE_SUCCESS_URL_PATH=...` |
-| Link — path                | `https://app.com/acme/login`          | `FINANCE_LOGIN_URL_PATH=/acme/login`                                                 |
-| Link — query               | `https://app.com/login?company=acme`  | `FINANCE_LOGIN_URL_PATH=/login?company=acme`                                         |
-| Diketik di form            | field company/tenant di halaman login | `FINANCE_COMPANY=acme` (+ `FINANCE_COMPANY_SELECTOR` bila field tidak terdeteksi)    |
-| Pilih setelah login        | picker workspace setelah password     | langkah kustom di `src/support/auth.setup.ts` (Recipe 1)                             |
-| Satu tenant per deployment | staging khusus tenant                 | `BASE_URL` per `APP_ENV`                                                             |
-| Satu role, dua tenant      | akun sama di dua tenant               | dua role: `ADMIN_ACME_*` + `ADMIN_GLOBEX_*` → auth file terpisah                     |
+| Pola tenant                | Contoh                                | Konfigurasi kit                                                                                                                                                          |
+| -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Link — subdomain           | `https://acme.app.com/login`          | `FINANCE_LOGIN_URL_PATH=https://acme.app.com/login` + `FINANCE_SUCCESS_URL_PATH=...`                                                                                     |
+| Link — path                | `https://app.com/acme/login`          | `FINANCE_LOGIN_URL_PATH=/acme/login`                                                                                                                                     |
+| Link — query               | `https://app.com/login?company=acme`  | `FINANCE_LOGIN_URL_PATH=/login?company=acme`                                                                                                                             |
+| Diketik di form            | field company/tenant di halaman login | `FINANCE_COMPANY=acme` (+ `FINANCE_COMPANY_SELECTOR` bila field tidak terdeteksi)                                                                                        |
+| Pilih setelah login        | picker workspace setelah password     | langkah kustom di `src/support/auth.setup.ts` (Recipe 1 — tambahkan `// CUSTOM_AUTH_FLOW` di baris atas; setup/env:edit/upgrade otomatis tidak menimpa file ber-penanda) |
+| Satu tenant per deployment | staging khusus tenant                 | `BASE_URL` per `APP_ENV`                                                                                                                                                 |
+| Satu role, dua tenant      | akun sama di dua tenant               | dua role: `ADMIN_ACME_*` + `ADMIN_GLOBEX_*` → auth file terpisah                                                                                                         |
 
 - `{P}_COMPANY` diisi **sebelum** identifier; nilai kosong/placeholder = langkah dilewati (tanpa perubahan perilaku).
 - Field company boleh `<input>` **atau** `<select>` (dropdown dipilih by value/label). Heuristik nama field: `company`, `tenant`, `organization`, `workspace`; set `{P}_COMPANY_SELECTOR` bila nama field berbeda.

@@ -187,7 +187,8 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 **Fix:**
 
 1. Buka `src/support/auth.setup.ts` yang baru di-generate
-2. Ganti selector dengan selector aplikasi Anda. Contoh untuk React app:
+2. **Sebelum mengedit, tambahkan baris `// CUSTOM_AUTH_FLOW` di bagian paling atas file.** Penanda ini melindungi kustomisasi Anda: `npm run setup`, `env:edit`, dan `npm run upgrade` otomatis **tidak menimpa** file ber-penanda — tanpa perlu commit dulu.
+3. Ganti selector dengan selector aplikasi Anda. Contoh untuk React app:
 
    ```typescript
    await page.fill('[data-testid="email-input"]', email);
@@ -195,14 +196,14 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
    await page.click('[data-testid="login-button"]');
    ```
 
-3. **Atau minta Hermes Agent:**
+4. **Atau minta Hermes Agent:**
 
    ```
    Tolong perbaiki src/support/auth.setup.ts untuk login page di https://staging.myapp.com/login.
-   Pakai snapshot_page dulu untuk lihat selector yang ada.
+   Tambahkan // CUSTOM_AUTH_FLOW di baris atas file, lalu pakai snapshot_page dulu untuk lihat selector yang ada.
    ```
 
-4. Jalankan ulang: `npm run auth:setup` / `npm run auth:setup:headed`
+5. Jalankan ulang: `npm run auth:setup` / `npm run auth:setup:headed`
 
 ---
 

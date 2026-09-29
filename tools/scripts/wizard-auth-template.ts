@@ -13,6 +13,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { canonicalRoleName } from '../../src/shared/utils/role-credentials';
+import { hasCustomizationMarker } from './framework-upgrade';
 
 export interface AuthRole {
   /** Nama role, lowercase-hyphen. Misal: 'admin', 'super-admin', 'user' */
@@ -140,7 +141,8 @@ import { resolveAppUrl } from './app-url';
  *
  * Runs once during setup project to materialize .auth/{APP_ENV}/<role>.json.
  * If your app requires extra login steps (profile picker, tenant selector, 2-step login),
- * you can customize the steps inside without fear of being overwritten.
+ * you can customize the steps inside — add // CUSTOM_AUTH_FLOW at the top of this
+ * file first; then npm run setup / env:edit / npm run upgrade all leave it alone.
  *
  * Run: npm run auth:setup  |  npm run auth:setup:headed
  */
@@ -357,10 +359,9 @@ export function writeAuthSetup(
 
   if (fs.existsSync(outPath)) {
     const existing = fs.readFileSync(outPath, 'utf-8');
-    if (
-      !opts.force &&
-      (existing.includes('// CUSTOM_AUTH_FLOW') || existing.includes('// KUSTOM_LOGIN_FLOW'))
-    ) {
+    // Marker detection is line-anchored (shared with the upgrade guard): a
+    // docstring mention of the marker does not mark the file.
+    if (!opts.force && hasCustomizationMarker(existing)) {
       return { outPath, skipped: true };
     }
     const bak = outPath + '.bak';

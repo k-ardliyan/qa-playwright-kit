@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Upgrade tidak lagi memblokir kustomisasi auth.setup.ts — 2026-09-30
+
+- **Masalahnya:** alur normal QA = setup generate `src/support/auth.setup.ts` → QA/Hermes mengeditnya saat menemukan flow login situs yang berbeda → `npm run upgrade` **selalu berhenti** karena dirty-guard membaca file itu sebagai perubahan framework yang belum di-commit. Solusi lama menuntut commit tiap kali edit (praktis "stash terus menerus"), padahal mekanisme resmi (`// CUSTOM_AUTH_FLOW`) sudah ada: wizard, risky-commit check, dan apply semuanya menghormati penanda — hanya dirty-guard yang buta.
+- **Fix:** `assertCleanWorktree` kini menerima `markerAwareBaseDir` dan melewati file ber-penanda (`CUSTOM_AUTH_FLOW` / `KUSTOM_LOGIN_FLOW`) — aman karena `applyZoneDiff` memang mem-preserve file itu, jadi guard tidak lagi memblokir sesuatu yang tidak akan ditimpa. File tanpa penanda tetap diblokir, dan pesan guard kini menyebut penanda sebagai jalan keluar. Pesan refusal di risky-commit check juga menyebutnya, dan warning preserve menyebut kedua penanda.
+- **Edukasi:** komentar template `auth.setup.ts` hasil generate kini mengajarkan penanda (sync di `wizard-auth-template.ts` + file hidup), `docs/TROUBLESHOOTING.md` Error #6 menyuruh menambahkannya **sebelum** edit manual (termasuk prompt Hermes), `docs/AUTH-CONTEXT-CONVENTION.md`, skill pack, dan `AGENTS.md` ikut diselaraskan.
+- **Test:** dua check baru di `tools/scripts/__tests__/framework-upgrade.test.ts` — (1) penanda (baru + legacy) melewati guard, tanpa penanda tetap throw, call tanpa `baseDir` tetap konservatif; (2) integrasi repo git nyata: QA mengedit file ber-penanda tanpa commit + upstream mengubah template → `runUpgrade` jalan, file QA utuh, dan edit lokal tidak ikut ter-stage.
+
 ### Dokumentasi komunitas proyek open source — 2026-09-29
 
 - **`LICENSE` (MIT) ditambahkan.** Repo ini publik tapi tidak punya file lisensi — secara hukum itu berarti orang lain **tidak punya izin** memakai atau memodifikasi kodenya, meskipun skill pack di dalamnya sudah mengklaim MIT. Copyright holder: `k-ardliyan`.

@@ -112,7 +112,7 @@ Trigger: 401/403, `unauthorized`, `session expired`, test redirect ke `/login`, 
 
 ## Complex Login Flow Recipes (`src/support/auth.setup.ts`)
 
-`auth.setup.ts` is modular and designed to be customized when an app has extra login interactions beyond simple username + password. Add custom steps directly in `src/support/auth.setup.ts` (add `// CUSTOM_AUTH_FLOW` at the top to protect from wizard overwrite).
+`auth.setup.ts` is modular and designed to be customized when an app has extra login interactions beyond simple username + password. Add custom steps directly in `src/support/auth.setup.ts` — add `// CUSTOM_AUTH_FLOW` at the top first: the wizard, `env:edit`, and `npm run upgrade` all skip a marked file automatically, no commit needed.
 
 ### Recipe 1: Post-Login Profile / Tenant / Branch Selector
 

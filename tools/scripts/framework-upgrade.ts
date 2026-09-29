@@ -145,14 +145,25 @@ export function computeZoneDiff(output: string, paths: string[] = FRAMEWORK_PATH
 }
 
 /**
+ * True when `content` carries the QA customization marker as its own LINE.
+ *
+ * Line-anchored on purpose: a docstring MENTION of the marker (the generated
+ * file's own header teaches it) must not mark the file. A substring test made
+ * every generated file look customized — it was born marked.
+ */
+const MARKER_LINE_RE = new RegExp(`^\\s*// (${PRESERVE_MARKER}|${PRESERVE_MARKER_LEGACY})\\b`, 'm');
+
+export function hasCustomizationMarker(content: string): boolean {
+  return MARKER_LINE_RE.test(content);
+}
+
+/**
  * Decide whether a generated file must be preserved instead of overwritten.
  * Only `src/support/auth.setup.ts` is conditional; every other path is plain.
  */
 export function shouldPreserveGeneratedFile(relPath: string, content: string): boolean {
   if (relPath.replace(/\\/g, '/') !== GENERATED_AUTH_SETUP) return false;
-  return (
-    content.includes(`// ${PRESERVE_MARKER}`) || content.includes(`// ${PRESERVE_MARKER_LEGACY}`)
-  );
+  return hasCustomizationMarker(content);
 }
 
 /**
@@ -161,15 +172,41 @@ export function shouldPreserveGeneratedFile(relPath: string, content: string): b
  * QA's own work-in-progress (specs, POMs, plans — all outside the zone) never
  * blocks an upgrade and can never be lost: it is never a target.
  *
+ * A marker-bearing `src/support/auth.setup.ts` is waived: `applyZoneDiff`
+ * preserves that file (shouldPreserveGeneratedFile), so blocking on it is pure
+ * friction — the normal flow is "QA edits the generated login flow locally,
+ * upgrade must not touch it". `markerAwareBaseDir` lets the guard read the
+ * file's content; without it (or when the file is missing) the guard stays
+ * conservative and blocks.
+ *
  * `git checkout <tree> -- f` silently discards local modifications AND
  * silently overwrites untracked files at the same path (both verified by probe).
  */
-export function assertCleanWorktree(entries: PorcelainEntry[], targets: string[]): void {
+export function assertCleanWorktree(
+  entries: PorcelainEntry[],
+  targets: string[],
+  markerAwareBaseDir?: string,
+): void {
   const zoneDirty = entries.filter((e) => inFrameworkZone(e.file, targets));
   if (zoneDirty.length === 0) return;
 
-  const tracked = zoneDirty.filter((e) => !e.status.includes('?'));
-  const untracked = zoneDirty.filter((e) => e.status.includes('?'));
+  const isMarkerPreserved = (e: PorcelainEntry): boolean => {
+    if (!markerAwareBaseDir) return false;
+    const abs = path.join(markerAwareBaseDir, e.file);
+    if (!fs.existsSync(abs)) return false;
+    try {
+      return shouldPreserveGeneratedFile(e.file, fs.readFileSync(abs, 'utf-8'));
+    } catch {
+      return false;
+    }
+  };
+
+  const blocked = zoneDirty.filter((e) => !isMarkerPreserved(e));
+  const waived = zoneDirty.filter((e) => isMarkerPreserved(e));
+  if (blocked.length === 0) return;
+
+  const tracked = blocked.filter((e) => !e.status.includes('?'));
+  const untracked = blocked.filter((e) => e.status.includes('?'));
 
   const lines: string[] = [];
   if (tracked.length > 0) {
@@ -182,7 +219,17 @@ export function assertCleanWorktree(entries: PorcelainEntry[], targets: string[]
     lines.push(...untracked.slice(0, 10).map((e) => `  ${e.file}`));
     if (untracked.length > 10) lines.push(`  … dan ${untracked.length - 10} lainnya`);
   }
+  if (waived.length > 0) {
+    lines.push(
+      `Dilewati (punya // ${PRESERVE_MARKER}, upgrade tidak menimpanya): ${waived
+        .map((e) => e.file)
+        .join(', ')}`,
+    );
+  }
   lines.push('Commit atau kembalikan dulu perubahan itu, lalu jalankan ulang: npm run upgrade');
+  lines.push(
+    `Kustomisasi permanen pada ${GENERATED_AUTH_SETUP}? Tambahkan // ${PRESERVE_MARKER} di baris atas file itu — upgrade melewatinya otomatis.`,
+  );
   throw new UpgradeError(lines.join('\n'));
 }
 
@@ -476,7 +523,7 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
   // 2. Dirty guard — BEFORE any write (preview mode writes nothing, so it is exempt).
   if (!options.checkOnly) {
     const status = git(repoRoot, ['status', '--porcelain']);
-    assertCleanWorktree(parsePorcelain(status.stdout), FRAMEWORK_PATHS);
+    assertCleanWorktree(parsePorcelain(status.stdout), FRAMEWORK_PATHS, repoRoot);
   }
 
   // 3. Fetch upstream.
@@ -540,6 +587,7 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
       `  file: ${risky.riskyFiles.slice(0, 10).join(', ')}`,
       'Update akan mengembalikan file itu ke versi upstream dan perubahan lokal hilang.',
       'Push dulu (bila layak masuk upstream), atau pindahkan perubahan ke luar zona framework.',
+      `Kustomisasi permanen pada ${GENERATED_AUTH_SETUP}? Tambahkan // ${PRESERVE_MARKER} di baris atas file itu — update melewatinya otomatis.`,
     ];
     if (options.checkOnly) {
       printWarn(detail.join('\n'));
@@ -581,7 +629,7 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
   outcome.preserved = applyResult.preserved;
   for (const file of applyResult.preserved) {
     printWarn(
-      `${file} punya kustomisasi QA (// ${PRESERVE_MARKER}) — TIDAK ditimpa. Periksa manual bila upstream mengubahnya.`,
+      `${file} punya kustomisasi QA (// ${PRESERVE_MARKER} atau // ${PRESERVE_MARKER_LEGACY}) — TIDAK ditimpa. Periksa manual bila upstream mengubahnya.`,
     );
   }
 

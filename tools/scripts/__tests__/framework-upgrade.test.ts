@@ -9,6 +9,7 @@
  *   - --check touches nothing
  *   - apply stages changes, deletes removed files, leaves QA files byte-identical
  *   - generated auth.setup.ts: preserve on marker, replace + .bak otherwise
+ *   - marker-bearing auth.setup.ts never blocks the dirty guard (uncommitted or not)
  */
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
@@ -22,6 +23,7 @@ import {
   firstChangelogSection,
   FRAMEWORK_PATHS,
   GENERATED_AUTH_SETUP,
+  hasCustomizationMarker,
   inFrameworkZone,
   findRiskyLocalFrameworkCommits,
   packageVersion,
@@ -31,6 +33,7 @@ import {
   shouldPreserveGeneratedFile,
   UpgradeError,
 } from '../framework-upgrade';
+import { generateAuthSetupContent } from '../wizard-auth-template';
 
 let passed = 0;
 
@@ -108,6 +111,31 @@ check('shouldPreserveGeneratedFile only for marker-bearing auth.setup.ts', () =>
   );
   assert.equal(shouldPreserveGeneratedFile(GENERATED_AUTH_SETUP, 'plain generated code'), false);
   assert.equal(shouldPreserveGeneratedFile('src/support/other.ts', '// CUSTOM_AUTH_FLOW'), false);
+});
+
+check('marker detection is line-anchored: a docstring MENTION does not mark a file', () => {
+  // The generated template's own docstring teaches the marker — if a mention
+  // counted, every fresh file would be born "customized" and the wizard could
+  // never regenerate it (regression: the .bak test above went red).
+  assert.equal(hasCustomizationMarker('// CUSTOM_AUTH_FLOW\nexport const x = 1;\n'), true);
+  assert.equal(hasCustomizationMarker('// KUSTOM_LOGIN_FLOW\nexport const x = 1;\n'), true);
+  assert.equal(
+    hasCustomizationMarker(' * add // CUSTOM_AUTH_FLOW at the top of this file\n'),
+    false,
+  );
+  assert.equal(hasCustomizationMarker('const x = "CUSTOM_AUTH_FLOW";\n'), false);
+  assert.equal(
+    shouldPreserveGeneratedFile(
+      GENERATED_AUTH_SETUP,
+      generateAuthSetupContent({
+        roles: [{ name: 'user', authFile: '.auth/local/user.json' }],
+        loginUrl: '/login',
+        successUrlPath: '/dashboard',
+      }),
+    ),
+    false,
+    'freshly generated auth.setup.ts must NOT be treated as customized',
+  );
 });
 
 check(
@@ -362,5 +390,85 @@ try {
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
+
+// ─── Marker-aware dirty guard (unit) ─────────────────────────────────────────
+// The marker-bearing generated auth.setup.ts is preserved by applyZoneDiff, so
+// the dirty guard must not block on it — QA edits it locally and runs upgrade
+// without committing. Real file content is read via markerAwareBaseDir.
+
+process.stdout.write('\nmarker-aware dirty guard\n');
+
+check('marker-bearing auth.setup.ts is waived by the guard; unmarked still blocks', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-guard-marker-'));
+  try {
+    write(base, GENERATED_AUTH_SETUP, '// CUSTOM_AUTH_FLOW\nexport const custom = true;\n');
+    // Marker present (uncommitted) → waived.
+    assert.doesNotThrow(() =>
+      assertCleanWorktree([{ status: ' M', file: GENERATED_AUTH_SETUP }], FRAMEWORK_PATHS, base),
+    );
+    // Legacy marker is honoured too.
+    write(base, GENERATED_AUTH_SETUP, '// KUSTOM_LOGIN_FLOW\nexport const custom = true;\n');
+    assert.doesNotThrow(() =>
+      assertCleanWorktree([{ status: ' M', file: GENERATED_AUTH_SETUP }], FRAMEWORK_PATHS, base),
+    );
+    // Without the marker the guard blocks — the file would be overwritten.
+    write(base, GENERATED_AUTH_SETUP, 'plain generated code\n');
+    assert.throws(
+      () =>
+        assertCleanWorktree([{ status: ' M', file: GENERATED_AUTH_SETUP }], FRAMEWORK_PATHS, base),
+      (err: unknown) =>
+        err instanceof UpgradeError && /CUSTOM_AUTH_FLOW/.test((err as Error).message),
+    );
+    // No baseDir (pure call) stays conservative.
+    assert.throws(() =>
+      assertCleanWorktree([{ status: ' M', file: GENERATED_AUTH_SETUP }], FRAMEWORK_PATHS),
+    );
+    // Other framework files are unaffected by the waiver.
+    assert.throws(() =>
+      assertCleanWorktree([{ status: ' M', file: 'src/x.ts' }], FRAMEWORK_PATHS, base),
+    );
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
+check('marker-bearing auth.setup.ts does not block runUpgrade (uncommitted local edit)', () => {
+  const tmp3 = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-guard-run-'));
+  const up = path.join(tmp3, 'up');
+  const qa3 = path.join(tmp3, 'qa');
+  try {
+    fs.mkdirSync(up, { recursive: true });
+    git(up, ['init', '-q', '-b', 'main']);
+    git(up, ['config', 'user.email', 'm@t.local']);
+    git(up, ['config', 'user.name', 'M']);
+    write(up, 'package.json', '{"name":"qa-playwright-kit","version":"0.1.0"}');
+    write(up, GENERATED_AUTH_SETUP, 'generated v1\n');
+    commitAll(up, 'v1');
+
+    fs.mkdirSync(qa3, { recursive: true });
+    git(qa3, ['init', '-q', '-b', 'main']);
+    git(qa3, ['config', 'user.email', 'q@t.local']);
+    git(qa3, ['config', 'user.name', 'Q']);
+    git(qa3, ['remote', 'add', 'origin', up]);
+    git(qa3, ['fetch', '-q', 'origin', 'main']);
+    git(qa3, ['reset', '-q', '--hard', 'FETCH_HEAD']);
+    git(qa3, ['remote', 'remove', 'origin']);
+
+    // Upstream changes the template; QA customizes locally WITH the marker, uncommitted.
+    write(up, GENERATED_AUTH_SETUP, 'generated v2\n');
+    commitAll(up, 'v2');
+    write(qa3, GENERATED_AUTH_SETUP, '// CUSTOM_AUTH_FLOW\ngenerated v1 + QA steps\n');
+
+    // Guard waived → upgrade proceeds; apply preserves the QA file.
+    const outcome = runUpgrade(qa3, { checkOnly: false, source: up, ref: 'main' });
+    assert.deepEqual(outcome.updated, [GENERATED_AUTH_SETUP]);
+    assert.deepEqual(outcome.preserved, [GENERATED_AUTH_SETUP]);
+    assert.equal(read(qa3, GENERATED_AUTH_SETUP), '// CUSTOM_AUTH_FLOW\ngenerated v1 + QA steps\n');
+    // Uncommitted local edit is still uncommitted — upgrade did not stage it.
+    assert.ok(!git(qa3, ['diff', '--cached', '--name-only']).stdout.includes(GENERATED_AUTH_SETUP));
+  } finally {
+    fs.rmSync(tmp3, { recursive: true, force: true });
+  }
+});
 
 process.stdout.write(`\n${passed} checks passed\n`);

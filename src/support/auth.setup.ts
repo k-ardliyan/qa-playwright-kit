@@ -31,7 +31,8 @@ import { resolveAppUrl } from './app-url';
  *
  * Runs once during setup project to materialize .auth/{APP_ENV}/<role>.json.
  * If your app requires extra login steps (profile picker, tenant selector, 2-step login),
- * you can customize the steps inside without fear of being overwritten.
+ * you can customize the steps inside — add // CUSTOM_AUTH_FLOW at the top of this
+ * file first; then npm run setup / env:edit / npm run upgrade all leave it alone.
  *
  * Run: npm run auth:setup  |  npm run auth:setup:headed
  */
