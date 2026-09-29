@@ -28,7 +28,7 @@ test.describe('MCP Capability Manifest (MCP-006)', () => {
     expect(isValidCapability('nonexistent')).toBe(false);
   });
 
-  test('returns tool list for valid capabilities (real 0.0.79 surface)', () => {
+  test('returns tool list for valid capabilities (real 0.0.83 surface)', () => {
     const coreTools = getCapabilityTools('core');
     expect(coreTools).toContain('browser_navigate');
     expect(coreTools).toContain('browser_snapshot');
@@ -54,18 +54,17 @@ test.describe('MCP Capability Manifest (MCP-006)', () => {
   });
 
   test('every manifest tool name exists in the installed server surface', () => {
-    // Fixture extracted from the actually installed @playwright/mcp 0.0.79
-    // playwright-core bundle (79 browser_* tools). If this fails, the manifest
-    // drifted from the pinned server and agent instructions will emit
-    // 'unknown tool' errors.
+    // Fixture extracted from the actually installed @playwright/mcp 0.0.83 by
+    // probing `tools/list` over stdio for every --caps set (72 exposed tools —
+    // identical to 0.0.82). Bundle-only names the server does NOT expose
+    // (browser_reload, browser_check, browser_keydown, browser_navigate_forward,
+    // browser_console_clear, browser_network_clear, browser_webmcp_list) must
+    // stay out: agents calling them get 'unknown tool'.
     const installedSurface = [
       'browser_annotate',
-      'browser_check',
       'browser_click',
       'browser_close',
-      'browser_console_clear',
       'browser_console_messages',
-      'browser_context_args',
       'browser_cookie_clear',
       'browser_cookie_delete',
       'browser_cookie_get',
@@ -73,6 +72,7 @@ test.describe('MCP Capability Manifest (MCP-006)', () => {
       'browser_cookie_set',
       'browser_drag',
       'browser_drop',
+      'browser_emulate_media',
       'browser_evaluate',
       'browser_file_upload',
       'browser_fill_form',
@@ -83,8 +83,6 @@ test.describe('MCP Capability Manifest (MCP-006)', () => {
       'browser_hide_highlight',
       'browser_highlight',
       'browser_hover',
-      'browser_keydown',
-      'browser_keyup',
       'browser_localstorage_clear',
       'browser_localstorage_delete',
       'browser_localstorage_get',
@@ -98,15 +96,11 @@ test.describe('MCP Capability Manifest (MCP-006)', () => {
       'browser_mouse_wheel',
       'browser_navigate',
       'browser_navigate_back',
-      'browser_navigate_forward',
-      'browser_network_clear',
       'browser_network_request',
       'browser_network_requests',
       'browser_network_state_set',
       'browser_pdf_save',
       'browser_press_key',
-      'browser_press_sequentially',
-      'browser_reload',
       'browser_resize',
       'browser_resume',
       'browser_route',
@@ -120,15 +114,16 @@ test.describe('MCP Capability Manifest (MCP-006)', () => {
       'browser_sessionstorage_set',
       'browser_set_storage_state',
       'browser_snapshot',
+      'browser_start_recording',
       'browser_start_tracing',
       'browser_start_video',
+      'browser_stop_recording',
       'browser_stop_tracing',
       'browser_stop_video',
       'browser_storage_state',
       'browser_tabs',
       'browser_take_screenshot',
       'browser_type',
-      'browser_uncheck',
       'browser_unroute',
       'browser_verify_element_visible',
       'browser_verify_list_visible',

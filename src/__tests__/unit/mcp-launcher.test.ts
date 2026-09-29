@@ -47,11 +47,12 @@ test.describe('Playwright MCP Launcher & Config (MCP-017)', () => {
 
     expect(cliArgs).toContain('--headless');
     expect(cliArgs).toContain('--isolated');
-    // author has no additive caps (core/testing/storage/config are 0.0.79 base caps)
-    expect(cliArgs.some((a) => a.startsWith('--caps='))).toBe(false);
+    // The profile's full capability set is passed (0.0.82 honors every name;
+    // restricting to the advertised additive values silently disabled testing).
+    expect(cliArgs).toContain('--caps=core,testing,storage,config');
     expect(cliArgs.some((a) => a.startsWith('--output-dir='))).toBe(true);
     expect(cliArgs.some((a) => a.startsWith('--storage-state='))).toBe(true);
-    // installed 0.0.79 expects semicolon-separated origins
+    // installed 0.0.82 expects semicolon-separated origins
     const originsArg = cliArgs.find((a) => a.startsWith('--allowed-origins='));
     expect(originsArg).toBeDefined();
     expect(originsArg!.includes(',')).toBe(false);
@@ -65,18 +66,18 @@ test.describe('Playwright MCP Launcher & Config (MCP-017)', () => {
     expect(originsArg).toBe('--allowed-origins=https://app.test;https://api.app.test');
   });
 
-  test('passes only CLI-additive capabilities to --caps per profile', () => {
+  test('passes the full capability set to --caps per profile', () => {
     const author = buildPlaywrightMcpArgs(resolveLauncherConfig(['--profile=author']));
-    expect(author.some((a) => a.startsWith('--caps='))).toBe(false);
+    expect(author).toContain('--caps=core,testing,storage,config');
 
     const debug = buildPlaywrightMcpArgs(resolveLauncherConfig(['--profile=debug']));
-    expect(debug).toContain('--caps=devtools');
+    expect(debug).toContain('--caps=core,testing,storage,network,devtools,config');
 
     const visual = buildPlaywrightMcpArgs(resolveLauncherConfig(['--profile=visual']));
-    expect(visual).toContain('--caps=vision');
+    expect(visual).toContain('--caps=core,vision,config');
 
     const artifact = buildPlaywrightMcpArgs(resolveLauncherConfig(['--profile=artifact']));
-    expect(artifact).toContain('--caps=pdf');
+    expect(artifact).toContain('--caps=core,pdf,config');
   });
 
   test('omits the framework-default browser and passes explicit engines', () => {

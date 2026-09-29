@@ -182,6 +182,21 @@ generate_page_object (qa-playwright-kit) — featureName, pageName
 
 ---
 
+## Eksplorasi Live dengan Browser MCP (0.0.83)
+
+| Kebutuhan                                     | Tool                                                                           |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| Cek mode gelap / layout cetak saat eksplorasi | `browser_emulate_media` (`colorScheme`, `media`, `reducedMotion`, `contrast`)  |
+| Rekam walkthrough manual → draft kode         | `browser_start_recording` → `browser_stop_recording`                           |
+| Cari teks/elemen tanpa snapshot penuh         | `browser_find` (hanya node yang cocok + konteks; `filename` untuk hasil besar) |
+| Jalankan JS sekali (escape hatch)             | `browser_evaluate` / `browser_run_code_unsafe`                                 |
+
+> `browser_emulate_media` hanya mengubah preferensi CSS — kalau tema disimpan di `localStorage`/profil user, set state aplikasinya dulu. Hasil rekaman **bukan** spec siap pakai (tanpa `test.step`/`setTestMetadata`). Detail: `skills/qa-playwright-kit/references/patterns/media-emulation-and-recording.md`.
+>
+> Tool bundle yang **tidak** diekspos MCP (jangan dipanggil): `browser_reload`, `browser_check`, `browser_keydown`, `browser_navigate_forward`, `browser_console_clear`, `browser_network_clear`.
+
+---
+
 ## Tipe Skenario
 
 | Tag                     | Artinya                                                 |

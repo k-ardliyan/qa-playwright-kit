@@ -108,6 +108,7 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 | Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                         |
 | Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                                |
 | Resolusi `ERR_BLOCKED_BY_CLIENT` & Browser MCP Checklist    | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                        |
+| Emulasi tema/print & pencarian hemat token (MCP 0.0.83)     | [media-emulation-and-recording.md](references/patterns/media-emulation-and-recording.md)                |
 | Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                            |
 | SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                                |
 | Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                                     |

@@ -150,12 +150,16 @@ List every tool explicitly by server:
     - Vision mode → fallback only when semantic accessibility tree is unavailable
   - **Capabilities:**
     - Navigation: `browser_navigate`, `browser_navigate_back`, `browser_tabs`
-    - Inspection: `browser_snapshot`, `browser_take_screenshot`
+    - Inspection: `browser_snapshot`, `browser_take_screenshot`, `browser_find`
+    - Token-efficient search (0.0.83+): `browser_find` returns only matching snapshot nodes with surrounding context, not the whole tree — cheaper than `browser_snapshot` when you just need to locate an element. Pass `filename` to write matches to a file instead of the response (use it on very large result sets). `browser_wait_for` caps `time` at 30s and now reports when it does.
     - Interaction: `browser_click`, `browser_type`, `browser_fill_form`, `browser_select_option`, `browser_press_key`, `browser_hover`, `browser_wait_for`
     - Live Testing: `browser_generate_locator`, `browser_verify_element_visible`, `browser_verify_text_visible`, `browser_verify_value`
     - Diagnostics (Heal/Debug): `browser_console_messages`, `browser_network_requests`, `browser_start_tracing`, `browser_stop_tracing`
+    - Media/theme checks (0.0.82+): `browser_emulate_media` — flip `colorScheme` (light/dark), `reducedMotion`, `forcedColors`, `contrast`, `media` (screen/print) mid-session. Use it to verify a dark-theme or print-layout requirement without a new browser launch.
+    - Demo capture (0.0.82+): `browser_start_recording` / `browser_stop_recording` — record a manual flow and get Playwright code back; Generator may use it to draft a spec from a QA walkthrough.
     - Storage/Auth: `browser_storage_state`, `browser_set_storage_state` (+ cookie/localstorage tools)
-  - **Constraints:** `browser_run_code_unsafe` is an escape hatch only; MCP element `ref`s are ephemeral and must NEVER be persisted as test selectors.
+  - **Profile → `--caps`:** each intent profile passes its full capability set (`author` → `core,testing,storage,config`; `debug` → `+network,devtools`). The installed CLI honors every capability name; only `vision`/`pdf`/`devtools` are *advertised* in `--help`.
+  - **Constraints:** `browser_run_code_unsafe` is an escape hatch only; MCP element `ref`s are ephemeral and must NEVER be persisted as test selectors. Tools that exist in the server bundle but are NOT exposed over MCP (`browser_reload`, `browser_check`, `browser_keydown`, `browser_navigate_forward`, `browser_console_clear`, `browser_network_clear`, `browser_webmcp_list`) must never be referenced — calling them returns "unknown tool".
 - **playwright-cli** (shell skill — Generator live verification, preferred when available)
   - `npx playwright test --debug=cli` + `playwright-cli attach tw-XXXX`
 

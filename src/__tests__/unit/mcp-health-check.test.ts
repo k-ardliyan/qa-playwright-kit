@@ -4,29 +4,30 @@ import {
   normalizePinnedVersion,
   healthCheck,
 } from '../../../tools/mcp/src/tools/health-check';
+import { PLAYWRIGHT_MCP_BASELINE_VERSION } from '../../shared/mcp/version';
 
 test.describe('MCP Health Check expected-vs-installed (MCP-005)', () => {
   test('reports ok when installed matches the expected baseline', () => {
-    const r = assessPlaywrightMcp('0.0.80', '0.0.80');
+    const r = assessPlaywrightMcp('0.0.83', '0.0.83');
     expect(r.status).toBe('ok');
-    expect(r.message).toContain('expected: 0.0.80');
+    expect(r.message).toContain('expected: 0.0.83');
   });
 
   test('reports warn (not hard fail) when installed mismatches', () => {
-    const r = assessPlaywrightMcp('0.0.79', '0.0.80');
+    const r = assessPlaywrightMcp('0.0.82', '0.0.83');
     expect(r.status).toBe('warn');
-    expect(r.message).toContain('0.0.79');
-    expect(r.message).toContain('expected baseline is 0.0.80');
+    expect(r.message).toContain('0.0.82');
+    expect(r.message).toContain('expected baseline is 0.0.83');
   });
 
   test('reports fail when MCP is missing entirely', () => {
-    const r = assessPlaywrightMcp(null, '0.0.80');
+    const r = assessPlaywrightMcp(null, '0.0.83');
     expect(r.status).toBe('fail');
     expect(r.message).toContain('npm install');
   });
 
   test('tolerates an unknown expected baseline', () => {
-    const r = assessPlaywrightMcp('0.0.80', null);
+    const r = assessPlaywrightMcp('0.0.83', null);
     expect(r.status).toBe('ok');
     expect(r.name).toBe('playwright_mcp');
   });
@@ -34,9 +35,18 @@ test.describe('MCP Health Check expected-vs-installed (MCP-005)', () => {
 
 test.describe('Pinned baseline parser (health check)', () => {
   test('extracts the exact version from caret, tilde, and bare specs', () => {
-    expect(normalizePinnedVersion('^0.0.80')).toBe('0.0.80');
-    expect(normalizePinnedVersion('~0.0.80')).toBe('0.0.80');
-    expect(normalizePinnedVersion('0.0.80')).toBe('0.0.80');
+    expect(normalizePinnedVersion('^0.0.83')).toBe('0.0.83');
+    expect(normalizePinnedVersion('~0.0.83')).toBe('0.0.83');
+    expect(normalizePinnedVersion('0.0.83')).toBe('0.0.83');
+  });
+
+  test('health check message agrees with the canonical baseline constant', () => {
+    // Drift guard: the literals above are convenient but can silently go stale
+    // after a version bump (they were on 0.0.82 while the baseline was already
+    // 0.0.83). This derives the expectation from the source of truth instead.
+    const r = assessPlaywrightMcp(PLAYWRIGHT_MCP_BASELINE_VERSION, PLAYWRIGHT_MCP_BASELINE_VERSION);
+    expect(r.status).toBe('ok');
+    expect(r.message).toContain(`expected: ${PLAYWRIGHT_MCP_BASELINE_VERSION}`);
   });
 
   test('returns null for missing or unpinnable specs', () => {

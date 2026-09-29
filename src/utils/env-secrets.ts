@@ -127,7 +127,14 @@ function runDotenvx(args: string, cwd: string, filePath?: string): string {
   // always fails. `npx` remains the fallback for images that install on demand.
   const localBinary = resolveLocalDotenvx();
   const command = localBinary ? `"${localBinary}"` : 'npx @dotenvx/dotenvx';
-  return execSync(`${command} ${args}`, {
+  // `--no-native`: dotenvx >= 2.31 otherwise hands the private key to the OS
+  // secret store instead of writing `<envDir>/.env.keys`, so the framework's
+  // file-based key model (resolveKeysFile / ~/.dotenvx-keys migration) finds
+  // nothing and every decrypt fails. Keep keys in files — that is what the
+  // repo, the wizard, and CI all read. `--no-armor` avoids the newer armor
+  // envelope for the same reason: the file format must stay plain dotenvx.
+  const argsWithFlags = args.includes('--no-native') ? args : `${args} --no-native`;
+  return execSync(`${command} ${argsWithFlags}`, {
     cwd,
     encoding: 'utf-8',
     env: buildChildEnv(filePath),

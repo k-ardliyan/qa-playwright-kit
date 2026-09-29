@@ -12,7 +12,7 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MC
 
 [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
-[![Playwright](https://img.shields.io/badge/playwright-1.62+-45ba4b?style=flat-square&logo=playwright&logoColor=white)](https://playwright.dev)
+[![Playwright](https://img.shields.io/badge/playwright-1.63+-45ba4b?style=flat-square&logo=playwright&logoColor=white)](https://playwright.dev)
 [![TypeScript](https://img.shields.io/badge/typescript-5.9+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.30+-A23B72?style=flat-square&logo=protocol&logoColor=white)](https://modelcontextprotocol.io)
 
@@ -339,7 +339,7 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 | Layer         | Tools                                                  |
 | ------------- | ------------------------------------------------------ |
 | **Runtime**   | Node.js >= 20.19 · TypeScript 5.9+                     |
-| **Testing**   | Playwright 1.62+ · MCP SDK 1.30+                       |
+| **Testing**   | Playwright 1.63+ · MCP SDK 1.30+                       |
 | **AI Agent**  | Hermes Agent · Claude                                  |
 | **Security**  | dotenvx after setup (secret keys only, not whole file) |
 | **CI/CD**     | GitHub Actions · Husky (pre-commit)                    |

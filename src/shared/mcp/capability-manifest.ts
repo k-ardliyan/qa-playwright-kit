@@ -2,8 +2,16 @@
  * Canonical capability manifest for official @playwright/mcp integration.
  * Represents framework expectations of official MCP capabilities and tools.
  *
- * Tool names verified against the ACTUAL installed server surface
- * (`@playwright/mcp` 0.0.80): browser capability manifest.
+ * Tool names verified against the ACTUAL EXPOSED surface of the installed
+ * server (`@playwright/mcp` 0.0.83) by probing `tools/list` over stdio for
+ * every `--caps` set — 72 tools (unchanged from 0.0.82). Bundle-only names the
+ * server does NOT expose over MCP (`browser_reload`, `browser_check`,
+ * `browser_uncheck`, `browser_keydown`, `browser_keyup`,
+ * `browser_press_sequentially`, `browser_navigate_forward`,
+ * `browser_console_clear`, `browser_network_clear`, `browser_webmcp_list` /
+ * `browser_webmcp_call`) are deliberately absent: an agent calling them gets
+ * "unknown tool". Re-probe after every version bump
+ * (maintainer skill: `references/mcp-cli-contract.md`).
  */
 
 export interface CapabilityManifest {
@@ -23,9 +31,6 @@ export const PLAYWRIGHT_MCP_CAPABILITY_MANIFEST: CapabilityManifest = {
   core: [
     'browser_navigate',
     'browser_navigate_back',
-    'browser_navigate_forward',
-    'browser_reload',
-    'browser_close',
     'browser_tabs',
     'browser_snapshot',
     'browser_take_screenshot',
@@ -42,20 +47,15 @@ export const PLAYWRIGHT_MCP_CAPABILITY_MANIFEST: CapabilityManifest = {
     'browser_handle_dialog',
     'browser_file_upload',
     'browser_find',
-    'browser_annotate',
-    'browser_highlight',
-    'browser_hide_highlight',
-    'browser_check',
-    'browser_uncheck',
-    'browser_press_sequentially',
-    'browser_keydown',
-    'browser_keyup',
+    'browser_evaluate',
+    'browser_emulate_media',
+    'browser_console_messages',
+    'browser_network_request',
+    'browser_network_requests',
+    'browser_close',
     'browser_run_code_unsafe',
   ] as const,
   network: [
-    'browser_network_requests',
-    'browser_network_request',
-    'browser_network_clear',
     'browser_network_state_set',
     'browser_route',
     'browser_unroute',
@@ -97,8 +97,12 @@ export const PLAYWRIGHT_MCP_CAPABILITY_MANIFEST: CapabilityManifest = {
   ] as const,
   pdf: ['browser_pdf_save'] as const,
   devtools: [
-    'browser_console_messages',
-    'browser_console_clear',
+    'browser_annotate',
+    'browser_highlight',
+    'browser_hide_highlight',
+    'browser_resume',
+    'browser_start_recording',
+    'browser_stop_recording',
     'browser_start_tracing',
     'browser_stop_tracing',
     'browser_start_video',
@@ -122,10 +126,16 @@ export const ALL_MCP_CAPABILITIES: readonly McpCapability[] = [
 ] as const;
 
 /**
- * Capabilities the installed @playwright/mcp CLI (0.0.80) accepts in `--caps`.
- * core/network/storage/testing/config are base/default capabilities in 0.0.80
- * and cannot be toggled via the CLI — they remain in the logical manifest and in
- * profile definitions, but only these additive values may be passed to --caps.
+ * Capabilities the installed CLI ADVERTISES in its `--caps` help text.
+ *
+ * Do not read this as "the only values `--caps` accepts". The CLI honors every
+ * capability name in ALL_MCP_CAPABILITIES — verified against 0.0.83, 0.0.82
+ * AND 0.0.80 by diffing a live `tools/list` against the default surface: `--caps=storage`
+ * adds the 17 storage tools, `--caps=testing` the 5 testing tools,
+ * `--caps=config` browser_get_config, `--caps=network` the 4 route tools.
+ * Unknown values are silently ignored (exit 0). This list is therefore the
+ * advertised subset that `npm run mcp:check` verifies the installed help text
+ * still mentions — NOT a launcher allowlist.
  */
 export const PLAYWRIGHT_MCP_CLI_ADDITIVE_CAPABILITIES: readonly McpCapability[] = [
   'vision',
