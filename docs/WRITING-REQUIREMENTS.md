@@ -82,9 +82,11 @@ Jika tidak diberi tag tipe, skenario dianggap `(@success)` secara default.
 Tambahkan field berikut jika fitur berbeda per role bisnis:
 
 ```markdown
-- **Role scope:** super-admin, finance
-- **Access expectation:** super-admin: bisa approve dan reject; finance: bisa approve; hrd: tidak bisa mengakses
-- **Risk level:** high
+| Field | Nilai |
+| --- | --- |
+| Role scope | super-admin, finance |
+| Access expectation | super-admin: bisa approve dan reject; finance: bisa approve; hrd: tidak bisa mengakses |
+| Risk level | high |
 ```
 
 Validator akan memberi warning jika:
@@ -108,18 +110,10 @@ Lihat panduan lengkap: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md)
 Jika login butuh company/tenant, tulis tenant di **Input Data** dengan prefix `credential:` — jangan hardcode nilainya di langkah:
 
 ```markdown
-**Input Data:**
-
-- companyCode: credential:finance.company
-- email: credential:finance.email
-- password: credential:finance.password
-
-**Langkah:**
-
-1. Pilih/isi kode company sesuai konfigurasi tenant
-2. Ketik email di field Email
-3. Ketik password di field Password
-4. Klik tombol "Masuk"
+| Field | Nilai |
+| --- | --- |
+| Input Data | `companyCode: credential:finance.company`<br>`email: credential:finance.email`<br>`password: credential:finance.password` |
+| Langkah | 1. Pilih/isi kode company sesuai konfigurasi tenant<br>2. Ketik email di field Email<br>3. Ketik password di field Password<br>4. Klik tombol "Masuk" |
 ```
 
 Katalog siap pakai: [`requirements/auth/login-multi-tenant.md`](../requirements/auth/login-multi-tenant.md).
@@ -158,12 +152,16 @@ FORMAT YANG HARUS DIIKUTI:
 # REQ-XXX: [Judul Fitur]
 
 ## Metadata
-- **Tags:** #<tag1> #<tag2>
-- **Prioritas:** high / medium / low
-- **Auth state:** unauthenticated / authenticated
-- **Halaman awal:** /path-halaman
+| Field | Nilai |
+| --- | --- |
+| Tags | #<tag1> #<tag2> |
+| Prioritas | high / medium / low |
+| Auth state | unauthenticated / authenticated |
+| Halaman awal | /path-halaman |
 - **POM yang dibutuhkan:** namaPage (opsional)
-- **Role scope:** role1, role2 (HANYA jika fitur berbeda per role)
+| Field | Nilai |
+| --- | --- |
+| Role scope | role1, role2 (HANYA jika fitur berbeda per role) |
 - **Access expectation:** role1: bisa X; role2: tidak bisa X (HANYA jika Role scope diisi)
 
 ## Kriteria Penerimaan
@@ -173,28 +171,27 @@ FORMAT YANG HARUS DIIKUTI:
 ## Skenario Uji
 
 ### SC-01: [Nama Skenario] (@success)
-**Prekondisi:** [kondisi awal]
-**Langkah:**
-1. [langkah 1]
-2. [langkah 2]
-**Hasil:**
-- [hasil observable — URL, teks, elemen visible]
+
+| Field | Nilai |
+| --- | --- |
+
+| Field | Nilai |
+| --- | --- |
+| Prekondisi | [kondisi awal] |
+| Langkah | 1. [langkah 1]<br>2. [langkah 2] |
+| Hasil yang Diharapkan | [hasil observable — URL, teks, elemen visible] |
 
 ### SC-02: [Nama Skenario] (@failure)
-**Prekondisi:** [kondisi awal]
-**Langkah:**
-1. [langkah 1]
-**Hasil:**
-- [pesan error atau kondisi gagal yang observable]
 
-ATURAN PENTING:
-- Hasil HARUS observable: URL, teks visible, elemen tampil/hilang
-- JANGAN tulis "sistem bekerja dengan baik" — itu tidak observable
-- Tandai (@manual) di judul skenario yang butuh CAPTCHA / OTP / biometric
-- Setiap skenario harus punya Langkah dan Hasil
+| Field | Nilai |
+| --- | --- |
 
-CATATAN SAYA:
-[paste catatan Anda di sini]
+| Field | Nilai |
+| --- | --- |
+| Prekondisi | [kondisi awal] |
+| Langkah | 1. [langkah 1] |
+| Hasil yang Diharapkan | [pesan error atau kondisi gagal yang observable]<br>ATURAN PENTING:<br>Hasil HARUS observable: URL, teks visible, elemen tampil/hilang<br>JANGAN tulis "sistem bekerja dengan baik" — itu tidak observable<br>Tandai (@manual) di judul skenario yang butuh CAPTCHA / OTP / biometric<br>Setiap skenario harus punya Langkah dan Hasil<br>CATATAN SAYA:<br>[paste catatan Anda di sini] |
+
 ```
 
 ### Langkah setelah AI selesai

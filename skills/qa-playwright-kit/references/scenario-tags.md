@@ -91,14 +91,10 @@ Not sure?
 ```markdown
 ### SC-05: Seed invoice via API then verify it appears in the UI (@success @hybrid)
 
-- **Test ID:** TC-INV-005
-- **Covers:** AC-02
-
-**Langkah:**
-1. Create invoice data via API seed
-2. Open the invoice list page
-3. Verify the new invoice appears in the table
-
-**Hasil yang Diharapkan:**
-- Invoice with the matching number appears in the first row of the table
+| Field | Nilai |
+| --- | --- |
+| Test ID | TC-INV-005 |
+| Covers | AC-02 |
+| Langkah | 1. Create invoice data via API seed<br>2. Open the invoice list page<br>3. Verify the new invoice appears in the table |
+| Hasil yang Diharapkan | - Invoice with the matching number appears in the first row of the table |
 ```

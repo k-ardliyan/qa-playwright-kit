@@ -10,6 +10,10 @@ Skenario yang ditandai `(@manual)` di judul `### SC-XX: ...` berarti tidak bisa 
 
 ```markdown
 ### SC-04: Login dengan Google OAuth (@manual)
+
+| Field | Nilai |
+| --- | --- |
+
 ```
 
 ---
@@ -85,6 +89,10 @@ Kalau ragu, tanya maintainer framework dulu sebelum tandai `(@manual)`.
 
 ```markdown
 ### SC-04: Login dengan Google OAuth (@manual)
+
+| Field | Nilai |
+| --- | --- |
+
 ```
 
 ### Step 2: Jelaskan alasan di bagian Hasil
@@ -92,18 +100,15 @@ Kalau ragu, tanya maintainer framework dulu sebelum tandai `(@manual)`.
 ```markdown
 ### SC-04: Login dengan Google OAuth (@manual)
 
-**Prekondisi:** Pengguna di halaman login, Google OAuth aktif
+| Field | Nilai |
+| --- | --- |
 
-**Langkah:**
+| Field | Nilai |
+| --- | --- |
+| Prekondisi | Pengguna di halaman login, Google OAuth aktif |
+| Langkah | 1. Buka halaman login<br>2. Klik tombol "Login dengan Google"<br>3. Ikuti flow OAuth Google |
+| Hasil yang Diharapkan | Login berhasil dan user diarahkan ke dashboard — tidak bisa diotomasi<br>karena butuh akses akun Google nyata dan OAuth consent screen |
 
-1. Buka halaman login
-2. Klik tombol "Login dengan Google"
-3. Ikuti flow OAuth Google
-
-**Hasil:**
-
-- Login berhasil dan user diarahkan ke dashboard — tidak bisa diotomasi
-  karena butuh akses akun Google nyata dan OAuth consent screen
 ```
 
 Validator akan memberi warning jika `@manual` tidak punya alasan di bagian Hasil.

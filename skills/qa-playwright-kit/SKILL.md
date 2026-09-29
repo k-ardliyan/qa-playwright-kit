@@ -122,7 +122,7 @@ For new, unknown, or changed interactive flows, gather evidence first via `qa-pl
 
 ### 2. Model (02. Model — SHARED MODEL)
 
-Draft or revise `requirements/<feature>.md` from `requirements/_TEMPLATE.md`. Business language only — no Playwright APIs. Required fields: `# REQ-` title, `Module` in Metadata, `AC-XX` IDs, and each `SC-XX` with Test ID, Covers, `**Langkah:**`, `**Hasil yang Diharapkan:**`, `**Input Data:**`. Validate with `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`.
+Draft or revise `requirements/<feature>.md` from `requirements/_TEMPLATE.md`. Business language only — no Playwright APIs. **Format is tables**: a `## Metadata` table, a `| ID | Kriteria |` acceptance-criteria table, and one `| Field | Nilai |` table per scenario carrying `Test ID`, `Covers`, `Langkah`, `Hasil yang Diharapkan` (and `Input Data` / `Prekondisi` / `Role` when relevant). Multiple items inside one cell are separated by `<br>`; a literal pipe is escaped `\|`. Validate with `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`.
 Load `.github/agents/planner.agent.md`. Compile via `qa-playwright-kit:compile_requirement` and write `specs/<feature>-test-plan.md`.
 
 ### 3. Challenge (03. Challenge — THE GATE)
