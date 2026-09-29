@@ -66,7 +66,7 @@ test.describe('studio page: form + requirement preview', () => {
     await page.locator('#title').fill('Studio Preview Probe');
     // The page re-renders on 'input'; no sleeps, just expect polling.
     await expect(preview).toContainText('# REQ-XXX: Studio Preview Probe');
-    await expect(preview).toContainText('**Feature:** studio-preview-probe');
+    await expect(preview).toContainText('| Feature | studio-preview-probe |');
     await expect(preview).toContainText('## Skenario Uji');
   });
 
@@ -95,7 +95,7 @@ test.describe('studio page: form + requirement preview', () => {
     const preview = await page.locator('#preview').textContent();
     expect(preview).toContain('### SC-01: User submits wrong password (@success)');
     expect(preview).toContain('### SC-02: studio-multi (@success)');
-    expect(preview).toContain('- **Test ID:** TC-02');
+    expect(preview).toContain('| Test ID | TC-02 |');
 
     // Client builder must equal the server builder for the same input.
     const server = buildRequirementMarkdown({
