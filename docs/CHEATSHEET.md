@@ -95,6 +95,8 @@ Buka `http://localhost:4567/studio` di browser — semua langkah di bawah tanpa 
 | `npm run health:check:strict`                                             | Pre-flight pra-run (sesi expired = gagal)                                                                                                                                    |
 | `npm run note:set`                                                        | Tulis/hapus catatan QA per test (--scenario, --note; kosong = hapus)                                                                                                         |
 | `npm run note:list`                                                       | Lihat semua catatan per run (opsional --run untuk run terarsip)                                                                                                              |
+| `npm run upgrade`                                                         | Update framework dari upstream — staged, tanpa stash (rollback: `git restore --staged --worktree .`)                                                                         |
+| `npm run upgrade:check`                                                   | Preview update: versi + daftar file yang berubah, tanpa menulis apa pun                                                                                                      |
 
 ---
 

@@ -10,6 +10,7 @@ const repoRoot = path.resolve(__dirname, '../../..');
 const standaloneHarnesses = [
   'tools/scripts/__tests__/auth-paths.test.ts',
   'tools/scripts/__tests__/env-edit-lib.test.ts',
+  'tools/scripts/__tests__/framework-upgrade.test.ts',
   'tools/scripts/__tests__/parse-auth-context.test.ts',
   'tools/scripts/__tests__/role-projects.test.ts',
   'tools/scripts/__tests__/wizard-auth-template.test.ts',

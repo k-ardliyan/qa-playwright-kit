@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Framework upgrade tanpa stash (`npm run upgrade`) — 2026-09-29
+
+- **Masalahnya:** update framework ke repo QA selama ini butuh `git stash` → `git pull` → `npm run setup` → stash-pop manual, dan file generated (`src/support/auth.setup.ts`) hampir selalu konflik di pop.
+- **Solusinya:** `npm run upgrade` (`tools/scripts/framework-upgrade.ts`) — `git fetch` dari upstream, hitung diff `HEAD..FETCH_HEAD` **hanya untuk zona framework**, lalu apply per-file via `git checkout FETCH_HEAD -- <file>`. Perubahan masuk **staged**, bukan commit; rollback = `git restore --staged --worktree .`. Tidak ada stash, tidak ada merge, tidak ada pop. `npm run upgrade:check` = preview tanpa menulis apa pun.
+- **Aman secara struktural:** file gitignored (`config/environments/*.env`, `.active-env`, `.auth/**`, `artifacts/**`, `requirements/login.md`) tidak pernah muncul di diff git → mustahil tertimpa. File QA yang di-track (spec, POM, plan) tidak ada di repo upstream → tidak pernah jadi target.
+- **Guard yang diuji nyata (3 hazard probe git):** (1) `git checkout <tree> -- f` menimpa file dirty secara diam-diam → dirty guard berhenti sebelum menulis; (2) file **untracked** dengan path yang sama juga ditimpa diam-diam → guard menolak bila ada untracked ∈ target (sebut nama filenya); (3) repo tanpa shared history (`merge-base` exit 1) → diff tetap jalan karena membandingkan isi, bukan sejarah.
+- **`src/support/auth.setup.ts` tidak pernah jadi korban:** marker `// CUSTOM_AUTH_FLOW` → di-skip + warning; tanpa marker → di-backup `.bak` lalu di-replace. Umumnya QA tidak perlu mengedit file ini (path per-role dibaca dari env).
+- **Deletion tidak otomatis:** file yang hilang di upstream dilaporkan, tidak dihapus — mencegah file QA yang kebetulan berada di direktori framework ikut terhapus (terbukti di test: `.gitignore` milik QA selamat).
+- **Setup tidak diulang:** langkah pasca-update hanya `npm install` → `setup:check` → `syncAgentSkillsAndMcp` (skills + MCP configs + build) → `auth:verify` (sesi di-reuse, tidak dihapus).
+- **Verifikasi:** 14 check harness `tools/scripts/__tests__/framework-upgrade.test.ts` hijau (repo git nyata di tmp) + 5 test `src/__tests__/unit/spawn-bin.test.ts`. E2E nyata: clone repo ini → checkout `HEAD~5` → bootstrap script → `upgrade` → 87 file staged, `node_modules` + `tools/mcp/dist/index-mcp.js` ter-build, spec & env QA utuh, rollback bersih.
+- **Bug pre-existing ditemukan & diperbaiki (dampak: setup wizard + upgrade):** `ensureMcpServerBuild()` menjalankan `spawnSync('npm.cmd', …, { shell: false })` — Node ≥18.20 menolak `.cmd` tanpa shell (EINVAL, hardening CVE-2024-27980), dan `shell: true` gagal ENOENT di host yang tidak punya `cmd.exe` di PATH (Hermes/portable Node). Keduanya menyisakan `status === null`, jadi langkah build MCP **tidak pernah jalan** dan pesan errornya cuma `undefined` (persis yang terlihat di E2E). Kini `src/setup/spawn-bin.ts` mengekspor `npmSpawn()` — jalankan `npm-cli.js` dengan `process.execPath`, tanpa shell, portabel semua OS — dan `agent-sync.ts` memakainya; pesan error menyebut penyebab nyata. Terverifikasi E2E: `tools/mcp/dist/index-mcp.js` ter-build di repo QA.
+- **Bootstrap-safe:** script upgrade berdiri sendiri (resolusi npm CLI-nya sendiri, `syncAgentSkillsAndMcp` dipanggil defensif, keberhasilan dinilai dari **artefak** `tools/mcp/dist/index-mcp.js` bukan laporan helper) — karena saat bootstrap, modul framework yang sudah dimuat di memori masih versi lama.
+
 ### Upgrade `@playwright/mcp` 0.0.83 — 2026-09-29
 
 - **`@playwright/mcp` 0.0.82 → 0.0.83** (root), plus `typescript-eslint` `8.71.0` (root) dan `@modelcontextprotocol/sdk` `1.31.0` (`tools/mcp`). TypeScript tetap di-hold (`5.9.3` / `6.0.3`). Root `playwright`/`playwright-core` tetap di-pin exact `1.63.0` → alpha `1.64.0-alpha-1790635538000` milik MCP ter-nest di `@playwright/mcp/node_modules/` (hoist check lolos).

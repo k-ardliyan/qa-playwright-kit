@@ -246,7 +246,7 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 1. Update framework (perbaikan sudah masuk — root kini di-resolve dari lokasi modul, bukan cwd):
 
    ```bash
-   git pull && npm install && npm run mcp:build
+   npm run upgrade
    ```
 
 2. Restart server MCP di IDE (agar build baru termuat).

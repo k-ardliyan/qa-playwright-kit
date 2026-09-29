@@ -54,6 +54,8 @@
     "test:quality": "npm run install:mcp-server && npm run setup:check && npm run quality:check-code && npm run quality:check-rules && npm run mcp:build && npm run health:check",
     "setup": "tsx src/setup/index.ts",
     "setup:check": "tsx src/setup/index.ts --check",
+    "upgrade": "tsx tools/scripts/framework-upgrade.ts",
+    "upgrade:check": "tsx tools/scripts/framework-upgrade.ts --check",
     "setup:local": "tsx src/setup/index.ts --env local",
     "setup:staging": "tsx src/setup/index.ts --env staging",
     "setup:dev": "tsx src/setup/index.ts --env dev",

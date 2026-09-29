@@ -246,6 +246,8 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 | ----------------------------- | ----------------------------------------- |
 | `npm run setup`               | Setup interaktif (recommended)            |
 | `npm run setup:check`         | Verifikasi setup lokal                    |
+| `npm run upgrade`             | Update framework dari upstream (staged)   |
+| `npm run upgrade:check`       | Preview update tanpa mengubah file        |
 | `npm run health:check`        | Cek MCP + env (sesi expired = warning)    |
 | `npm run health:check:strict` | Pre-flight pra-run (sesi expired = gagal) |
 | `npm run mcp:config`          | Generate MCP config semua platform        |
