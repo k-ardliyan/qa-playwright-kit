@@ -23,6 +23,14 @@ Before writing or editing any file:
 
 > **Context maintenance:** When generated code is incorrect, immediately update the relevant TL;DR in the sub-agent file.
 
+> **Deliver markdown (WAJIB — berlaku untuk file `.md` apa pun):** Setiap kali kamu membuat atau mengubah file markdown — requirement, spec/test-plan, laporan, docs, apa pun — akhiri dengan menyerahkan file itu sebagai artifact, satu baris per file, di barisnya sendiri:
+>
+> ```
+> MEDIA:/absolute/path/to/file.md
+> ```
+>
+> Path absolut (`C:\...` di Windows). Tujuannya: QA bisa **Download** atau buka **Preview** langsung dari chat tanpa perlu tahu path di filesystem. Jangan tempel isi markdown penuh di chat sebagai gantinya — artifact-nya yang dirender.
+
 ---
 
 ## Role
