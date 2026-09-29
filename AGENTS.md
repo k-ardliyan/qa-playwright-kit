@@ -4,7 +4,7 @@
 
 Before writing or editing any file:
 
-1. Read [`ARCHITECTURE.md`](ARCHITECTURE.md) for the project map.
+1. Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the project map.
 2. Load the QA Playwright Kit skill pack: [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) (or via `.agents/skills/qa-playwright-kit/SKILL.md`).
 3. Then use this table to find the specific reference you need.
 

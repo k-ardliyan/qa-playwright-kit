@@ -2,6 +2,16 @@
   "name": "qa-playwright-kit",
   "version": "0.2.0-alpha.1",
   "private": true,
+  "license": "MIT",
+  "author": "k-ardliyan <hi@ka4.dev>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/k-ardliyan/qa-playwright-kit.git"
+  },
+  "homepage": "https://github.com/k-ardliyan/qa-playwright-kit#readme",
+  "bugs": {
+    "url": "https://github.com/k-ardliyan/qa-playwright-kit/issues"
+  },
   "description": "Reusable QA Playwright Kit E2E acceleration framework with interactive runner, page objects, custom reporting, and AI-assisted workflow support",
   "keywords": [
     "playwright",

@@ -15,6 +15,7 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MC
 [![Playwright](https://img.shields.io/badge/playwright-1.63+-45ba4b?style=flat-square&logo=playwright&logoColor=white)](https://playwright.dev)
 [![TypeScript](https://img.shields.io/badge/typescript-5.9+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.30+-A23B72?style=flat-square&logo=protocol&logoColor=white)](https://modelcontextprotocol.io)
+[![License](https://img.shields.io/badge/license-MIT-2E86AB?style=flat-square)](LICENSE)
 
 </div>
 
@@ -361,7 +362,7 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 | Skenario `(@manual)`            | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
 | Command cheat sheet             | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
 | Troubleshooting                 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
-| Arsitektur & Folder Map         | [ARCHITECTURE.md](ARCHITECTURE.md)                                 |
+| Arsitektur & Folder Map         | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                       |
 | Domain glossary & roles         | [docs/CONTEXT.md](docs/CONTEXT.md)                                 |
 | Riwayat perubahan               | [CHANGELOG.md](CHANGELOG.md)                                       |
 | Pipeline agent contract         | [AGENTS.md](AGENTS.md)                                             |
@@ -378,6 +379,9 @@ Kontribusi welcome! Untuk perubahan besar:
 2. Buat branch dari `main` (`feat/...`, `fix/...`, `docs/...`)
 3. Jalankan `npm run test:quality` sebelum push
 4. Update changelog & dokumentasi relevan
+
+Panduan lengkap (setup lingkungan, konvensi commit, batas arsitektur) ada di
+[CONTRIBUTING.md](CONTRIBUTING.md). Lisensi: [MIT](LICENSE).
 
 ---
 

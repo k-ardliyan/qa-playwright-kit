@@ -67,8 +67,8 @@ export const FRAMEWORK_PATHS: string[] = [
   // Root files
   'AGENTS.md',
   'README.md',
-  'ARCHITECTURE.md',
   'CHANGELOG.md',
+  'CONTRIBUTING.md',
   '.gitignore',
   '.gitattributes',
   '.mcp.json',

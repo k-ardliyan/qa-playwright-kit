@@ -25,7 +25,7 @@ config/                ← Environments & Playwright configuration presets
 
 ## Canonical References
 
-> Tabel lengkap ada di [`AGENTS.md`](AGENTS.md) § Architecture Quick Reference — di-load otomatis setiap sesi.
+> Tabel lengkap ada di [`AGENTS.md`](../AGENTS.md) § Architecture Quick Reference — di-load otomatis setiap sesi.
 
 ## Key Conventions (inline)
 

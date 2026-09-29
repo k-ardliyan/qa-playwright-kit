@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Dokumentasi komunitas proyek open source — 2026-09-29
+
+- **`LICENSE` (MIT) ditambahkan.** Repo ini publik tapi tidak punya file lisensi — secara hukum itu berarti orang lain **tidak punya izin** memakai atau memodifikasi kodenya, meskipun skill pack di dalamnya sudah mengklaim MIT. Copyright holder: `k-ardliyan`.
+- **`CONTRIBUTING.md` ditambahkan.** Berisi setup lingkungan (Node >= 20.19, `npm install` → `npm run setup`), alur branch + gate `npm run test:quality`, konvensi commit (Conventional Commits — `feat`/`fix`/`docs`/`refactor`/`test`, sesuai riwayat repo), tabel batas arsitektur (`src/**` maintainer vs `tests/**` QA), dan jalur pelaporan kerentanan.
+- **`package.json`** kini memuat `license`, `author`, `repository`, `homepage`, dan `bugs` — sebelumnya tidak ada satu pun, padahal skill pack mengklaim MIT. `"private": true` **dipertahankan** karena framework ini dipakai lewat clone, bukan `npm install`.
+- **README** mendapat badge lisensi + tautan ke ketiga file di section Kontribusi. Ketiga file juga masuk `FRAMEWORK_PATHS` agar ikut diperbarui `npm run upgrade`.
+
 ### Dokumentasi diselaraskan + CI portabilitas diperbaiki — 2026-09-29
 
 - **CI gagal di `npm run mcp:build`** (`Cannot find module .../node_modules/npm/bin/npm-cli.js`). Akar masalah: `install-mcp-server.cjs` membangun satu path npm-cli di sebelah binary node, sedangkan GitHub Actions menyimpannya di sibling `lib/` tree — layout yang **sudah** ditangani `resolveNpmCli()` di `src/setup/spawn-bin.ts` (dua kandidat). Shim `.cjs` lebih tua dari helper itu dan tidak pernah ikut diperbaiki, jadi ini duplikasi logika yang menyimpang. Kini keduanya memakai dua kandidat yang sama + fallback ke perintah npm platform; dua test regresi menjaga agar tidak menyimpang lagi.
