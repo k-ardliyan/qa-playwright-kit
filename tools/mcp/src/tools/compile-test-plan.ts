@@ -69,10 +69,7 @@ export function compileTestPlanFromText(
   let feature = '';
   let seed: string | undefined;
 
-  const reqPathMatch = text.match(
-    /^\s*-\s+\*\*(?:Source\s+requirement|Requirement):\*\*\s*`?([^`\r\n]+)`?/im,
-  );
-  const parsedRequirementPath = reqPathMatch ? reqPathMatch[1].trim() : '';
+  const parsedRequirementPath = readLabel(text, 'Source requirement', 'Requirement') ?? '';
   if (parsedRequirementPath) {
     sourceRequirementPath = parsedRequirementPath;
   }
@@ -92,11 +89,9 @@ export function compileTestPlanFromText(
     );
   }
 
-  const reqHashMatch = text.match(
-    /^\s*-\s+\*\*(?:Source\s+requirement\s+hash|Requirement\s+hash):\*\*\s*`?([^`\r\n]+)`?/im,
-  );
-  if (reqHashMatch) {
-    sourceRequirementHash = reqHashMatch[1].trim();
+  const reqHashRaw = readLabel(text, 'Source requirement hash', 'Requirement hash');
+  if (reqHashRaw) {
+    sourceRequirementHash = reqHashRaw;
   }
 
   const moduleRaw = readLabel(text, 'Module');

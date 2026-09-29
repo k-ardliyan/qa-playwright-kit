@@ -77,6 +77,46 @@
 
 ---
 
+---
+
+### SC-04: Akun Terkunci Setelah 5 Kali Gagal (@automated)
+
+| Field                 | Nilai                                                                                                                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Test ID               | `TC-AUTH-004`                                                                                                                                                                      |
+| Covers                | `AC-05`                                                                                                                                                                            |
+| Actor                 | `user`                                                                                                                                                                             |
+| Auth Context          | `user`                                                                                                                                                                             |
+| Execution Mode        | `automated`                                                                                                                                                                        |
+| Data Setup            | Seed user account already carrying 4 prior failures                                                                                                                                |
+| Actions               | 1. Navigate to /login<br>2. Fill input[name="email"] with credential:user.email<br>3. Fill input[name="password"] with literal:WrongPassword123!<br>4. Click button[type="submit"] |
+| Assertions            | `[requirement]` URL stays at /login<br>`[requirement]` Lockout message appears<br>`[framework-derived]` Login form is disabled                                                     |
+| Locator Intent        | `input[name="email"]`<br>`button[type="submit"]`                                                                                                                                   |
+| Network Expectations  | `POST /api/auth/login` -> 429                                                                                                                                                      |
+| Artifact Expectations | screenshot on failure                                                                                                                                                              |
+| Cleanup               | reset the lockout counter via seed                                                                                                                                                 |
+| Unknowns              | none                                                                                                                                                                               |
+
+---
+
+### SC-05: Login dengan Google OAuth (@manual)
+
+| Field                 | Nilai                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Test ID               | `TC-AUTH-005`                                                                                                                 |
+| Covers                | `AC-06`                                                                                                                       |
+| Actor                 | `user`                                                                                                                        |
+| Auth Context          | `unauthenticated`                                                                                                             |
+| Execution Mode        | `manual`                                                                                                                      |
+| Data Setup            | none                                                                                                                          |
+| Actions               | 1. Click "Login dengan Google"<br>2. Pick the Google account in the external consent popup<br>3. Approve the requested scopes |
+| Assertions            | `[requirement]` Session is created and the browser lands on /dashboard                                                        |
+| Locator Intent        | `button:has-text("Google")`                                                                                                   |
+| Network Expectations  | none                                                                                                                          |
+| Artifact Expectations | screenshot on failure                                                                                                         |
+| Cleanup               | none                                                                                                                          |
+| Unknowns              | External OAuth consent popup cannot be driven from CI                                                                         |
+
 ## Coverage Gaps
 
 | Scenario | AC      | Reason                                                                       |
