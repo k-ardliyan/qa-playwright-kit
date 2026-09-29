@@ -202,6 +202,37 @@ export async function synthesizeRequirement(
   const scList: string[] = [];
   const backlogList: string[] = [];
 
+  /**
+   * Render one scenario as a table. The label column keeps the exact names the
+   * parsers already read (`Test ID`, `Covers`, `Langkah`, …) — only the shape
+   * changes from bullet to table row. Multi-line values use `<br>`.
+   */
+  const scenarioTable = (fields: {
+    testId: string;
+    covers: string;
+    role?: string;
+    priority?: string;
+    layer?: string;
+    precondition?: string;
+    inputData?: string[];
+    steps: string[];
+    expected: string[];
+  }): string => {
+    const cell = (value: string): string => value.replace(/\|/g, '\\|').trim();
+    const rows: string[] = [`| Test ID | ${cell(fields.testId)} |`];
+    if (fields.covers) rows.push(`| Covers | ${cell(fields.covers)} |`);
+    if (fields.role) rows.push(`| Role | ${cell(fields.role)} |`);
+    rows.push(`| Prioritas skenario | ${cell(fields.priority ?? 'high')} |`);
+    rows.push(`| Layer terdampak | ${cell(fields.layer ?? 'FE')} |`);
+    if (fields.precondition) rows.push(`| Prekondisi | ${cell(fields.precondition)} |`);
+    if (fields.inputData && fields.inputData.length > 0) {
+      rows.push(`| Input Data | ${fields.inputData.map(cell).join('<br>')} |`);
+    }
+    rows.push(`| Langkah | ${fields.steps.map((s, i) => cell(`${i + 1}. ${s}`)).join('<br>')} |`);
+    rows.push(`| Hasil yang Diharapkan | ${fields.expected.map(cell).join('<br>')} |`);
+    return ['| Field | Nilai |', '| --- | --- |', ...rows].join('\n');
+  };
+
   const usedTestIds = new Set<string>();
   for (const [index, scenario] of userScenarios.entries()) {
     const acId = `AC-${String(acCounter++).padStart(2, '0')}`;
@@ -218,22 +249,20 @@ export async function synthesizeRequirement(
     }
     usedTestIds.add(testId);
     const headingType = scenario.type === 'general' ? '' : ` (@${scenario.type})`;
-    acList.push(`- **${acId}:** ${scenario.expectedResults.join('; ')}`);
+    acList.push(`| ${acId} | ${scenario.expectedResults.join('; ').replace(/\|/g, '\\|')} |`);
     scList.push(`### ${scId}: ${scenario.title}${headingType}
 
-- **Test ID:** ${testId}
-- **Covers:** ${acId}
-- **Role:** ${scenarioRole}
-- **Prioritas skenario:** high
-- **Layer terdampak:** FE
-
-**Prekondisi:** ${scenario.preconditions.length > 0 ? scenario.preconditions.join('; ') : `Pengguna membuka halaman ${entryUrl} dengan role ${scenarioRole}`}
-
-**Langkah:**
-${scenario.steps.map((step, stepIndex) => `${stepIndex + 1}. ${step}`).join('\n')}
-
-**Hasil yang Diharapkan:**
-${scenario.expectedResults.map((result) => `- ${result}`).join('\n')}
+${scenarioTable({
+  testId,
+  covers: acId,
+  role: scenarioRole,
+  precondition:
+    scenario.preconditions.length > 0
+      ? scenario.preconditions.join('; ')
+      : `Pengguna membuka halaman ${entryUrl} dengan role ${scenarioRole}`,
+  steps: scenario.steps,
+  expected: scenario.expectedResults,
+})}
 `);
   }
 
@@ -250,22 +279,21 @@ ${scenario.expectedResults.map((result) => `- ${result}`).join('\n')}
 
       scList.push(`### ${scId}: Melihat Daftar Data pada Tabel ${table.name} (@success)
 
-- **Test ID:** TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}
-- **Covers:** ${acId}
-- **Prioritas skenario:** high
-- **Layer terdampak:** FE
-
-**Prekondisi:** Pengguna berada di halaman ${sem.url} dengan role ${role}
-
-**Langkah:**
-1. Buka halaman ${sem.url}
-2. Verifikasi tabel "${table.name}" berhasil dimuat
-3. Periksa kesesuaian header kolom pada tabel
-
-**Hasil yang Diharapkan:**
-- Tabel "${table.name}" tampil di layar
-- Kolom tabel memuat: ${colStr}
-- Minimal 1 baris data terlihat dengan status yang valid
+${scenarioTable({
+  testId: `TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}`,
+  covers: acId,
+  precondition: `Pengguna berada di halaman ${sem.url} dengan role ${role}`,
+  steps: [
+    `Buka halaman ${sem.url}`,
+    `Verifikasi tabel "${table.name}" berhasil dimuat`,
+    'Periksa kesesuaian header kolom pada tabel',
+  ],
+  expected: [
+    `Tabel "${table.name}" tampil di layar`,
+    `Kolom tabel memuat: ${colStr}`,
+    'Minimal 1 baris data terlihat dengan status yang valid',
+  ],
+})}
 `);
 
       // Suggest row actions as backlog
@@ -283,24 +311,22 @@ ${scenario.expectedResults.map((result) => `- ${result}`).join('\n')}
       const cardTitles = sem.statCards.map((c) => c.title).join(', ');
 
       acList.push(
-        `- **${acId}:** Card ringkasan metrik statistik (${cardTitles}) menampilkan informasi data yang valid.`,
+        `| ${acId} | Card ringkasan metrik statistik (${cardTitles}) menampilkan informasi data yang valid. |`,
       );
 
       scList.push(`### ${scId}: Verifikasi Ringkasan Metrik Statistik (@success)
 
-- **Test ID:** TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}
-- **Covers:** ${acId}
-- **Prioritas skenario:** medium
-- **Layer terdampak:** FE
-
-**Prekondisi:** Pengguna membuka halaman ${sem.url}
-
-**Langkah:**
-1. Buka halaman ${sem.url}
-2. Periksa blok card informasi statistik di bagian atas halaman
-
-**Hasil yang Diharapkan:**
-- Card metrik (${cardTitles}) tampil dengan format angka yang benar
+${scenarioTable({
+  testId: `TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}`,
+  covers: acId,
+  priority: 'medium',
+  precondition: `Pengguna membuka halaman ${sem.url}`,
+  steps: [
+    `Buka halaman ${sem.url}`,
+    'Periksa blok card informasi statistik di bagian atas halaman',
+  ],
+  expected: [`Card metrik (${cardTitles}) tampil dengan format angka yang benar`],
+})}
 `);
     }
 
@@ -311,65 +337,57 @@ ${scenario.expectedResults.map((result) => `- ${result}`).join('\n')}
       const acFailId = `AC-${String(acCounter++).padStart(2, '0')}`;
 
       acList.push(
-        `- **${acSuccessId}:** Pengguna dapat mengisi dan mengirimkan formulir dengan data yang valid.`,
+        `| ${acSuccessId} | Pengguna dapat mengisi dan mengirimkan formulir dengan data yang valid. |`,
       );
       acList.push(
-        `- **${acFailId}:** Formulir menampilkan pesan validasi error jika field wajib dikosongkan.`,
+        `| ${acFailId} | Formulir menampilkan pesan validasi error jika field wajib dikosongkan. |`,
       );
 
       const inputDataLines = sem.forms
         .slice(0, 6)
         .map(
-          (f) =>
-            `- ${f.label.toLowerCase().replace(/[^a-z0-9]+/g, '_')}: literal:Sample ${f.label}`,
-        )
-        .join('\n');
+          (f) => `${f.label.toLowerCase().replace(/[^a-z0-9]+/g, '_')}: literal:Sample ${f.label}`,
+        );
 
       const scSuccessId = `SC-${String(scCounter++).padStart(2, '0')}`;
       scList.push(`### ${scSuccessId}: Submit Formulir dengan Data Valid (@success)
 
-- **Test ID:** TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}
-- **Covers:** ${acSuccessId}
-- **Prioritas skenario:** high
-- **Layer terdampak:** FE
-
-**Prekondisi:** Pengguna membuka formulir di ${sem.url}
-
-**Input Data:**
-${inputDataLines}
-
-**Langkah:**
-1. Buka halaman ${sem.url}
-2. Isi setiap field formulir dengan data yang sesuai
-3. Klik tombol submit / simpan
-
-**Hasil yang Diharapkan:**
-- Formulir berhasil disubmit tanpa pesan error
-- Muncul notifikasi sukses atau diarahkan ke halaman ringkasan
+${scenarioTable({
+  testId: `TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}`,
+  covers: acSuccessId,
+  precondition: `Pengguna membuka formulir di ${sem.url}`,
+  inputData: inputDataLines,
+  steps: [
+    `Buka halaman ${sem.url}`,
+    'Isi setiap field formulir dengan data yang sesuai',
+    'Klik tombol submit / simpan',
+  ],
+  expected: [
+    'Formulir berhasil disubmit tanpa pesan error',
+    'Muncul notifikasi sukses atau diarahkan ke halaman ringkasan',
+  ],
+})}
 `);
 
       if (requiredInputs.length > 0) {
         const scFailId = `SC-${String(scCounter++).padStart(2, '0')}`;
         scList.push(`### ${scFailId}: Validasi Error Saat Field Wajib Dikosongkan (@failure)
 
-- **Test ID:** TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}
-- **Covers:** ${acFailId}
-- **Prioritas skenario:** high
-- **Layer terdampak:** FE
-
-**Prekondisi:** Pengguna membuka formulir di ${sem.url}
-
-**Input Data:**
-- ${requiredInputs[0]?.label.toLowerCase().replace(/[^a-z0-9]+/g, '_')}: (kosong)
-
-**Langkah:**
-1. Buka halaman ${sem.url}
-2. Kosongkan field wajib "${requiredInputs[0]?.label}"
-3. Klik tombol submit / simpan
-
-**Hasil yang Diharapkan:**
-- Formulir menolak pengiriman
-- Pesan validasi error muncul di dekat field "${requiredInputs[0]?.label}"
+${scenarioTable({
+  testId: `TC-${moduleName.toUpperCase()}-${String(scCounter - 1).padStart(3, '0')}`,
+  covers: acFailId,
+  precondition: `Pengguna membuka formulir di ${sem.url}`,
+  inputData: [`${requiredInputs[0]?.label.toLowerCase().replace(/[^a-z0-9]+/g, '_')}: (kosong)`],
+  steps: [
+    `Buka halaman ${sem.url}`,
+    `Kosongkan field wajib "${requiredInputs[0]?.label}"`,
+    'Klik tombol submit / simpan',
+  ],
+  expected: [
+    'Formulir menolak pengiriman',
+    `Pesan validasi error muncul di dekat field "${requiredInputs[0]?.label}"`,
+  ],
+})}
 `);
       }
     }
@@ -382,21 +400,16 @@ ${inputDataLines}
 
   // Fallback only when neither QA scenarios nor catalogs were available.
   if (acList.length === 0) {
-    acList.push(`- **AC-01:** Halaman utama fitur ${featureName} dapat diakses dengan sukses.`);
+    acList.push(`| AC-01 | Halaman utama fitur ${featureName} dapat diakses dengan sukses. |`);
     scList.push(`### SC-01: Akses Halaman Utama Fitur ${featureName} (@success)
 
-- **Test ID:** TC-${moduleName.toUpperCase()}-001
-- **Covers:** AC-01
-- **Prioritas skenario:** high
-- **Layer terdampak:** FE
-
-**Prekondisi:** Pengguna membuka aplikasi
-
-**Langkah:**
-1. Buka halaman ${entryUrl}
-
-**Hasil yang Diharapkan:**
-- Halaman ${featureName} berhasil dimuat dengan komponen utama terlihat
+${scenarioTable({
+  testId: `TC-${moduleName.toUpperCase()}-001`,
+  covers: 'AC-01',
+  precondition: 'Pengguna membuka aplikasi',
+  steps: [`Buka halaman ${entryUrl}`],
+  expected: [`Halaman ${featureName} berhasil dimuat dengan komponen utama terlihat`],
+})}
 `);
     scCounter = 2;
   }
@@ -424,17 +437,22 @@ ${inputDataLines}
 
 ## Metadata
 
-- **Tags:** #${moduleName.toLowerCase()} #ui #regression #discovered
-- **Prioritas:** high
-- **Auth state:** ${role !== 'unauthenticated' ? 'authenticated' : 'unauthenticated'}
-- **Halaman awal:** ${entryUrl}
-- **Module:** ${moduleName.toLowerCase()}
-- **Feature:** ${featureName.toLowerCase()}
-- **Role scope:** ${metadataRoleScope.join(', ')}
-${accessExpectations.length > 0 ? `- **Access expectation:** ${accessExpectations.join('; ')}\n` : ''}- **Default role:** ${role === 'unauthenticated' ? 'user' : role}
+| Field | Nilai |
+| --- | --- |
+| Tags | #${moduleName.toLowerCase()} #ui #regression #discovered |
+| Prioritas | high |
+| Auth state | ${role !== 'unauthenticated' ? 'authenticated' : 'unauthenticated'} |
+| Halaman awal | ${entryUrl} |
+| Module | ${moduleName.toLowerCase()} |
+| Feature | ${featureName.toLowerCase()} |
+| Role scope | ${metadataRoleScope.join(', ')} |
+| Access expectation | ${accessExpectations.length > 0 ? accessExpectations.join('; ') : `${metadataRoleScope[0]}: bisa mengakses fitur`} |
+| Default role | ${role === 'unauthenticated' ? 'user' : role} |
 
 ## Kriteria Penerimaan
 
+| ID | Kriteria |
+| --- | --- |
 ${acList.join('\n')}
 
 ${accessRows.length > 0 ? `## Access Matrix\n\n| Role | Access | Expectation |\n| --- | --- | --- |\n${accessRows.join('\n')}\n` : ''}

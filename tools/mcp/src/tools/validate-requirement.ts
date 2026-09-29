@@ -61,7 +61,12 @@ function hasAcceptanceCriteria(text: string): boolean {
   const section = text.match(
     /##\s+(?:Kriteria Penerimaan|Acceptance Criteria)\s*\n([\s\S]*?)(?=\n##\s+|\n###\s+|$)/i,
   );
-  return Boolean(section && /^[\s]*[-*]\s+.+/m.test(section[1]));
+  if (!section) return false;
+  const body = section[1];
+  // Bullet form: `- **AC-01:** …` or a plain bullet.
+  if (/^\s*[-*]\s+.+/m.test(body)) return true;
+  // Table form: a row whose first cell is an AC id (`| AC-01 | … |`).
+  return /^\s*\|\s*`?AC-\d+`?\s*\|/im.test(body);
 }
 
 function extractMetadataSection(text: string): string | null {
