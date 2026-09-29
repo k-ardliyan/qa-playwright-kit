@@ -284,7 +284,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'compile_requirement',
     description:
-      'Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix.',
+      'Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix. Accepts both the legacy bullet form and the table form (| Label | value |).',
     inputSchema: REQUIREMENTS_TEXT_OR_PATH,
     stability: 'stable',
     readOnly: true,
@@ -300,7 +300,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'normalize_requirements',
     description:
-      'Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios.',
+      'Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios. Accepts both the legacy bullet form and the table form (| Label | value |).',
     inputSchema: REQUIREMENTS_TEXT_OR_PATH,
     stability: 'compat',
     replacement: 'compile_requirement',
@@ -317,7 +317,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'parse_requirement_scenarios',
     description:
-      'Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English).',
+      'Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English). Accepts both the legacy bullet form and the table form (| Label | value |).',
     inputSchema: REQUIREMENTS_TEXT_OR_PATH,
     stability: 'compat',
     replacement: 'compile_requirement',
@@ -356,7 +356,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'validate_requirement',
     description:
-      'Validate requirement markdown structure before Planner runs. Checks title, scenarios, observable results, and @manual conventions.',
+      'Validate requirement markdown structure before Planner runs. Checks title, scenarios, observable results, and @manual conventions. Accepts both the legacy bullet form and the table form (| Label | value |).',
     inputSchema: REQUIREMENTS_TEXT_OR_PATH,
     stability: 'compat',
     replacement: 'compile_requirement',
@@ -373,7 +373,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'validate_plan',
     description:
-      'Validate a TestPlanContractV1 (qa.test-plan/v1) against its source requirement contract. Checks scenario coverage, AC coverage, role/auth drift, assertion provenance, and ephemeral browser references.',
+      'Validate a TestPlanContractV1 (qa.test-plan/v1) against its source requirement contract. Checks scenario coverage, AC coverage, role/auth drift, assertion provenance, and ephemeral browser references. Accepts both the legacy bullet form and the table form (| Label | value |).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -394,7 +394,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'compile_test_plan',
     description:
-      'Compile Markdown test plan (specs/*.md) into canonical TestPlanContractV1 (qa.test-plan/v1) with typed assertion provenance, scenario metadata, and coverage gaps.',
+      'Compile Markdown test plan (specs/*.md) into canonical TestPlanContractV1 (qa.test-plan/v1) with typed assertion provenance, scenario metadata, and coverage gaps. Accepts both the legacy bullet form and the table form (| Label | value |).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -510,7 +510,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'synthesize_requirement',
     description:
-      'Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios.',
+      'Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios. Accepts both the legacy bullet form and the table form (| Label | value |).',
     inputSchema: {
       type: 'object',
       properties: {
