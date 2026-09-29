@@ -18,6 +18,7 @@ const standaloneHarnesses = [
   'src/support/pw/__tests__/file-content-core.test.ts',
   'src/support/pw/__tests__/network-assert-core.test.ts',
   'src/utils/__tests__/dotenv-keys.test.ts',
+  'tools/mcp/src/tools/parsers/__tests__/md-labels.test.ts',
 ];
 
 const playwrightTests = [

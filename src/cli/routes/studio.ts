@@ -21,7 +21,10 @@ export interface StudioRequirementInput {
   scenarios?: Array<{ title?: string; steps?: string; expected?: string }>;
 }
 
-/** Shared markdown shape for one scenario block (SC-01 == TC-01). */
+/**
+ * Shared markdown shape for one scenario block (SC-01 == TC-01).
+ * Table form: label column keeps the exact names the parsers read.
+ */
 export function scenarioBlock(
   index: number,
   title: string,
@@ -29,13 +32,24 @@ export function scenarioBlock(
   expected: string,
 ): string {
   const n = String(index).padStart(2, '0');
+  const stepItems = numbered(steps)
+    .split('\n')
+    .map((line) => line.replace(/\|/g, '\\|'))
+    .join('<br>');
+  const expectedItems = expected
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[-*]\s*/, '').replace(/\|/g, '\\|'))
+    .join('<br>');
   return `### SC-${n}: ${title} (@success)
-- **Test ID:** TC-${n}
-- **Covers:** AC-01
-**Langkah:**
-${numbered(steps)}
-**Hasil yang Diharapkan:**
-${expected}`;
+
+| Field | Nilai |
+| --- | --- |
+| Test ID | TC-${n} |
+| Covers | AC-01 |
+| Langkah | ${stepItems} |
+| Hasil yang Diharapkan | ${expectedItems} |`;
 }
 
 function str(body: Record<string, unknown>, key: string): string {
@@ -67,15 +81,21 @@ export function buildRequirementMarkdown(input: StudioRequirementInput): string 
   return `# REQ-XXX: ${title}
 
 ## Metadata
-- **Tags:** #ui
-- **Prioritas:** medium
-- **Auth state:** ${input.authState}
-- **Halaman awal:** ${input.halamanAwal.trim() || '/'}
-- **Module:** ${input.module.trim() || 'general'}
-- **Feature:** ${input.feature.trim() || input.slug}
+
+| Field | Nilai |
+| --- | --- |
+| Tags | #ui |
+| Prioritas | medium |
+| Auth state | ${input.authState} |
+| Halaman awal | ${input.halamanAwal.trim() || '/'} |
+| Module | ${input.module.trim() || 'general'} |
+| Feature | ${input.feature.trim() || input.slug} |
 
 ## Kriteria Penerimaan
-- **AC-01:** ${expected}
+
+| ID | Kriteria |
+| --- | --- |
+| AC-01 | ${expected.replace(/\|/g, '\\|')} |
 
 ## Skenario Uji
 ${scenarios}
@@ -146,14 +166,19 @@ section{grid-column:1/-1}
 <script>
 const ids=['slug','title','module','feature','authState','halamanAwal','scenarioTitle','steps','expected'];
 function val(id){return document.getElementById(id).value.trim()}
+function NL(){return String.fromCharCode(10)}
 function numbered(text){
-  const lines=text.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);
+  const lines=text.split(NL()).map(s=>s.trim()).filter(Boolean);
   const items=lines.length?lines:['Buka halaman awal'];
-  return items.map((line,i)=>(i+1)+'. '+line.replace(/^\\d+\\.\\s*/,'')).join('\\n');
+  return items.map((line,i)=>{const m=line.match(/^[0-9]+[.] */);return (i+1)+'. '+(m?line.slice(m[0].length):line)}).join(NL());
 }
+function escPipe(v){return String(v).split(String.fromCharCode(124)).join(String.fromCharCode(92)+String.fromCharCode(124))}
 function scenarioBlock(i,title,steps,expected){
   const n=(''+i).padStart(2,'0');
-  return '### SC-'+n+': '+title+' (@success)\\n- **Test ID:** TC-'+n+'\\n- **Covers:** AC-01\\n**Langkah:**\\n'+numbered(steps)+'\\n**Hasil yang Diharapkan:**\\n'+expected;
+  const stepItems=numbered(steps).split(NL()).map(escPipe).join('<br>');
+  const expectedItems=expected.split(NL()).map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/^[-*] */,'').replace(/^[*]+ */,'')).map(escPipe).join('<br>');
+  const rows=[['Test ID','TC-'+n],['Covers','AC-01'],['Langkah',stepItems],['Hasil yang Diharapkan',expectedItems]];
+  return ['### SC-'+n+': '+title+' (@success)','','| Field | Nilai |','| --- | --- |'].concat(rows.map(r=>'| '+r[0]+' | '+r[1]+' |')).join(NL());
 }
 function extraScenarios(){
   return [...document.querySelectorAll('.scenario')].map(b=>({title:b.querySelector('.sc-title').value,steps:b.querySelector('.sc-steps').value,expected:b.querySelector('.sc-expected').value}));
@@ -178,7 +203,11 @@ function markdown(){
   const slug=val('slug'), title=val('title')||slug, expected=val('expected')||'Halaman menampilkan hasil yang diharapkan.';
   const extra=extraScenarios();
   const blocks=extra.length?extra.map((s,i)=>scenarioBlock(i+1,s.title.trim()||title,s.steps,s.expected.trim()||expected)):[scenarioBlock(1,val('scenarioTitle')||title,val('steps'),expected)];
-  return '# REQ-XXX: '+title+'\\n\\n## Metadata\\n- **Tags:** #ui\\n- **Prioritas:** medium\\n- **Auth state:** '+val('authState')+'\\n- **Halaman awal:** '+(val('halamanAwal')||'/')+'\\n- **Module:** '+(val('module')||'general')+'\\n- **Feature:** '+(val('feature')||slug)+'\\n\\n## Kriteria Penerimaan\\n- **AC-01:** '+expected+'\\n\\n## Skenario Uji\\n'+blocks.join('\\n\\n')+'\\n';
+  const metaRows=[['Tags','#ui'],['Prioritas','medium'],['Auth state',val('authState')],['Halaman awal',val('halamanAwal')||'/'],['Module',val('module')||'general'],['Feature',val('feature')||slug]];
+  const acRows=[['AC-01',escPipe(expected)]];
+  const table=(rows)=>['| Field | Nilai |','| --- | --- |'].concat(rows.map(r=>'| '+r[0]+' | '+r[1]+' |')).join(NL());
+  const acTable=['| ID | Kriteria |','| --- | --- |'].concat(acRows.map(r=>'| '+r[0]+' | '+r[1]+' |')).join(NL());
+  return ['# REQ-XXX: '+title,'','## Metadata','',table(metaRows),'','## Kriteria Penerimaan','',acTable,'','## Skenario Uji',blocks.join(NL()+NL()),''].join(NL());
 }
 function refresh(){document.getElementById('preview').textContent=markdown()}
 ids.forEach(id=>document.getElementById(id).addEventListener('input',refresh));

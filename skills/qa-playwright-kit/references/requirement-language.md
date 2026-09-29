@@ -6,14 +6,21 @@ The requirement is the only document QA authors. The Planner copies steps and ex
 
 The committed template (`requirements/_TEMPLATE.md`) uses Indonesian headings. Treat those headings as fixed identifiers; write the *body* in whatever language the QA team uses (Indonesian or English). Never mix Playwright into either.
 
-| Template heading             | Meaning               |
-| ---------------------------- | --------------------- |
-| `**Langkah:**`               | Steps                 |
-| `**Hasil yang Diharapkan:**` | Expected result       |
-| `**Input Data:**`            | Input data            |
-| `**Prekondisi:**`            | Preconditions         |
-| `- **Module:**`              | Module (required)     |
-| `- **Feature:**`             | Feature (recommended) |
+**Format: tables.** A field is written as a table row whose FIRST cell is the label — `| Langkah | … |`. The parser also still accepts the old bullet form (`- **Langkah:** …`) for files written before v3.0, but new files use tables.
+
+| Template label          | Meaning               | Where               |
+| ----------------------- | --------------------- | ------------------- |
+| `Langkah`               | Steps                 | scenario table row  |
+| `Hasil yang Diharapkan` | Expected result       | scenario table row  |
+| `Input Data`            | Input data            | scenario table row  |
+| `Prekondisi`            | Preconditions         | scenario table row  |
+| `Module`                | Module (required)     | `## Metadata` table |
+| `Feature`               | Feature (recommended) | `## Metadata` table |
+
+Two table rules that matter:
+
+- Separate multiple items inside ONE cell with `<br>` — a literal newline breaks the table.
+- Escape a pipe character inside a cell as `\|`.
 
 ## Allowed
 
@@ -34,18 +41,13 @@ The committed template (`requirements/_TEMPLATE.md`) uses Indonesian headings. T
 
 ## Input Data vs Steps
 
-Input Data is a key-value list. Steps never repeat the raw value.
+Input Data and Steps are two rows of the same scenario table. Input Data holds `key: source:value` entries; Steps never repeat the raw value.
 
 ```markdown
-**Input Data:**
-- email: credential:user.email
-- password: credential:user.password
-- note: literal:Approved for Q3 payout
-
-**Langkah:**
-1. Type the email in the Email field
-2. Type the password in the Password field
-3. Click the "Sign in" button
+| Field | Nilai |
+| --- | --- |
+| Input Data | `email: credential:user.email`<br>`password: credential:user.password`<br>`note: literal:Approved for Q3 payout` |
+| Langkah | 1. Type the email in the Email field<br>2. Type the password in the Password field<br>3. Click the "Sign in" button |
 ```
 
 Wrong: `1. Type user@acme.com in the Email field` — this leaks the value into the Test Step column.
@@ -57,9 +59,9 @@ If the requirement is written in Indonesian, keep the step text in Indonesian. C
 Copy the structure from `requirements/_TEMPLATE.md`. Required fields:
 
 - `# REQ-XXX: …` on line 1
-- Metadata: Tags, Priority, Auth state, Start page, **Module** (required), Feature (recommended)
-- `AC-XX` IDs on every acceptance criterion
-- Each SC: Test ID, Covers, Steps, Expected Result
+- Metadata table: Tags, Priority, Auth state, Start page, **Module** (required), Feature (recommended)
+- Acceptance criteria as a `| ID | Kriteria |` table with `AC-XX` IDs
+- Each SC: a `| Field | Nilai |` table with Test ID, Covers, Steps, Expected Result
 - Role and Access Matrix when `Role scope` is set
 
 Good example: `requirements/_GOOD_EXAMPLE.md`.

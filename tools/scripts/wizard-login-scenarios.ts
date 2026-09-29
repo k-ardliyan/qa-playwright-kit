@@ -58,25 +58,16 @@ export function scenarioBlock(opts: {
   steps: string[];
   results: string[];
 }): string {
-  const roleLine = opts.role ? `- **Role:** \`${opts.role}\`\n` : '';
-  return (
-    `### ${opts.heading}\n\n` +
-    `- **Test ID:** \`${opts.testId}\`\n` +
-    `- **Covers:** ${opts.covers}\n` +
-    roleLine +
-    `- **Prioritas skenario:** \`${opts.priority ?? 'high'}\`\n` +
-    `- **Layer terdampak:** \`${opts.layer ?? 'FE BE'}\`\n\n` +
-    `**Prekondisi:** ${opts.precondition}\n\n` +
-    `**Input Data:**\n\n` +
-    opts.inputLines.map((l) => `- ${l}`).join('\n') +
-    `\n\n` +
-    `**Langkah:**\n\n` +
-    opts.steps.map((s, i) => `${i + 1}. ${s}`).join('\n') +
-    `\n\n` +
-    `**Hasil yang Diharapkan:**\n\n` +
-    opts.results.map((r) => `- ${r}`).join('\n') +
-    `\n`
-  );
+  const cell = (value: string): string => value.replace(/\|/g, '\\|').trim();
+  const rows: string[] = [`| Test ID | \`${opts.testId}\` |`, `| Covers | ${opts.covers} |`];
+  if (opts.role) rows.push(`| Role | \`${opts.role}\` |`);
+  rows.push(`| Prioritas skenario | \`${opts.priority ?? 'high'}\` |`);
+  rows.push(`| Layer terdampak | \`${opts.layer ?? 'FE BE'}\` |`);
+  rows.push(`| Prekondisi | ${cell(opts.precondition)} |`);
+  rows.push(`| Input Data | ${opts.inputLines.map(cell).join('<br>')} |`);
+  rows.push(`| Langkah | ${opts.steps.map((s, i) => cell(`${i + 1}. ${s}`)).join('<br>')} |`);
+  rows.push(`| Hasil yang Diharapkan | ${opts.results.map(cell).join('<br>')} |`);
+  return `### ${opts.heading}\n\n` + `| Field | Nilai |\n| --- | --- |\n` + rows.join('\n') + `\n`;
 }
 
 export function challengeManualScenario(

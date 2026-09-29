@@ -55,10 +55,12 @@ Skenario OTP/CAPTCHA tetap `(@manual)`. `AUTH_CHALLENGE_MODE` hanya membantu `au
 ### General (default / setup awal)
 
 ```markdown
-- **Tags:** #auth #ui #smoke
-- **Prioritas:** high
-- **Auth state:** unauthenticated
-- **Halaman awal:** /login
+| Field | Nilai |
+| --- | --- |
+| Tags | #auth #ui #smoke |
+| Prioritas | high |
+| Auth state | unauthenticated |
+| Halaman awal | /login |
 
 # tanpa POM yang dibutuhkan
 ```
@@ -66,7 +68,9 @@ Skenario OTP/CAPTCHA tetap `(@manual)`. `AUTH_CHALLENGE_MODE` hanya membantu `au
 ### Role-aware / Path B (opsional)
 
 ```markdown
-- **Role scope:** finance, super-admin
+| Field | Nilai |
+| --- | --- |
+| Role scope | finance, super-admin |
 - **Access expectation:** finance: bisa approve; hrd: tidak bisa
 - **POM yang dibutuhkan:** invoicePage
 ```

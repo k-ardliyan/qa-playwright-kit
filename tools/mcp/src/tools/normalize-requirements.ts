@@ -5,6 +5,7 @@ import {
   parseRequirementScenariosFromText,
   type RequirementScenario,
 } from './parse-requirement-scenarios';
+import { splitRow } from './parsers/md-labels';
 
 export interface AcceptanceCriterion {
   id: string;
@@ -137,11 +138,26 @@ function parseMetadataValue(line: string): { key: string; value: string } | null
   if (bullet) {
     return { key: bullet[1].trim().toLowerCase(), value: bullet[2].trim() };
   }
+  // Table row `| Label | value |` — same dual-mode contract as md-labels.
+  const cells = splitRow(line);
+  if (cells.length === 2 && isTableRow(line)) {
+    const key = cells[0].trim().toLowerCase();
+    const value = cells[1].trim();
+    if (key && value && key !== 'field' && key !== 'nilai' && key !== 'value') {
+      return { key, value };
+    }
+  }
   const plain = line.match(/^\s*([a-zA-Z\s]+):\s*(.+)$/);
   if (plain) {
     return { key: plain[1].trim().toLowerCase(), value: plain[2].trim() };
   }
   return null;
+}
+
+/** True when the line is a markdown table row (not the `| --- |` separator). */
+function isTableRow(line: string): boolean {
+  const t = line.trim();
+  return /^\|.*\|$/.test(t) && !/^\|[\s:|-]+\|$/.test(t);
 }
 
 function parseMetadata(lines: string[], text: string): RequirementMetadata | undefined {

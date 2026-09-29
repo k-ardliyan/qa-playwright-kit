@@ -8,14 +8,14 @@
   },
   {
     "name": "pipeline_status",
-    "description": "One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.",
+    "description": "One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ \u2014 reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. Call before deciding to resume or start a fresh run.",
     "stability": "stable",
     "profiles": ["admin", "planner", "reporter", "author", "all"],
     "readOnly": true
   },
   {
     "name": "workflow_run",
-    "description": "Run the native semantic workflow (Explore → Model → Challenge → Generate → Validate) for a requirement through the production driver. Returns the structured WorkflowResponse (workflowStage, workflowStatus, nextRequiredAction) so a block is actionable. Use this instead of manual phase-by-phase invoke when the semantic flow is desired.",
+    "description": "Run the native semantic workflow (Explore \u2192 Model \u2192 Challenge \u2192 Generate \u2192 Validate) for a requirement through the production driver. Returns the structured WorkflowResponse (workflowStage, workflowStatus, nextRequiredAction) so a block is actionable. Use this instead of manual phase-by-phase invoke when the semantic flow is desired.",
     "stability": "experimental",
     "profiles": ["planner", "generator", "healer", "reporter", "author", "all"],
     "readOnly": false
@@ -106,14 +106,14 @@
   },
   {
     "name": "snapshot_page",
-    "description": "Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash, semanticSummary) for AI agents — read the JSON file for selector details.",
+    "description": "Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash, semanticSummary) for AI agents \u2014 read the JSON file for selector details.",
     "stability": "stable",
     "profiles": ["discovery", "planner", "generator", "healer", "author", "visual", "all"],
     "readOnly": false
   },
   {
     "name": "synthesize_requirement",
-    "description": "Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios.",
+    "description": "Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios. Accepts both the legacy bullet form and the table form (| Label | value |).",
     "stability": "stable",
     "profiles": ["discovery", "planner", "author", "all"],
     "readOnly": false
@@ -134,7 +134,7 @@
   },
   {
     "name": "record_ai_note",
-    "description": "Append an AI-authored insight — to one test row (scope=test, default; shown in the AI NOTES column) or to the whole run (scope=run; shown in the overview AI Run Insights panel). Structured fields (kind/observation/evidence/impact/recommendation/priority/confidence/nextAction/status) render in the canonical insight format; a plain message also works. Cover failure root causes AND insights on passed scenarios (UI/UX suggestions, flow A vs B comparison, data/seed tips). Write in Indonesian. Notes are additive; targets the latest run unless an archived runId is given.",
+    "description": "Append an AI-authored insight \u2014 to one test row (scope=test, default; shown in the AI NOTES column) or to the whole run (scope=run; shown in the overview AI Run Insights panel). Structured fields (kind/observation/evidence/impact/recommendation/priority/confidence/nextAction/status) render in the canonical insight format; a plain message also works. Cover failure root causes AND insights on passed scenarios (UI/UX suggestions, flow A vs B comparison, data/seed tips). Write in Indonesian. Notes are additive; targets the latest run unless an archived runId is given.",
     "stability": "experimental",
     "profiles": ["generator", "healer", "reporter", "debug", "all"],
     "readOnly": false
@@ -155,14 +155,14 @@
   },
   {
     "name": "inspect_file",
-    "description": "Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.",
+    "description": "Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only \u2014 no domain field schema.",
     "stability": "stable",
     "profiles": ["generator", "debug", "artifact", "all"],
     "readOnly": true
   },
   {
     "name": "extract_pdf_text",
-    "description": "Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).",
+    "description": "Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only \u2014 match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).",
     "stability": "stable",
     "profiles": ["debug", "artifact", "all"],
     "readOnly": true

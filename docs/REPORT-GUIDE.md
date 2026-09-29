@@ -336,9 +336,9 @@ Saat test dijalankan via **Orchestrator pipeline** (Explore → Model → Challe
 ```markdown
 # Pipeline Report — <runId>
 
-**Requirement:** `requirements/<feature-name>.md`  
-**Mode:** general | role-aware  
-**Started:** <ISO timestamp>  
+**Requirement:** `requirements/<feature-name>.md`
+**Mode:** general | role-aware
+**Started:** <ISO timestamp>
 **Duration:** XXs
 
 ---
@@ -385,8 +385,8 @@ Saat test dijalankan via **Orchestrator pipeline** (Explore → Model → Challe
 
 ## QA Decision
 
-**Decision:** 🐛 FILE BUG  
-**Reason:** Error message mismatch — app returning generic "Login failed" instead of specific "Invalid credentials"  
+**Decision:** 🐛 FILE BUG
+**Reason:** Error message mismatch — app returning generic "Login failed" instead of specific "Invalid credentials"
 **Action:** Create defect ticket, keep test as regression guard
 ```
 

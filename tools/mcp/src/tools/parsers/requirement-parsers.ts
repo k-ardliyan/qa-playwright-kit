@@ -8,6 +8,7 @@ import {
   type Diagnostic,
   createDiagnostic,
 } from '../../contracts';
+import { readLabel, readLabelFromSection, splitRow } from './md-labels';
 
 export function readString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -74,13 +75,10 @@ export function parseMetadata(
   const environmentScope: string[] = [];
   const dataScope: string[] = [];
 
-  // Match Module
-  const modMatch = text.match(/^\s*-\s+\*\*Module:\*\*\s*(.+)$/im);
-  if (modMatch) {
-    module = modMatch[1]
-      .trim()
-      .toLowerCase()
-      .replace(/[.,;]+$/, '');
+  // Match Module — bullet `- **Module:** x` or table row `| Module | x |`
+  const modRaw = readLabel(text, 'Module');
+  if (modRaw) {
+    module = modRaw.toLowerCase().replace(/[.,;]+$/, '');
   } else if (requirementPath) {
     const normalized = requirementPath.replace(/\\/g, '/');
     const folderMatch = normalized.match(/^requirements\/([^/]+)\/.+\.md$/i);
@@ -91,10 +89,9 @@ export function parseMetadata(
   if (!module) module = 'general';
 
   // Match Feature
-  const featMatch = text.match(/^\s*-\s+\*\*Feature:\*\*\s*(.+)$/im);
-  if (featMatch) {
-    feature = featMatch[1]
-      .trim()
+  const featRaw = readLabel(text, 'Feature');
+  if (featRaw) {
+    feature = featRaw
       .toLowerCase()
       .replace(/[.,;]+$/, '')
       .replace(/\s+/g, '-');
@@ -108,18 +105,18 @@ export function parseMetadata(
   if (!feature) feature = 'general';
 
   // Priority
-  const prioMatch = text.match(/^\s*-\s+\*\*(?:Prioritas|Priority):\*\*\s*(.+)$/im);
-  if (prioMatch) {
-    const raw = prioMatch[1].trim().toLowerCase();
+  const prioRaw = readLabel(text, 'Prioritas', 'Priority');
+  if (prioRaw) {
+    const raw = prioRaw.toLowerCase();
     if (['low', 'medium', 'high', 'critical'].includes(raw)) {
       priority = raw as 'low' | 'medium' | 'high' | 'critical';
     }
   }
 
   // Tags
-  const tagMatch = text.match(/^\s*-\s+\*\*Tags:\*\*\s*(.+)$/im);
-  if (tagMatch) {
-    const tokens = tagMatch[1].split(/[\s,]+/);
+  const tagsRaw = readLabel(text, 'Tags');
+  if (tagsRaw) {
+    const tokens = tagsRaw.split(/[\s,]+/);
     for (const t of tokens) {
       const clean = t.trim().replace(/^#/, '').toLowerCase();
       if (clean) tags.push(clean);
@@ -127,9 +124,9 @@ export function parseMetadata(
   }
 
   // Auth state
-  const authMatch = text.match(/^\s*-\s+\*\*Auth(?:\s+state)?:\*\*\s*(.+)$/im);
-  if (authMatch) {
-    const raw = authMatch[1].trim().toLowerCase();
+  const authRaw = readLabel(text, 'Auth state', 'Auth');
+  if (authRaw) {
+    const raw = authRaw.toLowerCase();
     if (raw.includes('unauth') || raw.includes('public') || raw === 'none') {
       authState = 'unauthenticated';
     } else {
@@ -138,21 +135,21 @@ export function parseMetadata(
   }
 
   // Start page
-  const pageMatch = text.match(/^\s*-\s+\*\*(?:Halaman\s+awal|Start\s+page):\*\*\s*(.+)$/im);
-  if (pageMatch) {
-    startPage = pageMatch[1].trim();
+  const pageRaw = readLabel(text, 'Halaman awal', 'Start page');
+  if (pageRaw) {
+    startPage = pageRaw;
   }
 
   // Default role
-  const defRoleMatch = text.match(/^\s*-\s+\*\*Default\s+role:\*\*\s*(.+)$/im);
-  if (defRoleMatch) {
-    defaultRole = defRoleMatch[1].trim().toLowerCase();
+  const defRoleRaw = readLabel(text, 'Default role');
+  if (defRoleRaw) {
+    defaultRole = defRoleRaw.toLowerCase();
   }
 
   // Role scope
-  const roleScopeMatch = text.match(/^\s*-\s+\*\*Role\s+scope:\*\*\s*(.+)$/im);
-  if (roleScopeMatch) {
-    const parts = roleScopeMatch[1].split(/[,;]/);
+  const roleScopeRaw = readLabel(text, 'Role scope');
+  if (roleScopeRaw) {
+    const parts = roleScopeRaw.split(/[,;]/);
     for (const p of parts) {
       const clean = p
         .trim()
@@ -165,9 +162,9 @@ export function parseMetadata(
   }
 
   // Risk
-  const riskMatch = text.match(/^\s*-\s+\*\*Risk:\*\*\s*(.+)$/im);
-  if (riskMatch) {
-    risk.push(riskMatch[1].trim());
+  const riskRaw = readLabel(text, 'Risk', 'Risk level');
+  if (riskRaw) {
+    risk.push(riskRaw);
   }
 
   return {
@@ -302,6 +299,34 @@ export function parseAcceptanceCriteria(text: string): {
           ),
         );
       }
+      continue;
+    }
+
+    // Table form: | AC-01 | description |  (header/separator rows skipped)
+    if (inAcSection && /^\s*\|.*\|\s*$/.test(line)) {
+      if (/^\s*\|[\s:|-]+\|\s*$/.test(line)) continue;
+      const cells = splitRow(line);
+      if (cells.length < 2) continue;
+      const id = cells[0].replace(/`/g, '').trim().toUpperCase();
+      const description = cells[1].trim();
+      if (!/^AC-\d+$/.test(id)) {
+        // Header row (`| ID | Kriteria |`) or a row without an explicit AC id.
+        if (/^(id|kriteria|criterion|criteria)$/i.test(cells[0].trim())) continue;
+        if (!description) continue;
+        const generatedId = `AC-${String(counter).padStart(2, '0')}`;
+        counter++;
+        criteria.push({ id: generatedId, description });
+        diagnostics.push(
+          createDiagnostic(
+            'REQ_LEGACY_AC_BULLET',
+            'warning',
+            `Acceptance criterion authored without explicit ID. Assigned "${generatedId}".`,
+            { suggestion: `Use "| ${generatedId} | ${description} |"` },
+          ),
+        );
+        continue;
+      }
+      criteria.push({ id, description });
     }
   }
 
@@ -407,36 +432,28 @@ export function parseScenarios(
     }
 
     // Extract fields within scenario block
-    let testId: string | undefined;
     const covers: string[] = [];
     let actor: string | undefined;
     let scenarioPriority: 'low' | 'medium' | 'high' | 'critical' | undefined;
     const affectedLayers: string[] = [];
-    const preconditions: string[] = [];
-    const inputDataLines: string[] = [];
-    const steps: string[] = [];
-    const expectations: string[] = [];
 
     // Parse Test ID
-    const testIdMatch = block.match(/^\s*-\s+\*\*Test\s+ID:\*\*\s*`?([^`\r\n]+)`?/im);
-    if (testIdMatch) {
-      testId = testIdMatch[1].trim();
-    }
+    const testId = readLabel(block, 'Test ID') ?? undefined;
 
     // Parse Covers
-    const coversMatch = block.match(/^\s*-\s+\*\*Covers:\*\*\s*(.+)$/im);
-    if (coversMatch) {
-      const tokens = coversMatch[1].replace(/[`]/g, '').split(/[,;]/);
+    const coversRaw = readLabel(block, 'Covers');
+    if (coversRaw) {
+      const tokens = coversRaw.replace(/[`]/g, '').split(/[,;]/);
       for (const tok of tokens) {
         const ac = tok.trim().toUpperCase();
         if (ac) covers.push(ac);
       }
     }
 
-    // Parse Actor
-    const actorMatch = block.match(/^\s*-\s+\*\*Actor:\*\*\s*`?([^`\r\n]+)`?/im);
-    if (actorMatch) {
-      actor = actorMatch[1].trim().toLowerCase();
+    // Parse Actor (also accepts Role: for multi-role requirements)
+    const actorRaw = readLabel(block, 'Actor', 'Role');
+    if (actorRaw) {
+      actor = actorRaw.toLowerCase();
     } else {
       // Fallback: check heading prefix "Finance:"
       const prefixMatch = cleanTitle.match(/^([a-zA-Z0-9_-]+)\s*:\s*(.+)$/);
@@ -449,22 +466,18 @@ export function parseScenarios(
     }
 
     // Parse scenario priority
-    const prioMatch = block.match(
-      /^\s*-\s+\*\*(?:Prioritas\s+skenario|Scenario\s+priority):\*\*\s*`?([^`\r\n]+)`?/im,
-    );
-    if (prioMatch) {
-      const raw = prioMatch[1].trim().toLowerCase();
+    const prioRaw = readLabel(block, 'Prioritas skenario', 'Scenario priority');
+    if (prioRaw) {
+      const raw = prioRaw.toLowerCase();
       if (['low', 'medium', 'high', 'critical'].includes(raw)) {
         scenarioPriority = raw as 'low' | 'medium' | 'high' | 'critical';
       }
     }
 
     // Parse affected layers
-    const layerMatch = block.match(
-      /^\s*-\s+\*\*(?:Layer\s+terdampak|Affected\s+layers?):\*\*\s*(.+)$/im,
-    );
-    if (layerMatch) {
-      const tokens = layerMatch[1].replace(/[`]/g, '').split(/[\s,]+/);
+    const layerRaw = readLabel(block, 'Layer terdampak', 'Affected layers', 'Affected Layer');
+    if (layerRaw) {
+      const tokens = layerRaw.replace(/[`]/g, '').split(/[\s,]+/);
       for (const tok of tokens) {
         const l = tok.trim().toUpperCase();
         if (['FE', 'BE', 'DB', 'API'].includes(l)) {
@@ -473,43 +486,15 @@ export function parseScenarios(
       }
     }
 
-    // Section parser: Prekondisi, Input Data, Langkah, Hasil
-    let currentSection: 'none' | 'precondition' | 'input' | 'steps' | 'expectations' = 'none';
-
-    for (let j = 1; j < lines.length; j++) {
-      const line = lines[j];
-      const trimmed = line.trim();
-
-      if (/^\*\*(?:Prekondisi|Preconditions?|Given):\*\*/i.test(trimmed)) {
-        currentSection = 'precondition';
-        continue;
-      } else if (/^\*\*(?:Input\s+Data):\*\*/i.test(trimmed)) {
-        currentSection = 'input';
-        continue;
-      } else if (/^\*\*(?:Langkah|Steps?):\*\*/i.test(trimmed)) {
-        currentSection = 'steps';
-        continue;
-      } else if (
-        /^\*\*(?:Hasil\s+(?:yang\s+)?Diharapkan|Expected\s+Results?|Outcome):\*\*/i.test(trimmed)
-      ) {
-        currentSection = 'expectations';
-        continue;
-      } else if (/^\*\*[A-Z]/.test(trimmed) || /^###/.test(trimmed)) {
-        currentSection = 'none';
-      }
-
-      if (!trimmed) continue;
-
-      if (currentSection === 'precondition') {
-        preconditions.push(trimmed.replace(/^\s*[-*\d.]+\s+/, ''));
-      } else if (currentSection === 'input') {
-        inputDataLines.push(trimmed);
-      } else if (currentSection === 'steps') {
-        steps.push(trimmed.replace(/^\s*[-*\d.]+\s+/, ''));
-      } else if (currentSection === 'expectations') {
-        expectations.push(trimmed.replace(/^\s*[-*\d.]+\s+/, ''));
-      }
-    }
+    // Section content: bullet form (label + items below) or table form (`| Label | a<br>b |`)
+    const preconditions = readLabelFromSection(block, ['Prekondisi', 'Precondition', 'Given']);
+    const inputDataLines = readLabelFromSection(block, ['Input Data']);
+    const steps = readLabelFromSection(block, ['Langkah', 'Steps']);
+    const expectations = readLabelFromSection(block, [
+      'Hasil yang Diharapkan',
+      'Expected Result',
+      'Outcome',
+    ]);
 
     // Validate Covers
     if (covers.length === 0 && declaredAcIds.size > 0) {

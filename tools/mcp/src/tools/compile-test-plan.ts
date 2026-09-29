@@ -17,6 +17,7 @@ import {
 } from '../contracts';
 import { compileRequirementFromText } from './compile-requirement';
 import { containsEphemeralReference } from '../utils/ephemeral-guard';
+import { readLabel, readLabelFromSection, splitRow } from './parsers/md-labels';
 
 export interface CompileTestPlanArgs {
   testPlanPath?: unknown;
@@ -68,10 +69,7 @@ export function compileTestPlanFromText(
   let feature = '';
   let seed: string | undefined;
 
-  const reqPathMatch = text.match(
-    /^\s*-\s+\*\*(?:Source\s+requirement|Requirement):\*\*\s*`?([^`\r\n]+)`?/im,
-  );
-  const parsedRequirementPath = reqPathMatch ? reqPathMatch[1].trim() : '';
+  const parsedRequirementPath = readLabel(text, 'Source requirement', 'Requirement') ?? '';
   if (parsedRequirementPath) {
     sourceRequirementPath = parsedRequirementPath;
   }
@@ -91,25 +89,23 @@ export function compileTestPlanFromText(
     );
   }
 
-  const reqHashMatch = text.match(
-    /^\s*-\s+\*\*(?:Source\s+requirement\s+hash|Requirement\s+hash):\*\*\s*`?([^`\r\n]+)`?/im,
-  );
-  if (reqHashMatch) {
-    sourceRequirementHash = reqHashMatch[1].trim();
+  const reqHashRaw = readLabel(text, 'Source requirement hash', 'Requirement hash');
+  if (reqHashRaw) {
+    sourceRequirementHash = reqHashRaw;
   }
 
-  const moduleMatch = text.match(/^\s*-\s+\*\*Module:\*\*\s*(.+)$/im);
-  if (moduleMatch) {
-    module = moduleMatch[1]
+  const moduleRaw = readLabel(text, 'Module');
+  if (moduleRaw) {
+    module = moduleRaw
       .replace(/[`]/g, '')
       .trim()
       .toLowerCase()
       .replace(/[.,;]+$/, '');
   }
 
-  const featMatch = text.match(/^\s*-\s+\*\*Feature:\*\*\s*(.+)$/im);
-  if (featMatch) {
-    feature = featMatch[1]
+  const featRaw = readLabel(text, 'Feature');
+  if (featRaw) {
+    feature = featRaw
       .replace(/[`]/g, '')
       .trim()
       .toLowerCase()
@@ -117,9 +113,9 @@ export function compileTestPlanFromText(
       .replace(/\s+/g, '-');
   }
 
-  const seedMatch = text.match(/^\s*-\s+\*\*Seed:\*\*\s*`?([^`\r\n]+)`?/im);
-  if (seedMatch) {
-    seed = seedMatch[1].trim();
+  const seedRaw = readLabel(text, 'Seed');
+  if (seedRaw) {
+    seed = seedRaw;
   }
 
   // Resolve source requirement hash if path exists but hash was omitted
@@ -171,16 +167,26 @@ export function compileTestPlanFromText(
     for (const l of gapLines) {
       const clean = l.replace(/^\s*[-*]\s+/, '').trim();
       if (!clean) continue;
-      // Pattern: - **Scenario:** `SC-05` | **AC:** `AC-06` | **Reason:** ...
+      // Pattern A (bullet): - **Scenario:** `SC-05` | **AC:** `AC-06` | **Reason:** ...
       const scMatch = clean.match(/\*\*Scenario:\*\*\s*`?([^`|\r\n]+)`?/i);
       const acMatch = clean.match(/\*\*AC:\*\*\s*`?([^`|\r\n]+)`?/i);
       const reasonMatch = clean.match(/\*\*Reason:\*\*\s*(.+)$/i);
-
       if (scMatch || acMatch || reasonMatch) {
         coverageGaps.push({
           scenarioId: scMatch ? scMatch[1].trim() : undefined,
           acceptanceCriterionId: acMatch ? acMatch[1].trim() : undefined,
           reason: reasonMatch ? reasonMatch[1].trim() : clean,
+        });
+        continue;
+      }
+      // Pattern B (table row): | `SC-05` | `AC-06` | reason text |
+      const cells = splitRow(clean);
+      if (cells.length >= 3 && /^\|.*\|$/.test(clean)) {
+        if (/^(scenario|skenario)$/i.test(cells[0]) || /^[-:]+$/.test(cells[0])) continue;
+        coverageGaps.push({
+          scenarioId: cells[0].replace(/`/g, '').trim() || undefined,
+          acceptanceCriterionId: cells[1].replace(/`/g, '').trim() || undefined,
+          reason: cells[2].trim(),
         });
       }
     }
@@ -200,8 +206,6 @@ export function compileTestPlanFromText(
       ? idMatch[1].toUpperCase()
       : `SC-${String(idx + 1).padStart(2, '0')}`;
 
-    let testId: string | undefined;
-    const covers: string[] = [];
     let actor: string | undefined;
     let authContext: string | undefined;
     let executionMode: PlanExecutionMode = 'automated';
@@ -209,89 +213,58 @@ export function compileTestPlanFromText(
     if (/@manual/i.test(heading)) executionMode = 'manual';
     else if (/@blocked/i.test(heading)) executionMode = 'blocked';
 
-    const testIdMatch = block.match(/^\s*-\s+\*\*Test\s+ID:\*\*\s*`?([^`\r\n]+)`?/im);
-    if (testIdMatch) testId = testIdMatch[1].trim();
+    const testId = readLabel(block, 'Test ID') ?? undefined;
 
-    const coversMatch = block.match(/^\s*-\s+\*\*Covers:\*\*\s*(.+)$/im);
-    if (coversMatch) {
-      const tokens = coversMatch[1].replace(/[`]/g, '').split(/[,;]/);
+    const covers: string[] = [];
+    const coversRaw = readLabel(block, 'Covers');
+    if (coversRaw) {
+      const tokens = coversRaw.replace(/[`]/g, '').split(/[,;]/);
       for (const tok of tokens) {
         const ac = tok.trim().toUpperCase();
         if (ac) covers.push(ac);
       }
     }
 
-    const actorMatch = block.match(/^\s*-\s+\*\*Actor:\*\*\s*`?([^`\r\n]+)`?/im);
-    if (actorMatch) actor = actorMatch[1].trim().toLowerCase();
+    const actorRaw = readLabel(block, 'Actor');
+    if (actorRaw) actor = actorRaw.toLowerCase();
 
-    const authMatch = block.match(/^\s*-\s+\*\*Auth(?:\s+Context)?:\*\*\s*`?([^`\r\n]+)`?/im);
-    if (authMatch) authContext = authMatch[1].trim().toLowerCase();
+    const authRaw = readLabel(block, 'Auth Context', 'Auth');
+    if (authRaw) authContext = authRaw.toLowerCase();
 
-    const modeMatch = block.match(/^\s*-\s+\*\*Execution\s+Mode:\*\*\s*`?([^`\r\n]+)`?/im);
-    if (modeMatch) {
-      const raw = modeMatch[1].trim().toLowerCase();
+    const modeRaw = readLabel(block, 'Execution Mode');
+    if (modeRaw) {
+      const raw = modeRaw.toLowerCase();
       if (raw === 'manual' || raw === 'blocked' || raw === 'automated') {
         executionMode = raw;
       }
     }
 
-    const dataSetup: string[] = [];
-    const actions: string[] = [];
     const assertions: PlanAssertion[] = [];
-    const locatorIntent: string[] = [];
-    const networkExpectations: string[] = [];
-    const artifactExpectations: string[] = [];
-    const cleanup: string[] = [];
-    const unknowns: string[] = [];
 
-    let currentSection:
-      | 'none'
-      | 'setup'
-      | 'actions'
-      | 'assertions'
-      | 'locators'
-      | 'network'
-      | 'artifacts'
-      | 'cleanup'
-      | 'unknowns' = 'none';
+    // Section content: bullet form (label + items below) or table form (`| Label | a<br>b |`).
+    // The ephemeral-ref check below still runs over every item — it is a gate, not formatting.
+    const dataSetup = readLabelFromSection(block, ['Data Setup', 'Setup']);
+    const actions = readLabelFromSection(block, ['Actions', 'Langkah']);
+    const assertionLines = readLabelFromSection(block, ['Assertions', 'Hasil yang Diharapkan']);
+    const locatorIntent = readLabelFromSection(block, ['Locator Intent', 'Locators']);
+    const networkExpectations = readLabelFromSection(block, ['Network Expectations', 'Network']);
+    const artifactExpectations = readLabelFromSection(block, [
+      'Artifact Expectations',
+      'Artifacts',
+    ]);
+    const cleanup = readLabelFromSection(block, ['Cleanup', 'Teardown']);
+    const unknowns = readLabelFromSection(block, ['Unknowns']);
 
-    for (let j = 1; j < sLines.length; j++) {
-      const line = sLines[j];
-      const trimmed = line.trim();
-
-      if (/^\*\*(?:Data\s+Setup|Setup):\*\*/i.test(trimmed)) {
-        currentSection = 'setup';
-        continue;
-      } else if (/^\*\*(?:Actions?|Langkah):\*\*/i.test(trimmed)) {
-        currentSection = 'actions';
-        continue;
-      } else if (/^\*\*(?:Assertions?|Hasil(?:\s+yang)?\s+Diharapkan):\*\*/i.test(trimmed)) {
-        currentSection = 'assertions';
-        continue;
-      } else if (/^\*\*(?:Locator\s+Intent|Locators?):\*\*/i.test(trimmed)) {
-        currentSection = 'locators';
-        continue;
-      } else if (/^\*\*(?:Network\s+Expectations?|Network):\*\*/i.test(trimmed)) {
-        currentSection = 'network';
-        continue;
-      } else if (/^\*\*(?:Artifact\s+Expectations?|Artifacts?):\*\*/i.test(trimmed)) {
-        currentSection = 'artifacts';
-        continue;
-      } else if (/^\*\*(?:Cleanup|Teardown):\*\*/i.test(trimmed)) {
-        currentSection = 'cleanup';
-        continue;
-      } else if (/^\*\*(?:Unknowns?):\*\*/i.test(trimmed)) {
-        currentSection = 'unknowns';
-        continue;
-      } else if (/^\*\*[A-Z]/.test(trimmed) || /^###/.test(trimmed) || /^##/.test(trimmed)) {
-        currentSection = 'none';
-      }
-
-      if (!trimmed) continue;
-
-      const itemClean = trimmed.replace(/^\s*[-*\d.]+\s+/, '').trim();
-      if (!itemClean || itemClean === 'none' || itemClean === '-') continue;
-
+    for (const itemClean of [
+      ...dataSetup,
+      ...actions,
+      ...assertionLines,
+      ...locatorIntent,
+      ...networkExpectations,
+      ...artifactExpectations,
+      ...cleanup,
+      ...unknowns,
+    ]) {
       // Check Ephemeral Browser Refs
       if (containsEphemeralReference(itemClean)) {
         diagnostics.push(
@@ -303,24 +276,11 @@ export function compileTestPlanFromText(
           ),
         );
       }
+    }
 
-      if (currentSection === 'setup') {
-        dataSetup.push(itemClean);
-      } else if (currentSection === 'actions') {
-        actions.push(itemClean);
-      } else if (currentSection === 'assertions') {
-        assertions.push(parseAssertion(itemClean));
-      } else if (currentSection === 'locators') {
-        locatorIntent.push(itemClean);
-      } else if (currentSection === 'network') {
-        networkExpectations.push(itemClean);
-      } else if (currentSection === 'artifacts') {
-        artifactExpectations.push(itemClean);
-      } else if (currentSection === 'cleanup') {
-        cleanup.push(itemClean);
-      } else if (currentSection === 'unknowns') {
-        unknowns.push(itemClean);
-      }
+    // Assertions carry a provenance tag; parse them from the collected lines.
+    for (const itemClean of assertionLines) {
+      assertions.push(parseAssertion(itemClean));
     }
 
     scenarios.push({

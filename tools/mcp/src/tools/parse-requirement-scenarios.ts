@@ -5,6 +5,7 @@ import {
   resolveAllowedPath,
   type ToolError,
 } from '../utils/safety';
+import { readLabel, readLabelFromSection } from './parsers/md-labels';
 
 export type ScenarioType = 'success' | 'failure' | 'access-restriction' | 'manual' | 'general';
 
@@ -59,6 +60,9 @@ export interface ParseRequirementScenariosOutput {
   error?: ToolError;
   message: string;
 }
+
+/** Matches a markdown table row — the table-form fast-path trigger. */
+const TABLE_ROW_RE = /^\s*\|.*\|\s*$/m;
 
 const LABEL_KEYWORDS =
   'Langkah|Steps?|Prekondisi|Precondition|Given|Hasil(?:\\s+yang\\s+Diharapkan)?|Expected(?:\\s+Result)?|Outcome|Input\\s+Data|Layer\\s+terdampak|Affected\\s+Layer';
@@ -449,6 +453,7 @@ export function parseRequirementScenariosFromText(text: string): RequirementScen
       scanIdx += 1;
     }
     const scenarioLines = lines.slice(scenarioStartIdx, scanIdx);
+    const blockText = scenarioLines.join('\n');
 
     // Parse table-view metadata from scenario header lines (before first **label:**)
     const testId = parseTestId(scenarioLines);
@@ -456,6 +461,51 @@ export function parseRequirementScenariosFromText(text: string): RequirementScen
     const affectedLayer = parseAffectedLayer(scenarioLines);
 
     i = scenarioStartIdx;
+
+    // TABLE FORM fast path: when the scenario body uses `| Label | value |`
+    // rows, the shared dual-mode reader owns it. Bullet-form blocks fall
+    // through to the legacy machine below.
+    if (TABLE_ROW_RE.test(blockText)) {
+      const tableSteps = readLabelFromSection(blockText, ['Langkah', 'Steps']);
+      const tableExpected = readLabelFromSection(blockText, [
+        'Hasil yang Diharapkan',
+        'Expected Result',
+        'Outcome',
+      ]);
+      const tablePre = readLabelFromSection(blockText, ['Prekondisi', 'Precondition', 'Given']);
+      const tableInputLines = readLabelFromSection(blockText, ['Input Data']);
+      const tableInput: Record<string, string> = {};
+      for (const raw of tableInputLines) {
+        const m = raw.match(/^([a-zA-Z0-9_-]+)\s*:\s*(.+)$/);
+        if (m) tableInput[m[1]] = m[2].trim();
+      }
+      const tableRoleScope = resolveScenarioRole(scenarioLines, rawName, rolesInScope);
+      const tableAuthContext = deriveAuthContext(text, tableRoleScope);
+      const tableExpectedJoined = tableExpected.join('; ');
+      const tableScenario: RequirementScenario = {
+        id: `SC-${scenarios.length + 1}`,
+        name,
+        steps: tableSteps,
+        expectedResult: tableExpectedJoined,
+        automatable,
+        scenarioType: extractScenarioType(rawName),
+        testId:
+          testId.length > 0
+            ? testId
+            : `TC-UNKNOWN-${String(scenarios.length + 1).padStart(3, '0')}`,
+        priority: scenarioPriority ?? globalPriority,
+        inputData: tableInput,
+        expectedResultFormatted: tableExpectedJoined,
+        affectedLayer,
+        ...(tableRoleScope !== undefined && { roleScope: tableRoleScope }),
+        ...(tableAuthContext !== undefined && { authContext: tableAuthContext }),
+      };
+      const tablePreText = tablePre.join(' ');
+      if (tablePreText) tableScenario.precondition = tablePreText;
+      scenarios.push(tableScenario);
+      i = scanIdx;
+      continue;
+    }
 
     const steps: string[] = [];
     let expectedResult = '';

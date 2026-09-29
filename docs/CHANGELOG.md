@@ -6,6 +6,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Format tabel untuk requirement & spec — 2026-09-29
+
+- **Masalahnya:** QA sulit mereview requirement/spec karena blok skenario terpecah vertikal (Prekondisi → Input Data → Langkah → Hasil dipisah baris kosong) dan tidak ada rendering markdown. Posisi baris "Langkah" berpindah tiap skenario, sehingga review 5 skenario = scroll bolak-balik.
+- **Solusinya:** satu reader bersama `tools/mcp/src/tools/parsers/md-labels.ts` (`readLabel` / `readLabelFromSection` / `splitCellItems`) yang menerima **dua bentuk** — bullet lama (`- **Module:** x`) dan baris tabel (`| Module | x |`). Kelima parser (requirement canonical, scenario legacy, validator, normalizer, plan compiler) kini memanggilnya, menggantikan **~65 regex label duplikat**.
+- **Tabel yang dipakai:** `## Metadata` (Field/Nilai), `## Kriteria Penerimaan` (ID/Kriteria), dan satu tabel `| Field | Nilai |` per skenario berisi Test ID, Covers, Role, Prekondisi, Input Data, Langkah, Hasil yang Diharapkan. Item dalam satu sel dipisah `<br>`; pipe di-escape `\|` — keduanya sudah jadi standar di `docs/WRITING-REQUIREMENTS.md`.
+- **Backward compatible:** file lama tetap valid. `requirements/_BAD_EXAMPLE.md` dan `specs/_BAD_EXAMPLE.md` **sengaja tidak dikonversi** — keduanya regression fixture untuk `REQ_LEGACY_AC_BULLET` dan `PLAN_EPHEMERAL_REF`.
+- **Emitter pindah ke tabel:** `synthesize_requirement`, Web Studio (server + skrip klien inline), dan generator wizard login. Lima katalog `requirements/auth/login-*.md` diregenerasi dari generator yang sama → **6/6 requirement 100/100**.
+- **MCP surface:** deskripsi 7 tool (`compile_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_requirement`, `synthesize_requirement`, `compile_test_plan`, `validate_plan`) menyatakan kedua bentuk diterima; `registry.ts` dan `manifest.ts` tetap identik (parity test hijau).
+- **Dokumentasi & skill:** `requirements/_TEMPLATE.md` v3.0, `specs/_TEMPLATE.md` v2.0, kedua `_GOOD_EXAMPLE.md`, README, `docs/WRITING-REQUIREMENTS.md`, `docs/MANUAL-SCENARIOS.md`, `docs/REPORT-GUIDE.md`, dan skill pack QA (SKILL.md + requirement-language, scenario-tags, auth-and-roles) kini mengajarkan format tabel; profil Hermes tersinkron.
+- **Bug laten yang ikut ketemu & diperbaiki** (terdeteksi golden-snapshot 4 file requirement, bukan tebakan): `**Prekondisi:**` inline tidak pernah terbaca; `**Role:**` tidak pernah mengisi `actor`; separator `---` bocor jadi item "expectation" palsu; `Source requirement` + hash di plan compiler masih bullet-only; baris AC generator tidak diakhiri pipe sehingga output tidak stabil terhadap formatter; dan skrip klien Studio memakai backslash berlapis yang membuat halaman gagal load.
+- **Verifikasi:** `npm run test:quality` hijau — 815 unit, 27 dashboard-browser, 26/26 property, 34/34 wizard, architecture + coverage (200 covered/0 uncovered) + twin-sync 17.
+
 ### Loop engine diperketat + cluster legacy dihapus — 2026-09-29
 
 - **Batas re-entry kini ditegakkan di ENTRY, bukan label.** Sebelumnya `validate.ts` hanya mengganti label `loopTarget` menjadi `blocked` setelah melewati batas, tetapi tetap menjalankan suite penuh lagi — `AGENTS.md` mengklaim "max 3 loops enforced at runtime" padahal tidak ada satu pun titik masuk yang membaca `loopCounts`. Sekarang: `loopCounts ≥ 3` → `LOOP_LIMIT_REACHED` (blocked) dan adapter Validate **tidak pernah dipanggil lagi**. Terverifikasi test: adapter dipanggil tepat 3× lalu berhenti.

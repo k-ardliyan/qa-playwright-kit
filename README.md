@@ -130,62 +130,55 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 ## Metadata
 
-- **Tags:** #smoke #ui
-- **Prioritas:** high
-- **Auth state:** unauthenticated
-- **Halaman awal:** /login
-- **Module:** auth
-- **Feature:** login-valid
+| Field | Nilai |
+| --- | --- |
+| Tags | #smoke #ui |
+| Prioritas | high |
+| Auth state | unauthenticated |
+| Halaman awal | /login |
+| Module | auth |
+| Feature | login-valid |
 
 ## Kriteria Penerimaan
 
-- **AC-01:** URL berubah ke /dashboard setelah login berhasil.
-- **AC-02:** Toast "Welcome" muncul setelah login berhasil.
-- **AC-03:** Password salah menampilkan pesan error dan tetap di /login.
+| ID | Kriteria |
+| --- | --- |
+| AC-01 | URL berubah ke /dashboard setelah login berhasil. |
+| AC-02 | Toast "Welcome" muncul setelah login berhasil. |
+| AC-03 | Password salah menampilkan pesan error dan tetap di /login. |
 
 ## Skenario Uji
 
 ### SC-01: Login berhasil (@success)
 
-- **Test ID:** `TC-001`
-- **Covers:** `AC-01`, `AC-02`
-- **Prioritas skenario:** `high`
-- **Layer terdampak:** `FE`
+| Field | Nilai |
+| --- | --- |
 
-**Input Data:**
-
-- email: credential:user.email
-- password: credential:user.password
-
-**Langkah:**
-
-1. Isi email valid + password benar
-2. Klik tombol Login
-
-**Hasil yang Diharapkan:**
-
-- URL /dashboard, Toast "Welcome" muncul
+| Field | Nilai |
+| --- | --- |
+| Test ID | `TC-001` |
+| Covers | `AC-01`, `AC-02` |
+| Prioritas skenario | `high` |
+| Layer terdampak | `FE` |
+| Input Data | email: credential:user.email<br>password: credential:user.password |
+| Langkah | 1. Isi email valid + password benar<br>2. Klik tombol Login |
+| Hasil yang Diharapkan | URL /dashboard, Toast "Welcome" muncul |
 
 ### SC-02: Login gagal (@failure)
 
-- **Test ID:** `TC-002`
-- **Covers:** `AC-03`
-- **Prioritas skenario:** `high`
-- **Layer terdampak:** `FE`
+| Field | Nilai |
+| --- | --- |
 
-**Input Data:**
+| Field | Nilai |
+| --- | --- |
+| Test ID | `TC-002` |
+| Covers | `AC-03` |
+| Prioritas skenario | `high` |
+| Layer terdampak | `FE` |
+| Input Data | email: credential:user.email<br>password: literal:WrongPassword123! |
+| Langkah | 1. Isi email valid + password salah<br>2. Klik tombol Login |
+| Hasil yang Diharapkan | Pesan error "Email atau password salah", tetap di /login |
 
-- email: credential:user.email
-- password: literal:WrongPassword123!
-
-**Langkah:**
-
-1. Isi email valid + password salah
-2. Klik tombol Login
-
-**Hasil yang Diharapkan:**
-
-- Pesan error "Email atau password salah", tetap di /login
 ```
 
 > Contoh di atas adalah bentuk ringkas yang lolos validator. Kontrak lengkap

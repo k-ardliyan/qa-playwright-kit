@@ -71,8 +71,8 @@ test.describe('synthesizeRequirement', () => {
 
     const md = fs.readFileSync(outPath, 'utf8');
     expect(md).toContain('# REQ-INVOICE-001: Daftar Invoice');
-    expect(md).toContain('- **Module:** invoice');
-    expect(md).toContain('- **Role scope:** finance');
+    expect(md).toContain('| Module | invoice |');
+    expect(md).toContain('| Role scope | finance |');
     expect(md).toContain('## Kriteria Penerimaan');
     expect(md).toContain('## Skenario Uji');
   });
@@ -111,12 +111,12 @@ test.describe('synthesizeRequirement', () => {
     expect(md).toContain('## Access Matrix');
     expect(md).toContain('| hrd | deny | Access denied is visible |');
     expect(md).toContain(
-      '- **Access expectation:** finance: bisa The approved invoices list is visible',
+      '| Access expectation | finance: bisa The approved invoices list is visible; hrd: tidak bisa Access denied is visible |',
     );
     expect(validateRequirementText(md).violations.map((v) => v.ruleName)).not.toContain(
       'access_expectation_missing',
     );
-    expect(md).toContain('- **Halaman awal:** /invoices/approved');
+    expect(md).toContain('| Halaman awal | /invoices/approved |');
     expect(md).toContain('Open approved invoices');
     expect(md).toContain('The approved invoices list is visible');
     expect(md).toContain('TC-INVOICE-001');

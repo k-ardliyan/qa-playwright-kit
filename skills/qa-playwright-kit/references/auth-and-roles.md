@@ -41,17 +41,14 @@ npm run setup:check    # shows rolesReady / rolesEncrypted / rolesIncomplete
 ```markdown
 ### SC-03: HRD Denied Access to Approval Page (@access-restriction)
 
-- **Test ID:** TC-FIN-003
-- **Covers:** AC-03
-
-**Prekondisi:** Logged in as HRD role
-
-**Langkah:**
-1. Open the finance approval page
-
-**Hasil yang Diharapkan:**
-- Page shows "Access denied" message or redirects elsewhere
-- URL does not contain /finance/approval
+| Field | Nilai |
+| --- | --- |
+| Test ID | TC-FIN-003 |
+| Covers | AC-03 |
+| Role | `hrd` |
+| Prekondisi | Logged in as HRD role |
+| Langkah | 1. Open the finance approval page |
+| Hasil yang Diharapkan | - Page shows "Access denied" message or redirects elsewhere<br>- URL does not contain /finance/approval |
 ```
 
 This pattern generates a test that asserts **denial**, not success. The Generator uses `storageState: authStatePath('hrd')`.

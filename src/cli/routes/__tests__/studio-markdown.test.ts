@@ -15,34 +15,41 @@ const base = {
 
 const md = buildRequirementMarkdown(base);
 
-assert.match(md, /^- \*\*AC-01:\*\* Halaman login tampil$/m);
+assert.match(md, /^\| AC-01 \| Halaman login tampil \|$/m);
 assert.match(md, /^### SC-01: User opens login \(@success\)$/m);
 assert.equal(md.includes('<script'), false);
 
-// Legacy path is byte-identical to the single-scenario template
+// Table form is the canonical output shape
 assert.equal(
   md,
   `# REQ-XXX: Login page
 
 ## Metadata
-- **Tags:** #ui
-- **Prioritas:** medium
-- **Auth state:** unauthenticated
-- **Halaman awal:** /login
-- **Module:** auth
-- **Feature:** login
+
+| Field | Nilai |
+| --- | --- |
+| Tags | #ui |
+| Prioritas | medium |
+| Auth state | unauthenticated |
+| Halaman awal | /login |
+| Module | auth |
+| Feature | login |
 
 ## Kriteria Penerimaan
-- **AC-01:** Halaman login tampil
+
+| ID | Kriteria |
+| --- | --- |
+| AC-01 | Halaman login tampil |
 
 ## Skenario Uji
 ### SC-01: User opens login (@success)
-- **Test ID:** TC-01
-- **Covers:** AC-01
-**Langkah:**
-1. Buka halaman login
-**Hasil yang Diharapkan:**
-Halaman login tampil
+
+| Field | Nilai |
+| --- | --- |
+| Test ID | TC-01 |
+| Covers | AC-01 |
+| Langkah | 1. Buka halaman login |
+| Hasil yang Diharapkan | Halaman login tampil |
 `,
 );
 
@@ -63,11 +70,11 @@ const multi = buildRequirementMarkdown({
 
 assert.match(multi, /^### SC-01: User opens login \(@success\)$/m);
 assert.match(multi, /^### SC-02: User submits wrong password \(@success\)$/m);
-assert.match(multi, /^- \*\*Test ID:\*\* TC-01$/m);
-assert.match(multi, /^- \*\*Test ID:\*\* TC-02$/m);
-assert.equal((multi.match(/- \*\*Covers:\*\* AC-01/g) ?? []).length, 2);
-assert.match(multi, /^1\. Buka halaman login$/m);
-assert.match(multi, /^2\. Klik submit$/m);
+assert.match(multi, /^\| Test ID \| TC-01 \|$/m);
+assert.match(multi, /^\| Test ID \| TC-02 \|$/m);
+assert.equal((multi.match(/\| Covers \| AC-01 \|/g) ?? []).length, 2);
+// Multi-line steps collapse into one `<br>` separated cell
+assert.match(multi, /^\| Langkah \| 1\. Isi password salah<br>2\. Klik submit \|$/m);
 assert.equal(multi.includes('SC-03'), false);
 
 assert.equal(SLUG_RE.test('login'), true);
