@@ -38,6 +38,7 @@
     "test:dashboard-browser": "npx playwright test -c config/playwright/dashboard.ts",
     "test:property": "tsx tools/scripts/run-property-tests.ts",
     "test:file-content": "tsx src/support/pw/__tests__/file-content-core.test.ts",
+    "test:md-labels": "tsx tools/mcp/src/tools/parsers/__tests__/md-labels.test.ts",
     "test:network-assert": "tsx src/support/pw/__tests__/network-assert-core.test.ts",
     "install:mcp-server": "node tools/scripts/install-mcp-server.cjs",
     "mcp:check": "tsx tools/scripts/mcp-compat-check.ts",
