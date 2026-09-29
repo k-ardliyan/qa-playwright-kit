@@ -59,7 +59,7 @@ After reading the report choose **one**:
 1. Read the SOURCE column in the dashboard
 2. Open the Accordion for the error detail and trace / screenshot links
 3. Choose the decision that matches the failureSource
-4. If FIX TEST: run Heal (Hermes) — max 3 cycles
+4. If FIX TEST: run Heal (Hermes) — max 3 cycles, enforced at entry: a 4th pass returns `LOOP_LIMIT_REACHED` rather than re-running. Each pass after the first re-runs only the previously failed titles.
 5. Still failing after 3 cycles → MARK BLOCKED + maintainer report
 ```
 

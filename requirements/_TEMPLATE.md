@@ -33,19 +33,19 @@
 
 **Keterangan field Metadata:**
 
-| Field             | Wajib?        | Keterangan                                                                                          |
-| ----------------- | ------------- | --------------------------------------------------------------------------------------------------- |
-| Tags              | ✅ Ya         | Dipisahkan spasi. Dipakai filter test.                                                              |
-| Prioritas         | ✅ Ya         | `high` / `medium` / `low`. Prioritas bisnis default untuk semua skenario.                           |
-| Auth state        | ✅ Ya         | `unauthenticated` / `authenticated`. Butuh login atau tidak.                                        |
-| Halaman awal      | ✅ Ya         | Path URL halaman pembuka scenario.                                                                  |
-| Module            | ✅ **Wajib**  | Modul aplikasi. Dipakai untuk grouping laporan dan coverage.                                        |
-| Feature           | ⚪ Disarankan | Fitur spesifik dalam modul. Validator memberi warning jika kosong (`metadata_feature_recommended`). |
-| Role scope        | ⚪ Opsional   | Role bisnis yang terlibat. Isi jika fitur multi-role.                                               |
-| Default role      | ⚪ Opsional   | Role default untuk single-role authenticated.                                                       |
-| Risk level        | ⚪ Opsional   | Dampak jika fitur gagal di produksi. Dipakai Healer untuk prioritasi.                               |
-| Data scope        | ⚪ Opsional   | Data khusus yang harus ada sebelum test bisa jalan (mis. `seed:invoice.pending`).                   |
-| Environment scope | ⚪ Opsional   | Batasi requirement ke environment tertentu (mis. `staging, production`).                            |
+| Field             | Wajib?        | Keterangan                                                                                                   |
+| ----------------- | ------------- | ------------------------------------------------------------------------------------------------------------ |
+| Tags              | ✅ Ya         | Dipisahkan spasi. Dipakai filter test.                                                                       |
+| Prioritas         | ✅ Ya         | `high` / `medium` / `low`. Prioritas bisnis default untuk semua skenario.                                    |
+| Auth state        | ✅ Ya         | `unauthenticated` / `authenticated`. Butuh login atau tidak.                                                 |
+| Halaman awal      | ✅ Ya         | Path URL halaman pembuka scenario.                                                                           |
+| Module            | ✅ **Wajib**  | Modul aplikasi. Dipakai untuk grouping laporan dan coverage.                                                 |
+| Feature           | ⚪ Disarankan | Fitur spesifik dalam modul. Validator memberi warning jika kosong (`metadata_feature_recommended`).          |
+| Role scope        | ⚪ Opsional   | Role bisnis yang terlibat. Isi jika fitur multi-role.                                                        |
+| Default role      | ⚪ Opsional   | Role default untuk single-role authenticated.                                                                |
+| Risk level        | ⚪ Opsional   | Dampak jika fitur gagal di produksi. Diteruskan ke contract sebagai `risk` (belum dipakai untuk prioritasi). |
+| Data scope        | ⚪ Opsional   | Data khusus yang harus ada sebelum test bisa jalan (mis. `seed:invoice.pending`).                            |
+| Environment scope | ⚪ Opsional   | Batasi requirement ke environment tertentu (mis. `staging, production`).                                     |
 
 ## Access Matrix
 

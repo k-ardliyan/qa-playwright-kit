@@ -42,6 +42,16 @@ Don't use for: protected zones (`src/**`, `tools/**`, `config/**`, `.github/agen
 - Resuming an interrupted run? Call `qa-playwright-kit:pipeline_status` first — one call reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, ready auth roles, and (when active) `pipelineRunId` for pre-run note attribution.
 - Running the full semantic workflow in one call? `qa-playwright-kit:workflow_run` drives Explore → Model → Challenge → Generate → Validate through the production driver and returns a structured `workflowStage`/`workflowStatus`/`nextRequiredAction` — prefer it over manual phase-by-phase invoke for the semantic flow.
 
+## Deliver markdown to QA (WAJIB — applies to ANY `.md`)
+
+Every time you create or edit a markdown file — requirement, spec, report, docs — hand it over as an artifact on its own line:
+
+```
+MEDIA:/absolute/path/to/file.md
+```
+
+Absolute path (`C:\...` on Windows). QA can then **Download** or open **Preview** straight from chat without knowing the filesystem path. Do NOT paste the markdown body into chat as a substitute — the artifact is what renders. Applies to files written via tools (`write_file`/`patch`), not just displayed ones.
+
 ## How to Run
 
 Canonical entry: `terminal` tool from repo root. Pass requirement path as a positional arg — no npm `--`.
@@ -123,6 +133,8 @@ For new, unknown, or changed interactive flows, gather evidence first via `qa-pl
 ### 2. Model (02. Model — SHARED MODEL)
 
 Draft or revise `requirements/<feature>.md` from `requirements/_TEMPLATE.md`. Business language only — no Playwright APIs. **Format is tables**: a `## Metadata` table, a `| ID | Kriteria |` acceptance-criteria table, and one `| Field | Nilai |` table per scenario carrying `Test ID`, `Covers`, `Langkah`, `Hasil yang Diharapkan` (and `Input Data` / `Prekondisi` / `Role` when relevant). Multiple items inside one cell are separated by `<br>`; a literal pipe is escaped `\|`. Validate with `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`.
+
+> `requirements/_TEMPLATE.md` and `specs/_TEMPLATE.md` are the **only canonical examples** — there is no separate `_GOOD_EXAMPLE` / `_BAD_EXAMPLE` pair, and both templates are exercised by tests so they cannot drift from the parser. Copy the template; never invent a Metadata row (an undocumented row is one the engine ignores).
 Load `.github/agents/planner.agent.md`. Compile via `qa-playwright-kit:compile_requirement` and write `specs/<feature>-test-plan.md`.
 
 ### 3. Challenge (03. Challenge — THE GATE)
@@ -155,7 +167,7 @@ Completion: no ephemeral refs; no credential leakage in step titles; every test 
 Validate runs the execution, diagnosis, reporting, and review loop:
 
 - **Execute:** Run tests via `playwright-test:run_tests`.
-- **Heal:** Diagnose and repair up to 3 cycles per file via Healer (`.github/agents/healer.agent.md`).
+- **Heal:** Diagnose and repair up to 3 cycles per file via Healer (`.github/agents/healer.agent.md`). The bound is enforced at **entry**: a 4th re-entry returns `LOOP_LIMIT_REACHED` (`retryable: false`, stage `blocked`) instead of running again. A feedback pass also **narrows** the re-run to the previously failed test titles — it never re-runs the full suite.
 - **Analyze (WAJIB):** Reporter (`.github/agents/reporter.agent.md`) runs the mandatory Analyze sub-phase, writes `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }`, and produces `analysisVerdict` / `analysisVerified`.
 - **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Failures route intelligently to the smallest useful stage (UI unknown → Explore; requirement conflict → Model; weak assertion → Challenge; test bug → Generate; app defect → FILE BUG; auth/env issue → FIX ENVIRONMENT).
 - **QA Review & Gated Archive:** Ask QA. For a pipeline run, **APPROVE is gated**: allowed only when `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact sidecar evidence counts match, a Reporter Analyze insight exists, and there are no unresolved failures. Archive via `archive_report`.

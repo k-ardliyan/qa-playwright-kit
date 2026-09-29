@@ -64,4 +64,15 @@ Copy the structure from `requirements/_TEMPLATE.md`. Required fields:
 - Each SC: a `| Field | Nilai |` table with Test ID, Covers, Steps, Expected Result
 - Role and Access Matrix when `Role scope` is set
 
+Optional Metadata rows, all actually parsed (verified by test — do not document
+a row the engine ignores):
+
+| Row                 | Use it for                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| `Role scope`        | Multi-role features; requires the Access Matrix section                                  |
+| `Default role`      | Single-role authenticated requirement                                                    |
+| `Risk level`        | Production impact; carried into the contract as `risk` (not yet used for prioritisation) |
+| `Data scope`        | Seed data that must exist before the run (e.g. `seed:invoice.pending`)                   |
+| `Environment scope` | Restrict the requirement to environments (e.g. `staging, production`)                    |
+
 Canonical shape: `requirements/_TEMPLATE.md` (the single source of truth — kept in sync by tests).

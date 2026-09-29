@@ -42,6 +42,11 @@ Without a type tag the parser classifies the scenario as `general` (not `success
 | Mock HTTP 500 / offline for error UX      | `(@network)`        | `mockServerError`, `mockAbort`                             |
 | Seed data via API then assert UI          | `(@hybrid)`         | `apiSeed`, `apiCleanup`                                    |
 | Assert ARIA snapshot stability            | `(@aria)`           | `browser_snapshot` at inspect time, then standard locators |
+| Assert a visual/layout baseline           | `(@visual)`         | `expectVisual` / `expectPageVisual` / `toHaveScreenshot`   |
+
+`validate_generated_tests` **enforces** these: a spec that mentions a capability
+tag without the matching API call fails. `@visual` in particular requires
+`toHaveScreenshot` or `expectVisual`/`expectPageVisual` from `@/support/pw`.
 
 ---
 

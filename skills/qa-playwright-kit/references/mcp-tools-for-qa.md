@@ -6,13 +6,14 @@ All tools are called as `qa-playwright-kit:<tool_name>`.
 
 ## The five you will use most
 
-| Task                               | Tool                      | What it gives you                                                                                                    |
-| ---------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Where am I / is it safe to resume? | `pipeline_status`         | Current stage, resume safety (requirement changed? artifacts missing?), last run result, ready auth roles            |
-| What still needs work?             | `list_requirement_status` | Every requirement with `hasPlan`, `hasTests`, manual-scenario count, last run status                                 |
-| Is my requirement valid?           | `validate_requirement`    | Structural check + score (0-100) before running the pipeline                                                         |
-| Run the full pipeline              | `workflow_run`            | Explore → Model → Challenge → Generate → Validate, returns `workflowStage` / `workflowStatus` / `nextRequiredAction` |
-| What failed and why?               | `get_test_failures`       | Structured failures with `failureSource`, trace, screenshot, error context                                           |
+| Task                               | Tool                      | What it gives you                                                                                                       |
+| ---------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Where am I / is it safe to resume? | `pipeline_status`         | Current stage, resume safety (requirement changed? artifacts missing?), last run result, ready auth roles               |
+| What still needs work?             | `list_requirement_status` | Every requirement with `hasPlan`, `hasTests`, manual-scenario count, last run status                                    |
+| Is my requirement valid?           | `validate_requirement`    | Structural check + score (0-100) before running the pipeline (thin `compat` wrapper — `compile_requirement` is the SoT) |
+| Run the full pipeline              | `workflow_run`            | Explore → Model → Challenge → Generate → Validate, returns `workflowStage` / `workflowStatus` / `nextRequiredAction`    |
+| What failed and why?               | `get_test_failures`       | Structured failures with `failureSource`, trace, screenshot, error context                                              |
+| Where are the artifacts?           | `list_artifacts`          | Reports, selector catalogs, test results under `artifacts/`                                                             |
 
 ## Two safety rules
 
@@ -66,3 +67,9 @@ action, so never guess it:
 and the `compat` tools (`normalize_requirements`, `parse_requirement_scenarios`,
 `validate_requirement` aliases) are used by the agents and the pipeline itself.
 You can call them, but the ones above are the QA-facing surface.
+
+The three `compat` tools are thin wrappers kept for older workspaces: the
+registry marks them `stability: 'compat'` with `replacement: compile_requirement`,
+which is the single source of truth for the requirement contract. New work
+should read the contract from `compile_requirement`; `validate_requirement`
+remains the friendly pre-flight score QA types.
