@@ -361,9 +361,9 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 | Skenario `(@manual)`            | [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)               |
 | Command cheat sheet             | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
 | Troubleshooting                 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
-| Arsitektur & Folder Map         | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                       |
+| Arsitektur & Folder Map         | [ARCHITECTURE.md](ARCHITECTURE.md)                                 |
 | Domain glossary & roles         | [docs/CONTEXT.md](docs/CONTEXT.md)                                 |
-| Riwayat perubahan               | [docs/CHANGELOG.md](docs/CHANGELOG.md)                             |
+| Riwayat perubahan               | [CHANGELOG.md](CHANGELOG.md)                                       |
 | Pipeline agent contract         | [AGENTS.md](AGENTS.md)                                             |
 
 </details>

@@ -37,7 +37,7 @@ Without a type tag the parser classifies the scenario as `general` (not `success
 | ----------------------------------------- | ------------------- | ---------------------------------------------------------- |
 | Upload a file                             | `(@upload)`         | `uploadFixture`, `uploadViaChooser`                        |
 | Download an export                        | `(@download)`       | `downloadAndSave`, `assertDownloadedEnvelope`              |
-| Assert PDF text / Excel structure         | `(@file-content)`   | `assertPdfContains`, `assertExcelHeaders`                  |
+| Assert PDF text / CSV structure           | `(@file-content)`   | `assertPdfContains`, `assertStringsContain`                |
 | Assert live API payload after a UI action | `(@network-assert)` | `waitAndAssertApi`                                         |
 | Mock HTTP 500 / offline for error UX      | `(@network)`        | `mockServerError`, `mockAbort`                             |
 | Seed data via API then assert UI          | `(@hybrid)`         | `apiSeed`, `apiCleanup`                                    |

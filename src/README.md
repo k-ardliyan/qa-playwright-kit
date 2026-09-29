@@ -5,9 +5,8 @@
 
 Folder ini berisi implementasi inti (core engine) dari **QA Playwright Kit**:
 
-- `agents/`: Pipeline coordinator, protocol handlers, dan sub-agent orchestration.
+- `agents/`: Pipeline coordinator (`WorkflowController`), stage implementations, dan sub-agent orchestration.
 - `cli/`: CLI dashboard server, runner utilities.
-- `executor/`: Runtime execution engines, sharding, priority scheduling.
 - `fixtures/`: Internal Playwright fixture chain implementation.
 - `observability/`: Evidence collection, tracer, logger.
 - `public/`: Stable public API surface untuk dikonsumsi oleh `tests/` workspace.

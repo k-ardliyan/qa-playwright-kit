@@ -67,6 +67,8 @@ export const FRAMEWORK_PATHS: string[] = [
   // Root files
   'AGENTS.md',
   'README.md',
+  'ARCHITECTURE.md',
+  'CHANGELOG.md',
   '.gitignore',
   '.gitattributes',
   '.mcp.json',
@@ -553,7 +555,7 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
     `Versi framework: ${outcome.fromVersion ?? '(tidak terbaca)'} → ${outcome.toVersion ?? '(tidak terbaca)'}`,
   );
   const changelog = firstChangelogSection(
-    git(repoRoot, ['show', 'FETCH_HEAD:docs/CHANGELOG.md']).stdout,
+    git(repoRoot, ['show', 'FETCH_HEAD:CHANGELOG.md']).stdout,
   );
   if (changelog) printInfo(`Perubahan terbaru: ${changelog.replace(/^#+\s*/, '')}`);
   for (const file of zone.updated) process.stdout.write(`  M ${file}\n`);

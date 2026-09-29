@@ -73,7 +73,7 @@ Helper tipis di `src/support/pw/` membungkus API resmi (bukan abstraksi berat):
 | Visual regression             | `(@visual)` / `#visual`                 | `expectVisual` → `toHaveScreenshot`                                                                               |
 | Download file                 | `(@download)` / `#download`             | `downloadAndSave`, `assertDownloadedEnvelope` → `page.waitForEvent('download')`                                   |
 | Upload file (fixture-first)   | `(@upload)` / `#upload`                 | `uploadFixture`, `uploadViaChooser` → `setInputFiles` / filechooser                                               |
-| PDF teks / Excel header       | `(@file-content)` / `#file-content`     | `assertPdfContains`, `extractPdfText`, `assertExcelHeaders`, `readExcelSummary`                                   |
+| PDF teks / CSV teks           | `(@file-content)` / `#file-content`     | `assertPdfContains`, `extractPdfText`, `assertStringsContain`                                                     |
 | Multi-field validation        | `(@failure)` multi-error                | `expect.soft` / `expectSoftFieldErrors`                                                                           |
 | Time-sensitive UI             | date/countdown                          | `freezeTime` / `advanceTime` → `page.clock`                                                                       |
 | Multi-role projects           | Role scope                              | `buildRoleProjects` (`src/support/pw/role-projects.ts`)                                                           |

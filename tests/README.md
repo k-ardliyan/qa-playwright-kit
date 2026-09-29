@@ -11,7 +11,7 @@ tests/
 ├── auth.setup.ts         # Playwright setup project entrypoint untuk otentikasi
 ├── fixtures.ts           # Stable test adapter (test, expect, authStatePath, setTestMetadata)
 ├── pages/                # Page Object Models aplikasi
-├── data/                 # Sample file upload/download, pdf, xlsx, network contracts
+├── data/                 # Sample file upload/download, pdf, network contracts
 ├── demo/                 # Demo test project
 └── <feature>.spec.ts     # Skenario pengujian (role-aware atau general)
 ```

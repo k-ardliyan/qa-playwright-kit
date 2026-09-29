@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Dokumentasi diselaraskan + CI portabilitas diperbaiki — 2026-09-29
+
+- **CI gagal di `npm run mcp:build`** (`Cannot find module .../node_modules/npm/bin/npm-cli.js`). Akar masalah: `install-mcp-server.cjs` membangun satu path npm-cli di sebelah binary node, sedangkan GitHub Actions menyimpannya di sibling `lib/` tree — layout yang **sudah** ditangani `resolveNpmCli()` di `src/setup/spawn-bin.ts` (dua kandidat). Shim `.cjs` lebih tua dari helper itu dan tidak pernah ikut diperbaiki, jadi ini duplikasi logika yang menyimpang. Kini keduanya memakai dua kandidat yang sama + fallback ke perintah npm platform; dua test regresi menjaga agar tidak menyimpang lagi.
+- **Skill pack vs engine.** `@visual` ditegakkan `validate_generated_tests` tetapi tidak ada di `scenario-tags.md` (spec QA bisa gagal karena tag yang tak pernah muncul di runbook); `list_artifacts` dan 5 baris Metadata opsional tak terdokumentasi; aturan **MEDIA delivery** hanya ada di `AGENTS.md` sementara patch sebelumnya ditulis ke profil Hermes lalu tertimpa sync — kini berada di `skills/qa-playwright-kit/SKILL.md` (sumber repo) sehingga ikut ter-sync ke semua klien.
+- **README & agent docs.** Contoh requirement di README punya dua tabel header yatim (sisa migrasi) dan contoh Role-Based masih bullet pra-v3.0; `.github/AGENTS.md` mendaftarkan agent `orchestrator` yang filenya tidak ada (orchestrasi = `WorkflowController`), dan `healer.agent.md` / `reporter.agent.md` membawa referensi usang yang sama.
+- **Drift dokumen yang ditemukan saat audit:** `docs/GUIDE.md` dan `docs/MANUAL-SCENARIOS.md` masih mengajarkan `readExcelSummary` + `assertExcelHeaders` — keduanya **sudah dihapus** bersama `exceljs` (26 → 25 tools); helper yang benar-benar tersedia adalah `assertPdfContains` / `extractPdfText` / `assertStringsContain`. `src/README.md` menyebut `src/executor/` (sharding, priority scheduling) yang **tidak ada**; `tests/README.md` menyebut `data/ xlsx` yang juga sudah dihapus.
+- **Verifikasi:** `npm run test:quality` hijau; ketiga workflow GitHub (Quality Gate, MCP Compatibility, Playwright E2E) **success**.
+
 ### Format tabel untuk requirement & spec — 2026-09-29
 
 - **Masalahnya:** QA sulit mereview requirement/spec karena blok skenario terpecah vertikal (Prekondisi → Input Data → Langkah → Hasil dipisah baris kosong) dan tidak ada rendering markdown. Posisi baris "Langkah" berpindah tiap skenario, sehingga review 5 skenario = scroll bolak-balik.
@@ -466,7 +474,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Known limitations (alpha)
 
-See [GUIDE.md](GUIDE.md).
+See [GUIDE.md](docs/GUIDE.md).
 
 [Unreleased]: https://github.com/k-ardliyan/qa-playwright-kit/compare/v0.2.0-alpha.1...HEAD
 [0.2.0-alpha.1]: https://github.com/k-ardliyan/qa-playwright-kit/releases/tag/v0.2.0-alpha.1
