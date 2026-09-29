@@ -171,36 +171,36 @@ function footer(state: LoginTemplateState, challengeMode: ChallengeMode): string
 function formAcceptance(state: LoginTemplateState, challengeMode: ChallengeMode): string {
   const roleName = canonicalRole(state.roles[0]?.name ?? 'user');
   const lines: string[] = [
-    `| AC-01 | Form login menolak submit ketika field identifier (email/username/phone) kosong.`,
-    `| AC-02 | Form login menolak submit ketika field password kosong.`,
-    `| AC-03 | Form login menolak submit ketika identifier dan password kosong.`,
-    `| AC-04 | Form login menolak identifier yang hanya spasi (diperlakukan kosong).`,
-    `| AC-05 | Form login menolak identifier dengan format tidak valid (bukan email/username/phone yang diterima aplikasi).`,
-    `| AC-06 | Login gagal dengan user fiktif menampilkan pesan error observable, tetap di halaman login, dan akun role \`${roleName}\` tidak terkunci.`,
+    `| AC-01 | Form login menolak submit ketika field identifier (email/username/phone) kosong. |`,
+    `| AC-02 | Form login menolak submit ketika field password kosong. |`,
+    `| AC-03 | Form login menolak submit ketika identifier dan password kosong. |`,
+    `| AC-04 | Form login menolak identifier yang hanya spasi (diperlakukan kosong). |`,
+    `| AC-05 | Form login menolak identifier dengan format tidak valid (bukan email/username/phone yang diterima aplikasi). |`,
+    `| AC-06 | Login gagal dengan user fiktif menampilkan pesan error observable, tetap di halaman login, dan akun role \`${roleName}\` tidak terkunci. |`,
     `| AC-07 | Login berhasil dengan kredensial valid me-redirect ke path \`${state.successUrlPath}\` ` +
-      `(assert pathname, bukan URL dengan \`?redirect=\`) dan session tersimpan di \`.auth/{APP_ENV}/${roleName}.json\`.`,
+      `(assert pathname, bukan URL dengan \`?redirect=\`) dan session tersimpan di \`.auth/{APP_ENV}/${roleName}.json\`. |`,
   ];
   let nextAc = 8;
   if (challengeMode !== 'none') {
     lines.push(
-      `| AC-${String(nextAc).padStart(2, '0')} | Setelah password, tantangan ${challengeMode} diselesaikan manusia; skenario ditandai (@manual) ` +
+      `| AC-${String(nextAc).padStart(2, '0')} | Setelah password, tantangan ${challengeMode} diselesaikan manusia; skenario ditandai (@manual)  |` +
         `karena OTP/CAPTCHA tidak diotomasi di pipeline (AUTH_CHALLENGE_MODE hanya untuk auth:setup).`,
     );
     nextAc++;
   }
   lines.push(
-    `| AC-${String(nextAc).padStart(2, '0')} | Form login menyediakan tombol/icon toggle show/hide password yang mengubah atribut type input antara password dan text.`,
-    `| AC-${String(nextAc + 1).padStart(2, '0')} | Sistem secara otomatis memotong (trim) karakter spasi di awal dan akhir identifier pada saat submit sehingga login dengan kredensial valid tetap berhasil.`,
-    `| AC-${String(nextAc + 2).padStart(2, '0')} | Form login dapat di-submit menggunakan penekanan tombol keyboard Enter ketika fokus berada pada input field.`,
-    `| AC-${String(nextAc + 3).padStart(2, '0')} | Checkbox "Ingat Saya" (Remember Me) dapat di-toggle status checked dan unchecked-nya oleh pengguna.`,
-    `| AC-${String(nextAc + 4).padStart(2, '0')} | Identifier email bersifat case-insensitive sehingga input kredensial valid berhuruf kapital tetap berhasil login ke \`${state.successUrlPath}\`.`,
-    `| AC-${String(nextAc + 5).padStart(2, '0')} | Tautan bantuan sekunder seperti "Lupa Kata Sandi?" dan "Daftar Akun" tampil di halaman login dengan URL target yang valid.`,
-    `| AC-${String(nextAc + 6).padStart(2, '0')} | Mengakses halaman protected tanpa sesi mengarahkan pengguna ke halaman login tanpa menampilkan konten protected (deep-link protection).`,
-    `| AC-${String(nextAc + 7).padStart(2, '0')} | Setelah login sukses, reload halaman tidak mengakhiri sesi — pengguna tetap login di \`${state.successUrlPath}\`.`,
-    `| AC-${String(nextAc + 8).padStart(2, '0')} | Navigasi back browser setelah login tidak mengakhiri sesi; akses ulang area sukses tidak meminta login ulang.`,
-    `| AC-${String(nextAc + 9).padStart(2, '0')} | Klik ganda pada tombol submit tidak memproses otentikasi dua kali (tombol disabled atau menampilkan loading selama proses).`,
-    `| AC-${String(nextAc + 10).padStart(2, '0')} | Identifier berisi markup/script dirender sebagai teks (di-escape), tidak dieksekusi, dan submit ditolak.`,
-    `| AC-${String(nextAc + 11).padStart(2, '0')} | Logout mengakhiri sesi; akses halaman protected setelah logout diarahkan kembali ke \`${state.loginUrl}\`.`,
+    `| AC-${String(nextAc).padStart(2, '0')} | Form login menyediakan tombol/icon toggle show/hide password yang mengubah atribut type input antara password dan text. |`,
+    `| AC-${String(nextAc + 1).padStart(2, '0')} | Sistem secara otomatis memotong (trim) karakter spasi di awal dan akhir identifier pada saat submit sehingga login dengan kredensial valid tetap berhasil. |`,
+    `| AC-${String(nextAc + 2).padStart(2, '0')} | Form login dapat di-submit menggunakan penekanan tombol keyboard Enter ketika fokus berada pada input field. |`,
+    `| AC-${String(nextAc + 3).padStart(2, '0')} | Checkbox "Ingat Saya" (Remember Me) dapat di-toggle status checked dan unchecked-nya oleh pengguna. |`,
+    `| AC-${String(nextAc + 4).padStart(2, '0')} | Identifier email bersifat case-insensitive sehingga input kredensial valid berhuruf kapital tetap berhasil login ke \`${state.successUrlPath}\`. |`,
+    `| AC-${String(nextAc + 5).padStart(2, '0')} | Tautan bantuan sekunder seperti "Lupa Kata Sandi?" dan "Daftar Akun" tampil di halaman login dengan URL target yang valid. |`,
+    `| AC-${String(nextAc + 6).padStart(2, '0')} | Mengakses halaman protected tanpa sesi mengarahkan pengguna ke halaman login tanpa menampilkan konten protected (deep-link protection). |`,
+    `| AC-${String(nextAc + 7).padStart(2, '0')} | Setelah login sukses, reload halaman tidak mengakhiri sesi — pengguna tetap login di \`${state.successUrlPath}\`. |`,
+    `| AC-${String(nextAc + 8).padStart(2, '0')} | Navigasi back browser setelah login tidak mengakhiri sesi; akses ulang area sukses tidak meminta login ulang. |`,
+    `| AC-${String(nextAc + 9).padStart(2, '0')} | Klik ganda pada tombol submit tidak memproses otentikasi dua kali (tombol disabled atau menampilkan loading selama proses). |`,
+    `| AC-${String(nextAc + 10).padStart(2, '0')} | Identifier berisi markup/script dirender sebagai teks (di-escape), tidak dieksekusi, dan submit ditolak. |`,
+    `| AC-${String(nextAc + 11).padStart(2, '0')} | Logout mengakhiri sesi; akses halaman protected setelah logout diarahkan kembali ke \`${state.loginUrl}\`. |`,
   );
   return lines.join('\n') + '\n\n';
 }
@@ -324,12 +324,12 @@ export function buildLoginRequirement(
   } else if (state.mechanism === 'sso') {
     body +=
       `| AC-01 | Login via SSO berhasil dan me-redirect ke path \`${state.successUrlPath}\`. |\n` +
-      `| AC-02 | Session SSO tersimpan (browser cookies / id_token). |\n\n`;
+      `| AC-02 | Session SSO tersimpan (browser cookies / id_token). |\n\n |`;
     body += ssoScenarios(state);
   } else {
     body +=
       `| AC-01 | Halaman utama \`${state.baseUrl}/\` termuat tanpa error. |\n` +
-      `| AC-02 | Aplikasi tidak menampilkan form login (mechanism: none) dan body berisi konten visible. |\n\n`;
+      `| AC-02 | Aplikasi tidak menampilkan form login (mechanism: none) dan body berisi konten visible. |\n\n |`;
     body += noneScenarios(state);
   }
 

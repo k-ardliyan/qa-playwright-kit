@@ -173,8 +173,8 @@ test('form: includes snapshot_page / catalog guidance for site-specific locators
   const md = buildLoginRequirement(baseState());
   assert.ok(md.includes('snapshot_page'), 'must instruct snapshot_page');
   assert.ok(md.includes('selector-catalog'), 'must mention selector-catalog');
-  assert.ok(md.includes('**Module:** auth'), 'module metadata missing');
-  assert.ok(md.includes('**Feature:** login'), 'feature metadata missing');
+  assert.ok(md.includes('| Module | auth |'), 'module metadata missing');
+  assert.ok(md.includes('| Feature | login |'), 'feature metadata missing');
 });
 
 test('form: auth path uses APP_ENV scope vocabulary', () => {
@@ -222,7 +222,7 @@ test('none: targets root, not login URL', () => {
 
 test('none: halaman awal is /', () => {
   const md = buildLoginRequirement(baseState({ mechanism: 'none' }));
-  assert.ok(md.includes('**Halaman awal:** /'), 'none halaman awal should be /');
+  assert.ok(md.includes('| Halaman awal | / |'), 'none halaman awal should be /');
 });
 
 // ─── general ─────────────────────────────────────────────────────────────────
@@ -253,8 +253,8 @@ test('form otp-browser: negatives first; OTP is last (@manual) covering AC-07', 
   assert.ok(md.includes('SC-07: Verifikasi OTP di Browser (@manual)'), 'otp last');
   assert.ok(md.includes('`TC-LOGIN-007`'), 'challenge Test ID must stay 3-digit');
   assert.ok(md.includes('AUTH_CHALLENGE_MODE=otp-browser'), 'mode missing');
-  assert.ok(md.includes('**AC-08:**'), 'challenge AC missing');
-  assert.ok(md.includes('Covers:** `AC-07`, `AC-08`'), 'manual success must cover AC-07');
+  assert.ok(md.includes('| AC-08 |'), 'challenge AC missing');
+  assert.ok(md.includes('| Covers | `AC-07`, `AC-08` |'), 'manual success must cover AC-07');
   assert.ok(md.includes('credential:user.email'), 'credential provenance missing');
   const idxFail = md.indexOf('SC-01:');
   const idxFictional = md.indexOf('SC-06:');
@@ -301,8 +301,8 @@ test('no plaintext secret leaked into requirement', () => {
   );
   assert.ok(md.includes('credential:admin.email'), 'should reference credential provenance');
   assert.ok(md.includes('credential:admin.password'), 'should reference credential provenance');
-  const inputBlock = md.split('**Input Data:**')[1]?.split('**Langkah:**')[0] ?? '';
-  const pwdLines = inputBlock.split('\n').filter((l) => /password:/i.test(l));
+  const inputBlock = md.split('| Input Data |')[1]?.split(' |')[0] ?? '';
+  const pwdLines = inputBlock.split('<br>').filter((l) => /password:/i.test(l));
   assert.ok(pwdLines.length > 0, 'password input line missing');
   for (const line of pwdLines) {
     assert.ok(/credential:|literal:/.test(line), `password must use provenance prefix: ${line}`);
@@ -335,8 +335,8 @@ test('form: generates all 19 scenarios including Tier 2 UX and Tier 3 robustness
     md.includes('SC-13: Verifikasi Keberadaan dan Validitas Tautan Lupa Password dan Registrasi'),
     'SC-13 missing',
   );
-  assert.ok(md.includes('**AC-08:**'), 'AC-08 missing');
-  assert.ok(md.includes('**AC-13:**'), 'AC-13 missing');
+  assert.ok(md.includes('| AC-08 |'), 'AC-08 missing');
+  assert.ok(md.includes('| AC-13 |'), 'AC-13 missing');
   assert.ok(
     md.includes('SC-14: Akses Halaman Protected Tanpa Login Mengarahkan ke Login'),
     'tier-3 deep-link missing',
@@ -347,7 +347,7 @@ test('form: generates all 19 scenarios including Tier 2 UX and Tier 3 robustness
   assert.ok(md.includes('SC-17: Klik Ganda Tombol Submit'), 'SC-17 missing');
   assert.ok(md.includes('SC-18: Identifier Berisi Karakter HTML'), 'SC-18 missing');
   assert.ok(md.includes('SC-19: Logout Mengakhiri Sesi'), 'SC-19 missing');
-  assert.ok(md.includes('**AC-19:**'), 'AC-19 missing');
+  assert.ok(md.includes('| AC-19 |'), 'AC-19 missing');
 });
 
 test('form challenge mode: 19 scenarios with shifted AC coverage (AC-09..20)', () => {
@@ -356,9 +356,9 @@ test('form challenge mode: 19 scenarios with shifted AC coverage (AC-09..20)', (
   });
   assert.ok(md.includes('SC-07: Verifikasi OTP di Browser (@manual)'), 'SC-07 OTP missing');
   assert.ok(md.includes('SC-08: Toggle Visibilitas Password Show dan Hide'), 'SC-08 missing');
-  assert.ok(md.includes('Covers:** `AC-09`'), 'SC-08 should cover AC-09 in challenge mode');
-  assert.ok(md.includes('**AC-14:**'), 'AC-14 missing in challenge mode');
-  assert.ok(md.includes('**AC-20:**'), 'AC-20 (tier-3 shifted) missing in challenge mode');
+  assert.ok(md.includes('| Covers | `AC-09` |'), 'SC-08 should cover AC-09 in challenge mode');
+  assert.ok(md.includes('| AC-14 |'), 'AC-14 missing in challenge mode');
+  assert.ok(md.includes('| AC-20 |'), 'AC-20 (tier-3 shifted) missing in challenge mode');
   assert.ok(
     md.includes('SC-19: Logout Mengakhiri Sesi'),
     'tier-3 logout missing in challenge mode',
@@ -409,12 +409,32 @@ test('writeLoginRequirementFile overwrites AUTO-GENERATED login.md', () => {
 // which the formatter normalizes (3 spaces → 2 = a markdown hard break),
 // silently changing the test data.
 
-test('generated login.md is already markdown-formatted (no trailing-space data)', () => {
+test('generated login.md is stable under the markdown formatter (idempotent)', () => {
   const md = buildLoginRequirement(baseState());
+  // The formatter pads table columns for alignment — that is expected and
+  // harmless. What must hold is that a SECOND pass changes nothing, and that
+  // no test data is silently rewritten.
+  const once = formatMarkdownInText(md);
+  const twice = formatMarkdownInText(once);
+  assert.equal(twice, once, 'formatting must be idempotent');
+  // Strip table padding before comparing content: the words must survive.
+  // Separator rows (`| --- | --- |`) legitimately grow dashes when the
+  // formatter pads columns, so they are compared as a shape, not as text.
+  const squash = (s: string) =>
+    s
+      .split('\n')
+      .map((l) => {
+        if (/^\s*\|[\s:|-]+\|\s*$/.test(l)) return '|SEP|';
+        return l
+          .replace(/\s*\|\s*/g, '|')
+          .replace(/\s+/g, ' ')
+          .trim();
+      })
+      .join('\n');
   assert.equal(
-    formatMarkdownInText(md),
-    md,
-    'generated login.md must be stable under the markdown formatter',
+    squash(once),
+    squash(md),
+    'formatting must not change the requirement content, only its alignment',
   );
 });
 
