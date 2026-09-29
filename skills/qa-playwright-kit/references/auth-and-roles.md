@@ -102,6 +102,15 @@ Trigger: 401/403, `unauthorized`, `session expired`, test redirect ke `/login`, 
 3. **Re-run spec file yang terdampak saja**, lanjutkan phase.
 4. **Maks 1 siklus re-auth per role per run.** 401 kambuh setelah login baru = masalah TTL sesi server / multi-layer session → laporkan ke QA sebagai FIX ENVIRONMENT, jangan loop diam-diam.
 
+### Anti-lockout (akun server bisa terkunci)
+
+Server target (mis. ERPKu) mengunci akun setelah **~3 kredensial gagal** selama **~30 menit** — dan pesan API-nya sering generic ("Nama akun atau kata sandi salah") walau `debug.reason: ACCOUNT_LOCKED`.
+
+- **Skenario negatif maks 1 per suite** dan **1 klik submit saja** — identifier **fiktif** (mis. `qa.invalid.user.not.exists`), bukan password salah pada akun role real. `login-none.md` SC-06 sudah benar; jangan tambah variasi wrong-password pada `*_EMAIL` asli.
+- **Jangan re-run `npm run auth:setup` berulang** dengan kredensial yang belum pasti benar — tiap percobaan gagal menambah hitungan lockout. Sesi yang masih valid otomatis di-reuse, jadi `auth:setup` yang berhasil itu murah; yang berulang-gagal itu mahal.
+- Kalau login valid tapi tetap di `/login` dan body memuat lock/salah/invalid → jangan fail keras yang memicu attempt lagi; catat sebagai blocked (`ACCOUNT_LOCKED — wait unlock`), dan sesi storageState yang ada masih bisa dipakai test lain.
+- Run berurutan (jika perlu): prefix nama file menentukan urutan — negative dulu, lalu role positif (`--workers=1` untuk suite login multi-role).
+
 ### Hard bans
 
 - **DILARANG inject storage state**: `browser_set_storage_state`, `context.addCookies`, `localStorage.setItem` token, edit manual `.auth/*.json`. Login asli menulis banyak lapisan storage sekaligus; inject cuma nebak satu lapisan → sesi palsu yang terlihat hijau.
@@ -194,6 +203,7 @@ Tenant delivered by link (subdomain / path / query) needs **no** company key —
 - Auth file valid but redirects to `/login` → the app stores session in localStorage, not cookies. Check that `origins[0].localStorage` is non-empty in `.auth/{APP_ENV}/user.json`.
 - Session expired mid-run (401 / redirected to login) → Auth Recovery Protocol di atas. Jangan heal locator, jangan inject storage state.
 - Specs never log in inside the test body — provisioning sesi hanya lewat setup project.
+- `fullyParallel: true` → test dalam satu file pun jalan bersamaan. Skenario yang memutasi state akun bersama (logout, ganti password/profil, revoke session) wajib diserialkan: `test.describe.configure({ mode: 'serial' })` untuk grupnya, atau `lock: '<role>-account'` (Playwright ≥1.63) bila file lain ikut memakai akun yang sama. Jangan matikan paralel global.
 - Role hanya dari env: file `.auth/*.json` yang tidak ada kredensialnya di env adalah orphan (artefak duplikasi), bukan role sah — `auth:verify` menandainya, `validate_generated_tests` menolak spec yang memakainya.
 - Do not share one account across multiple QA members on a shared environment — create isolated accounts per team member.
 - Tenant mismatch: a saved session stamped for another company is refused — `snapshot_page` / `discover_pages` return `warnings` and capture WITHOUT that session; `health_check` / `pipeline_status` report the role not-ready; specs abort before navigation. Fix is `npm run auth:setup`, not a locator heal. Set `{ROLE}_COMPANY` (or the tenant-scoped login URL) per role; the framework throws when the key is set but no company input matches — fix the selector, do not delete the key.

@@ -9,6 +9,7 @@
  */
 import * as fs from 'node:fs';
 import { test, expect } from '@/fixtures/base.fixture';
+import { setTestMetadata } from '@/support/test-metadata';
 import {
   assertDownloadedEnvelope,
   assertPdfContains,
@@ -19,6 +20,14 @@ import {
 
 test.describe('File capabilities demo @demo @download @upload @file-content', () => {
   test('upload fixture into file input', async ({ page }) => {
+    setTestMetadata({
+      testId: 'TC-DEMO-FILE-01',
+      module: 'demo',
+      feature: 'file-capabilities',
+      priority: 'MEDIUM',
+      expectedResult: 'File input menerima fixture sample.png',
+    });
+
     await test.step('Render file input and upload fixture', async () => {
       await page.setContent(`
       <html><body>
@@ -34,6 +43,14 @@ test.describe('File capabilities demo @demo @download @upload @file-content', ()
   });
 
   test('download blob and assert envelope', async ({ page }) => {
+    setTestMetadata({
+      testId: 'TC-DEMO-FILE-02',
+      module: 'demo',
+      feature: 'file-capabilities',
+      priority: 'MEDIUM',
+      expectedResult: 'Download tersimpan dengan envelope .txt yang valid',
+    });
+
     await test.step('Trigger download and assert envelope', async () => {
       const payload = 'demo-download-body';
       await page.setContent(`
@@ -51,6 +68,14 @@ test.describe('File capabilities demo @demo @download @upload @file-content', ()
   });
 
   test('PDF sample contains demo tokens only', async () => {
+    setTestMetadata({
+      testId: 'TC-DEMO-FILE-03',
+      module: 'demo',
+      feature: 'file-capabilities',
+      priority: 'MEDIUM',
+      expectedResult: 'PDF sample memuat token demo QA-KIT-SAMPLE-PDF & TOKEN-ALPHA',
+    });
+
     await test.step('Assert PDF demo tokens', async () => {
       const pdf = fixturePath('pdf', 'sample-text.pdf');
       await assertPdfContains(pdf, ['QA-KIT-SAMPLE-PDF', 'TOKEN-ALPHA']);

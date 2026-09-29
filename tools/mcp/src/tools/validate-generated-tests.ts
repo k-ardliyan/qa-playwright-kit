@@ -214,7 +214,7 @@ export function validateSpecFile(
   return violations;
 }
 
-function validateMetadataRule(
+export function validateMetadataRule(
   content: string,
   filePath: string,
   relativePath: string,
@@ -223,14 +223,40 @@ function validateMetadataRule(
     return [];
   }
   const violations: ValidationViolation[] = [];
-  if (!/\bsetTestMetadata\s*\(/.test(content)) {
+  // Row identity: the dashboard keys every row on testId (annotation, with a
+  // title-derived fallback). Check PER CALL, not per file — a spec with many
+  // tests where only some carry testId silently yields ID-less rows for the
+  // rest.
+  const callPattern = /\bsetTestMetadata\s*\(/g;
+  const callSites: number[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = callPattern.exec(content)) !== null) {
+    callSites.push(match.index);
+  }
+
+  if (callSites.length === 0) {
     violations.push({
       filePath,
       lineNumber: 1,
       ruleName:
-        'Metadata rule: missing setTestMetadata({ module, feature }) — add inside test.beforeEach for reporting taxonomy',
+        'Metadata rule: missing setTestMetadata({ testId, ... }) — add as the first statement inside each test() (or beforeEach) for reporting taxonomy',
       severity: 'warning',
     });
+    return violations;
+  }
+
+  for (let i = 0; i < callSites.length; i += 1) {
+    const start = callSites[i]!;
+    const stop = i + 1 < callSites.length ? callSites[i + 1]! : content.length;
+    if (!/\btestId\s*:/.test(content.slice(start, stop))) {
+      violations.push({
+        filePath,
+        lineNumber: getLineNumberFromIndex(content, start),
+        ruleName:
+          "Metadata rule: setTestMetadata(...) call without testId — its dashboard row(s) lose identity; add testId: 'TC-...'",
+        severity: 'warning',
+      });
+    }
   }
   return violations;
 }

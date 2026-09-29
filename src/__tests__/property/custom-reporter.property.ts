@@ -23,6 +23,10 @@ import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
 // artifacts/reports is never touched (see report-dir-isolation.ts).
 const isolate = createIsolatedReportDir();
 
+// The summary shape is pinned by docs/REPORT-GUIDE.md; its repo-relative spec
+// path is the same for every synthetic case the reporter writes.
+const SYNTHETIC_SPEC_RELATIVE = 'tests/ui/smoke/smoke.spec.ts';
+
 type SyntheticStatus = 'passed' | 'failed' | 'skipped' | 'timedOut' | 'interrupted';
 
 interface SyntheticCase {
@@ -214,6 +218,7 @@ async function property9AnnotationExtraction(): Promise<void> {
           priority: string;
           role: string;
           actualResult: string;
+          filePath?: string;
         };
 
         assert.strictEqual(tc.testId, testId, 'testId should match annotation');
@@ -227,6 +232,13 @@ async function property9AnnotationExtraction(): Promise<void> {
           tc.actualResult,
           'Sesuai dengan expected result',
           'passed test actualResult fallback',
+        );
+        // Row identity must survive into test-summary.json: serve mode derives
+        // the scope badge + evidence drill-down from filePath.
+        assert.strictEqual(
+          tc.filePath,
+          SYNTHETIC_SPEC_RELATIVE,
+          'filePath should be the repo-relative spec path',
         );
       },
     ),

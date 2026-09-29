@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   validateNoEphemeralRefs,
   validateNoHardcodedWaits,
+  validateMetadataRule,
   validateNoInlineAuth,
   validateAuthRolesRegistered,
   validateAuthenticatedSpecsDeclareStorageState,
@@ -348,5 +349,60 @@ test.describe('validate-generated-tests :visible pseudo-class rule (Playwright 2
       'tests/sample.spec.ts',
     );
     expect(violations.length).toBe(0);
+  });
+});
+
+test.describe('validate-generated-tests metadata identity rule', () => {
+  test('flags setTestMetadata without testId (rows lose identity)', () => {
+    const src = [
+      "import { test } from '@/fixtures/base.fixture';",
+      "import { setTestMetadata } from '@/support/test-metadata';",
+      "test.describe('x', () => {",
+      "  test('y', async () => {",
+      "    setTestMetadata({ priority: 'high', expectedResult: 'ok' });",
+      '  });',
+      '});',
+    ].join('\n');
+    const violations = validateMetadataRule(src, 'tests/approve.spec.ts', 'tests/approve.spec.ts');
+    expect(violations.length).toBe(1);
+    expect(violations[0].ruleName).toContain('testId');
+    expect(violations[0].severity).toBe('warning');
+  });
+
+  test('passes when testId is present in the metadata block', () => {
+    const src = [
+      "import { test } from '@/fixtures/base.fixture';",
+      "setTestMetadata({ testId: 'TC-A-001', priority: 'high' });",
+    ].join('\n');
+    expect(validateMetadataRule(src, 'tests/approve.spec.ts', 'tests/approve.spec.ts')).toEqual([]);
+  });
+
+  test('still flags a spec with no setTestMetadata call at all', () => {
+    const src = "import { test } from '@/fixtures/base.fixture';\ntest.describe('x', () => {});";
+    const violations = validateMetadataRule(src, 'tests/approve.spec.ts', 'tests/approve.spec.ts');
+    expect(violations.length).toBe(1);
+    expect(violations[0].ruleName).toContain('missing setTestMetadata');
+  });
+
+  test('flags each ID-less call in a mixed file, keeps the identified one clean', () => {
+    const src = [
+      "setTestMetadata({ testId: 'TC-A-001' });",
+      "setTestMetadata({ priority: 'high' });",
+      "setTestMetadata({ expectedResult: 'ok' });",
+    ].join('\n');
+    const violations = validateMetadataRule(src, 'tests/approve.spec.ts', 'tests/approve.spec.ts');
+    expect(violations.length).toBe(2);
+    expect(violations.every((v) => v.ruleName.includes('without testId'))).toBe(true);
+    expect(violations.map((v) => v.lineNumber)).toEqual([2, 3]);
+  });
+
+  test('skips traceability-exempt files', () => {
+    expect(
+      validateMetadataRule(
+        "setTestMetadata({ priority: 'low' });",
+        'tests/demo/demo-x.spec.ts',
+        'tests/demo/demo-x.spec.ts',
+      ),
+    ).toEqual([]);
   });
 });

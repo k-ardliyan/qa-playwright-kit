@@ -95,6 +95,7 @@ export function normalizeTestCases(
       role: (t['role'] as string) || '',
       module: (t['module'] as string) || '',
       feature: (t['feature'] as string) || '',
+      filePath: (t['filePath'] as string) || '',
       // Fix #6: status fallback 'skipped' jika nilai undefined/unknown.
       status: ((t['status'] as string) ||
         'skipped') as import('../../support/custom-dashboard/types').CollectedTestData['status'],
@@ -115,7 +116,6 @@ export function normalizeTestCases(
       aiNotes: typeof t['aiNotes'] === 'string' ? (t['aiNotes'] as string) : undefined,
       // Fields not in CollectedTestCase — safe defaults for serve mode
       fullTitle: (t['fullTitle'] as string) || (t['title'] as string) || '',
-      filePath: (t['filePath'] as string) || '',
       errorMessage: (t['errorMessage'] as string) || '',
       errors:
         (t['errors'] as import('../../support/custom-dashboard/types').CollectedError[]) || [],

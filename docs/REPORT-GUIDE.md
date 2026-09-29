@@ -147,7 +147,9 @@ interface TestSummary {
 ```typescript
 interface CollectedTestCase {
   testId: string; // 'TC-LOGIN-01' atau derived ID
-  title: string; // Test title dari test('...')
+  title: string;
+  /** Spec file asal baris ini (tests/<feature>.spec.ts) — dipakai badge scope + drill-down evidence di serve mode. */
+  filePath?: string;
   status: 'passed' | 'failed' | 'skipped' | string;
   duration: number; // ms
   scenarioId?: string;

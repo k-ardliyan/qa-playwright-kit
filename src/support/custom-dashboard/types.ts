@@ -115,6 +115,8 @@ export interface CollectedTestCase {
   /** Execution track ('strict' | 'express'). */
   track?: 'strict' | 'express';
   title: string;
+  /** Spec file that produced this row — dashboard scope badge + evidence drill-down (serve mode). */
+  filePath?: string;
   role: string;
   /** Module this test belongs to — from requirement metadata or folder. */
   module: string;

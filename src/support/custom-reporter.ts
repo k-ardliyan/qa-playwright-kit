@@ -234,7 +234,9 @@ export default class CustomReporter implements Reporter {
 
     const errors = collectErrors(result);
     const errorMessage = formatErrorMessage(errors);
-    const filePath = path.relative(process.cwd(), test.location.file);
+    // Forward slashes keep the summary artifact portable — every consumer
+    // (scope badge, filters, drill-down) matches on normalized paths anyway.
+    const filePath = path.relative(process.cwd(), test.location.file).replace(/\\/g, '/');
     const fullTitle = test.titlePath().join(' > ');
     const logicalKey = test.id || `${filePath}::${fullTitle}`;
     const attachments = collectAttachments(result);
@@ -360,6 +362,7 @@ export default class CustomReporter implements Reporter {
         reqRef: t.reqRef,
         track: t.track,
         title: t.title,
+        filePath: t.filePath,
         role: t.role,
         module: t.module,
         feature: t.feature,

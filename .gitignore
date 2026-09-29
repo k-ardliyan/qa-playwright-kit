@@ -29,6 +29,7 @@ environments/*.bak
 .agents/
 .claude/
 .gemini/
+.codegraph/
 
 # Consolidated Runtime Artifacts (Hybrid Architecture)
 #

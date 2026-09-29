@@ -321,6 +321,27 @@ Anatomy / cara baca: [REPORT-GUIDE.md](REPORT-GUIDE.md).
 
 ---
 
+### Error #11: Test Gagal Tapi `artifacts/test-results/` Tidak Ada `trace.zip`
+
+**Gejala:** test fail lokal, ada screenshot + video, tapi tidak ada trace untuk dibuka di Trace Viewer.
+
+**Root cause:** bukan bug — konfigurasi default `trace: 'on-first-retry'` + retries lokal = 0, jadi trace hanya direkam saat retry (praktis hanya di CI yang `retries: 2`). Gagal lokal = tidak ada retry = tidak ada trace.
+
+**Fix:**
+
+```bash
+# Rekam trace untuk semua test pada run ini (bukan hanya retry):
+npx playwright test tests/<feature>.spec.ts --trace on
+
+# Debug satu test dengan Playwright Inspector:
+npx playwright test tests/<feature>.spec.ts --debug
+
+# Buka trace setelah run:
+npx playwright show-trace artifacts/test-results/<test-folder>/trace.zip
+```
+
+---
+
 ## 🔧 Cara Mendapatkan Help Lebih Lanjut
 
 **Sebelum tanya, kumpulkan info ini:**

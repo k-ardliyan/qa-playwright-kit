@@ -412,12 +412,13 @@ Detail tool dan pipeline: [AGENTS.md](../AGENTS.md).
 
 ## Troubleshooting `validate_generated_tests`
 
-| Rule              | Perbaikan                                                                 |
-| ----------------- | ------------------------------------------------------------------------- |
-| Import rule       | Pakai `import { test } from '@/fixtures/base.fixture'`                    |
-| Describe rule     | Bungkus tes dalam `test.describe(...)`                                    |
-| Step rule         | Gunakan `test.step(...)` per aksi                                         |
-| Traceability rule | Tambah header `// spec:` dan `// seed:` (wajib untuk tes hasil Generator) |
+| Rule              | Perbaikan                                                                                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Import rule       | Pakai `import { test } from '@/fixtures/base.fixture'`                                                                                                               |
+| Describe rule     | Bungkus tes dalam `test.describe(...)`                                                                                                                               |
+| Step rule         | Gunakan `test.step(...)` per aksi                                                                                                                                    |
+| Traceability rule | Tambah header `// spec:` dan `// seed:` — wajib untuk **semua** spec non-exempt (hasil Generator **dan** spec manual). Exempt: `tests/demo/**`, `tests/seed.spec.ts` |
+| Metadata identity | Tambah `testId: 'TC-...'` di dalam `setTestMetadata(...)` — tanpa itu baris dashboard kehilangan identitas                                                           |
 
 Tes legacy (login, smoke, seed, demo) exempt via `tools/mcp/src/tools/validate-generated-tests.ts`.
 
