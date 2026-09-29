@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { syncAgentSkillsAndMcp } from '@/setup/agent-sync';
+import { syncAgentSkillsAndMcp, detectInstalledClients } from '@/setup/agent-sync';
 
 test.describe('syncAgentSkillsAndMcp', () => {
   let tempRepo: string;
@@ -17,7 +17,7 @@ test.describe('syncAgentSkillsAndMcp', () => {
     }
   });
 
-  test('synchronizes skills and references to .agents/skills and .claude/skills', () => {
+  test('generates MCP configs only for clients detected on this machine', () => {
     // Setup fake skills source
     const skillDir = path.join(tempRepo, 'skills', 'test-skill');
     const refDir = path.join(skillDir, 'references');
@@ -37,36 +37,79 @@ test.describe('syncAgentSkillsAndMcp', () => {
     };
     fs.writeFileSync(path.join(tempRepo, '.mcp.json'), JSON.stringify(mcpJson), 'utf-8');
 
-    const result = syncAgentSkillsAndMcp(tempRepo);
+    // Fake home with only cursor + claude installed
+    const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sync-home-'));
+    fs.mkdirSync(path.join(fakeHome, '.cursor'), { recursive: true });
+    fs.mkdirSync(path.join(fakeHome, '.claude'), { recursive: true });
 
-    expect(result.skillsSynced).toContain('test-skill');
-    expect(result.mcpConfigsGenerated).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    try {
+      const result = syncAgentSkillsAndMcp(tempRepo, fakeHome);
 
-    // Verify .agents/skills copy
-    const targetSkillMd = path.join(tempRepo, '.agents', 'skills', 'test-skill', 'SKILL.md');
-    const targetRefMd = path.join(
-      tempRepo,
-      '.agents',
-      'skills',
-      'test-skill',
-      'references',
-      'ref.md',
+      expect(result.skillsSynced).toContain('test-skill');
+      expect(result.mcpPlatforms.sort()).toEqual(['claude', 'cursor']);
+      expect(result.errors).toHaveLength(0);
+
+      // Verify .agents/skills copy
+      const targetSkillMd = path.join(tempRepo, '.agents', 'skills', 'test-skill', 'SKILL.md');
+      expect(fs.existsSync(targetSkillMd)).toBe(true);
+      expect(fs.readFileSync(targetSkillMd, 'utf-8')).toBe('# Test Skill Content');
+      expect(
+        fs.existsSync(
+          path.join(tempRepo, '.agents', 'skills', 'test-skill', 'references', 'ref.md'),
+        ),
+      ).toBe(true);
+
+      // Claude installed → .claude/skills copy exists
+      expect(
+        fs.existsSync(path.join(tempRepo, '.claude', 'skills', 'test-skill', 'SKILL.md')),
+      ).toBe(true);
+
+      // Cursor installed → config generated; kiro/codex NOT installed → nothing
+      expect(fs.existsSync(path.join(tempRepo, '.cursor', 'mcp.json'))).toBe(true);
+      expect(fs.existsSync(path.join(tempRepo, '.kiro', 'mcp.json'))).toBe(false);
+      expect(fs.existsSync(path.join(tempRepo, '.codex', 'config.toml'))).toBe(false);
+      expect(fs.existsSync(path.join(tempRepo, 'claude_desktop_config.json'))).toBe(true);
+
+      // Verify Hermes skills detection property exists on result
+      expect('hermesProfileSkillsDir' in result).toBe(true);
+    } finally {
+      fs.rmSync(fakeHome, { recursive: true, force: true });
+    }
+  });
+
+  test('no client installed: no MCP configs, no .claude/skills orphan', () => {
+    fs.mkdirSync(path.join(tempRepo, 'skills', 'test-skill'), { recursive: true });
+    fs.writeFileSync(path.join(tempRepo, 'skills', 'test-skill', 'SKILL.md'), '# x', 'utf-8');
+    fs.writeFileSync(
+      path.join(tempRepo, '.mcp.json'),
+      JSON.stringify({ servers: [{ name: 's', command: 'node', args: [] }] }),
+      'utf-8',
     );
-    expect(fs.existsSync(targetSkillMd)).toBe(true);
-    expect(fs.readFileSync(targetSkillMd, 'utf-8')).toBe('# Test Skill Content');
-    expect(fs.existsSync(targetRefMd)).toBe(true);
 
-    // Verify .claude/skills copy
-    const claudeSkillMd = path.join(tempRepo, '.claude', 'skills', 'test-skill', 'SKILL.md');
-    expect(fs.existsSync(claudeSkillMd)).toBe(true);
+    const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sync-empty-home-'));
+    try {
+      const result = syncAgentSkillsAndMcp(tempRepo, emptyHome);
 
-    // Verify Hermes skills detection property exists on result (null in headless CI without Hermes base, string locally)
-    expect('hermesProfileSkillsDir' in result).toBe(true);
+      expect(result.mcpPlatforms).toEqual([]);
+      expect(result.errors).toHaveLength(0);
+      expect(fs.existsSync(path.join(tempRepo, '.claude'))).toBe(false);
+      expect(fs.existsSync(path.join(tempRepo, '.cursor'))).toBe(false);
+      expect(fs.existsSync(path.join(tempRepo, '.agents', 'skills', 'test-skill'))).toBe(true);
+    } finally {
+      fs.rmSync(emptyHome, { recursive: true, force: true });
+    }
+  });
 
-    // Verify MCP generated configs (.cursor/mcp.json, etc.)
-    const cursorMcp = path.join(tempRepo, '.cursor', 'mcp.json');
-    expect(fs.existsSync(cursorMcp)).toBe(true);
+  test('detectInstalledClients maps home markers to platforms', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sync-detect-'));
+    try {
+      expect(detectInstalledClients(home)).toEqual([]);
+      fs.mkdirSync(path.join(home, '.kiro'));
+      fs.mkdirSync(path.join(home, '.codex'));
+      expect(detectInstalledClients(home).sort()).toEqual(['codex', 'kiro']);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
   });
 
   test('resolves active Hermes profile skills dir when hermes base exists', () => {

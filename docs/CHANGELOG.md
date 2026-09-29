@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Wizard: generate config klien AI hanya yang terdeteksi — 2026-09-29
+
+- **Masalahnya:** setup wizard menulis config MCP + skills untuk **semua** klien (`.cursor/`, `.kiro/`, `.codex/`, `claude_desktop_config.json`, `.claude/skills/`) di setiap laptop, padahal kliennya belum tentu terpasang — direktori config yatim yang tidak pernah dibaca siapa pun.
+- **Sekarang:** `detectInstalledClients()` (marker home dir: `~/.claude`, `~/.cursor`, `~/.kiro`, `~/.codex`) menentukan klien mana yang benar-benar terpasang; wizard hanya generate untuk itu. Tidak ada klien terdeteksi → tidak ada file yatim, hanya baris info (Hermes membaca `.mcp.json` root langsung, jadi alur default tetap utuh).
+- **`.claude/skills/` ikut ter-gate** — hanya disinkronkan bila Claude terdeteksi; `.agents/skills/` + profil Hermes tetap selalu.
+- **Checklist verifikasi ikut klien terdeteksi** (`verify-setup.ts`), bukan hardcode 4 path — jadi tidak ada lagi warning "config MCP hilang" di laptop tanpa Cursor/Kiro/Codex.
+- **Escape hatch tetap:** `npm run mcp:config --platform=<claude|cursor|kiro|codex>` memaksa platform apa pun (terverifikasi: `.kiro/mcp.json` ter-generate ulang dari CLI, `mcp:config --check` melaporkan semua up-to-date).
+- **Verifikasi:** `tsc --noEmit` bersih; 867 unit test lulus (2 tes baru: gate deteksi + kasus tanpa klien); `setup:check` di laptop ini melaporkan `MCP configs: ready (claude, cursor)` sementara `.kiro`/`.codex` tidak disentuh (mtime lama).
+
 ### Framework upgrade tanpa stash (`npm run upgrade`) — 2026-09-29
 
 - **Masalahnya:** update framework ke repo QA selama ini butuh `git stash` → `git pull` → `npm run setup` → stash-pop manual, dan file generated (`src/support/auth.setup.ts`) hampir selalu konflik di pop.

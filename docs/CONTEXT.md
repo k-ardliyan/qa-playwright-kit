@@ -16,7 +16,7 @@
 ## Toolchain
 
 - **Primary Stack** — VS Code + Codex extension, Cursor, or Kiro. All documentation, configuration, and setup guides support multi-platform AI clients. MCP configuration can be auto-generated for each platform via `npm run mcp:config`.
-- **MCP Servers** — Three servers (`playwright`, `playwright-test`, `qa-playwright-kit`) configured via root `.mcp.json` as project source-of-truth. Platform-specific configs (Claude, Cursor, Kiro) are auto-generated. `.vscode/mcp.json` is optional editor-compatibility config.
+- **MCP Servers** — Three servers (`playwright`, `playwright-test`, `qa-playwright-kit`) configured via root `.mcp.json` as project source-of-truth. Hermes reads `.mcp.json` directly; configs for other clients (Claude, Cursor, Kiro, Codex) are generated only for clients detected installed on the machine — force any platform via `npm run mcp:config --platform=<p>`. `.vscode/mcp.json` is optional editor-compatibility config.
 
 ## Pipeline
 

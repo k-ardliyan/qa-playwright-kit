@@ -2,8 +2,12 @@
  * Agent Skills & MCP Sync Helper for Setup Wizard
  *
  * Synchronizes:
- * 1. Project skills (`skills/` -> `.agents/skills/` and `.claude/skills/`)
- * 2. Cross-platform MCP configs (`.mcp.json` -> `.cursor/`, `.kiro/`, `claude_desktop_config.json`)
+ * 1. Project skills (`skills/` -> `.agents/skills/`, plus `.claude/skills/`
+ *    only when Claude is installed on this machine)
+ * 2. Cross-platform MCP configs (`.mcp.json` -> `.cursor/`, `.kiro/`,
+ *    `claude_desktop_config.json`) — ONLY for clients detected installed.
+ *    Hermes reads root `.mcp.json` directly; the standalone
+ *    `npm run mcp:config` stays available to force any platform.
  *
  * @module src/setup/agent-sync
  */
@@ -12,13 +16,14 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'node:child_process';
-import { generateConfig } from '../agents/integration/mcp-config-generator';
+import { generateConfig, type Platform } from '../agents/integration/mcp-config-generator';
 import { logger } from '../utils/logger';
 import { npmSpawn } from './spawn-bin';
 
 export interface AgentSyncResult {
   skillsSynced: string[];
-  mcpConfigsGenerated: boolean;
+  /** Clients detected on this machine whose MCP configs were generated. */
+  mcpPlatforms: Platform[];
   mcpServerBuilt: boolean;
   hermesProfileSkillsDir?: string | null;
   errors: string[];
@@ -56,6 +61,38 @@ export function resolveHermesActiveSkillsDir(): string | null {
   }
 
   return null;
+}
+
+/**
+ * Client markers, checked in the user's home directory.
+ *
+ * A client's config is only generated when the client is actually installed
+ * on this machine. Marker dirs are the first-class install traces:
+ * - `.claude`   — Claude Code / Claude Desktop
+ * - `.cursor`   — Cursor (global config dir always present after install)
+ * - `.kiro`     — Kiro
+ * - `.codex`    — Codex CLI
+ *
+ * Hermes needs no marker: it reads the root `.mcp.json` directly.
+ * VS Code/Copilot is out of scope here — `.vscode/mcp.json` ships in the repo
+ * and `npm run mcp:config --platform=<p>` remains the escape hatch for any
+ * client we do not detect.
+ */
+const CLIENT_MARKERS: Record<string, string> = {
+  claude: '.claude',
+  cursor: '.cursor',
+  kiro: '.kiro',
+  codex: '.codex',
+};
+
+/**
+ * Which AI clients are installed on this machine, by home-directory marker.
+ * Pure filesystem probe — no spawning, no network.
+ */
+export function detectInstalledClients(homeDir: string = os.homedir()): Platform[] {
+  return (Object.keys(CLIENT_MARKERS) as Platform[]).filter((client) =>
+    fs.existsSync(path.join(homeDir, CLIENT_MARKERS[client])),
+  );
 }
 
 /**
@@ -148,20 +185,31 @@ export function ensureMcpServerBuild(repoRoot: string = process.cwd()): {
 
 /**
  * Synchronize skills and platform MCP configs into repo-level agent directories.
+ *
+ * @param repoRoot - Repo root (defaults to cwd).
+ * @param homeDir  - Home dir used for client detection (defaults to the real one;
+ *                   injectable so tests are deterministic).
  */
-export function syncAgentSkillsAndMcp(repoRoot: string = process.cwd()): AgentSyncResult {
+export function syncAgentSkillsAndMcp(
+  repoRoot: string = process.cwd(),
+  homeDir: string = os.homedir(),
+): AgentSyncResult {
   const result: AgentSyncResult = {
     skillsSynced: [],
-    mcpConfigsGenerated: false,
+    mcpPlatforms: [],
     mcpServerBuilt: false,
     errors: [],
   };
+
+  const installedClients = detectInstalledClients(homeDir);
 
   // 1. Sync skills
   const sourceSkillsDir = path.join(repoRoot, 'skills');
   const targetAgentSkillsDirs = [
     path.join(repoRoot, '.agents', 'skills'),
-    path.join(repoRoot, '.claude', 'skills'),
+    // Claude-only target: writing it when Claude is not installed just leaves
+    // an orphan dir the user will never read.
+    ...(installedClients.includes('claude') ? [path.join(repoRoot, '.claude', 'skills')] : []),
   ];
 
   // Also include active Hermes profile skills dir if available
@@ -193,19 +241,21 @@ export function syncAgentSkillsAndMcp(repoRoot: string = process.cwd()): AgentSy
     }
   }
 
-  // 2. Generate MCP configs
+  // 2. Generate MCP configs — only for clients actually installed here.
+  // Generating for absent clients leaves config files nobody reads (the old
+  // behavior wrote .cursor/.kiro/.codex/claude on every machine). Escape
+  // hatch for anything not detected: `npm run mcp:config --platform=<p>`.
   const mcpSource = path.join(repoRoot, '.mcp.json');
   if (fs.existsSync(mcpSource)) {
-    try {
-      generateConfig({
-        sourceConfigPath: mcpSource,
-        outputDir: repoRoot,
-      });
-      result.mcpConfigsGenerated = true;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      result.errors.push(`Failed to generate MCP configs: ${msg}`);
-      logger.warn(`Failed to generate MCP configs: ${msg}`);
+    for (const platform of installedClients) {
+      try {
+        generateConfig({ sourceConfigPath: mcpSource, outputDir: repoRoot, platform });
+        result.mcpPlatforms.push(platform);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        result.errors.push(`Failed to generate ${platform} MCP config: ${msg}`);
+        logger.warn(`Failed to generate ${platform} MCP config: ${msg}`);
+      }
     }
   }
 

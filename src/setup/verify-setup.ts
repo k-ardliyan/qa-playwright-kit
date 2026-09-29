@@ -22,6 +22,8 @@ import { roleCredentialKeys } from '../shared/utils/role-credentials';
 import { isSecretEnvKey, decryptEnvFileToText, EnvEncryptError } from '../utils/env-secrets';
 import { getGlobalKeysPath } from '../utils/dotenv-keys';
 import { hasChromiumInstalled } from './browser-check';
+import { detectInstalledClients } from './agent-sync';
+import { getOutputPath, type Platform } from '../agents/integration/mcp-config-generator';
 import { type WizardLang, t } from './i18n';
 
 export type CheckStatus = 'pass' | 'warn' | 'fail';
@@ -53,8 +55,11 @@ export interface VerifySetupOptions {
   configValid?: boolean;
   /** Whether skill sync reported success (from syncAgentSkillsAndMcp). */
   skillsSynced?: boolean;
-  /** Whether MCP config generation reported success. */
-  mcpConfigsGenerated?: boolean;
+  /**
+   * MCP platforms whose configs were generated (from syncAgentSkillsAndMcp).
+   * When omitted, the installed clients are detected from the home directory.
+   */
+  mcpPlatforms?: Platform[];
   /** Whether the Hermes agent install was detected (agent-sync). */
   hermesDetected?: boolean;
 }
@@ -329,22 +334,24 @@ export function verifySetupArtifacts(opts: VerifySetupOptions): SetupCheck[] {
         ),
   });
 
-  // ── 10. MCP configs generated ──
-  const mcpTargets = [
-    path.join(repoRoot, '.cursor', 'mcp.json'),
-    path.join(repoRoot, '.kiro', 'mcp.json'),
-    path.join(repoRoot, '.codex', 'config.toml'),
-    path.join(repoRoot, 'claude_desktop_config.json'),
-  ];
+  // ── 10. MCP configs generated (only for clients detected on this machine) ──
+  const detectedClients = opts.mcpPlatforms ?? detectInstalledClients();
+  const mcpTargets = detectedClients.map((p) => getOutputPath(p, repoRoot));
   const missingMcp = mcpTargets.filter((p) => !fs.existsSync(p));
   add({
     id: 'mcp_configs',
-    label: labelFor(lang, 'Config MCP lintas platform', 'Cross-platform MCP configs'),
+    label: labelFor(lang, 'Config MCP klien terdeteksi', 'Detected-client MCP configs'),
     status: missingMcp.length === 0 ? 'pass' : 'warn',
     detail:
-      missingMcp.length > 0
-        ? missingMcp.map((p) => path.relative(repoRoot, p)).join(', ')
-        : undefined,
+      detectedClients.length === 0
+        ? labelFor(
+            lang,
+            'tidak ada klien lain terdeteksi — Hermes membaca .mcp.json langsung',
+            'no other client detected — Hermes reads .mcp.json directly',
+          )
+        : missingMcp.length > 0
+          ? missingMcp.map((p) => path.relative(repoRoot, p)).join(', ')
+          : detectedClients.join(', '),
     fix:
       missingMcp.length > 0
         ? labelFor(

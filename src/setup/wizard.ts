@@ -369,12 +369,20 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
       ),
     );
   }
-  if (agentSync.mcpConfigsGenerated) {
+  if (agentSync.mcpPlatforms.length > 0) {
     stepLine(
       t(
         lang,
-        '✓ Config MCP lintas platform dibuat (.cursor, .kiro, claude, .codex)',
-        '✓ Cross-platform MCP configs generated (.cursor, .kiro, claude, .codex)',
+        `✓ Config MCP dibuat untuk klien terdeteksi: ${agentSync.mcpPlatforms.join(', ')}`,
+        `✓ MCP configs generated for detected clients: ${agentSync.mcpPlatforms.join(', ')}`,
+      ),
+    );
+  } else {
+    stepLine(
+      t(
+        lang,
+        'ℹ Tidak ada klien AI lain terdeteksi — Hermes membaca .mcp.json langsung. Config klien lain: npm run mcp:config',
+        'ℹ No other AI client detected — Hermes reads .mcp.json directly. Other clients: npm run mcp:config',
       ),
     );
   }
@@ -490,7 +498,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
       : formatRequirementValidationFailure(loginRequirementValidation),
     configValid: validation.valid,
     skillsSynced: agentSync.skillsSynced.length > 0,
-    mcpConfigsGenerated: agentSync.mcpConfigsGenerated,
+    mcpPlatforms: agentSync.mcpPlatforms,
     hermesDetected: agentSync.hermesProfileSkillsDir != null,
   });
   printChecklist(checks.map(toChecklistItem));
@@ -723,8 +731,10 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
     const dest = agentSync.hermesProfileSkillsDir ? ` (${agentSync.hermesProfileSkillsDir})` : '';
     console.log(`   Skills synced: ${agentSync.skillsSynced.join(', ')}${dest}`);
   }
-  if (agentSync.mcpConfigsGenerated) {
-    console.log('   MCP configs: ready (.cursor, .kiro, claude)');
+  if (agentSync.mcpPlatforms.length > 0) {
+    console.log(`   MCP configs: ready (${agentSync.mcpPlatforms.join(', ')})`);
+  } else {
+    console.log('   MCP configs: none needed (Hermes reads .mcp.json directly)');
   }
   if (validation.rolesEncrypted.length > 0) {
     console.log(

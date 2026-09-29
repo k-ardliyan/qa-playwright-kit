@@ -8,6 +8,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { hasCriticalFailure, verifySetupArtifacts, authSessionStatus } from '@/setup/verify-setup';
+import type { Platform } from '@/agents/integration/mcp-config-generator';
 import { stampSessionCompany } from '@/support/auth-helpers';
 import { encryptSecretKeysInFile } from '@/utils/env-secrets';
 
@@ -44,6 +45,8 @@ function baseOpts(repoRoot: string, overrides: Record<string, unknown> = {}) {
     loginRequirementPath: 'requirements/login.md',
     loginRequirementValid: true,
     configValid: true,
+    // Pinned so the check never depends on the machine running the tests.
+    mcpPlatforms: ['cursor'] as Platform[],
     ...overrides,
   };
 }

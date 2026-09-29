@@ -45,7 +45,7 @@ npm run health:check:strict # pra-run: sesi expired = gagal
 | `playwright-test`   | Menjalankan tes (`run_tests`)                                                                                                                                                                                                    |
 | `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, catatan (`record_ai_note`, `set_test_note`), `snapshot_page`, `discover_pages`, `synthesize_requirement`, `generate_page_object` |
 
-**Hermes:** `.mcp.json` di root project dibaca langsung oleh Hermes. Tidak perlu generate config tambahan. `npm run mcp:config` sudah support multi-platform (claude/cursor/kiro) tapi tidak di-surface ke QA di alur default.
+**Hermes:** `.mcp.json` di root project dibaca langsung oleh Hermes. Tidak perlu generate config tambahan. Wizard hanya generate config klien lain yang **terdeteksi terpasang** di laptop (marker `~/.claude`, `~/.cursor`, `~/.kiro`, `~/.codex`); paksa platform tertentu kapan saja dengan `npm run mcp:config --platform=<claude|cursor|kiro|codex>`.
 
 **Cursor / Kiro / VS Code + Copilot (advanced, bukan alur default):** Settings → MCP → pastikan ketiga server connected.
 
