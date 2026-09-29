@@ -153,9 +153,6 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 | Field | Nilai |
 | --- | --- |
-
-| Field | Nilai |
-| --- | --- |
 | Test ID | `TC-001` |
 | Covers | `AC-01`, `AC-02` |
 | Prioritas skenario | `high` |
@@ -165,9 +162,6 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 | Hasil yang Diharapkan | URL /dashboard, Toast "Welcome" muncul |
 
 ### SC-02: Login gagal (@failure)
-
-| Field | Nilai |
-| --- | --- |
 
 | Field | Nilai |
 | --- | --- |
@@ -308,14 +302,22 @@ npm run mcp:config         # generate config semua platform (claude/cursor/kiro)
 
 <br/>
 
-Tambahkan metadata role di requirement:
+Tambahkan metadata role di requirement — `Role scope` di Metadata, lalu tabel `Access Matrix`:
 
 ```markdown
-- Role scope: super-admin, finance
-- Access expectation:
-  - super-admin: bisa approve
-  - finance: bisa approve
-  - hrd: tidak bisa membuka halaman finance
+## Metadata
+
+| Field      | Nilai                  |
+| ---------- | ---------------------- |
+| Role scope | `super-admin, finance` |
+
+## Access Matrix
+
+| Role        | Access | Expectation                              |
+| ----------- | ------ | ---------------------------------------- |
+| super-admin | allow  | Bisa approve                             |
+| finance     | allow  | Bisa approve                             |
+| hrd         | deny   | Tidak bisa membuka halaman finance       |
 ```
 
 Generator otomatis membuat file test flat terpisah per role (`tests/<feature>-<role>.spec.ts`) dengan storage state sesuai dari `.auth/{APP_ENV}/`. Nested spec paths hanya kompatibilitas workspace lama jika `trace_requirement` masih dapat mencocokkan basename.

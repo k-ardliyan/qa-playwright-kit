@@ -38,6 +38,36 @@ test.describe('spawn-bin npm portability', () => {
     expect((res.stdout ?? '').trim()).toMatch(/^\d+\.\d+\.\d+/);
   });
 
+  test('resolveNpmCli falls back to the sibling lib/ tree (CI layout)', () => {
+    // GitHub Actions' hostedtoolcache keeps npm in `<node>/../lib/node_modules`,
+    // not under the node binary. install-mcp-server.cjs shipped with only the
+    // first candidate and hard-failed there (Cannot find module npm-cli.js).
+    const nodeDir = path.join(process.cwd(), '.tmp-ci-layout');
+    const fakeExec = path.join(nodeDir, 'bin', 'node');
+    const libCli = path.join(nodeDir, 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    fs.mkdirSync(path.dirname(libCli), { recursive: true });
+    fs.writeFileSync(libCli, '');
+
+    try {
+      const resolved = resolveNpmCli(fakeExec);
+      expect(resolved, 'the lib/ candidate must be reachable').toBe(libCli);
+    } finally {
+      fs.rmSync(nodeDir, { recursive: true, force: true });
+    }
+  });
+
+  test('install-mcp-server.cjs uses the same two-candidate lookup', () => {
+    // The .cjs shim predates spawn-bin and had its own single-path copy; keep
+    // them from drifting apart again.
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'tools', 'scripts', 'install-mcp-server.cjs'),
+      'utf-8',
+    );
+    expect(source).toContain("'..'");
+    expect(source).toContain("'lib'");
+    expect(source).toContain('existsSync');
+  });
+
   test('the old shape (npm.cmd, shell:false) is demonstrably broken on win32', () => {
     test.skip(process.platform !== 'win32', 'Windows-only regression');
     const res = spawnSync(npmCommand(), ['--version'], { shell: false, encoding: 'utf-8' });

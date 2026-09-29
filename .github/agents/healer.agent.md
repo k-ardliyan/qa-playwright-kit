@@ -145,7 +145,7 @@ Process failures in priority order — most actionable first.
 ## Guardrails (Mandatory)
 
 - **Ownership Boundary**: Healer may only modify `tests/**` (specs, pages, fixtures adapter). Protected internal areas (`src/**`, `tools/**`, `config/**`, `.github/agents/**`) must **NEVER** be modified to make tests green.
-- Max **3** heal cycles per file per orchestrator run. Count each patch + `run_tests` as one cycle.
+- Max **3** heal cycles per file per `WorkflowController` run — the bound is enforced at entry: a 4th re-entry returns `LOOP_LIMIT_REACHED` (`retryable: false`, stage `blocked`) instead of running. Each pass after the first re-runs only the previously failed titles. Count each patch + `run_tests` as one cycle.
 - After 3 cycles with the same root error (or no improvement), return `cannotFix` with the last error message.
 - If live UI inspection (`browser_snapshot`, `tracePath`, `screenshotPath`) shows a **product bug** (feature broken in the app, not a test issue), do not weaken assertions. Instead:
   - use `test.fixme(true, 'product bug: <reason>')` or `test.skip(true, 'product bug: <reason>')`, and

@@ -17,6 +17,7 @@
  * @module tools/scripts/install-mcp-server
  */
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const mcpDir = path.join(__dirname, '..', '..', 'tools', 'mcp');
@@ -35,23 +36,43 @@ const args = ['ci', '--no-audit', '--no-fund'];
 // Resolve npm's own JS entry and run it with the current Node — spawning
 // npm.cmd requires shell:true on Windows (EINVAL without it since Node 18.20)
 // and fails with ENOENT where cmd.exe is not on PATH (hosts shipping their own
-// Node). Same pattern as src/setup/spawn-bin.ts, which this file predates.
-const npmCli = path.join(
-  path.dirname(process.execPath),
-  'node_modules',
-  'npm',
-  'bin',
-  'npm-cli.js',
-);
-const result = spawnSync(process.execPath, [npmCli, ...args], {
+// Node). Mirrors resolveNpmCli() in src/setup/spawn-bin.ts.
+//
+// The first candidate covers a normal Node install; the second covers distro /
+// CI layouts (e.g. GitHub Actions' hostedtoolcache) where npm lives in the
+// sibling lib/ tree rather than under the node binary. Falling back to the
+// platform command keeps exotic layouts working instead of hard-failing.
+const candidates = [
+  path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  path.join(
+    path.dirname(process.execPath),
+    '..',
+    'lib',
+    'node_modules',
+    'npm',
+    'bin',
+    'npm-cli.js',
+  ),
+];
+const npmCli = candidates.find((candidate) => fs.existsSync(candidate));
+
+const spawn = npmCli
+  ? { command: process.execPath, args: [npmCli, ...args], shell: false }
+  : {
+      command: process.platform === 'win32' ? 'npm.cmd' : 'npm',
+      args,
+      shell: process.platform === 'win32',
+    };
+
+const result = spawnSync(spawn.command, spawn.args, {
   cwd: mcpDir,
   stdio: 'inherit',
   env,
-  shell: false,
+  shell: spawn.shell,
 });
 if (result.status === null) {
   console.error(
-    `[install-mcp-server] npm did not start: ${result.error?.message ?? 'unknown spawn error'}`,
+    `[install-mcp-server] npm did not start (${spawn.command}): ${result.error?.message ?? 'unknown spawn error'}`,
   );
 }
 process.exit(result.status ?? 1);

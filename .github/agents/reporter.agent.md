@@ -388,7 +388,7 @@ When the pipeline runs with `orchestrationMode: "automatic"`:
 
 When the pipeline runs with `orchestrationMode: "manual"`:
 
-- The Reporter waits for explicit invocation by the orchestrator or user
+- The Reporter waits for explicit invocation by the runtime (`WorkflowController`) or the user
 - Produces the same outputs as automatic mode once triggered
 
 ## Example Prompts
