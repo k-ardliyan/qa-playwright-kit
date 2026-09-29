@@ -267,14 +267,14 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 
 ## Referensi Cepat
 
-| Dokumen                 | Link                                                              |
-| ----------------------- | ----------------------------------------------------------------- |
-| Panduan lengkap         | [docs/GUIDE.md](GUIDE.md)                                         |
-| Template requirement    | [requirements/_TEMPLATE.md](../requirements/_TEMPLATE.md)         |
-| Contoh requirement baik | [requirements/_GOOD_EXAMPLE.md](../requirements/_GOOD_EXAMPLE.md) |
-| Panduan `@manual`       | [docs/MANUAL-SCENARIOS.md](MANUAL-SCENARIOS.md)                   |
-| Auth per role           | [docs/AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md)     |
-| Kredensial & multi-role | [docs/CREDENTIALS.md](CREDENTIALS.md)                             |
+| Dokumen                      | Link                                                          |
+| ---------------------------- | ------------------------------------------------------------- |
+| Panduan lengkap              | [docs/GUIDE.md](GUIDE.md)                                     |
+| Template requirement         | [requirements/_TEMPLATE.md](../requirements/_TEMPLATE.md)     |
+| Contoh requirement (kanonik) | [requirements/_TEMPLATE.md](../requirements/_TEMPLATE.md)     |
+| Panduan `@manual`            | [docs/MANUAL-SCENARIOS.md](MANUAL-SCENARIOS.md)               |
+| Auth per role                | [docs/AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md) |
+| Kredensial & multi-role      | [docs/CREDENTIALS.md](CREDENTIALS.md)                         |
 
 ---
 

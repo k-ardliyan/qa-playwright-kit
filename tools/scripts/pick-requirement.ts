@@ -11,7 +11,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import prompts from 'prompts';
 
-const SKIP_FILES = new Set(['_TEMPLATE.md', '_GOOD_EXAMPLE.md', '_BAD_EXAMPLE.md', 'README.md']);
+// Every `_`-prefixed file is skipped below, so only README needs naming here.
+const SKIP_FILES = new Set(['README.md']);
 
 export function isInteractiveStdin(): boolean {
   return Boolean(process.stdin.isTTY);

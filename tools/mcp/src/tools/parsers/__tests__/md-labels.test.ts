@@ -72,6 +72,20 @@ assert.deepEqual(splitCellItems('none'), []);
 assert.deepEqual(splitRow('| a | b | c |'), ['a', 'b', 'c']);
 assert.deepEqual(splitRow('| Modul \\| X | v |'), ['Modul | X', 'v']);
 
+// ── backticks inside a value must survive (regression) ───────────────────────
+// An inline code span in prose is NOT a wrapping pair: stripping the trailing
+// backtick silently truncated the value (`ke \`/dashboard\`` → `ke \`/dashboard`).
+assert.deepEqual(splitCellItems('URL diarahkan ke `/dashboard`<br>Form hilang'), [
+  'URL diarahkan ke `/dashboard`',
+  'Form hilang',
+]);
+assert.equal(
+  readLabel('| Field | Nilai |\n| --- | --- |\n| Halaman awal | `/login` |', 'Halaman awal'),
+  '/login',
+  'a value that is ENTIRELY code-wrapped is still unwrapped',
+);
+assert.deepEqual(splitRow('| Hasil | URL ke `/dashboard` |'), ['Hasil', 'URL ke `/dashboard`']);
+
 // ── table header must not be mistaken for a label/value row ──────────────────
 const twoTables = [
   '| Test ID | Covers |',

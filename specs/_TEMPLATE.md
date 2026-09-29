@@ -1,7 +1,7 @@
 # PLAN-XXX: Test Plan for [Feature Name]
 
 <!--
-  CARA PAKAI TEST PLAN TEMPLATE (v2.0 — format tabel):
+  CARA PAKAI TEST PLAN TEMPLATE (v2.1 — format tabel):
   1. Dibuat oleh Planner Agent dari RequirementContractV1.
   2. Format: Markdown di specs/nama-fitur.plan.md.
   3. Divalidasi via MCP: compile_test_plan dan validate_plan.
@@ -10,6 +10,9 @@
   - Pisahkan beberapa item dalam satu sel dengan <br>
   - Escape karakter pipe di dalam sel dengan \|
   - Label kolom kiri WAJIB persis seperti contoh (parser membacanya)
+
+  CATATAN: setiap field yang didokumentasikan di file ini BENAR-BENAR dibaca
+  parser. Jangan menambah field yang tidak diproses engine.
 -->
 
 ## Metadata
@@ -30,7 +33,12 @@
 
 ## Scenarios
 
-### SC-01: [Nama Skenario] (@automated)
+> Tag di heading hanya untuk `@manual` dan `@blocked` — keduanya memaksa
+> `Execution Mode`. Skenario tanpa tag otomatis berjalan sebagai `automated`
+> (default), jadi JANGAN menulis `(@automated)`. Nilai `Execution Mode` yang
+> sah: `automated`, `manual`, `blocked`.
+
+### SC-01: [Nama Skenario]
 
 | Field                 | Nilai                                                                                                                                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

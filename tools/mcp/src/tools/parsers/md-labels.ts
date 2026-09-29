@@ -20,20 +20,35 @@
 /** Leading list/numbering marker on a bullet item. */
 const ITEM_PREFIX = /^(?:[-*]|\d+[.)])\s+/;
 
-/** Strip backticks, bold markers, `\|` escapes and surrounding whitespace. */
+/** Strip bold markers, `\|` escapes and surrounding whitespace. */
 function clean(value: string): string {
   return value
     .trim()
-    .replace(/^`+|`+$/g, '')
     .replace(/^\*\*|\*\*$/g, '')
     .replace(/\\\|/g, '|')
     .trim();
 }
 
+/**
+ * Unwrap a value that is ENTIRELY wrapped in backticks: `` `TC-001` `` → `TC-001`.
+ *
+ * Only applied when the first and last characters are both backticks and no
+ * other backtick sits between them, so an inline code span inside prose
+ * (`URL diarahkan ke `/dashboard``) keeps its backticks instead of losing the
+ * closing one. Cell-level cleaning uses `clean()`, which never strips them.
+ */
+function unwrapCode(value: string): string {
+  const t = value.trim();
+  if (t.length >= 2 && t.startsWith('`') && t.endsWith('`') && !t.slice(1, -1).includes('`')) {
+    return t.slice(1, -1).trim();
+  }
+  return t;
+}
+
 /** Split one table row into its cells (keeping escaped `\|` inside a cell). */
 export function splitRow(line: string): string[] {
   const inner = line.trim().replace(/^\|/, '').replace(/\|$/, '');
-  return inner.split(/(?<!\\)\|/).map((c) => clean(c));
+  return inner.split(/(?<!\\)\|/).map((c) => unwrapCode(clean(c)));
 }
 
 /** True when the line is a table row (`| a | b |`). */
@@ -74,7 +89,7 @@ export function readLabel(text: string, ...labels: string[]): string | null {
     const line = lines[i];
     const bullet = line.match(re);
     if (bullet) {
-      const value = clean(bullet[1]);
+      const value = unwrapCode(clean(bullet[1]));
       if (value) return value;
     }
     if (isRow(line) && !isSeparator(line)) {
@@ -150,6 +165,6 @@ export function readLabelFromSection(text: string, labels: readonly string[]): s
 export function splitCellItems(cell: string): string[] {
   return cell
     .split(/<br\s*\/?>/i)
-    .map((part) => clean(part).replace(ITEM_PREFIX, '').trim())
+    .map((part) => unwrapCode(clean(part).replace(ITEM_PREFIX, '').trim()))
     .filter((part) => part && part.toLowerCase() !== 'none' && part !== '-');
 }

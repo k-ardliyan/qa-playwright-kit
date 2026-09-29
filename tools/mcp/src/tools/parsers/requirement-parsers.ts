@@ -167,6 +167,24 @@ export function parseMetadata(
     risk.push(riskRaw);
   }
 
+  // Data scope — comma/semicolon separated provenance refs (`seed:x.y`).
+  const dataScopeRaw = readLabel(text, 'Data scope', 'Data Scope');
+  if (dataScopeRaw) {
+    for (const part of dataScopeRaw.split(/[,;]/)) {
+      const clean = part.trim();
+      if (clean && !dataScope.includes(clean)) dataScope.push(clean);
+    }
+  }
+
+  // Environment scope — comma/semicolon separated env names.
+  const envScopeRaw = readLabel(text, 'Environment scope', 'Environment Scope', 'Env scope');
+  if (envScopeRaw) {
+    for (const part of envScopeRaw.split(/[,;]/)) {
+      const clean = part.trim().toLowerCase();
+      if (clean && !environmentScope.includes(clean)) environmentScope.push(clean);
+    }
+  }
+
   return {
     module,
     feature,

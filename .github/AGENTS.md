@@ -132,7 +132,7 @@ Includes Application Overview, per-scenario `### SC-XX` sections, **Seed:** `tes
 - `Auth Context`
 - `Type`
 
-Golden sample: [`specs/_GOOD_EXAMPLE.md`](../specs/_GOOD_EXAMPLE.md).
+Canonical shape: [`specs/_TEMPLATE.md`](../specs/_TEMPLATE.md).
 
 ### MCP Tools Consumed
 

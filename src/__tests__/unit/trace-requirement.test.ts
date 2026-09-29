@@ -1,6 +1,4 @@
 import { test, expect } from '@playwright/test';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import {
   traceRequirement,
   buildTraceabilityMatrix,
@@ -10,8 +8,6 @@ import { extractTestMetadataFromSpec } from '../../../tools/mcp/src/utils/test-i
 import { classifyFailureError } from '../../../tools/mcp/src/utils/failure-classifier';
 
 test.describe('Traceability Contract & Linkage Convergence (CF-201 - CF-206)', () => {
-  const repoRoot = path.resolve(__dirname, '../../../');
-
   test('extractTestMetadataFromSpec parses metadata and test titles accurately', () => {
     const sampleSpec = `
 import { test, expect } from './fixtures';
@@ -199,8 +195,41 @@ test.describe('Sample Feature', () => {
   });
 
   test('trace_requirement supports raw requirementsText', () => {
-    const goodPath = path.join(repoRoot, 'requirements', '_GOOD_EXAMPLE.md');
-    const content = fs.readFileSync(goodPath, 'utf-8');
+    // Inline fixture - a test must never depend on a documentation file.
+    const content = `# REQ-AUTH-001: Login - Form Login
+
+## Metadata
+
+| Field        | Nilai          |
+| ------------ | -------------- |
+| Tags         | \`#auth #smoke\` |
+| Prioritas    | \`high\`         |
+| Auth state   | \`unauthenticated\` |
+| Halaman awal | \`/login\`       |
+| Module       | \`auth\`         |
+| Feature      | \`login-valid\`   |
+
+## Kriteria Penerimaan
+
+| ID    | Kriteria                    |
+| ----- | --------------------------- |
+| AC-01 | Login berhasil.             |
+| AC-02 | Session tersimpan.          |
+
+## Skenario Uji
+
+### SC-01: Login Berhasil (@success)
+
+| Field                 | Nilai                                    |
+| --------------------- | ---------------------------------------- |
+| Test ID               | \`TC-AUTH-001\`                           |
+| Covers                | \`AC-01\`, \`AC-02\`                       |
+| Role                  | \`user\`                                  |
+| Input Data            | \`email: credential:user.email\`           |
+| Langkah               | 1. Buka halaman login<br>2. Isi kredensial |
+| Hasil yang Diharapkan | - URL berpindah ke /dashboard            |
+`;
+
     const result = traceRequirement({
       requirementPath: 'requirements/auth/login-valid.md',
       requirementsText: content,
@@ -210,7 +239,7 @@ test.describe('Sample Feature', () => {
     expect(result.data).toBeDefined();
     const trace = result.data!;
     expect(trace.requirementId).toBe('REQ-AUTH-001');
-    expect(trace.acceptanceCriteria.length).toBe(6);
-    expect(trace.scenarios.length).toBe(5);
+    expect(trace.acceptanceCriteria.length).toBe(2);
+    expect(trace.scenarios.length).toBe(1);
   });
 });

@@ -186,7 +186,7 @@ cp requirements/_TEMPLATE.md requirements/fitur-saya.md
 
 Validasi: `npm run validate:requirement`
 
-Contoh lengkap: [_GOOD_EXAMPLE.md](requirements/_GOOD_EXAMPLE.md) · [_BAD_EXAMPLE.md](requirements/_BAD_EXAMPLE.md)
+Bentuk kanonik: [_TEMPLATE.md](requirements/_TEMPLATE.md) · [_TEMPLATE.md](specs/_TEMPLATE.md)
 
 ---
 

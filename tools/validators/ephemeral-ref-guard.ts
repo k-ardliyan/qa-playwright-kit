@@ -79,11 +79,7 @@ export function runEphemeralGuard(): GuardViolation[] {
         if (entry.name !== 'node_modules' && entry.name !== '.git' && entry.name !== '__tests__') {
           walk(full, ext);
         }
-      } else if (
-        entry.isFile() &&
-        !entry.name.includes('_BAD_EXAMPLE') &&
-        ext.some((e) => entry.name.endsWith(e))
-      ) {
+      } else if (entry.isFile() && ext.some((e) => entry.name.endsWith(e))) {
         violations.push(...scanFileForEphemeralRefs(full));
       }
     }

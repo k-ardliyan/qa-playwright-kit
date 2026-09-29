@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { validateTestPlan, validatePlan } from '../../../tools/mcp/src/tools/validate-plan';
 import {
   TEST_PLAN_SCHEMA_V1,
@@ -285,13 +288,86 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
   });
 
   test('validates Markdown plan path directly via validatePlan()', () => {
-    const result = validatePlan({
-      testPlanPath: 'specs/_GOOD_EXAMPLE.md',
-      requirementPath: 'requirements/_GOOD_EXAMPLE.md',
-    });
+    // Temp files under requirements/ + specs/: validatePlan resolves paths
+    // against the repo allowlist, and a test must never depend on a
+    // documentation file.
+    const root = path.resolve(__dirname, '../../..');
+    const stamp = `tmp-validate-plan-${process.pid}-${Date.now()}`;
+    const reqDir = path.join(root, 'requirements');
+    const specDir = path.join(root, 'specs');
+    const reqPath = path.join(reqDir, `${stamp}.md`);
+    const planPath = path.join(specDir, `${stamp}.plan.md`);
 
-    expect(result.data?.valid).toBe(true);
-    expect(result.data?.plannedScenarios).toBe(5);
+    fs.writeFileSync(
+      reqPath,
+      [
+        '# REQ-T-001: Feature',
+        '',
+        '## Metadata',
+        '',
+        '| Field | Nilai |',
+        '| --- | --- |',
+        '| Module | `demo` |',
+        '| Feature | `feature` |',
+        '',
+        '## Kriteria Penerimaan',
+        '',
+        '| ID | Kriteria |',
+        '| --- | --- |',
+        '| AC-01 | Sesuatu terjadi. |',
+        '',
+        '## Skenario Uji',
+        '',
+        '### SC-01: Alur Utama (@success)',
+        '',
+        '| Field | Nilai |',
+        '| --- | --- |',
+        '| Test ID | `TC-T-001` |',
+        '| Covers | `AC-01` |',
+        '| Langkah | 1. Buka halaman |',
+        '| Hasil yang Diharapkan | - Halaman tampil |',
+        '',
+      ].join('\n'),
+    );
+
+    fs.writeFileSync(
+      planPath,
+      [
+        '# PLAN-T-001: Test Plan',
+        '',
+        '## Metadata',
+        '',
+        '| Field | Nilai |',
+        '| --- | --- |',
+        `| Source requirement | \`requirements/${stamp}.md\` |`,
+        '| Module | `demo` |',
+        '| Feature | `feature` |',
+        '',
+        '## Scenarios',
+        '',
+        '### SC-01: Alur Utama',
+        '',
+        '| Field | Nilai |',
+        '| --- | --- |',
+        '| Test ID | `TC-T-001` |',
+        '| Covers | `AC-01` |',
+        '| Actions | Buka halaman |',
+        '| Assertions | [requirement] Halaman tampil |',
+        '',
+      ].join('\n'),
+    );
+
+    try {
+      const result = validatePlan({
+        testPlanPath: `specs/${stamp}.plan.md`,
+        requirementPath: `requirements/${stamp}.md`,
+      });
+      expect(result.data?.valid).toBe(true);
+      expect(result.data?.plannedScenarios).toBe(1);
+    } finally {
+      fs.rmSync(reqPath, { force: true });
+      fs.rmSync(planPath, { force: true });
+    }
   });
 
   test('detects unknown AC reference in plan', () => {

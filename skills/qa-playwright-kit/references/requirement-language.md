@@ -64,4 +64,4 @@ Copy the structure from `requirements/_TEMPLATE.md`. Required fields:
 - Each SC: a `| Field | Nilai |` table with Test ID, Covers, Steps, Expected Result
 - Role and Access Matrix when `Role scope` is set
 
-Good example: `requirements/_GOOD_EXAMPLE.md`.
+Canonical shape: `requirements/_TEMPLATE.md` (the single source of truth — kept in sync by tests).

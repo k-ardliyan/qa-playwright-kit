@@ -10,9 +10,9 @@ test.describe('listRequirementFiles', () => {
     expect(files.length).toBeGreaterThan(0);
     expect(files.every((f) => f.startsWith('requirements/') && f.endsWith('.md'))).toBe(true);
     expect(files.some((f) => f.includes('_TEMPLATE'))).toBe(false);
-    expect(files.some((f) => f.includes('_GOOD_EXAMPLE'))).toBe(false);
-    expect(files.some((f) => f.includes('_BAD_EXAMPLE'))).toBe(false);
     expect(files.some((f) => f.endsWith('README.md'))).toBe(false);
+    // Every underscore-prefixed file is internal (templates, fixtures).
+    expect(files.some((f) => f.split('/').pop()?.startsWith('_'))).toBe(false);
     expect(files).toContain('requirements/auth/login-none.md');
   });
 });

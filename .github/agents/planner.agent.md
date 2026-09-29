@@ -20,8 +20,8 @@ You analyze requirement documents and convert them into structured, testable sce
 
 Read these before planning — the pair defines canonical input→output shape:
 
-- Requirement: `requirements/_GOOD_EXAMPLE.md` (or `requirements/auth/login-none.md`)
-- Expected plan output: `specs/_GOOD_EXAMPLE.md`
+- Requirement: `requirements/auth/login-none.md` — and `requirements/_TEMPLATE.md` for the canonical shape
+- Expected plan output: `specs/_TEMPLATE.md` (canonical shape)
 
 ## Input Format
 
@@ -34,8 +34,8 @@ Read these before planning — the pair defines canonical input→output shape:
 ## Format Reference
 
 Read [`requirements/_TEMPLATE.md`](../../requirements/_TEMPLATE.md) as the canonical format.
-Example: [`requirements/_GOOD_EXAMPLE.md`](../../requirements/_GOOD_EXAMPLE.md) (or [`requirements/auth/login-none.md`](../../requirements/auth/login-none.md)).
-Golden test plan: [`specs/_GOOD_EXAMPLE.md`](../../specs/_GOOD_EXAMPLE.md).
+Example: [`requirements/auth/login-none.md`](../../requirements/auth/login-none.md) — canonical shape in [`requirements/_TEMPLATE.md`](../../requirements/_TEMPLATE.md).
+Canonical test plan: [`specs/_TEMPLATE.md`](../../specs/_TEMPLATE.md).
 
 > **Table View fields:** Each scenario in a requirement now carries `testId`, `priority`,
 > `inputData`, `expectedResultFormatted`, and `affectedLayer` parsed by

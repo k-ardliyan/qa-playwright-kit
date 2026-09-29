@@ -4,12 +4,11 @@ Folder ini untuk **file requirement fitur** yang dibaca Planner / pipeline Herme
 
 ## Penamaan penting
 
-| File                                   | Arti                                                                                                                                                                    |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `login.md`                             | **REAL** — ditulis otomatis oleh `npm run setup` dari `AUTH_CHALLENGE_MODE` + URL/role wizard. Gitignored (per project).                                                |
-| `auth/login-<mode>.md`                 | Catalog 1:1 dengan challenge wizard: `none`, `auto`, `otp-browser`, `otp-stdin`, `captcha-browser`. Turunkan ke website kamu via setup, jangan edit sebagai target app. |
-| `_TEMPLATE.md`                         | Template kosong untuk fitur baru.                                                                                                                                       |
-| `_GOOD_EXAMPLE.md` / `_BAD_EXAMPLE.md` | Referensi gaya penulisan (bukan pipeline setup).                                                                                                                        |
+| File                   | Arti                                                                                                                                                                    |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `login.md`             | **REAL** — ditulis otomatis oleh `npm run setup` dari `AUTH_CHALLENGE_MODE` + URL/role wizard. Gitignored (per project).                                                |
+| `auth/login-<mode>.md` | Catalog 1:1 dengan challenge wizard: `none`, `auto`, `otp-browser`, `otp-stdin`, `captcha-browser`. Turunkan ke website kamu via setup, jangan edit sebagai target app. |
+| `_TEMPLATE.md`         | **Bentuk kanonik** — satu-satunya contoh yang dijaga test. Salin untuk fitur baru.                                                                                      |
 
 Locator **berbeda per website**. Pipeline setup awal wajib:
 

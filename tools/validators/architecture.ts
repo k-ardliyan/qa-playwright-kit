@@ -221,8 +221,6 @@ function isAllowlistedFile(filePath: string): boolean {
     rel.startsWith('.hermes/') ||
     rel.startsWith('docs/migration/') ||
     rel.startsWith('docs/history/') ||
-    // Negative test examples intentionally contain violations for validation test suites
-    rel.includes('_BAD_EXAMPLE') ||
     // Test/mock files use old paths as test data, not runtime config
     rel.includes('/__tests__/') ||
     rel.includes('/__test__/') ||

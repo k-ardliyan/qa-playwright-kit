@@ -1,22 +1,19 @@
 # REQ-XXX: [Judul Fitur Singkat]
 
 <!--
-  CARA PAKAI TEMPLATE INI (v3.0 — format tabel):
+  CARA PAKAI TEMPLATE INI (v3.1 — format tabel):
   1. Salin file ini → requirements/nama-fitur.md (ganti "nama-fitur" dengan nama file Anda)
   2. Ganti semua teks [dalam kurung siku] dengan isi Anda
   3. Hapus blok komentar ini sebelum commit
   4. Validasi: npm run validate:requirement
 
-  CONTOH REQUIREMENT YANG BAIK:
-  Lihat requirements/_GOOD_EXAMPLE.md
-
-  CONTOH REQUIREMENT YANG BURUK (untuk perbandingan):
-  Lihat requirements/_BAD_EXAMPLE.md
-
   ATURAN TABEL:
   - Pisahkan beberapa item dalam satu sel dengan <br>
   - Escape karakter pipe di dalam sel dengan \|
   - Label kolom kiri WAJIB persis seperti contoh (parser membacanya)
+
+  CATATAN: setiap field dan tag yang didokumentasikan di file ini BENAR-BENAR
+  dibaca parser. Jangan menambah field yang tidak diproses engine.
 -->
 
 ## Metadata
@@ -36,18 +33,19 @@
 
 **Keterangan field Metadata:**
 
-| Field        | Wajib?        | Keterangan                                                                                          |
-| ------------ | ------------- | --------------------------------------------------------------------------------------------------- |
-| Tags         | ✅ Ya         | Dipisahkan spasi. Dipakai filter test.                                                              |
-| Prioritas    | ✅ Ya         | `high` / `medium` / `low`. Prioritas bisnis default untuk semua skenario.                           |
-| Auth state   | ✅ Ya         | `unauthenticated` / `authenticated`. Butuh login atau tidak.                                        |
-| Halaman awal | ✅ Ya         | Path URL halaman pembuka scenario.                                                                  |
-| Module       | ✅ **Wajib**  | Modul aplikasi. Dipakai untuk grouping laporan dan coverage.                                        |
-| Feature      | ⚪ Disarankan | Fitur spesifik dalam modul. Validator memberi warning jika kosong (`metadata_feature_recommended`). |
-| Role scope   | ⚪ Opsional   | Role bisnis yang terlibat. Isi jika fitur multi-role.                                               |
-| Default role | ⚪ Opsional   | Role default untuk single-role authenticated.                                                       |
-| Risk level   | ⚪ Opsional   | Dampak jika fitur gagal di produksi. Dipakai Healer untuk prioritasi.                               |
-| Data scope   | ⚪ Opsional   | Data khusus yang harus ada sebelum test bisa jalan.                                                 |
+| Field             | Wajib?        | Keterangan                                                                                          |
+| ----------------- | ------------- | --------------------------------------------------------------------------------------------------- |
+| Tags              | ✅ Ya         | Dipisahkan spasi. Dipakai filter test.                                                              |
+| Prioritas         | ✅ Ya         | `high` / `medium` / `low`. Prioritas bisnis default untuk semua skenario.                           |
+| Auth state        | ✅ Ya         | `unauthenticated` / `authenticated`. Butuh login atau tidak.                                        |
+| Halaman awal      | ✅ Ya         | Path URL halaman pembuka scenario.                                                                  |
+| Module            | ✅ **Wajib**  | Modul aplikasi. Dipakai untuk grouping laporan dan coverage.                                        |
+| Feature           | ⚪ Disarankan | Fitur spesifik dalam modul. Validator memberi warning jika kosong (`metadata_feature_recommended`). |
+| Role scope        | ⚪ Opsional   | Role bisnis yang terlibat. Isi jika fitur multi-role.                                               |
+| Default role      | ⚪ Opsional   | Role default untuk single-role authenticated.                                                       |
+| Risk level        | ⚪ Opsional   | Dampak jika fitur gagal di produksi. Dipakai Healer untuk prioritasi.                               |
+| Data scope        | ⚪ Opsional   | Data khusus yang harus ada sebelum test bisa jalan (mis. `seed:invoice.pending`).                   |
+| Environment scope | ⚪ Opsional   | Batasi requirement ke environment tertentu (mis. `staging, production`).                            |
 
 ## Access Matrix
 

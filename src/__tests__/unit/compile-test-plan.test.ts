@@ -1,29 +1,87 @@
 import { test, expect } from '@playwright/test';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { compileTestPlanFromText } from '../../../tools/mcp/src/tools/compile-test-plan';
 
-test.describe('Test Plan Markdown Compiler (Phase 3)', () => {
-  const repoRoot = path.resolve(__dirname, '../../../');
+/**
+ * TestPlanContractV1 compiler contract.
+ *
+ * Fixtures are INLINE on purpose - a test must never depend on a documentation
+ * file, or deleting docs silently deletes coverage.
+ */
 
-  test('compiles specs/_GOOD_EXAMPLE.md cleanly into TestPlanContractV1', () => {
-    const goodPlanPath = path.join(repoRoot, 'specs', '_GOOD_EXAMPLE.md');
-    expect(fs.existsSync(goodPlanPath)).toBe(true);
+const GOOD_PLAN = `# PLAN-AUTH-001: Test Plan for Login
 
-    const content = fs.readFileSync(goodPlanPath, 'utf-8');
-    const result = compileTestPlanFromText(content, 'specs/_GOOD_EXAMPLE.md');
+## Metadata
+
+| Field              | Nilai                        |
+| ------------------ | ---------------------------- |
+| Source requirement | \`requirements/login-valid.md\` |
+| Module             | \`auth\`                       |
+| Feature            | \`login-valid\`                |
+
+## Scenarios
+
+### SC-01: Login Berhasil
+
+| Field          | Nilai                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| Test ID        | \`TC-AUTH-001\`                                                                             |
+| Covers         | \`AC-01\`, \`AC-02\`                                                                         |
+| Actor          | \`user\`                                                                                    |
+| Auth Context   | \`user\`                                                                                    |
+| Execution Mode | \`automated\`                                                                                |
+| Actions        | 1. Buka halaman login<br>2. Isi kredensial valid<br>3. Klik tombol masuk                     |
+| Assertions     | \`[requirement]\` URL berpindah ke /dashboard<br>\`[framework-derived]\` Network 200<br>\`[live-verification]\` Toast tampil |
+| Locator Intent | \`input[name="email"]\`<br>\`button[type="submit"]\`                                          |
+
+---
+
+### SC-02: Verifikasi SMS OTP (@manual)
+
+| Field          | Nilai                                    |
+| -------------- | ---------------------------------------- |
+| Test ID        | \`TC-AUTH-002\`                           |
+| Covers         | \`AC-01\`                                  |
+| Actor          | \`user\`                                  |
+| Actions        | 1. Terima SMS OTP pada handset fisik     |
+| Assertions     | \`[requirement]\` Transaksi disetujui      |
+`;
+
+const BAD_PLAN = `# PLAN-BAD-001: Bad Test Plan
+
+## Metadata
+
+| Field              | Nilai                          |
+| ------------------ | ------------------------------ |
+| Source requirement | \`requirements/non-existent.md\` |
+| Module             | \`unknown\`                      |
+
+## Scenarios
+
+### SC-01: Bad Scenario With Ephemeral Ref
+
+| Field          | Nilai                                              |
+| -------------- | -------------------------------------------------- |
+| Test ID        | \`TC-BAD-001\`                                       |
+| Covers         | \`AC-999\`                                           |
+| Actions        | Click ref:tw-8f2a<br>Fill handle:input-1 with test |
+| Assertions     | Status is good                                     |
+| Locator Intent | ref:tw-8f2a                                        |
+`;
+
+test.describe('Test Plan compiler (TestPlanContractV1)', () => {
+  test('compiles a well-formed table plan cleanly', () => {
+    const result = compileTestPlanFromText(GOOD_PLAN, 'specs/login-valid.plan.md');
 
     expect(result.status).toBe('success');
     expect(result.data).toBeDefined();
 
     const plan = result.data!;
     expect(plan.schemaVersion).toBe('qa.test-plan/v1');
-    expect(plan.sourceRequirementPath).toBe('requirements/_GOOD_EXAMPLE.md');
+    expect(plan.sourceRequirementPath).toBe('requirements/login-valid.md');
     expect(plan.module).toBe('auth');
     expect(plan.feature).toBe('login-valid');
-    expect(plan.scenarios.length).toBe(5);
+    expect(plan.scenarios.length).toBe(2);
 
-    // Scenario 1 verification
     const sc1 = plan.scenarios[0];
     expect(sc1.scenarioId).toBe('SC-01');
     expect(sc1.testId).toBe('TC-AUTH-001');
@@ -35,25 +93,19 @@ test.describe('Test Plan Markdown Compiler (Phase 3)', () => {
     expect(sc1.actions.length).toBeGreaterThan(0);
     expect(sc1.assertions.length).toBeGreaterThan(0);
 
-    // Provenance verification
+    // Provenance
     const reqAssertions = sc1.assertions.filter((a) => a.provenance === 'requirement');
     expect(reqAssertions.length).toBeGreaterThan(0);
 
-    // Scenario 5 manual mode
-    const sc5 = plan.scenarios[4];
-    expect(sc5.executionMode).toBe('manual');
+    // @manual in the heading forces manual execution mode
+    expect(plan.scenarios[1].executionMode).toBe('manual');
 
-    // No error diagnostics
     const errors = (plan.diagnostics ?? []).filter((d) => d.severity === 'error');
     expect(errors).toHaveLength(0);
   });
 
   test('rejects ephemeral browser references with PLAN_EPHEMERAL_REF diagnostic', () => {
-    const badPlanPath = path.join(repoRoot, 'specs', '_BAD_EXAMPLE.md');
-    expect(fs.existsSync(badPlanPath)).toBe(true);
-
-    const content = fs.readFileSync(badPlanPath, 'utf-8');
-    const result = compileTestPlanFromText(content, 'specs/_BAD_EXAMPLE.md');
+    const result = compileTestPlanFromText(BAD_PLAN, 'specs/bad.plan.md');
 
     expect(result.status).toBe('error');
     expect(result.data).toBeDefined();
@@ -74,7 +126,7 @@ test.describe('Test Plan Markdown Compiler (Phase 3)', () => {
 - **Page:** \`invoice-list\` | \`artifacts/selector-catalog/finance/invoice-list.json\`
 
 ## Scenarios
-### SC-01: Sample Scenario (@automated)
+### SC-01: Sample Scenario
 - **Test ID:** \`TC-001\`
 - **Covers:** \`AC-01\`
 **Actions:**

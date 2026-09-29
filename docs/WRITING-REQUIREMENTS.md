@@ -122,12 +122,11 @@ Katalog siap pakai: [`requirements/auth/login-multi-tenant.md`](../requirements/
 
 ## Contoh & Referensi
 
-| File                                                                    | Untuk apa                                           |
-| ----------------------------------------------------------------------- | --------------------------------------------------- |
-| [`requirements/_TEMPLATE.md`](../requirements/_TEMPLATE.md)             | Template utama yang Anda salin                      |
-| [`requirements/_GOOD_EXAMPLE.md`](../requirements/_GOOD_EXAMPLE.md)     | Contoh requirement BAIK — target kualitas           |
-| [`requirements/_BAD_EXAMPLE.md`](../requirements/_BAD_EXAMPLE.md)       | Contoh requirement BURUK — apa yang harus dihindari |
-| [`requirements/auth/login-none.md`](../requirements/auth/login-none.md) | Catalog login mode `none` — empty-field + success   |
+| File                                                                    | Untuk apa                                             |
+| ----------------------------------------------------------------------- | ----------------------------------------------------- |
+| [`requirements/_TEMPLATE.md`](../requirements/_TEMPLATE.md)             | Template utama yang Anda salin                        |
+| [`requirements/_TEMPLATE.md`](../requirements/_TEMPLATE.md)             | Bentuk kanonik — satu-satunya contoh yang dijaga test |
+| [`requirements/auth/login-none.md`](../requirements/auth/login-none.md) | Catalog login mode `none` — empty-field + success     |
 
 ---
 
