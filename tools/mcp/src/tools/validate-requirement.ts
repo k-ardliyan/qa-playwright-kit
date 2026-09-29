@@ -6,6 +6,7 @@ import {
   type ToolError,
 } from '../utils/safety';
 import { parseRequirementScenariosFromText } from './parse-requirement-scenarios';
+import { readLabel, readLabelFromSection } from './parsers/md-labels';
 
 export interface RequirementViolation {
   ruleName: string;
@@ -30,11 +31,8 @@ const VAGUE_RESULT_PATTERNS = [
   /\bno\s+error\b/i,
 ];
 
-// Regex helpers for metadata fields
-const ROLE_SCOPE_LABEL = /^\s*-\s+\*\*Role\s+scope:\*\*\s*\S+/im;
-const ACCESS_EXPECTATION_LABEL = /^\s*-\s+\*\*Access\s+expectation:\*\*\s*\S+/im;
-const MODULE_LABEL = /^\s*-\s+\*\*Module:\*\*\s*(\S.*\S|\S)\s*$/im;
-const FEATURE_LABEL = /^\s*-\s+\*\*Feature:\*\*\s*(\S.*\S|\S)\s*$/im;
+// All metadata/scenario labels are read via `readLabel` / `readLabelFromSection`
+// (dual-mode: bullet or table row), so no per-label regex lives here.
 
 const OBSERVABLE_INDICATORS = [
   /url/i,
@@ -53,12 +51,6 @@ const OBSERVABLE_INDICATORS = [
   /form/i,
   /\/[\w-]+/,
 ];
-
-const STEPS_LABEL = /^\*\*(?:Langkah|Steps?):\*\*/im;
-const RESULT_LABEL =
-  /^\*\*(?:Hasil(?:\s+yang\s+Diharapkan)?|Expected(?:\s+Result)?|Outcome):\*\*/im;
-const TEST_ID_LABEL = /^\s*-\s+\*\*Test\s+ID:\*\*\s*`?(TC-[A-Z0-9-]+)`?/im;
-const PRECONDITION_LABEL = /^\*\*(?:Prekondisi|Precondition|Given):\*\*/im;
 
 function hasTitle(text: string): boolean {
   const firstMeaningfulLine = text.split(/\r?\n/).find((line) => line.trim().length > 0);
@@ -90,7 +82,9 @@ function validateMetadata(text: string): RequirementViolation[] {
   }
 
   const violations: RequirementViolation[] = [];
-  if (!/^\s*-\s+\*\*Tags:\*\*\s+\S+/im.test(section) && !/^\s*tags?\s*:\s+\S+/im.test(section)) {
+  // Dual-mode: bullet `- **Tags:** x` / plain `tags: x` / table row `| Tags | x |`
+  const tagsRaw = readLabel(section, 'Tags');
+  if (!tagsRaw && !/^\s*tags?\s*:\s+\S+/im.test(section)) {
     violations.push({
       ruleName: 'metadata_tags_required',
       severity: 'error',
@@ -98,7 +92,7 @@ function validateMetadata(text: string): RequirementViolation[] {
     });
   }
 
-  const auth = section.match(/^\s*-\s+\*\*Auth state:\*\*\s*(.+)$/im)?.[1]?.trim();
+  const auth = readLabel(section, 'Auth state');
   if (!auth || !/^(unauthenticated|authenticated)$/i.test(auth)) {
     violations.push({
       ruleName: 'metadata_auth_state_required',
@@ -108,7 +102,7 @@ function validateMetadata(text: string): RequirementViolation[] {
   }
 
   // Module is required — core of grouping/taxonomy
-  if (!MODULE_LABEL.test(section)) {
+  if (!readLabel(section, 'Module')) {
     violations.push({
       ruleName: 'metadata_module_required',
       severity: 'error',
@@ -120,7 +114,7 @@ function validateMetadata(text: string): RequirementViolation[] {
   }
 
   // Feature is optional but recommended
-  if (!FEATURE_LABEL.test(section)) {
+  if (!readLabel(section, 'Feature')) {
     violations.push({
       ruleName: 'metadata_feature_recommended',
       severity: 'warn',
@@ -222,9 +216,11 @@ export function validateRequirementText(text: string): ValidateRequirementOutput
 
   const scenarioBlocks = extractScenarioBlocks(text);
   for (const block of scenarioBlocks) {
-    const hasSteps = STEPS_LABEL.test(block.body);
-    const hasResult = RESULT_LABEL.test(block.body);
-    const hasTestId = TEST_ID_LABEL.test(block.body);
+    const hasSteps = readLabelFromSection(block.body, ['Langkah', 'Steps']).length > 0;
+    const hasResult =
+      readLabelFromSection(block.body, ['Hasil yang Diharapkan', 'Expected Result', 'Outcome'])
+        .length > 0;
+    const hasTestId = readLabel(block.body, 'Test ID') !== null;
 
     if (!hasSteps || !hasResult) {
       violations.push({
@@ -267,7 +263,11 @@ export function validateRequirementText(text: string): ValidateRequirementOutput
       }
     }
 
-    if (isAuthSensitive(text) && !PRECONDITION_LABEL.test(block.body) && !block.isManual) {
+    if (
+      isAuthSensitive(text) &&
+      readLabelFromSection(block.body, ['Prekondisi', 'Precondition', 'Given']).length === 0 &&
+      !block.isManual
+    ) {
       violations.push({
         ruleName: 'precondition_recommended',
         severity: 'warn',
@@ -277,8 +277,7 @@ export function validateRequirementText(text: string): ValidateRequirementOutput
     }
 
     // Warning: Layer terdampak (FE/BE/DB/API) kosong — SOURCE column di dashboard jadi blank
-    const LAYER_LABEL = /\*\*(?:Layer\s+terdampak|Affected\s+Layer):\*\*\s*\S+/i;
-    if (!LAYER_LABEL.test(block.body)) {
+    if (!readLabel(block.body, 'Layer terdampak', 'Affected Layer')) {
       violations.push({
         ruleName: 'layer_recommended',
         severity: 'warn',
@@ -295,7 +294,7 @@ export function validateRequirementText(text: string): ValidateRequirementOutput
     const isAuthenticated =
       /auth\s+state.*authenticated/i.test(metadataSection) &&
       !/unauthenticated/i.test(metadataSection);
-    const hasRoleScope = ROLE_SCOPE_LABEL.test(metadataSection);
+    const hasRoleScope = readLabel(metadataSection, 'Role scope') !== null;
     if (isAuthenticated && !hasRoleScope) {
       violations.push({
         ruleName: 'role_scope_recommended',
@@ -306,7 +305,12 @@ export function validateRequirementText(text: string): ValidateRequirementOutput
     }
 
     // Warning: Role scope defined but Access expectation missing
-    if (hasRoleScope && !ACCESS_EXPECTATION_LABEL.test(metadataSection)) {
+    // Warning: Role scope defined but Access expectation missing.
+    // `readLabel` covers the bullet form AND a table row `| Access expectation | … |`.
+    const hasAccessExpectation =
+      readLabel(metadataSection, 'Access expectation') !== null ||
+      /^##+\s+(?:Access\s+Matrix|Matriks\s+Akses)/im.test(text);
+    if (hasRoleScope && !hasAccessExpectation) {
       violations.push({
         ruleName: 'access_expectation_missing',
         severity: 'warn',
