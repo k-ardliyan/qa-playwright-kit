@@ -105,7 +105,7 @@ When the snapshot links another menu (sub-route, nav) or the requirement mention
 
 ## Pre-handoff checklist
 
-- [ ] Every AC has ≥1 covering scenario; every scenario has Test ID + Covers + Role + observable Hasil
+- [ ] Every AC has ≥1 covering scenario; every scenario has Test ID + Covers + Role + observable `Hasil yang Diharapkan`
 - [ ] Negative path exists for every field and every destructive action; `(@access-restriction)` for every deny in the Access Matrix
 - [ ] Boundaries present for every numeric/length/date constraint visible in the snapshot
 - [ ] State transitions: valid + invalid covered for each status
