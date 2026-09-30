@@ -60,12 +60,12 @@ import { chromium } from 'playwright';
 })();"
 ```
 
-### Jalur 3: Penyesuaian `allowed-origins` pada `@playwright/mcp`
+### Jalur 3: Penyesuaian `allowed-origins` pada `@playwright/mcp` (perlu maintainer)
 
 Jika ingin menggunakan live interactive MCP `@playwright/mcp`:
-1. Pastikan `BASE_URL` di environment terkonfigurasi dengan benar (misal: `http://localhost:3000` atau URL staging Anda).
+1. Pastikan `BASE_URL` di environment terkonfigurasi dengan benar (URL staging/dev aktif Anda).
 2. Jangan menggunakan protokol kustom seperti `chrome://` di Windows; gunakan instance browser standar.
-3. Tambahkan origin terkait ke `extraOrigins` di `src/shared/mcp/origin-resolver.ts` jika ada sub-domain atau API origin terpisah.
+3. Sub-domain atau API origin terpisah perlu ditambahkan ke `extraOrigins` di `src/shared/mcp/origin-resolver.ts` — itu **zona maintainer**: laporkan lewat template di [qa-vs-maintainer.md](../qa-vs-maintainer.md), jangan edit sendiri. `src/**` = no writes untuk QA.
 
 ---
 
