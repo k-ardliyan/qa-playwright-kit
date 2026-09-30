@@ -65,6 +65,21 @@ After reading the report choose **one**:
 
 ---
 
+## New spec stability check (first-run policy)
+
+Spec yang baru digenerate (atau selesai di-heal besar) dicek stabilitasnya **sebelum** masuk gate APPROVE — 78% flaky test sudah flaky sejak pertama ditulis (FSE 2014), jadi cek di awal jauh lebih murah daripada menemukannya di run berikutnya:
+
+```bash
+npx playwright test tests/<feature>.spec.ts --repeat-each=2 --fail-on-flaky-tests
+```
+
+- Expected: semua test **2/2 pass** dan exit code 0. Failing di salah satu pengulangan = flaky sejak lahir → classify `failureSource: test` / `stability`, heal dulu; jangan archive.
+- `--fail-on-flaky-tests` membuat exit code non-zero saat ada test yang tidak lulus di semua pengulangan — tidak perlu eyeball output.
+- Jalankan repeat HANYA untuk spec baru / yang baru di-heal besar — bukan setiap run (biaya 2×).
+- Verifikasi flag tersedia: `npx playwright test --help | grep -E "repeat-each|fail-on-flaky"`.
+
+---
+
 ## Archive after QA decision (APPROVE is gated)
 
 ```bash
