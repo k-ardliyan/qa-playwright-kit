@@ -26,7 +26,7 @@ Hard stop: any edit under `src/`, `tools/`, `config/` (except `*.env` via setup/
 - Unsure which scenario tag to use (`@manual`? `@upload`? `@access-restriction`?)
 - Requirement has `Auth state: authenticated` or a `Role scope` multi-role field
 - Running the pipeline — `qa:run`, Plan / Generate / Execute / Heal / Report
-- "Requirement mana yang belum punya plan/test?" → `qa-playwright-kit:list_requirement_status` (coverage map: `hasPlan`, `hasTests`, manual count, last status per requirement)
+- "Which requirements have no plan/tests yet?" → `qa-playwright-kit:list_requirement_status` (coverage map: `hasPlan`, `hasTests`, manual count, last status per requirement)
 - Pipeline paused/blocked and you need to know what to do next → `qa-playwright-kit:pipeline_status` (phase, resume safety, missing artifacts, next stage)
 - Generator writing `tests/*.spec.ts` that the dashboard will display
 - Test Step column shows `toBeVisible()`, `fill()`, `getByRole()`, or locator strings
@@ -43,7 +43,7 @@ Don't use for: protected zones (`src/**`, `tools/**`, `config/**`, `.github/agen
 - Resuming an interrupted run? Call `qa-playwright-kit:pipeline_status` first — one call reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, ready auth roles, and (when active) `pipelineRunId` for pre-run note attribution.
 - Running the full semantic workflow in one call? `qa-playwright-kit:workflow_run` drives Explore → Model → Challenge → Generate → Validate through the production driver and returns a structured `workflowStage`/`workflowStatus`/`nextRequiredAction` — prefer it over manual phase-by-phase invoke for the semantic flow.
 
-## Deliver markdown to QA (WAJIB — applies to ANY `.md`)
+## Deliver markdown to QA (MANDATORY — applies to ANY `.md`)
 
 Every time you create or edit a markdown file — requirement, spec, report, docs — hand it over as an artifact on its own line:
 
@@ -68,7 +68,7 @@ Hermes prompt (manual, one phase): `Run only the Plan stage for requirements/<fe
 
 ## Natural Language Chat Intent Routing (How to Handle QA Prompts)
 
-When QA chats naturally, immediately map the intent to the corresponding phase:
+When QA chats naturally, immediately map the intent to the corresponding phase (the prompt examples below stay in Indonesian — they show QA's natural phrasing; the router handles both languages):
 1. **New Feature from Live URL** (e.g. *"Hermes, tolong buatkan test untuk halaman http://.../invoices (role: finance)"*):
    - Route to **Phase -0.5 (UI Discovery & Requirement Synthesis)**.
    - Run `health_check`; require non-production `APP_ENV`, matching configured `BASE_URL` origin, and a ready role session. Stop for auth setup when missing/expired/mismatched; never transfer Browser Use cookies or inject storage state.
@@ -119,8 +119,8 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 | AI insight format, taxonomy & guardrails (record_ai_note)   | [ai-insight-format.md](references/ai-insight-format.md)                                                 |
 | Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                         |
 | Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                                |
-| Resolusi `ERR_BLOCKED_BY_CLIENT` & Browser MCP Checklist    | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                        |
-| Emulasi tema/print & pencarian hemat token (MCP 0.0.83)     | [media-emulation-and-recording.md](references/patterns/media-emulation-and-recording.md)                |
+| Resolving `ERR_BLOCKED_BY_CLIENT` & Browser MCP checklist   | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                        |
+| Theme/print emulation & token-efficient search (MCP 0.0.83) | [media-emulation-and-recording.md](references/patterns/media-emulation-and-recording.md)                |
 | Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                            |
 | SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                                |
 | Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                                     |
@@ -170,7 +170,7 @@ Validate runs the execution, diagnosis, reporting, and review loop:
 
 - **Execute:** Run tests via `playwright-test:run_tests`.
 - **Heal:** Diagnose and repair up to 3 cycles per file via Healer (`.github/agents/healer.agent.md`). The bound is enforced at **entry**: a 4th re-entry returns `LOOP_LIMIT_REACHED` (`retryable: false`, stage `blocked`) instead of running again. A feedback pass also **narrows** the re-run to the previously failed test titles — it never re-runs the full suite.
-- **Analyze (WAJIB):** Reporter (`.github/agents/reporter.agent.md`) runs the mandatory Analyze sub-phase, writes `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }`, and produces `analysisVerdict` / `analysisVerified`.
+- **Analyze (MANDATORY):** Reporter (`.github/agents/reporter.agent.md`) runs the mandatory Analyze sub-phase, writes `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }`, and produces `analysisVerdict` / `analysisVerified`.
 - **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Failures route intelligently to the smallest useful stage (UI unknown → Explore; requirement conflict → Model; weak assertion → Challenge; test bug → Generate; app defect → FILE BUG; auth/env issue → FIX ENVIRONMENT).
 - **QA Review & Gated Archive:** Ask QA. For a pipeline run, **APPROVE is gated**: allowed only when `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact sidecar evidence counts match, a Reporter Analyze insight exists, and there are no unresolved failures. Archive via `archive_report`.
 

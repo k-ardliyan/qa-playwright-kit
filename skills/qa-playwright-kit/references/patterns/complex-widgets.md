@@ -1,17 +1,17 @@
 # Complex UI Widgets & Browser Patterns
 
-Panduan penulisan interaksi browser untuk komponen web yang kompleks.
+Writing guide for browser interactions with complex web components.
 
 ## 1. File Upload / Dropzone (@upload)
 
-Gunakan `uploadFixture`, `uploadViaChooser`, atau `dropFixture` dari `@/support/pw` (atau `fileChooser` event):
+Use `uploadFixture`, `uploadViaChooser`, or `dropFixture` from `@/support/pw` (or the `filechooser` event):
 
 ```ts
 import { uploadViaChooser, dropFixture } from '@/support/pw';
 
 // 1. Chooser / button upload
 const fileChooserPromise = page.waitForEvent('filechooser');
-await page.getByRole('button', { name: /unggah file|upload/i }).click();
+await page.getByRole('button', { name: /upload file|unggah/i }).click();
 const fileChooser = await fileChooserPromise;
 await fileChooser.setFiles(fixturePath('documents/sample.pdf'));
 
@@ -23,25 +23,25 @@ await dropFixture(page.locator('.dropzone-area'), 'documents/sample.pdf');
 
 ## 2. Nested iFrames / Payment Gateway (@iframe)
 
-Gunakan `frameLocator` untuk berinteraksi di dalam iframe pihak ketiga. Pada Playwright v1.63+, `page.frameLocator()` tanpa argumen juga dapat mencari di seluruh subtree iframe:
+Use `frameLocator` to interact inside third-party iframes. On Playwright v1.63+, `page.frameLocator()` without an argument also searches across the whole iframe subtree:
 
 ```ts
-// Spesifik iframe
-const paymentFrame = page.frameLocator('iframe[name="midtrans-payment"]');
-await paymentFrame.getByRole('button', { name: /bayar sekarang/i }).click();
-await expect(paymentFrame.getByText(/pembayaran berhasil/i)).toBeVisible();
+// Specific iframe
+const paymentFrame = page.frameLocator('iframe[name="payment-gateway"]');
+await paymentFrame.getByRole('button', { name: /pay now/i }).click();
+await expect(paymentFrame.getByText(/payment successful/i)).toBeVisible();
 
-// Atau mencari di sembarang frame jika selector iframe dinamis:
-await page.frameLocator().getByRole('button', { name: /bayar sekarang/i }).click();
+// Or search any frame when the iframe selector is dynamic:
+await page.frameLocator().getByRole('button', { name: /pay now/i }).click();
 ```
 
 ## 3. Date & Time Mocking (@clock)
 
-Gunakan API `page.clock` Playwright untuk mensimulasikan waktu tanpa mengubah sistem host:
+Use the Playwright `page.clock` API to simulate time without touching the host system:
 
 ```ts
-// Kunci waktu ke tanggal tertentu sebelum navigasi
+// Pin time to a specific date before navigation
 await page.clock.setFixedTime(new Date('2026-08-31T08:00:00Z'));
 await page.goto('/promo');
-await expect(page.getByText(/promo berakhir hari ini/i)).toBeVisible();
+await expect(page.getByText(/promo ends today/i)).toBeVisible();
 ```

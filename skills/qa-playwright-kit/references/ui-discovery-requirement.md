@@ -98,7 +98,7 @@ Present the summary to QA with the list of active scenarios and backlog recommen
 
 ## Safety & Best Practices
 
-1. **Never Click Destructive Actions:** Skenario aksi hapus (`/delete`, `/destroy`, button "Hapus") hanya dicatat sebagai metadata atau verifikasi dialog, jangan dieksekusi secara destruktif selama discovery.
-2. **Decoupled Role & URL:** Role ditentukan dari file auth `.auth/{APP_ENV}/<role>.json`, bukan dari struktur kata di URL.
+1. **Never Click Destructive Actions:** Delete-action scenarios (`/delete`, `/destroy`, "Hapus" button) are recorded as metadata or dialog verification only — never executed destructively during discovery.
+2. **Decoupled Role & URL:** The role comes from the auth file `.auth/{APP_ENV}/<role>.json`, not from word structure in the URL.
 3. **Review before pipeline:** Validate the synthesized requirement, present active and backlog scenarios, and wait for QA review before `workflow_run`.
-4. **One Sample per Table:** Jangan mengunjungi setiap ID baris tabel — 1 sampel baris (`:id`) sudah cukup mewakili UI detail view.
+4. **One Sample per Table:** Do not visit every table row ID — 1 sample row (`:id`) is enough to represent the detail view UI.

@@ -70,10 +70,10 @@ Validator must exit 0 before running the pipeline.
 npm run qa:run    # TTY picker → select file → copy printed prompt → paste into Hermes Agent
 ```
 
-Prompt qa:run menyertakan `[ENV CONTEXT]` dan `[FALLBACK MCP]`. Jika tool MCP `qa-playwright-kit` belum aktif di Hermes, agent otomatis menggunakan CLI fallback (`validate-requirement.ts`) atau MCP playwright.
-Hasil eksekusi disimpan di `artifacts/reports/pipeline-state.json` dan `artifacts/reports/html/index.html`.
-Cek posisi pipeline kapan pun via `qa-playwright-kit:pipeline_status` — satu panggilan: fase berjalan, keamanan resume, hasil run terakhir, dan sesi auth yang siap.
-Buka dashboard: `npm run dashboard` (atau buka file `artifacts/reports/html/index.html` langsung).
+The `qa:run` prompt includes `[ENV CONTEXT]` and `[FALLBACK MCP]`. If the `qa-playwright-kit` MCP tools are not active in Hermes, the agent automatically uses the CLI fallback (`validate-requirement.ts`) or the Playwright MCP.
+Execution results are stored in `artifacts/reports/pipeline-state.json` and `artifacts/reports/html/index.html`.
+Check pipeline position at any time via `qa-playwright-kit:pipeline_status` — one call: current phase, resume safety, last run result, and ready auth sessions.
+Open the dashboard: `npm run dashboard` (or open `artifacts/reports/html/index.html` directly).
 
 ---
 

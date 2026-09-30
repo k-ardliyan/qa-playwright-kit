@@ -1,32 +1,32 @@
-# Resolusi Error `net::ERR_BLOCKED_BY_CLIENT` & Browser Discovery Checklist
+# Resolving `net::ERR_BLOCKED_BY_CLIENT` & Browser Discovery Checklist
 
-Gunakan referensi ini saat AI agent menemui error `net::ERR_BLOCKED_BY_CLIENT` atau kegagalan navigasi browser saat melakukan eksplorasi UI.
-
----
-
-## 1. Fakta & Diagnosis (Anti-Halusinasi)
-
-Jangan berasumsi bahwa:
-- Website target down atau tidak bisa dijangkau.
-- Halaman web memblokir bot / IP secara permanen.
-- Fitur live UI exploration tidak dapat dilakukan dan harus di-skip atau diubah jadi `@manual`.
-
-### Penyebab Nyata
-
-Error `net::ERR_BLOCKED_BY_CLIENT` pada tool MCP `@playwright/mcp` (`browser_navigate`) **BUKAN** karena firewall server web target atau blokir dari web tujuan. Error ini dibangkitkan secara lokal oleh Chromium karena adanya flag keamanan `--allowed-origins`:
-- Flag `--allowed-origins=<url>` diinisialisasi oleh MCP wrapper saat peluncuran.
-- Jika URL target melakukan redirect, memuat resource dari domain lain, atau origin-nya berbeda sedikit pun dari daftar yang didaftarkan, Chromium lokal menolak request tersebut dengan kode status `net::ERR_BLOCKED_BY_CLIENT`.
-- Dialog Windows `"Get an app to open this 'chrome' link"` muncul jika tool eksternal mencoba membuka URI skema `chrome://` di sistem Windows yang tidak memiliki handler default untuk protokol tersebut.
+Use this reference when the AI agent hits `net::ERR_BLOCKED_BY_CLIENT` or a browser navigation failure during UI exploration.
 
 ---
 
-## 2. Solusi & Jalur Prioritas (Resolution Ladder)
+## 1. Facts & Diagnosis (Anti-Hallucination)
 
-Jika menemui kendala `ERR_BLOCKED_BY_CLIENT` atau kegagalan `browser_navigate`:
+Do not assume that:
+- The target website is down or unreachable.
+- The web page permanently blocks bots / IPs.
+- Live UI exploration cannot be done and must be skipped or downgraded to `@manual`.
 
-### Jalur 1 (Utama & Teruji): `qa-playwright-kit:snapshot_page`
+### Real Cause
 
-Gunakan tool MCP internal kit terlebih dahulu:
+The `net::ERR_BLOCKED_BY_CLIENT` error on the `@playwright/mcp` tool (`browser_navigate`) is **NOT** caused by the target web server's firewall or any block from the destination site. It is raised locally by Chromium because of the `--allowed-origins` security flag:
+- The `--allowed-origins=<url>` flag is initialized by the MCP wrapper at launch.
+- If the target URL redirects, loads resources from another domain, or its origin differs even slightly from the registered list, local Chromium rejects the request with status `net::ERR_BLOCKED_BY_CLIENT`.
+- The Windows dialog `"Get an app to open this 'chrome' link"` appears when an external tool tries to open a `chrome://` scheme URI on a Windows system with no default handler for that protocol.
+
+---
+
+## 2. Solutions & Priority Path (Resolution Ladder)
+
+When you hit `ERR_BLOCKED_BY_CLIENT` or a `browser_navigate` failure:
+
+### Path 1 (primary & proven): `qa-playwright-kit:snapshot_page`
+
+Use the kit's internal MCP tool first:
 
 ```json
 {
@@ -37,16 +37,16 @@ Gunakan tool MCP internal kit terlebih dahulu:
 }
 ```
 
-*(Ganti URL target sesuai `BASE_URL` aktif aplikasi Anda).*
+*(Replace the target URL with your active app `BASE_URL`.)*
 
-**Keunggulan:**
-- Tool ini menggunakan instance Playwright internal tanpa pembatasan origin kaku dari `@playwright/mcp`.
-- Langsung mengekstrak semantic catalog dan ARIA snapshot ke `artifacts/selector-catalog/<feature>/<page>.json`.
-- Selalu berhasil mengekstrak locator semantik (`getByRole`, `getByLabel`, dsb) tanpa terganggu oleh error client blocker.
+**Advantages:**
+- This tool uses an internal Playwright instance without the rigid origin restriction of `@playwright/mcp`.
+- It extracts the semantic catalog and ARIA snapshot directly into `artifacts/selector-catalog/<feature>/<page>.json`.
+- It always extracts semantic locators (`getByRole`, `getByLabel`, etc.) without being disturbed by the client-blocker error.
 
-### Jalur 2: CLI Smoke Test / Verifikasi Langsung
+### Path 2: CLI Smoke Test / Direct Verification
 
-Jika perlu melakukan cek navigasi cepat tanpa MCP browser:
+When you need a quick navigation check without the browser MCP:
 
 ```bash
 npx tsx -e "
@@ -60,18 +60,18 @@ import { chromium } from 'playwright';
 })();"
 ```
 
-### Jalur 3: Penyesuaian `allowed-origins` pada `@playwright/mcp` (perlu maintainer)
+### Path 3: Adjusting `allowed-origins` on `@playwright/mcp` (maintainer required)
 
-Jika ingin menggunakan live interactive MCP `@playwright/mcp`:
-1. Pastikan `BASE_URL` di environment terkonfigurasi dengan benar (URL staging/dev aktif Anda).
-2. Jangan menggunakan protokol kustom seperti `chrome://` di Windows; gunakan instance browser standar.
-3. Sub-domain atau API origin terpisah perlu ditambahkan ke `extraOrigins` di `src/shared/mcp/origin-resolver.ts` — itu **zona maintainer**: laporkan lewat template di [qa-vs-maintainer.md](../qa-vs-maintainer.md), jangan edit sendiri. `src/**` = no writes untuk QA.
+To use the live interactive `@playwright/mcp`:
+1. Make sure `BASE_URL` in the environment is configured correctly (your active staging/dev URL).
+2. Do not use custom protocols such as `chrome://` on Windows; use a standard browser instance.
+3. Separate sub-domains or API origins must be added to `extraOrigins` in `src/shared/mcp/origin-resolver.ts` — that is a **maintainer zone**: report it via the template in [qa-vs-maintainer.md](../qa-vs-maintainer.md), do not edit it yourself. `src/**` = no writes for QA.
 
 ---
 
-## 3. Checklist Sebelum Menyimpulkan "Browser Tidak Bisa Dibuka"
+## 3. Checklist Before Concluding "The Browser Cannot Be Opened"
 
-1. [ ] Jalankan `curl -I -L <URL>` di terminal. Jika return `200 OK`, server hidup.
-2. [ ] Panggil `snapshot_page` dari server `qa-playwright-kit`.
-3. [ ] Cek isi file `artifacts/selector-catalog/<feature>/<page>.json` untuk melihat hasil ekstraksi DOM.
-4. [ ] Jangan mengubah skenario menjadi `@manual` hanya karena kendala `ERR_BLOCKED_BY_CLIENT` pada client MCP.
+1. [ ] Run `curl -I -L <URL>` in the terminal. If it returns `200 OK`, the server is alive.
+2. [ ] Call `snapshot_page` from the `qa-playwright-kit` server.
+3. [ ] Check the contents of `artifacts/selector-catalog/<feature>/<page>.json` to see the DOM extraction result.
+4. [ ] Do not convert a scenario to `@manual` merely because of an `ERR_BLOCKED_BY_CLIENT` issue on the MCP client.

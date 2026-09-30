@@ -11,10 +11,10 @@ The snapshot is **evidence, not a scenario list**. Scenarios come from **evidenc
 | Playwright best practices (playwright.dev/docs/best-practices)                   | Test user-visible behavior; tests isolated (never chain state through another test); no third-party dependencies; web-first assertions                     |
 | ISTQB CTFL v4 Chapter 4                                                          | Equivalence partitioning, boundary value analysis, decision tables, state transition testing — the techniques that make a set exhaustive and non-redundant |
 | Accessibility-tree extraction (arXiv 2603.20358)                                 | Role-first locator hierarchy is the standard; per-element structure (role, name, state) is what scenarios must exercise                                    |
-| Luo et al., FSE 2014 — flaky tests (201 commit, 51 proyek)                       | Async wait / concurrency / order-dependency = cause teratas; 78% flaky sejak pertama ditulis; 34% async-wait pakai time delay                              |
-| Hashemi et al., ICSME 2022 — flaky tests di JavaScript                           | Concurrency/async = penyebab dominan di JS; >80% flaky diperbaiki, bukan di-skip                                                                           |
-| Vera-Pérez et al., EMSE 2018 — pseudo-tested methods                             | Covered tapi tidak ada test yang gagal saat body dihapus → risiko assertion lemah                                                                          |
-| Alshahwan et al., FSE 2024 (TestGen-LLM, Meta) · WCAG 2.2 (W3C / ISO 40500:2025) | Filter verifikasi sebelum diterima = pola gate kit (73% accepted) · kontrak a11y role/name/state, fokus, error announcement                                |
+| Luo et al., FSE 2014 — flaky tests (201 commits, 51 projects)                    | Async wait / concurrency / order-dependency = top causes; 78% of flaky tests are flaky from first write; 34% of async-wait cases use time delays           |
+| Hashemi et al., ICSME 2022 — flaky tests in JavaScript                           | Concurrency/async = dominant cause in JS; >80% of flaky tests are fixed, not skipped                                                                       |
+| Vera-Pérez et al., EMSE 2018 — pseudo-tested methods                             | Covered but no test fails when the body is removed → weak-assertion risk                                                                                   |
+| Alshahwan et al., FSE 2024 (TestGen-LLM, Meta) · WCAG 2.2 (W3C / ISO 40500:2025) | Verification filter before acceptance = the kit's gate pattern (73% accepted) · a11y contract role/name/state, focus, error announcement                   |
 | Internal: `docs/QA-PLAYWRIGHT-KIT-SHARING.html`, `docs/WRITING-REQUIREMENTS.md`  | Kit conventions: scenario tags, provenance prefixes, `(@manual)` boundaries, one file per feature                                                          |
 
 ## Anti-slop contract (hard rules)
@@ -26,14 +26,14 @@ The snapshot is **evidence, not a scenario list**. Scenarios come from **evidenc
 5. **Isolation.** A scenario must not depend on another test's mutations; create its data inline or via `seed:` / `(@hybrid)` API seed. Cross-role checks become two scenarios linked by the same seed ref — never one test switching roles.
 6. **Budget.** Input Data uses provenance prefixes (`seed:`, `credential:`, `fixture:`, `literal:`); credentials never appear in steps; keep items ≤500 chars and the whole batch ≤20 KB per `synthesize_requirement` call.
 
-## Data & isolation strategy (bottleneck #1 di praktik)
+## Data & isolation strategy (practice bottleneck #1)
 
-Test data adalah bottleneck scaling paling umum — rencanakan bersama skenario, bukan setelahnya:
+Test data is the most common scaling bottleneck — plan it together with the scenarios, not after them:
 
-- **Seed factory, bukan baris buatan tangan:** setiap ref `seed:` di Input Data harus punya produsen yang jelas (API seed `(@hybrid)`, fixture DB, atau jalur UI terdokumentasi). Tidak ada produsen → skenario masuk Coverage Gap, bukan masuk suite.
-- **Unik per run:** nama/identifier yang dibuat skenario membawa suffix unik (timestamp/random) — environment bersama akan collide kalau statis. `literal:` hanya untuk lookup read-only.
-- **Reset/cleanup:** skenario yang membuat data menyatakan cleanup-nya (`apiCleanup` untuk `(@hybrid)`; kalau tidak, tulis "data residual acceptable" di Prekondisi). Jangan pernah mengandalkan cleanup test lain.
-- **Isolasi akun:** satu akun role tidak dipakai bersama antar member QA; skenario yang memutasi akun mengikuti aturan serialisasi (anti-slop #5).
+- **Seed factory, not hand-made rows:** every `seed:` ref in Input Data must have a clear producer (API seed `(@hybrid)`, DB fixture, or a documented UI path). No producer → the scenario goes to Coverage Gap, not into the suite.
+- **Unique per run:** names/identifiers the scenario creates carry a unique suffix (timestamp/random) — shared environments collide on static values. `literal:` is for read-only lookups only.
+- **Reset/cleanup:** scenarios that create data state their cleanup (`apiCleanup` for `(@hybrid)`; otherwise write "residual data acceptable" in Prekondisi). Never rely on another test's cleanup.
+- **Account isolation:** one role account is never shared across QA members; scenarios that mutate the account follow the serialization rule (anti-slop #5).
 
 ## Where the evidence lives
 
@@ -62,7 +62,7 @@ Run this over EVERY catalogued page. The right column is the minimum set; add te
 | Alerts / toasts                            | success feedback after the action; failure feedback after an error path                                                                                                                                                                                                                    |
 | Stepper                                    | forward/back; guard blocks forward until the step is valid                                                                                                                                                                                                                                 |
 | Cross-menu link (subRoute to another menu) | relation scenarios — see "Relation scenarios"                                                                                                                                                                                                                                              |
-| Accessibility (WCAG 2.2)                   | keyboard-only menyelesaikan alur; urutan fokus & focus visible; pesan error terumumkan (role=alert / aria-live); label terhubung ke field                                                                                                                                                  |
+| Accessibility (WCAG 2.2)                   | keyboard-only completes the flow; focus order & visible focus; error messages announced (role=alert / aria-live); labels linked to fields                                                                                                                                                  |
 
 ## Technique toolbox — how it gets big AND precise
 
@@ -92,7 +92,7 @@ When the snapshot links another menu (sub-route, nav) or the requirement mention
 2. Write one role, one flow: open menu A → note the value → open menu B → locate the same record via a key from Input Data → compare.
 3. The data link uses `seed:` / `literal:` refs — never "the record created by SC-04".
 4. Needs a role the scenario does not run as? Split into two scenarios linked by the same seed ref.
-5. State the comparison observably in Hasil: "Qty stok = stok awal − qty order", not "data konsisten".
+5. State the comparison observably in `Hasil yang Diharapkan`: "Qty stok = stok awal − qty order", not "data konsisten".
 
 ## Sizing — how a page legitimately reaches 20–40 scenarios
 
@@ -112,5 +112,5 @@ When the snapshot links another menu (sub-route, nav) or the requirement mention
 - [ ] Dedupe pass done — no two scenarios retire the same partition
 - [ ] `(@manual)` only for the true list (CAPTCHA / OTP / email link / live payment / biometric / PDF layout)
 - [ ] Relation scenarios (if any): both pages catalogued, seed/literal data link stated
-- [ ] Setiap assertion memverifikasi nilai/state/efek bisnis — bukan hanya `toBeVisible` (risiko pseudo-test, EMSE 2018)
-- [ ] Alur kritis bisa diselesaikan keyboard-only; pesan error terumumkan (role=alert / aria-live) — WCAG 2.2
+- [ ] Every assertion verifies a value/state/business effect — not just `toBeVisible` (pseudo-test risk, EMSE 2018)
+- [ ] Critical flows complete keyboard-only; error messages announced (role=alert / aria-live) — WCAG 2.2

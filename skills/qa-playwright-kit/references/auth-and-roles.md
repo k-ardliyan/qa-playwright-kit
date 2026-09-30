@@ -89,33 +89,33 @@ If the app requires OTP or CAPTCHA during login:
 npm run auth:setup:headed   # opens browser → log in manually → session saved
 ```
 
-Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Skenario fitur biasa yang membutuhkan auth tidak perlu ditandai `(@manual)` karena auth ditangani di level setup via session state. Namun, skenario login itu sendiri yang secara spesifik memverifikasi interaksi OTP/CAPTCHA tetap ditandai `(@manual)` di requirement (lihat `requirements/_TEMPLATE.md`).
+Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Ordinary feature scenarios that require auth do not need a `(@manual)` tag because auth is handled at the setup level via session state. However, login scenarios that specifically verify OTP/CAPTCHA interaction still carry `(@manual)` in the requirement (see `requirements/_TEMPLATE.md`).
 
 ---
 
 ## Auth Recovery Protocol (CC-AUTH-RECOVERY)
 
-Trigger: 401/403, `unauthorized`, `session expired`, test redirect ke `/login`, atau trace/screenshot menunjukkan page berakhir di halaman login.
+Trigger: 401/403, `unauthorized`, `session expired`, the test redirects to `/login`, or trace/screenshot shows the page ended on the login page.
 
-1. **Stop healing file tersebut.** Auth failure = `failureSource: 'env'`, `isHealable: false`. Patch locator saat page nyangkut di login = korupsi test.
-2. **Re-login asli via setup project:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). Ini satu-satunya pembuat sesi — login UI sungguhan yang menulis cookie + localStorage + sessionStorage sekaligus. Sesi yang masih valid otomatis di-reuse (murah, tidak login ulang).
-3. **Re-run spec file yang terdampak saja**, lanjutkan phase.
-4. **Maks 1 siklus re-auth per role per run.** 401 kambuh setelah login baru = masalah TTL sesi server / multi-layer session → laporkan ke QA sebagai FIX ENVIRONMENT, jangan loop diam-diam.
+1. **Stop healing that file.** Auth failure = `failureSource: 'env'`, `isHealable: false`. Patching locators while the page is stuck on login corrupts the test.
+2. **Real re-login via the setup project:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). This is the only session producer — a real UI login that writes cookies + localStorage + sessionStorage in one pass. Still-valid sessions are reused automatically (cheap, no re-login).
+3. **Re-run only the affected spec files**, then resume the phase.
+4. **Max 1 re-auth cycle per role per run.** A 401 recurring after a fresh login = a server session TTL / multi-layer session problem → report to QA as FIX ENVIRONMENT, do not loop silently.
 
-### Anti-lockout (akun server bisa terkunci)
+### Anti-lockout (the server account can get locked)
 
-Server target (mis. ERPKu) mengunci akun setelah **~3 kredensial gagal** selama **~30 menit** — dan pesan API-nya sering generic ("Nama akun atau kata sandi salah") walau `debug.reason: ACCOUNT_LOCKED`.
+The target server (e.g. ERPKu) locks an account after **~3 failed credentials** for **~30 minutes** — and its API message is often generic ("Nama akun atau kata sandi salah") even when `debug.reason: ACCOUNT_LOCKED`.
 
-- **Skenario negatif maks 1 per suite** dan **1 klik submit saja** — identifier **fiktif** (mis. `qa.invalid.user.not.exists`), bukan password salah pada akun role real. `login-none.md` SC-06 sudah benar; jangan tambah variasi wrong-password pada `*_EMAIL` asli.
-- **Jangan re-run `npm run auth:setup` berulang** dengan kredensial yang belum pasti benar — tiap percobaan gagal menambah hitungan lockout. Sesi yang masih valid otomatis di-reuse, jadi `auth:setup` yang berhasil itu murah; yang berulang-gagal itu mahal.
-- Kalau login valid tapi tetap di `/login` dan body memuat lock/salah/invalid → jangan fail keras yang memicu attempt lagi; catat sebagai blocked (`ACCOUNT_LOCKED — wait unlock`), dan sesi storageState yang ada masih bisa dipakai test lain.
-- Run berurutan (jika perlu): prefix nama file menentukan urutan — negative dulu, lalu role positif (`--workers=1` untuk suite login multi-role).
+- **At most 1 negative scenario per suite** and **1 submit click only** — use a **fictional** identifier (e.g. `qa.invalid.user.not.exists`), not a wrong password on a real role account. `login-none.md` SC-06 already does it right; do not add wrong-password variations against real `*_EMAIL` accounts.
+- **Do not re-run `npm run auth:setup` repeatedly** with credentials you are not sure are correct — every failed attempt adds to the lockout counter. Still-valid sessions are reused automatically, so a successful `auth:setup` is cheap; repeated failures are expensive.
+- If login is valid but the page stays on `/login` and the body contains lock/salah/invalid → do not hard-fail in a way that triggers another attempt; record it as blocked (`ACCOUNT_LOCKED — wait unlock`), and the existing storageState session can still be used by other tests.
+- Sequential runs (when needed): the file name prefix sets the order — negative first, then positive roles (`--workers=1` for a multi-role login suite).
 
 ### Hard bans
 
-- **DILARANG inject storage state**: `browser_set_storage_state`, `context.addCookies`, `localStorage.setItem` token, edit manual `.auth/*.json`. Login asli menulis banyak lapisan storage sekaligus; inject cuma nebak satu lapisan → sesi palsu yang terlihat hijau.
-- **DILARANG login di dalam spec** (`tests/*.spec.ts` mengisi form login). Auth hanya lewat `test.use({ storageState: authStatePath('<role>') })` dari setup project. Pengecualian: requirement-nya memang skenario login (`authState: unauthenticated`) — langkah login adalah subjek test, bukan provisioning sesi.
-- **DILARANG duplikat/rename file sesi jadi role palsu** (mis. `cp user.json user-2.json` lalu `authStatePath('user-2')`). Role eksis HANYA jika kredensialnya terdaftar di `config/environments/{APP_ENV}.env` (`<ROLE>_PASSWORD` + identity) dan sesinya dibuat `npm run auth:setup`. File `.auth/` tanpa backing env = orphan → ditandai `auth:verify` dan ditolak `validate_generated_tests`. Butuh akun lain: `npm run env:edit` → tambah role → `npm run auth:setup`.
+- **NEVER inject storage state**: `browser_set_storage_state`, `context.addCookies`, `localStorage.setItem` tokens, hand-editing `.auth/*.json`. A real login writes many storage layers at once; injection guesses one layer → a fake session that looks green.
+- **NEVER log in inside a spec** (`tests/*.spec.ts` filling login forms). Auth flows only through `test.use({ storageState: authStatePath('<role>') })` from the setup project. Exception: the requirement itself is a login scenario (`authState: unauthenticated`) — the login steps are the test subject, not session provisioning.
+- **NEVER duplicate/rename session files into fake roles** (e.g. `cp user.json user-2.json` then `authStatePath('user-2')`). A role exists ONLY when its credentials are registered in `config/environments/{APP_ENV}.env` (`<ROLE>_PASSWORD` + identity) and its session is produced by `npm run auth:setup`. A `.auth/` file with no env backing is an orphan → flagged by `auth:verify` and rejected by `validate_generated_tests`. Need another account: `npm run env:edit` → add role → `npm run auth:setup`.
 
 ---
 
@@ -201,10 +201,10 @@ Tenant delivered by link (subdomain / path / query) needs **no** company key —
 - `general` is a pipeline mode (non-role-aware), NEVER a role name. The sole default role is `user` (with `TEST_USER_*` credentials and `.auth/{APP_ENV}/user.json`). Never output `Role: general` or `role: 'general'`.
 - Single role that is not `user` → wizard offers to mirror to `TEST_USER` — answer Yes to keep the general pipeline mode working.
 - Auth file valid but redirects to `/login` → the app stores session in localStorage, not cookies. Check that `origins[0].localStorage` is non-empty in `.auth/{APP_ENV}/user.json`.
-- Session expired mid-run (401 / redirected to login) → Auth Recovery Protocol di atas. Jangan heal locator, jangan inject storage state.
-- Specs never log in inside the test body — provisioning sesi hanya lewat setup project.
-- `fullyParallel: true` → test dalam satu file pun jalan bersamaan. Skenario yang memutasi state akun bersama (logout, ganti password/profil, revoke session) wajib diserialkan: `test.describe.configure({ mode: 'serial' })` untuk grupnya, atau `lock: '<role>-account'` (Playwright ≥1.63) bila file lain ikut memakai akun yang sama. Jangan matikan paralel global.
-- Role hanya dari env: file `.auth/*.json` yang tidak ada kredensialnya di env adalah orphan (artefak duplikasi), bukan role sah — `auth:verify` menandainya, `validate_generated_tests` menolak spec yang memakainya.
+- Session expired mid-run (401 / redirected to login) → Auth Recovery Protocol above. Do not heal locators, do not inject storage state.
+- Specs never log in inside the test body — session provisioning only via the setup project.
+- `fullyParallel: true` → tests within a single file also run concurrently. Scenarios that mutate shared account state (logout, password/profile change, session revoke) MUST be serialized: `test.describe.configure({ mode: 'serial' })` for the group, or `lock: '<role>-account'` (Playwright ≥1.63) when other files use the same account. Never disable global parallelism.
+- Roles come from env only: a `.auth/*.json` file whose credentials are not in env is an orphan (duplication artifact), not a valid role — `auth:verify` flags it and `validate_generated_tests` rejects specs that use it.
 - Do not share one account across multiple QA members on a shared environment — create isolated accounts per team member.
 - Tenant mismatch: a saved session stamped for another company is refused — `snapshot_page` / `discover_pages` return `warnings` and capture WITHOUT that session; `health_check` / `pipeline_status` report the role not-ready; specs abort before navigation. Fix is `npm run auth:setup`, not a locator heal. Set `{ROLE}_COMPANY` (or the tenant-scoped login URL) per role; the framework throws when the key is set but no company input matches — fix the selector, do not delete the key.
 - Company `<select>` is filled via `selectOption` (value or label). Set `{ROLE}_COMPANY_SELECTOR` only when the field name is not company/tenant/organization/workspace.

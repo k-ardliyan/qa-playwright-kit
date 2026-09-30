@@ -15,63 +15,65 @@ Prefer the structured fields (`kind`, `observation`, `evidence`, `impact`, `reco
 
 ```text
 [<source>] Jenis: <kind> | Status: <observed|inferred|recommendation> | Prioritas: <high|medium|low> | Confidence: <high|medium|low>
-Observasi: apa yang benar-benar terlihat dari test
-Bukti: scenario, step, trace, screenshot, network, URL terakhir
-Dampak: pengaruh terhadap user, bisnis, atau test suite
-Rekomendasi: tindakan konkret
-Next Action: langkah berikutnya untuk QA
+Observasi: what was actually observed from the test
+Bukti: scenario, step, trace, screenshot, network, last URL
+Dampak: impact on the user, the business, or the test suite
+Rekomendasi: concrete action
+Next Action: next step for QA
 ```
+
+The labels (`Jenis:` / `Status:` / `Prioritas:` / `Observasi:` / `Bukti:` / `Dampak:` / `Rekomendasi:` / `Next Action:`) are rendered verbatim by the tool (`src/agents/reporter/run-insights.ts`, `tools/mcp/src/utils/test-notes.ts`) — never translate or rename them.
 
 Content language: **Indonesian**. Keep each note 1–6 lines; QA/programmer must be able to act on it without re-reading the trace.
 
 ## Jenis taxonomy
 
-| Jenis          | Kapan dipakai                                                      |
-| -------------- | ------------------------------------------------------------------ |
-| `root-cause`   | Penyebab kegagalan + saran perbaikan teknis                        |
-| `stability`    | Flaky, retry, durasi lambat, timing/synchronization                |
-| `test-quality` | Assertion lemah, false-green risk, coverage assertion, data statis |
-| `ui-ux`        | Label, feedback, empty/loading state, konsistensi antar modul      |
-| `flow`         | Urutan langkah, persistensi input, Back/Cancel, redirect, shortcut |
-| `data`         | Seed data, isolasi antar role, data sisa, data boundary            |
-| `security`     | Exposisi credential/token, permission handling                     |
-| `coverage`     | Negative path / boundary yang belum diuji, skipped massal          |
-| `trend`        | Pola lintas skenario (run-level): modul/role panas, regresi        |
+| Jenis          | When to use                                                         |
+| -------------- | ------------------------------------------------------------------- |
+| `root-cause`   | Failure cause + technical fix suggestions                           |
+| `stability`    | Flaky, retry, slow duration, timing/synchronization                 |
+| `test-quality` | Weak assertions, false-green risk, assertion coverage, static data  |
+| `ui-ux`        | Labels, feedback, empty/loading state, cross-module consistency     |
+| `flow`         | Step order, input persistence, Back/Cancel, redirect, shortcut      |
+| `data`         | Seed data, cross-role isolation, residual data, boundary data       |
+| `security`     | Credential/token exposure, permission handling                      |
+| `coverage`     | Untested negative paths / boundaries, mass skips                    |
+| `trend`        | Cross-scenario patterns (run-level): hot modules/roles, regressions |
 
-### Weak assertion & security triggers (wajib dicatat)
+### Weak assertion & security triggers (must be recorded)
 
-- **Weak assertion (pseudo-test risk, EMSE 2018):** test PASSED tapi assertion hanya mengecek keberadaan (`toBeVisible`, count) tanpa memverifikasi nilai/state/efek bisnis → catat `kind: "test-quality"`, `status: observed`, plus rekomendasi assertion konkret. Uji mentalnya: kalau body fitur dihapus, apakah test ini masih hijau? Kalau ya, itu pseudo-test.
-- **Security surface (area terlemah praktik AI, QASkills 2026):** saat alur menyentuh login/permission/multi-tenant dan terlihat token di URL/storage, akses lintas tenant, atau elemen role-gated yang bocor ke role terlarang → catat `kind: "security"` dengan `confidence` jujur; jangan klaim vulnerability tanpa bukti observasi (trace/screenshot/network).
+- **Weak assertion (pseudo-test risk, EMSE 2018):** a PASSED test whose assertions only check existence (`toBeVisible`, count) without verifying a value/state/business effect → record `kind: "test-quality"`, `status: observed`, plus a concrete assertion recommendation. The mental test: if the feature body were removed, would this test still be green? If yes, it is a pseudo-test.
+- **Security surface (weakest area of AI practice, QASkills 2026):** when a flow touches login/permission/multi-tenant and you observe a token in the URL/storage, cross-tenant access, or role-gated elements leaking to a forbidden role → record `kind: "security"` with honest `confidence`; never claim a vulnerability without observational evidence (trace/screenshot/network).
 
-## Insight untuk scenario passed (bukan hanya failure)
+## Insights for passed scenarios (not only failures)
 
-Test passed ≠ aplikasi optimal. Insight yang bernilai pada scenario passed:
+A passed test ≠ an optimal application. Insights that carry value on passed scenarios:
 
-- **UI/UX**: feedback setelah aksi (toast/loading/redirect), konsistensi elemen, field/langkah yang terasa tidak perlu, empty/success state.
-- **Flow**: langkah yang bisa dipersingkat, input yang bisa dipakai ulang antar langkah, konsistensi Back/Cancel/Submit, perbandingan Flow A vs Flow B (lebih pendek, lebih sedikit error-prone, feedback lebih jelas — rekomendasikan mana yang layak jadi standar).
-- **Hasil bisnis**: side effect (notifikasi, audit trail, update tabel), data konsisten setelah refresh, operasi repeat tidak membuat duplikat.
-- **Kualitas test**: assertion lemah, verifikasi yang belum dilakukan, potensi flaky (animasi/debounce/polling).
-- **Data/environment**: seed realistis, data sisa antar test, isolasi akses antar role.
-- **Rekomendasi**: boundary/negative case tambahan, exploratory follow-up.
+- **UI/UX**: post-action feedback (toast/loading/redirect), element consistency, fields/steps that feel unnecessary, empty/success states.
+- **Flow**: steps that could be shortened, input reusable across steps, Back/Cancel/Submit consistency, Flow A vs Flow B comparison (shorter, less error-prone, clearer feedback — recommend which one deserves to become the standard).
+- **Business outcome**: side effects (notification, audit trail, table update), data consistent after refresh, repeated operations not creating duplicates.
+- **Test quality**: weak assertions, missing verification, flakiness potential (animation/debounce/polling).
+- **Data/environment**: realistic seeds, residual data between tests, cross-role access isolation.
+- **Recommendation**: additional boundary/negative cases, exploratory follow-ups.
 
 Deterministic signals already baked by the reporter (do not duplicate): flaky retry, run-relative slow duration, missing `expect` assertion (false-green), metadata gaps, hot module/role, repeated error fingerprints. Agent insight adds the *why* and the *what to do*.
 
-## Insight untuk scenario failed
+## Insights for failed scenarios
 
-Structure the failure story: ringkasan kegagalan (aksi pengguna, expected vs actual, langkah pemicu, konsisten vs intermittent) → klasifikasi (`failureSource` tetap machine-readable; narasi menjelaskannya) → root cause → saran perbaikan teknis DAN saran perbaikan produk → prioritas + next action konkret (re-run, re-auth, fix test, fix requirement, file bug, tambah seed).
+Structure the failure story: failure summary (user action, expected vs actual, triggering steps, consistent vs intermittent) → classification (`failureSource` stays machine-readable; the narrative explains it) → root cause → technical fix suggestions AND product fix suggestions → priority + concrete next action (re-run, re-auth, fix test, fix requirement, file bug, add seed).
 
-## Guardrails (wajib — sebagian di-enforce oleh tool, bukan hanya dokumen)
+## Guardrails (mandatory — some enforced by the tool, not just documentation)
 
-- Pisahkan **fakta yang diamati** dari **rekomendasi** — setiap insight membawa `status`: `observed`, `inferred`, atau `recommendation`.
-- Jangan menyebut UX buruk jika UI/UX tidak benar-benar diinspeksi; jangan klaim accessibility jika keyboard/screen reader/viewport terkait belum diuji.
-- Test passed bukan bukti aplikasi sepenuhnya benar.
-- Jangan mengarang actual result; jangan meringkas error hingga bukti hilang.
-- Jangan langsung mengklasifikasi bug aplikasi tanpa memeriksa test, requirement, dan environment.
-- **Secret redaction (enforced):** `record_ai_note` dan semua jalur tulis note otomatis me-redact Bearer token, JWT, `password=/token=/api_key=`, cookie, dan AWS key sebelum disimpan. Jangan bergantung pada ini — jangan pernah menulis credential di catatan.
-- **Deduplication (enforced):** insight identik (source + teks ternormalisasi sama) tidak disimpan dua kali; tool mengembalikan `deduplicated: true` — jangan retry berulang.
-- **Provenance (enforced):** saat MCP server berjalan dengan profile tunggal (healer/reporter/generator), `source` dari payload harus cocok dengan profile — badge tidak bisa dipalsukan.
-- **Kontrak runId:** tanpa `runId`, insight menempel ke **pending pipeline run** saat pipeline aktif (marker dibuat saat pipeline start / `pipeline_status` pada state `running`; id-nya diekspos sebagai `pipelineRunId` di `pipeline_status` & `get_test_summary`), lalu ke **latest run** (canonical `run-YYYYMMDD-HHmmss-SSS`, tersedia sebagai `archiveRunId`). Catatan bersifat per-run: run baru memulai sidecar bersih; run terarsip memelihara catatannya permanen.
-- **Affected metadata (scope=run):** sertakan `affectedTests` / `affectedModules` / `affectedRoles` agar QA bisa menelusuri insight ke sumbernya.
-- **Analyze contract:** Reporter wajib menyertakan blok `analysis` (`completed`, `runInsightsRecorded`, `passedScenariosReviewed`, `skippedForInsufficientEvidence`) di JSON `PipelineReport` — bukti sub-fase Analyze berjalan. Archive metadata dan consumers expose `analysisVerdict` + `analysisVerified`; `APPROVE` hanya boleh saat verdict `complete` dan verified.
-- Berikan `confidence: low` saat QA perlu memvalidasi manual.
-- Deterministic signals (badge `auto`) berasal dari aturan reporter — bukan reasoning LLM; agent insight menambahkan *why* dan *what to do*.
+- Separate **observed facts** from **recommendations** — every insight carries `status`: `observed`, `inferred`, or `recommendation`.
+- Do not call UX bad if the UI/UX was not actually inspected; do not claim accessibility if keyboard/screen-reader/viewport concerns were not tested.
+- A passed test is not proof the application is entirely correct.
+- Do not fabricate actual results; do not summarize errors until the evidence is lost.
+- Do not classify an application bug without first checking the test, the requirement, and the environment.
+- **Secret redaction (enforced):** `record_ai_note` and every note-writing path automatically redact Bearer tokens, JWTs, `password=/token=/api_key=`, cookies, and AWS keys before storing. Do not rely on this — never write credentials in notes.
+- **Deduplication (enforced):** identical insights (same source + normalized text) are not stored twice; the tool returns `deduplicated: true` — do not retry repeatedly.
+- **Provenance (enforced):** when the MCP server runs with a single profile (healer/reporter/generator), the payload `source` must match the profile — badges cannot be forged.
+- **runId contract:** without `runId`, an insight attaches to the **pending pipeline run** while the pipeline is active (marker created at pipeline start / `pipeline_status` in `running` state; the id is exposed as `pipelineRunId` in `pipeline_status` & `get_test_summary`), then to the **latest run** (canonical `run-YYYYMMDD-HHmmss-SSS`, available as `archiveRunId`). Notes are per-run: a new run starts a clean sidecar; an archived run keeps its notes permanently.
+- **Affected metadata (scope=run):** include `affectedTests` / `affectedModules` / `affectedRoles` so QA can trace an insight back to its source.
+- **Analyze contract:** the Reporter must include the `analysis` block (`completed`, `runInsightsRecorded`, `passedScenariosReviewed`, `skippedForInsufficientEvidence`) in the `PipelineReport` JSON — proof the Analyze sub-phase ran. Archive metadata and consumers expose `analysisVerdict` + `analysisVerified`; `APPROVE` is only allowed when the verdict is `complete` and verified.
+- Give `confidence: low` when QA needs to validate manually.
+- Deterministic signals (badge `auto`) come from reporter rules — not LLM reasoning; agent insight adds the *why* and the *what to do*.

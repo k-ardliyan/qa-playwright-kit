@@ -8,18 +8,18 @@ Source: `src/support/custom-reporter.ts` (`onTestEnd`) and `src/support/custom-d
 
 ## Columns
 
-| Column         | Source                                                                                                               | QA should see                                                                   |
-| -------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Test ID        | `setTestMetadata.testId`                                                                                             | `TC-AUTH-001`                                                                   |
-| Description    | `test('…')` title                                                                                                    | Scenario name, not code                                                         |
-| **Test Step**  | Top-level `test.step` titles via `formatSteps`                                                                       | Numbered requirement steps in business language                                 |
-| **Input Data** | `setTestMetadata.inputData`                                                                                          | `key: value` per line, provenance prefix OK                                     |
-| **Expected**   | `setTestMetadata.expectedResult`                                                                                     | Verbatim expected-result text from the requirement                              |
-| **Actual**     | `captureActualResult` or reporter fallback                                                                           | Pass = same as Expected. Fail = error message text                              |
-| Status         | Playwright result                                                                                                    | PASSED / FAILED / SKIPPED                                                       |
-| SOURCE         | `failureSource` on fail only                                                                                         | Cause + decision hint. `-` on pass                                              |
-| NOTES          | Duration, layer, trace/screenshot counts + QA note sidecar (`test-notes.json`)                                       | scenarioId, duration, evidence links, QA free-text note (editable via ✎ dialog) |
-| AI NOTES       | AI-authored insight: deterministic analysis (fail AND pass — cause, flaky, slow) + agent narrative with source badge | Apa penyebabnya & saran tindak lanjut, juga untuk scenario passed               |
+| Column         | Source                                                                                                               | QA should see                                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Test ID        | `setTestMetadata.testId`                                                                                             | `TC-AUTH-001`                                                                    |
+| Description    | `test('…')` title                                                                                                    | Scenario name, not code                                                          |
+| **Test Step**  | Top-level `test.step` titles via `formatSteps`                                                                       | Numbered requirement steps in business language                                  |
+| **Input Data** | `setTestMetadata.inputData`                                                                                          | `key: value` per line, provenance prefix OK                                      |
+| **Expected**   | `setTestMetadata.expectedResult`                                                                                     | Verbatim expected-result text from the requirement                               |
+| **Actual**     | `captureActualResult` or reporter fallback                                                                           | Pass = same as Expected. Fail = error message text                               |
+| Status         | Playwright result                                                                                                    | PASSED / FAILED / SKIPPED                                                        |
+| SOURCE         | `failureSource` on fail only                                                                                         | Cause + decision hint. `-` on pass                                               |
+| NOTES          | Duration, layer, trace/screenshot counts + QA note sidecar (`test-notes.json`)                                       | scenarioId, duration, evidence links, QA free-text note (editable via ✎ dialog)  |
+| AI NOTES       | AI-authored insight: deterministic analysis (fail AND pass — cause, flaky, slow) + agent narrative with source badge | Cause + follow-up suggestions, also for passed scenarios (content in Indonesian) |
 
 `formatSteps` drops titles starting with `Before`, `After`, `Worker Cleanup`, `worker`, `Fixture`. Nested Playwright auto-steps (`Expect "…" to be visible`) stay in Accordion, not Table View — **only when** they are nested inside a `test.step`. Unwrapped Playwright calls become top-level Test Step entries. That is the bug QA reports.
 

@@ -19,18 +19,18 @@ If the dashboard does not open automatically: locate `artifacts/reports/html/ind
 
 ## Reading Table View columns
 
-| Column         | Content                                                                                           | What to check                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Test ID        | `TC-XXX`                                                                                          | Matches the SC in the requirement                                      |
-| Description    | Scenario name                                                                                     | Same as the SC heading                                                 |
-| **Test Step**  | Numbered business-language steps                                                                  | Must be plain language — never `toBeVisible()`                         |
-| **Input Data** | `key: value` pairs                                                                                | No literal password or email values here                               |
-| **Expected**   | Expected result text                                                                              | Verbatim from the requirement                                          |
-| **Actual**     | Actual result                                                                                     | Pass: equals Expected. Fail: Playwright error message                  |
-| Status         | PASSED / FAILED / SKIPPED                                                                         | —                                                                      |
-| SOURCE         | Failure classification (fail only)                                                                | `app / test / requirement / env / ai_generation`                       |
-| NOTES          | Duration, evidence links + QA free-text note                                                      | QA note editable via the ✎ dialog; per-run                             |
-| AI NOTES       | AI-authored insight: deterministic analysis (fail AND pass) + agent suggestions with source badge | Baca dugaan penyebab, saran UI/UX, atau perbandingan flow (Indonesian) |
+| Column         | Content                                                                                           | What to check                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Test ID        | `TC-XXX`                                                                                          | Matches the SC in the requirement                                                    |
+| Description    | Scenario name                                                                                     | Same as the SC heading                                                               |
+| **Test Step**  | Numbered business-language steps                                                                  | Must be plain language — never `toBeVisible()`                                       |
+| **Input Data** | `key: value` pairs                                                                                | No literal password or email values here                                             |
+| **Expected**   | Expected result text                                                                              | Verbatim from the requirement                                                        |
+| **Actual**     | Actual result                                                                                     | Pass: equals Expected. Fail: Playwright error message                                |
+| Status         | PASSED / FAILED / SKIPPED                                                                         | —                                                                                    |
+| SOURCE         | Failure classification (fail only)                                                                | `app / test / requirement / env / ai_generation`                                     |
+| NOTES          | Duration, evidence links + QA free-text note                                                      | QA note editable via the ✎ dialog; per-run                                           |
+| AI NOTES       | AI-authored insight: deterministic analysis (fail AND pass) + agent suggestions with source badge | Read suspected cause, UI/UX suggestions, or flow comparisons (content in Indonesian) |
 
 ### Sign of a generator problem in Test Step
 
@@ -67,16 +67,16 @@ After reading the report choose **one**:
 
 ## New spec stability check (first-run policy)
 
-Spec yang baru digenerate (atau selesai di-heal besar) dicek stabilitasnya **sebelum** masuk gate APPROVE — 78% flaky test sudah flaky sejak pertama ditulis (FSE 2014), jadi cek di awal jauh lebih murah daripada menemukannya di run berikutnya:
+A freshly generated spec (or one that just went through a large heal) gets its stability checked **before** it passes the APPROVE gate — 78% of flaky tests are flaky from the first write (FSE 2014), so checking early is far cheaper than discovering it on the next run:
 
 ```bash
 npx playwright test tests/<feature>.spec.ts --repeat-each=2 --fail-on-flaky-tests
 ```
 
-- Expected: semua test **2/2 pass** dan exit code 0. Failing di salah satu pengulangan = flaky sejak lahir → classify `failureSource: test` / `stability`, heal dulu; jangan archive.
-- `--fail-on-flaky-tests` membuat exit code non-zero saat ada test yang tidak lulus di semua pengulangan — tidak perlu eyeball output.
-- Jalankan repeat HANYA untuk spec baru / yang baru di-heal besar — bukan setiap run (biaya 2×).
-- Verifikasi flag tersedia: `npx playwright test --help | grep -E "repeat-each|fail-on-flaky"`.
+- Expected: all tests **2/2 pass** and exit code 0. A failure on either repetition = flaky from birth → classify `failureSource: test` / `stability`, heal first; do not archive.
+- `--fail-on-flaky-tests` makes the exit code non-zero when any test does not pass on all repetitions — no need to eyeball output.
+- Run the repeat ONLY for new specs / ones just healed heavily — not every run (2× cost).
+- Verify the flags exist: `npx playwright test --help | grep -E "repeat-each|fail-on-flaky"`.
 
 ---
 
