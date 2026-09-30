@@ -32,7 +32,7 @@ Gunakan tool MCP internal kit terlebih dahulu:
 {
   "featureName": "auth",
   "pageName": "login",
-  "url": "http://localhost:3000/login",
+  "url": "<BASE_URL>/login",
   "force": true
 }
 ```
@@ -54,7 +54,7 @@ import { chromium } from 'playwright';
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
-  const res = await page.goto(process.env.BASE_URL || 'http://localhost:3000/login', { waitUntil: 'domcontentloaded' });
+  const res = await page.goto(process.env.BASE_URL || 'https://staging.example.com/login', { waitUntil: 'domcontentloaded' });
   console.log('STATUS:', res?.status(), 'TITLE:', await page.title());
   await browser.close();
 })();"

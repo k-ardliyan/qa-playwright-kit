@@ -36,7 +36,7 @@ Call `qa-playwright-kit:snapshot_page` with the target URL, feature slug, and ro
 
 ```json
 {
-  "url": "http://localhost:3000/invoices",
+  "url": "<BASE_URL>/invoices",
   "featureName": "invoices",
   "pageName": "invoice-list",
   "role": "finance"
@@ -47,7 +47,7 @@ For deep multi-page discovery within the same feature path:
 
 ```json
 {
-  "rootUrl": "http://localhost:3000/invoices",
+  "rootUrl": "<BASE_URL>/invoices",
   "featureName": "invoices",
   "role": "finance",
   "maxDepth": 2,
