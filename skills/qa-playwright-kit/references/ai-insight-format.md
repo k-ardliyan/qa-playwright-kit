@@ -38,6 +38,11 @@ Content language: **Indonesian**. Keep each note 1–6 lines; QA/programmer must
 | `coverage`     | Negative path / boundary yang belum diuji, skipped massal          |
 | `trend`        | Pola lintas skenario (run-level): modul/role panas, regresi        |
 
+### Weak assertion & security triggers (wajib dicatat)
+
+- **Weak assertion (pseudo-test risk, EMSE 2018):** test PASSED tapi assertion hanya mengecek keberadaan (`toBeVisible`, count) tanpa memverifikasi nilai/state/efek bisnis → catat `kind: "test-quality"`, `status: observed`, plus rekomendasi assertion konkret. Uji mentalnya: kalau body fitur dihapus, apakah test ini masih hijau? Kalau ya, itu pseudo-test.
+- **Security surface (area terlemah praktik AI, QASkills 2026):** saat alur menyentuh login/permission/multi-tenant dan terlihat token di URL/storage, akses lintas tenant, atau elemen role-gated yang bocor ke role terlarang → catat `kind: "security"` dengan `confidence` jujur; jangan klaim vulnerability tanpa bukti observasi (trace/screenshot/network).
+
 ## Insight untuk scenario passed (bukan hanya failure)
 
 Test passed ≠ aplikasi optimal. Insight yang bernilai pada scenario passed:
