@@ -16,6 +16,8 @@ Untuk QA pemula: **mulai dari Path A**. POM adalah optimasi, bukan keharusan.
 
 ---
 
+Derive the scenario set first — see [`skills/qa-playwright-kit/references/scenario-design.md`](../skills/qa-playwright-kit/references/scenario-design.md) (component × technique matrix + anti-slop contract + relation scenarios). Aim for 20–40 candidates on a real CRUD page, not 10: QA-stated scenarios verbatim, plus equivalence-partition, boundary, decision-table, and state-transition cases, after a dedupe pass. Only the first 20 fit one `synthesize_requirement` call; append the overflow as `### SC-XX` blocks in the same file.
+
 ## Alur kerja
 
 1. Duplikat [`_TEMPLATE.md`](../requirements/_TEMPLATE.md) → `requirements/nama-fitur.md`.

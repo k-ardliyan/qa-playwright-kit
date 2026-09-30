@@ -20,6 +20,7 @@ Hard stop: any edit under `src/`, `tools/`, `config/` (except `*.env` via setup/
 ## When to Use
 
 - QA provides a live web URL and wants to auto-generate `requirements/*.md` from UI snapshots
+- Synthesized scenarios look too few or too shallow for the page — derive more with [scenario-design.md](references/scenario-design.md) before defending the count
 - First-time setup, or error during `npm run setup` / `npm run auth:setup`
 - Writing, reviewing, or validating `requirements/*.md`
 - Unsure which scenario tag to use (`@manual`? `@upload`? `@access-restriction`?)
@@ -72,7 +73,7 @@ When QA chats naturally, immediately map the intent to the corresponding phase:
    - Route to **Phase -0.5 (UI Discovery & Requirement Synthesis)**.
    - Run `health_check`; require non-production `APP_ENV`, matching configured `BASE_URL` origin, and a ready role session. Stop for auth setup when missing/expired/mismatched; never transfer Browser Use cookies or inject storage state.
    - Call `snapshot_page` for the requested URL/role. Use `discover_pages` only when QA asks to map linked pages; reject auth warnings.
-   - Pass only QA-stated titles, steps, and expected results as structured `userScenarios` (maximum 20) to `synthesize_requirement`; do not invent business assertions from observed UI.
+   - Derive the scenario set with [scenario-design.md](references/scenario-design.md) (component × technique matrix, relation scenarios, dedupe pass): QA-stated titles/steps/results verbatim, technique-derived scenarios as proposals. Pass the top-ranked ≤20 as `userScenarios` to `synthesize_requirement`, then append the overflow as full `### SC-XX` blocks in the same file and validate. Do not invent business assertions from observed UI.
    - Validate with `validate_requirement`, present the draft and backlog, and wait for QA review before `workflow_run`. Existing requirement paths are not overwritten.
 2. **New Feature from User Story / Jira Ticket** (e.g. *"Hermes, buatkan test dari tiket/PRD ini: [cerita]"*):
    - Route to **Phase -1 (PRD Decompose)**.
@@ -106,6 +107,7 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 | Orient / resume after an interrupted run                    | `qa-playwright-kit:pipeline_status`                                                                     |
 | Which MCP tool for which task (full map)                    | [mcp-tools-for-qa.md](references/mcp-tools-for-qa.md)                                                   |
 | Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                                   |
+| Derive many precise scenarios from a snapshot (anti-slop)   | [scenario-design.md](references/scenario-design.md)                                                     |
 | First-time setup or setup error                             | [first-run-checklist.md](references/first-run-checklist.md)                                             |
 | Requirement format                                          | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md)             |
 | Validate format                                             | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`        |

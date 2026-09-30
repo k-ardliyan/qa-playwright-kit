@@ -77,7 +77,7 @@ Call `qa-playwright-kit:synthesize_requirement`:
 }
 ```
 
-Pass only user-stated scenarios (maximum 20) with explicit steps and expected results; pass `entryUrl` and role. Existing requirement paths are never overwritten. Synthesis also includes observed UI scenarios and writes `requirements/invoices.md` with:
+Derive the full scenario set first with [scenario-design.md](scenario-design.md) — QA-stated scenarios verbatim, plus technique-derived candidates (partition / boundary / decision table / state transition) and relation scenarios when the snapshot links another menu, after a dedupe pass. Pass the top-ranked ≤20 (tool cap, 20 KB) with explicit steps and expected results, plus `entryUrl` and role; append the overflow as full `### SC-XX` blocks to the generated file afterwards. Existing requirement paths are never overwritten. Synthesis also includes observed UI scenarios and writes `requirements/invoices.md` with:
 - Acceptance Criteria (`AC-01..AC-N`)
 - Executable Scenarios (`SC-01..SC-N`) tagged with `(@success)`, `(@failure)`, `(@access-restriction)`
 - Backlog recommendations block in HTML comments
