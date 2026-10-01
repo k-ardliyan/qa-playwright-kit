@@ -6,6 +6,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### MCP `playwright` mati total bila path repo mengandung spasi — 2026-10-01
+
+Dilaporkan QA (Windows 11): server MCP `playwright` tidak pernah connect, 48 tool `browser_*` hilang, host reconnect terus tanpa pesan yang menunjuk penyebab.
+
+- **Akar masalah:** kedua launcher MCP menjalankan `npx` dengan `spawn(..., { shell: true })`. Di Windows itu berarti `cmd.exe /d /s /c "<command> <arg1> ..."` — argv digabung jadi satu command line lalu dipecah ulang, sehingga `--output-dir=<path repo>\...` terpotong di setiap spasi dan `@playwright/mcp` keluar dengan `error: too many arguments. Expected 0 arguments but got 3: <potongan path repo>`. Reproduksi A/B di mesin yang sama: bentuk lama = pesan error itu, bentuk baru = start bersih.
+- **Fix:** launcher tidak lagi lewat shell. `localPackageSpawn()` baru di `src/setup/spawn-bin.ts` menjalankan entry paket lokal dengan `process.execPath` dan `shell: false`, jadi setiap argumen sampai sebagai satu argv entry — path berspasi utuh, tanpa `cmd.exe`, tanpa npx, tanpa interpolasi string. `resolveMcpLaunchSpawn()` (`playwright-mcp-launch.ts`) dan `resolveTestMcpLaunchSpawn()` (`playwright-test-mcp-launch.ts`) memakainya, dengan fallback `npmSpawn(['exec', '--yes', '--', <spec>, ...args])` — juga bebas shell — untuk clone yang belum `npm install`. `cwd` kedua launcher kini repo root, bukan `process.cwd()` (host MCP menjalankan server dari home directory).
+- **Pesan error menyebut perintahnya.** `describeSpawn()` merangkai `command + args` (quote hanya yang perlu) dan launcher mencetaknya saat spawn gagal — sebelumnya QA hanya melihat `err.message` dan harus membaca `mcp-stderr.log` untuk tahu apa yang dicoba.
+- **Bug sekelas ditemukan saat audit:** `tools/mcp/src/tools/workflow-run.ts` menjalankan driver dengan `node_modules/tsx/dist/cli.cjs` — file itu **tidak pernah ada** (tsx hanya mengirim `cli.mjs`), jadi `workflow_run` selalu mati `MODULE_NOT_FOUND` sebelum driver jalan. Kini `cli.mjs`; diverifikasi live: `workflow-run.ts --help` exit 0.
+- **Dua jalur spawn lain ikut dibersihkan** (kelas bug yang sama, path berspasi): `tools/scripts/run-property-tests.ts` (dulu `npx tsx <absolute file>` + shell — `npm run test:property` gagal di workspace berspasi) dan `tools/scripts/qa-run.ts` smoke run (`npm` + shell). Keduanya kini memakai plan bebas shell. Opener dashboard di `qa-run.ts` sengaja dibiarkan: ia memang butuh shell karena `start`/`open`/`xdg-open` adalah builtin shell, dan URL-nya sudah di-quote.
+- **Guard CI:** 4 unit test baru di `src/__tests__/unit/spawn-bin.test.ts` mem-pin bentuk plan — shell `false`, argumen berisi spasi tetap satu entry, `describeSpawn` meng-quote dengan benar, dan plan launcher MCP tidak memuat `npx`. Kelas bug ini lolos selama ini karena setiap mesin uji memakai path tanpa spasi.
+- **Verifikasi:** `tsc --noEmit` hijau; `biome lint` bersih (satu error `noUnusedVariables` di `Hero.tsx` milik perubahan WIP yang tidak disentuh, sudah ada di `HEAD`); `tools/validators/architecture.ts` hijau; 19 unit test launcher/spawn lulus; handshake nyata ke kedua launcher → **48** tool (browser MCP) dan **89** tool (test runner); `hermes mcp test playwright` → `✓ Connected (2848ms)`, `hermes mcp test playwright-test` → `✓ Connected (2998ms)`. Tidak ada perubahan perilaku di Linux/macOS — jalur normal justru lebih portabel karena bebas shell dan tidak butuh `cmd.exe` di PATH.
+
 ### Gap robustness multi-file run ditutup — 2026-09-30
 
 Audit 6-file paralel menemukan 4 gap; semuanya ditutup tanpa mengubah arsitektur run (satu run → satu `test-summary.json` → satu dashboard).

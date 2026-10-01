@@ -2,7 +2,16 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { binSpawn, localBin, npmCommand, npmSpawn, resolveNpmCli } from '@/setup/spawn-bin';
+import {
+  binSpawn,
+  localBin,
+  npmCommand,
+  npmSpawn,
+  localPackageSpawn,
+  describeSpawn,
+  resolveNpmCli,
+} from '@/setup/spawn-bin';
+import { resolveMcpLaunchSpawn } from '../../../tools/scripts/playwright-mcp-launch';
 
 /**
  * Regression: spawning `npm.cmd` is not portable.
@@ -84,6 +93,53 @@ test.describe('spawn-bin npm portability', () => {
     expect(
       localBin('C:/repo', 'tsx', 'win32').endsWith(path.join('node_modules', '.bin', 'tsx.cmd')),
     ).toBe(true);
+  });
+
+  /**
+   * The regression that shipped: `npx` + `shell: true` concatenated argv into a
+   * command line, so an absolute path containing spaces was split and
+   * `@playwright/mcp` exited with `too many arguments` — the whole browser MCP
+   * server never started. Every test machine had a space-free path, so nothing
+   * caught it. These assertions pin the spawn plan: shell-free, argv intact.
+   */
+  test('localPackageSpawn runs a repo entry with no shell and argv intact', () => {
+    const repoRoot = process.cwd();
+    const plan = localPackageSpawn(repoRoot, 'node_modules/@playwright/mcp/cli.js', [
+      '--output-dir=/tmp/My Project/artifacts',
+    ]);
+    expect(plan).not.toBeNull();
+    expect(plan!.shell).toBe(false);
+    expect(plan!.command).toBe(process.execPath);
+    expect(plan!.args[0]).toBe(path.join(repoRoot, 'node_modules', '@playwright', 'mcp', 'cli.js'));
+    // The spaced path stays exactly ONE argv entry — the whole bug.
+    expect(plan!.args[1]).toBe('--output-dir=/tmp/My Project/artifacts');
+    expect(plan!.args).toHaveLength(2);
+  });
+
+  test('localPackageSpawn returns null for a missing entry so callers can fall back', () => {
+    expect(
+      localPackageSpawn(process.cwd(), 'node_modules/@playwright/mcp/does-not-exist.js', []),
+    ).toBeNull();
+  });
+
+  test('describeSpawn quotes only the entries that need it', () => {
+    const line = describeSpawn({
+      command: 'C:/Program Files/node/node.exe',
+      args: ['--output-dir=/tmp/My Project/x', '--headless'],
+      shell: false,
+    });
+    expect(line).toBe(
+      '"C:/Program Files/node/node.exe" "--output-dir=/tmp/My Project/x" --headless',
+    );
+  });
+
+  test('the browser MCP launch plan survives a repo path with spaces', () => {
+    const plan = resolveMcpLaunchSpawn(process.cwd(), ['--headless', '--output-dir=/tmp/a b/c d']);
+    expect(plan.shell).toBe(false);
+    expect(plan.command).toBe(process.execPath);
+    expect(plan.args).toContain('--output-dir=/tmp/a b/c d');
+    // No npx, no cmd.exe, no interpolation anywhere in the plan.
+    expect(plan.args.join(' ')).not.toContain('npx');
   });
 
   test('agent-sync reports a real error message instead of undefined', () => {

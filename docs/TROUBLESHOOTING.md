@@ -258,6 +258,32 @@ Detail: [AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md).
 
 ---
 
+### Error #7c: Tool `browser_*` Hilang — Server MCP `playwright` Gagal Start (Path Repo Mengandung Spasi)
+
+**Gejala:** Daftar tool agent tidak memuat satu pun tool `browser_*` (`browser_navigate`, `browser_snapshot`, …), walau `.mcp.json` dan `config.yaml` benar. Host mencoba start ulang server `playwright` terus-menerus tanpa pernah berhasil.
+
+**Root cause:** launcher menjalankan `npx` lewat shell, sehingga argumen `--output-dir=<path repo>` dipecah di setiap spasi. CLI `@playwright/mcp` menolaknya dan keluar; host hanya melaporkan "server tidak connect". **Hanya terpicu bila path repo mengandung spasi** (mis. `D:\Proyek QA\qa-playwright-kit`), itulah sebabnya mesin uji dengan path bersih tidak pernah melihatnya.
+
+**Cek cepat** — jalankan langsung dan lihat apakah muncul `too many arguments`:
+
+```bash
+npx tsx tools/scripts/playwright-mcp-launch.ts < /dev/null
+```
+
+**Fix:** perbaikan sudah masuk (launcher tidak lagi lewat shell; entry paket lokal dijalankan langsung oleh Node). Update lalu restart server MCP:
+
+```bash
+npm run upgrade
+hermes mcp test playwright        # harapkan: ✓ Connected + Tools discovered: 48
+hermes mcp test playwright-test   # harapkan: ✓ Connected
+```
+
+**Bila masih gagal:** pesan error launcher kini mencetak `command:` yang dicoba — tempelkan baris itu saat eskalasi. Jika yang muncul `Playwright MCP launch failed` **tanpa** baris `command:`, berarti ada jalur spawn baru yang kembali memakai `shell: true` dengan argumen berisi path; laporkan ke maintainer.
+
+**Catatan Linux/macOS:** jalur normal kini bebas shell, jadi tidak butuh `cmd.exe` (Windows) maupun `npx` di PATH — portabilitasnya justru naik.
+
+---
+
 ### Error #8: `Cannot find module '@playwright/test'`
 
 **Gejala:** Saat run test atau `qa:run`, error `MODULE_NOT_FOUND`.

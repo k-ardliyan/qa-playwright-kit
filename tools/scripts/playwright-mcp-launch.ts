@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
 import { spawn } from 'node:child_process';
+import * as path from 'node:path';
 import { bootstrapMcpEnvironment } from './mcp-bootstrap';
 import { getMcpProfile } from '../../src/shared/mcp/profile';
 import { resolveAllowedOrigins } from '../../src/shared/mcp/origin-resolver';
@@ -10,6 +11,13 @@ import { PLAYWRIGHT_MCP_BASELINE_VERSION } from '../../src/shared/mcp/version';
 import { authStatePath } from '../../src/support/auth-paths';
 import { sessionTenantVerdict } from '../../src/shared/mcp/auth-probe';
 import { roleCredentialKeys } from '../../src/shared/utils/role-credentials';
+import { findRepoRoot } from '../../src/shared/workspace-paths';
+import {
+  describeSpawn,
+  localPackageSpawn,
+  npmSpawn,
+  type BinSpawn,
+} from '../../src/setup/spawn-bin';
 import type { McpIntent, McpRuntimeConfig } from '../../src/shared/mcp/types';
 import type { McpCapability } from '../../src/shared/mcp/capability-manifest';
 
@@ -104,6 +112,32 @@ export function launcherTenantWarning(
   return `Session for role "${config.role}" belongs to a different company than ${companyKey}. Re-login first: npm run auth:setup (this session is another tenant).`;
 }
 
+/**
+ * Spawn plan for the browser MCP server — NEVER through a shell.
+ *
+ * `npx` + `shell: true` concatenated argv into one command line, so
+ * `--output-dir=<repo>/artifacts/...` was split at every space in the repo path
+ * on Windows and `@playwright/mcp` died with `too many arguments`. The installed
+ * package entry run by the current Node binary keeps every argument intact and
+ * needs no PATH, no `cmd.exe`, and no network.
+ *
+ * Falls back to `npm exec` (also shell-free) on a clone that has not run
+ * `npm install` yet.
+ */
+export function resolveMcpLaunchSpawn(
+  repoRoot: string,
+  mcpCliArgs: string[],
+  execPath: string = process.execPath,
+): BinSpawn {
+  return (
+    localPackageSpawn(repoRoot, 'node_modules/@playwright/mcp/cli.js', mcpCliArgs, execPath) ??
+    npmSpawn(
+      ['exec', '--yes', '--', `@playwright/mcp@${PLAYWRIGHT_MCP_BASELINE_VERSION}`, ...mcpCliArgs],
+      execPath,
+    )
+  );
+}
+
 async function main(): Promise<void> {
   // CLI entry only — importing this module must stay side-effect free
   // (pure helpers are unit-tested; bootstrap loads real env into process.env).
@@ -132,12 +166,14 @@ Options:
   const tenantWarning = launcherTenantWarning(config);
   if (tenantWarning) process.stderr.write(`⚠ ${tenantWarning}\n`);
   const mcpCliArgs = buildPlaywrightMcpArgs(config);
-  const packageSpecifier = `@playwright/mcp@${PLAYWRIGHT_MCP_BASELINE_VERSION}`;
 
-  const child = spawn('npx', ['-y', packageSpecifier, ...mcpCliArgs], {
+  const repoRoot = findRepoRoot(__dirname);
+  const plan = resolveMcpLaunchSpawn(repoRoot, mcpCliArgs);
+
+  const child = spawn(plan.command, plan.args, {
     stdio: 'inherit',
-    shell: true,
-    cwd: process.cwd(),
+    shell: plan.shell,
+    cwd: repoRoot,
     env: process.env,
   });
 
@@ -147,7 +183,11 @@ Options:
   });
 
   child.on('error', (err) => {
-    process.stderr.write(`Playwright MCP launch failed: ${err.message}\n`);
+    // Name the command that failed: the bare err.message left QA reading
+    // mcp-stderr.log to find out what was even attempted.
+    process.stderr.write(
+      `Playwright MCP launch failed: ${err.message}\n  command: ${describeSpawn(plan)}\n`,
+    );
     process.exit(1);
   });
 }

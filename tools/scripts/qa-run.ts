@@ -24,6 +24,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { EXIT, type ExitCode } from './exit-codes';
+import { npmSpawn } from '../../src/setup/spawn-bin';
 import {
   friendly,
   printError,
@@ -336,11 +337,14 @@ function validateRequirementFile(repoRoot: string, relPath: string): ValidationR
 
 function runSmokeTests(repoRoot: string): { ok: boolean; summary: string } {
   printInfo('Menjalankan smoke test...');
-  const result = spawnSync('npm', ['run', 'test:smoke'], {
+  // npm via its own JS entry: `npm.cmd` cannot be spawned without a shell on
+  // Windows (EINVAL), and a shell would re-split any argument containing spaces.
+  const plan = npmSpawn(['run', 'test:smoke']);
+  const result = spawnSync(plan.command, plan.args, {
     cwd: repoRoot,
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,
+    shell: plan.shell,
   });
 
   const exitCode: ExitCode = result.status === 0 ? EXIT.OK : EXIT.FIXABLE;

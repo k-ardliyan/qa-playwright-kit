@@ -3,6 +3,7 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { localPackageSpawn, npmSpawn } from '../../src/setup/spawn-bin';
 
 const PROPERTY_DIR = fs.existsSync(path.join(process.cwd(), 'src', '__tests__', 'property'))
   ? path.join(process.cwd(), 'src', '__tests__', 'property')
@@ -34,10 +35,16 @@ function main(): void {
     const relative = path.relative(process.cwd(), file).replace(/\\/g, '/');
     process.stdout.write(`\n▶ ${relative}\n`);
 
-    const result = spawnSync('npx', ['tsx', file], {
+    // `npx tsx <absolute file>` with `shell: true` split the file path at every
+    // space (and printed a DEP0190 warning). Running the local tsx entry keeps
+    // the path one argv entry; `npm exec` is the shell-free fallback.
+    const plan =
+      localPackageSpawn(process.cwd(), 'node_modules/tsx/dist/cli.mjs', [file]) ??
+      npmSpawn(['exec', '--yes', '--', 'tsx', file]);
+    const result = spawnSync(plan.command, plan.args, {
       cwd: process.cwd(),
       encoding: 'utf8',
-      shell: true,
+      shell: plan.shell,
       stdio: 'inherit',
     });
 

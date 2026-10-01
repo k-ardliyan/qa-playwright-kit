@@ -49,6 +49,42 @@ export function npmCommand(platform: NodeJS.Platform = process.platform): string
 }
 
 /**
+ * Shell-free spawn descriptor for a locally installed package entry.
+ *
+ * Arguments reach the child as argv entries, so a path containing spaces stays
+ * ONE argument. The `npx` + `shell: true` shape re-split
+ * `--output-dir=<repo>\artifacts\...` at every space on Windows and
+ * `@playwright/mcp` exited with `too many arguments` — the whole browser MCP
+ * server never started, on a machine whose only sin was a space in the repo
+ * path.
+ *
+ * Returns null when the entry is absent (fresh clone before `npm install`), so
+ * callers can fall back to `npmSpawn(['exec', '--yes', '--', <spec>, ...args])`
+ * — also shell-free.
+ */
+export function localPackageSpawn(
+  repoRoot: string,
+  entryRelPath: string,
+  args: string[],
+  execPath: string = process.execPath,
+): BinSpawn | null {
+  const entry = path.join(repoRoot, ...entryRelPath.split('/'));
+  if (!fs.existsSync(entry)) return null;
+  return { command: execPath, args: [entry, ...args], shell: false };
+}
+
+/**
+ * One-line description of a spawn plan for error messages, quoting only the
+ * entries that need it. Spawn failures used to report a bare `err.message`, so
+ * the command that actually ran was invisible without reading mcp-stderr.log.
+ */
+export function describeSpawn(plan: BinSpawn): string {
+  return [plan.command, ...plan.args]
+    .map((part) => (/\s/.test(part) ? `"${part}"` : part))
+    .join(' ');
+}
+
+/**
  * Absolute path to npm's own JS entry, next to the running Node binary.
  * Returns null when the layout is unknown (then callers fall back to `npm.cmd`).
  */

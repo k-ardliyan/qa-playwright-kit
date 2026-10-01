@@ -148,7 +148,9 @@ export function workflowRun(args: WorkflowRunArgs | undefined): WorkflowRunOutpu
   // Task 7.1: no shell interpolation — spawn Node directly with the tsx CLI.
   // On Windows, npx.cmd cannot be spawned with shell:false (EINVAL), so route
   // through process.execPath + the local tsx entry + the driver script.
-  const tsxCli = path.join(repoRoot, 'node_modules', 'tsx', 'dist', 'cli.cjs');
+  // The entry is `cli.mjs` (tsx's own `bin`): `cli.cjs` has never existed, so
+  // every call died with MODULE_NOT_FOUND before the driver ever started.
+  const tsxCli = path.join(repoRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
   const result = spawnSync(process.execPath, [tsxCli, driver, ...argv.slice(2)], {
     cwd: repoRoot,
     encoding: 'utf-8',
