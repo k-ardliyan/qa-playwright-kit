@@ -150,8 +150,6 @@ export function buildSaveHistoryModalJs(): string {
               }
               setTimeout(function () {
                 closeSaveModal();
-                var banners = document.querySelectorAll('.save-banner-top, #save-banner, #save-banner-history');
-                banners.forEach(function (b) { b.style.display = 'none'; });
                 var btnHeader = document.querySelector('.btn-save-sm');
                 if (btnHeader) btnHeader.style.display = 'none';
                 if (location.pathname === '/history' || location.pathname === '/dashboard' || location.pathname === '/' || location.pathname === '/latest') {

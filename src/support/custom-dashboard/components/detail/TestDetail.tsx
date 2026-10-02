@@ -1,9 +1,12 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedError, CollectedTestData } from '../../types';
 import { decisionHintFor, decisionHintTooltipFor, explainFailure } from '../../failure-source';
+import { formatDuration } from '../../shared';
 import { generateErrorFingerprint } from '../../../classifier/fingerprint';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { StatusPill } from '../shared/StatusPill';
+import { statusIcon } from '../table/TableCells';
+import { IconSquarePen } from '../shared/icons';
 import { Attachments } from './Attachments';
 import { StepsTimeline } from './StepsTimeline';
 
@@ -22,29 +25,13 @@ function isUnhealthyStatus(status: string): boolean {
 }
 
 function StatusGlyph({ status }: { status: string }) {
-  if (isUnhealthyStatus(status)) {
-    return (
-      <span
-        class="test-file-test-status-icon test-file-test-status-icon--failed"
-        aria-hidden="true"
-      >
-        ✕
-      </span>
-    );
-  }
-  if (status === 'skipped') {
-    return (
-      <span
-        class="test-file-test-status-icon test-file-test-status-icon--skipped"
-        aria-hidden="true"
-      >
-        ⊘
-      </span>
-    );
-  }
+  const tone = isUnhealthyStatus(status) ? 'failed' : status === 'skipped' ? 'skipped' : 'passed';
   return (
-    <span class="test-file-test-status-icon test-file-test-status-icon--passed" aria-hidden="true">
-      ✓
+    <span
+      class={`test-file-test-status-icon test-file-test-status-icon--${tone}`}
+      aria-hidden="true"
+    >
+      {statusIcon(status, 12)}
     </span>
   );
 }
@@ -70,7 +57,7 @@ function buildFailurePacket(testData: CollectedTestData): string {
     `- Scenario: ${testData.scenarioId || '-'}`,
     sourceLine,
     `- Retry: ${testData.retry ?? 0}`,
-    `- Duration: ${testData.duration}ms`,
+    `- Duration: ${formatDuration(testData.duration)}`,
     ``,
     `**Expected:** ${testData.expectedResult || '-'}`,
     ``,
@@ -196,13 +183,11 @@ export function TestDetail({ testData, index, runId, openTest }: TestDetailProps
     .replace(/\s+/g, ' ')
     .trim();
 
-  const actualLower = (testData.actualResult || '').toLowerCase();
-  const looksFailed =
-    actualLower.includes('error') ||
-    actualLower.includes('timeout') ||
-    actualLower.includes('failed') ||
-    actualLower.includes('not found');
-  const actualBoxClass = looksFailed
+  // The box tone follows the VERDICT, never the wording. Sniffing the message
+  // for "error"/"timeout"/"failed" painted a passing test red whenever its
+  // expected text mentioned a failure ("memastikan error tidak muncul"), and
+  // missed genuinely failed ones whose message did not — a false green.
+  const actualBoxClass = unhealthy
     ? 'result-box result-box--failed'
     : 'result-box result-box--passed';
 
@@ -264,8 +249,8 @@ export function TestDetail({ testData, index, runId, openTest }: TestDetailProps
             ) : null}
             <StatusPill status={status} />
           </span>
-          <span class="test-card__duration" data-testid="test-duration">
-            {testData.duration}ms
+          <span class="test-card__duration" data-testid="test-duration" safe>
+            {formatDuration(testData.duration)}
           </span>
         </div>
         <div class="test-card__meta-row test-file-details-row">
@@ -296,6 +281,12 @@ export function TestDetail({ testData, index, runId, openTest }: TestDetailProps
             <span class="meta-grid__label">Retry</span>
             <span class="meta-grid__value">{testData.retry}</span>
           </div>
+          {typeof testData.workerIndex === 'number' && testData.workerIndex >= 0 ? (
+            <div class="meta-grid__item">
+              <span class="meta-grid__label">Worker</span>
+              <span class="meta-grid__value">#{testData.workerIndex}</span>
+            </div>
+          ) : null}
           <div class="meta-grid__item">
             <span class="meta-grid__label">Evidence</span>
             <span class="meta-grid__value">
@@ -405,7 +396,7 @@ export function TestDetail({ testData, index, runId, openTest }: TestDetailProps
                   title="Tulis / edit catatan QA"
                   aria-label={`Edit QA note for ${testData.testId || testData.title}`}
                 >
-                  ✎
+                  <IconSquarePen size={12} />
                 </button>
               </div>
             </div>

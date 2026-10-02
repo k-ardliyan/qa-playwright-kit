@@ -81,13 +81,6 @@ export interface DashboardOverviewData {
   recentRuns: ReportHistoryEntry[];
   passRateTrend: TrendPoint[];
   recurringFailures: RecurringFailure[];
-  recentQaDecisions: Array<{
-    runId: string;
-    displayName: string;
-    decision: QaDecision;
-    notes: string;
-    savedAt: string;
-  }>;
   /** Cross-scenario AI insights: deterministic (reporter) + agent-authored (sidecar). */
   aiRunInsights: AiRunInsight[];
   /** Failure-source mix across latest + recent archived unhealthy cases. */

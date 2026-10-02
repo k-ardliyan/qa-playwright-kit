@@ -34,6 +34,11 @@ export interface TriageTest {
   tracePath?: string;
   screenshotPath?: string;
   hasAttachment?: boolean;
+  /** Real evidence counts — a reviewer decides differently on a test with a
+   *  trace than on one with nothing to inspect. */
+  screenshotCount?: number;
+  videoCount?: number;
+  traceCount?: number;
 }
 
 /** Map failure source → QA exit decision (mirrors AGENTS.md decision table). */
@@ -89,6 +94,11 @@ export function groupUnhealthyTests(rawTests: Array<Record<string, unknown>>): T
       ? rawSource
       : ('unknown' as FailureSource | 'unknown');
 
+    const attachments = Array.isArray(t.attachments)
+      ? (t.attachments as Array<{ kind?: string }>)
+      : [];
+    const countOf = (kind: string): number => attachments.filter((a) => a.kind === kind).length;
+
     const item: TriageTest = {
       testId:
         (t.testId as string) ||
@@ -102,6 +112,15 @@ export function groupUnhealthyTests(rawTests: Array<Record<string, unknown>>): T
       tracePath: (t.tracePath as string) || undefined,
       screenshotPath: (t.screenshotPath as string) || undefined,
       hasAttachment: typeof t.attachmentCount === 'number' ? t.attachmentCount > 0 : undefined,
+      // Fall back to the flat flags when the richer array is not in the payload
+      // (archived summaries keep counts, not always the attachment list).
+      screenshotCount: attachments.length
+        ? countOf('screenshot')
+        : t.screenshotPath
+          ? 1
+          : undefined,
+      videoCount: attachments.length ? countOf('video') : undefined,
+      traceCount: attachments.length ? countOf('trace') : t.tracePath ? 1 : undefined,
     };
     const bucket = groups.get(source) ?? [];
     bucket.push(item);

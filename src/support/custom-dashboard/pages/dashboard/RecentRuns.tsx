@@ -1,5 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { ReportHistoryEntry } from '../../../../agents/reporter/report-history';
+import { IconMinus, IconArrowRight } from '../../components/shared/icons';
 
 export interface RecentRunsProps {
   recentRuns: ReportHistoryEntry[];
@@ -12,7 +13,12 @@ export function RecentRuns({ recentRuns }: RecentRunsProps) {
         <div class="panel-header">
           <h3 class="panel-title">Recent Archived Runs</h3>
         </div>
-        <p class="muted pad-12">No archived runs saved yet.</p>
+        <p class="panel-empty">
+          <span class="panel-empty__mark" aria-hidden="true">
+            <IconMinus size={12} />
+          </span>
+          <span>No archived runs yet. Save a run to build the history baseline.</span>
+        </p>
       </div>
     );
   }
@@ -22,7 +28,7 @@ export function RecentRuns({ recentRuns }: RecentRunsProps) {
       <div class="panel-header">
         <h3 class="panel-title">Recent Test Runs</h3>
         <a href="/history" class="panel-link">
-          View all history →
+          View all history <IconArrowRight size={13} />
         </a>
       </div>
 

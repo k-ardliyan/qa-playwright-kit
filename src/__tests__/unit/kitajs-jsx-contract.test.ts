@@ -3,6 +3,7 @@ import { createElement as h } from '@kitajs/html';
 import { StatusPill } from '../../support/custom-dashboard/components/shared/StatusPill';
 import { Breadcrumb } from '../../support/custom-dashboard/components/navigation/Breadcrumb';
 import { AppNav } from '../../support/custom-dashboard/components/navigation/AppNav';
+import { Hero } from '../../support/custom-dashboard/components/dashboard/Hero';
 import { LatestRunCard } from '../../support/custom-dashboard/pages/dashboard/LatestRunCard';
 import { HistoryRunsTable } from '../../support/custom-dashboard/pages/history/HistoryRunsTable';
 import { DashboardDocument } from '../../support/custom-dashboard/layouts/DashboardDocument';
@@ -114,11 +115,111 @@ test.describe('KitaJS dashboard — boolean short-circuit must not leak text', (
     expect(html).not.toMatch(/>false</);
   });
 
-  test('AppNav hides Save Run when hasLatestRun is false', () => {
-    const html = String(AppNav({ activeTab: 'dashboard', hasLatestRun: false }));
+  test('AppNav no longer carries run actions — they belong to the masthead', () => {
+    // Run actions read the LATEST summary server-side, so on History/Compare
+    // they would export the wrong run. They live on the report masthead (Hero).
+    const html = String(AppNav({ activeTab: 'dashboard' }));
     expect(html).toContain('QA Playwright Kit');
     expect(html).not.toContain('Save Run');
+    expect(html).not.toContain('btn-export-sm');
     expect(html).not.toMatch(/>false</);
+  });
+
+  test('Hero tone and mark follow the verdict', () => {
+    // The mark IS the verdict at a glance: one tonal disc per tone, no
+    // overlapping badge. The seed can only ever produce `critical` (it carries
+    // a failing run), so the other two tones are pinned here.
+    const base = {
+      total: 4,
+      timestamp: '2026-10-02T00:00:00.000Z',
+      reportMode: 'general',
+      rolesInScope: [],
+      testCases: [],
+      runMeta: {
+        appEnv: 'dev',
+        runId: 'run-1',
+        ci: false,
+        totalDurationMs: 1000,
+        generatedAt: '2026-10-02T00:00:00.000Z',
+      },
+    };
+    const mk = (counts: Record<string, number>) =>
+      ({ ...base, ...counts }) as unknown as Parameters<typeof Hero>[0]['summary'];
+
+    const failed = String(
+      Hero({
+        summary: mk({ passed: 3, failed: 1, skipped: 0, passRate: 75 }),
+        collectedTests: [],
+      }),
+    );
+    expect(failed).toContain('hero--critical');
+    expect(failed).toContain('icon-circle-x');
+    expect(failed).toContain('Run Failed');
+
+    // Skipped-but-nothing-failed is degraded, not failed: a warning mark.
+    const degraded = String(
+      Hero({
+        summary: mk({ passed: 3, failed: 0, skipped: 1, passRate: 75 }),
+        collectedTests: [],
+      }),
+    );
+    expect(degraded).toContain('hero--warning');
+    expect(degraded).toContain('icon-triangle-alert');
+    expect(degraded).toContain('Run Degraded');
+    expect(degraded).not.toContain('hero--critical');
+
+    const healthy = String(
+      Hero({
+        summary: mk({ passed: 4, failed: 0, skipped: 0, passRate: 100 }),
+        collectedTests: [],
+      }),
+    );
+    expect(healthy).toContain('hero--healthy');
+    expect(healthy).toContain('icon-circle-check');
+    expect(healthy).toContain('Run Healthy');
+    expect(healthy).not.toContain('hero--warning');
+  });
+
+  test('Hero carries the run actions and drops Save once archived', () => {
+    const summary = {
+      total: 2,
+      passed: 1,
+      failed: 1,
+      skipped: 0,
+      passRate: 50,
+      timestamp: '2026-09-08T18:41:43.575Z',
+      reportMode: 'general',
+      rolesInScope: [],
+      testCases: [],
+      runMeta: {
+        appEnv: 'dev',
+        runId: 'run-1',
+        ci: false,
+        totalDurationMs: 4100,
+        generatedAt: '2026-09-08T18:41:43.575Z',
+      },
+    } as unknown as Parameters<typeof Hero>[0]['summary'];
+
+    const live = String(Hero({ summary, collectedTests: [], runActions: true }));
+    expect(live).toContain('hero__run-actions');
+    // Both exports act on the latest run: the HTML one and the Markdown one.
+    expect(live).toContain('/export/portable');
+    expect(live).toContain('/export/markdown');
+    expect(live).toContain('btn-save-sm');
+    expect(live).not.toMatch(/>false</);
+
+    // An archived latest run keeps the exports (still the latest summary) but
+    // must not offer Save again.
+    const archived = String(
+      Hero({ summary, collectedTests: [], runActions: true, isArchived: true }),
+    );
+    expect(archived).toContain('/export/markdown');
+    expect(archived).not.toContain('btn-save-sm');
+
+    // Without runActions (history/compare/static) the block is absent entirely.
+    const bare = String(Hero({ summary, collectedTests: [] }));
+    expect(bare).not.toContain('hero__run-actions');
+    expect(bare).not.toContain('/export/markdown');
   });
 
   test('LatestRunCard with 0 failed / 0 skipped / archived does not leak a boolean', () => {

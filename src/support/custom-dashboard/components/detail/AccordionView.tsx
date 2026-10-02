@@ -113,7 +113,12 @@ export function AccordionView({ collectedTests, runId, openTest }: AccordionView
         {`
     (function () {
       function initAccordionSort() {
-        var sortEl = document.getElementById('accordion-sort-select');
+        // The accordion shares the table's toolbar, so it reads the shared sort
+        // select. The accordion-sort-select id is kept as a fallback for any
+        // older markup that still renders the dedicated accordion bar.
+        var sortEl =
+          document.getElementById('accordion-sort-select') ||
+          document.getElementById('table-sort-select');
         var root = document.getElementById('view-accordion');
         if (!sortEl || !root) return;
 

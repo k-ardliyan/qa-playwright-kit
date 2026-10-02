@@ -34,6 +34,12 @@ export interface CollectedAttachment {
   contentType?: string;
   relativePath: string;
   kind: AttachmentKind;
+  /** Byte size on disk — evidence weight is a QA signal. */
+  size?: number;
+  /** Inline text head for text-ish attachments (JSON/log/network captures). */
+  preview?: string;
+  /** True when the preview was cut at the cap and is not the whole file. */
+  previewTruncated?: boolean;
   /** Attempt identity keeps evidence distinct when retries reuse filenames. */
   attempt?: number;
   retry?: number;
@@ -45,6 +51,23 @@ export interface CollectedError {
   errorContext?: string;
 }
 
+/** Source location of a step in its spec/fixture file (1-based). */
+export interface StepLocation {
+  /** Workspace-relative path with forward slashes. */
+  file: string;
+  line: number;
+  column: number;
+}
+
+/** A short source window around a step's location, for the code peek. */
+export interface StepSnippet {
+  /** 1-based line number of the first entry in `lines`. */
+  startLine: number;
+  /** 1-based line the step executed on; always inside the window. */
+  highlightLine: number;
+  lines: string[];
+}
+
 export interface CollectedStep {
   title: string;
   status: StepStatus;
@@ -52,6 +75,10 @@ export interface CollectedStep {
   errorMessage?: string;
   subtitle?: string;
   params?: Record<string, unknown>;
+  /** Where the step is defined in source, when Playwright reports it. */
+  location?: StepLocation;
+  /** Source window around `location`, baked by the reporter. */
+  snippet?: StepSnippet;
   steps: CollectedStep[];
 }
 
@@ -71,6 +98,8 @@ export interface CollectedTestData {
   retry: number;
   /** Number of Playwright attempts represented by this logical test. */
   attempts?: number;
+  /** Playwright worker that ran the test (parity with the built-in report). */
+  workerIndex?: number;
   /** True when expected/actual metadata was not supplied by the test. */
   metadataIncomplete?: boolean;
   // === Table view metadata ===
@@ -146,6 +175,8 @@ export interface CollectedTestCase {
   retry?: number;
   /** Number of Playwright attempts represented by this logical test. */
   attempts?: number;
+  /** Playwright worker that ran the test (parity with the built-in report). */
+  workerIndex?: number;
   /** True when expected/actual metadata was not supplied by the test. */
   metadataIncomplete?: boolean;
 }

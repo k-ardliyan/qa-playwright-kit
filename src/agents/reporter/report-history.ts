@@ -14,6 +14,7 @@ import {
   type QaDecision,
 } from './report-archive';
 import { deriveDisplayName, deriveTestSeriesId } from '../../support/custom-dashboard/domain/run';
+import { isUnhealthyStatus } from '../../support/custom-dashboard/domain/dashboard-overview';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,12 @@ export interface ReportHistoryEntry {
   analysisVerified?: boolean;
   /** Gate issues, when verdict is not complete. */
   analysisIssues?: string[];
+  /**
+   * Scenario keys that failed in this run. Lets the overview count how often a
+   * failure RECURS across runs instead of labelling every failure "recurring"
+   * from a single occurrence.
+   */
+  failedTestIds?: string[];
 }
 
 export interface ReportHistoryQuery {
@@ -174,6 +181,14 @@ function buildEntry(
       ranAt,
     });
 
+  // Failed scenario keys, for cross-run recurrence counting.
+  const failedTestIds = Array.isArray(summary.testCases)
+    ? (summary.testCases as Array<Record<string, unknown>>)
+        .filter((tc) => isUnhealthyStatus(tc.status))
+        .map((tc) => (tc.scenarioId as string) || (tc.testId as string) || '')
+        .filter(Boolean)
+    : [];
+
   const testSeriesId =
     metadata?.testSeriesId ||
     deriveTestSeriesId({
@@ -210,6 +225,7 @@ function buildEntry(
     analysisVerdict: metadata?.analysisVerdict,
     analysisVerified: metadata?.analysisVerified,
     analysisIssues: metadata?.analysisIssues,
+    failedTestIds: failedTestIds.length > 0 ? failedTestIds : undefined,
   };
 }
 

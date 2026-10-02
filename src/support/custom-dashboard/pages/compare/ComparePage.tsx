@@ -18,8 +18,6 @@ export interface ComparePageProps {
   selectedCandidate?: string;
   selectedSeries?: string;
   serveMode?: boolean;
-  hasLatestRun?: boolean;
-  latestRunArchived?: boolean;
 }
 
 export function ComparePage({
@@ -29,8 +27,6 @@ export function ComparePage({
   selectedCandidate,
   selectedSeries,
   serveMode = true,
-  hasLatestRun = false,
-  latestRunArchived = false,
 }: ComparePageProps) {
   const breadcrumbs = [{ label: 'Dashboard', href: '/dashboard' }, { label: 'Compare' }];
 
@@ -42,13 +38,7 @@ export function ComparePage({
 
   return (
     <DashboardDocument pageTitle="Compare Runs · QA Playwright Kit" includeChart={false}>
-      {serveMode && (
-        <AppNav
-          activeTab="compare"
-          hasLatestRun={hasLatestRun}
-          latestRunArchived={latestRunArchived}
-        />
-      )}
+      {serveMode && <AppNav activeTab="compare" />}
 
       {serveMode && <Breadcrumb items={breadcrumbs} />}
 

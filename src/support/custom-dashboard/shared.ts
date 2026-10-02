@@ -23,6 +23,20 @@ export function escapeHtml(raw: string): string {
 }
 
 /**
+ * Human duration for every dashboard surface.
+ *
+ * Sub-second stays in `ms` (the useful unit at that scale, and what Playwright
+ * shows for a step); one second and above reads in seconds so a QA scanning a
+ * column never has to divide 41230 by 1000 in their head. Two decimals keep
+ * the precision the old raw-ms values carried without the four-digit noise.
+ */
+export function formatDuration(ms: number): string {
+  const safe = Number.isFinite(ms) && ms > 0 ? ms : 0;
+  if (safe < 1000) return `${Math.round(safe)}ms`;
+  return `${(safe / 1000).toFixed(2)}s`;
+}
+
+/**
  * Serialize a value for embedding inside an inline <script> block safely.
  * JSON.stringify does NOT escape '<', so a string containing '</script>' would
  * terminate the script tag and allow HTML/JS injection. Replacing '<' (and
@@ -195,9 +209,10 @@ export function renderThemeScript(): string {
           } catch (error) {
             // ignore storage access errors
           }
-          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
-          }
+          // Light is the dashboard default, deliberately NOT following
+          // prefers-color-scheme: QA opens this while triaging and the light
+          // surfaces are the calibrated baseline. Dark stays one click away and
+          // the choice is remembered.
           return 'light';
         }
 
@@ -228,6 +243,156 @@ export function renderThemeScript(): string {
             applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
           }
         });
+
+        // ------------------------------------------------------------------
+        // Bottom sheets (nav + filter toolbar)
+        // ------------------------------------------------------------------
+        // A modal <dialog> gives focus trapping and Escape for free, but NOT
+        // click-outside-to-dismiss: a click on ::backdrop lands on the dialog
+        // element itself, so "event.target === dialog" is the reliable signal
+        // that the pointer hit the backdrop rather than the sheet contents.
+        //
+        // The drag follows the conventions a native bottom sheet uses, because
+        // a naive "translate by dy, close past 60px" feels broken:
+        //   - pointer capture, so the drag survives the pointer leaving the
+        //     element and never gets lost mid-gesture;
+        //   - the drag starts from the grab HANDLE (or anywhere when the sheet
+        //     is not scrolled), so it never fights a scroll of a long list;
+        //   - a vertical-intent check, so a horizontal drag is ignored;
+        //   - resistance past the top, so it feels like a physical object;
+        //   - release decides on VELOCITY as well as distance, so a quick flick
+        //     dismisses even when it travelled only a little;
+        //   - a spring-back transition when the gesture does not dismiss.
+        //
+        // This runs after DOMContentLoaded because the theme script is emitted
+        // in <head>, where the sheets do not exist yet.
+        function wireSheets() {
+          var DISMISS_PX = 96;      // distance that always dismisses
+          var DISMISS_VELOCITY = 0.5; // px/ms — a flick dismisses from anywhere
+          var RESISTANCE = 0.5;     // rubber-band factor past the start
+          var SETTLE_MS = 220;
+
+          document.querySelectorAll('dialog.app-nav-sheet, dialog.filter-sheet').forEach(function (sheet) {
+            // A backdrop click must be judged on where the gesture STARTED.
+            // A drag that begins on the handle and ends on the sheet body
+            // produces a synthesized click whose target is the common ancestor
+            // — the dialog itself — so testing target === sheet alone would
+            // dismiss the sheet the moment a user drags and lets go.
+            var downOnBackdrop = false;
+            sheet.addEventListener('click', function (e) {
+              if (e.target === sheet && downOnBackdrop) sheet.close();
+              downOnBackdrop = false;
+            });
+
+            var startY = null;
+            var lastY = 0;
+            var lastT = 0;
+            var velocity = 0;
+            var dragging = false;
+
+            function reset(animate) {
+              startY = null;
+              dragging = false;
+              sheet.classList.remove('is-dragging');
+              if (animate) {
+                sheet.style.transition = 'transform ' + SETTLE_MS + 'ms cubic-bezier(0.22, 1, 0.36, 1)';
+              }
+              sheet.style.transform = '';
+              window.setTimeout(function () { sheet.style.transition = ''; }, SETTLE_MS);
+            }
+
+            sheet.addEventListener('pointerdown', function (e) {
+              // Only the primary button/touch starts a drag.
+              if (e.button !== undefined && e.button !== 0) return;
+              downOnBackdrop = e.target === sheet;
+              // Start from the handle, or from anywhere when the sheet is not
+              // scrolled — never mid-list, or the drag steals the scroll.
+              var fromHandle = e.target.closest && e.target.closest('.sheet-handle, .filter-sheet__head');
+              if (!fromHandle && sheet.scrollTop > 0) return;
+              startY = e.clientY;
+              lastY = e.clientY;
+              lastT = e.timeStamp;
+              velocity = 0;
+              dragging = false;
+              sheet.style.transition = '';
+              // NOTE: pointer capture is deliberately NOT taken here. Capturing
+              // on pointerdown retargets every later pointer event — including
+              // the synthesized click — to the dialog, so a plain tap on a nav
+              // link inside the sheet never reached the link and navigation
+              // stopped working. Capture is taken in pointermove, once the
+              // gesture is confirmed to be a vertical drag.
+            });
+
+            sheet.addEventListener('pointermove', function (e) {
+              if (startY === null) return;
+              var dy = e.clientY - startY;
+              var dt = e.timeStamp - lastT;
+              if (dt > 0) velocity = (e.clientY - lastY) / dt;
+              lastY = e.clientY;
+              lastT = e.timeStamp;
+
+              // Ignore a mostly-horizontal gesture.
+              if (!dragging) {
+                if (Math.abs(dy) < 6) return;
+                dragging = true;
+                sheet.classList.add('is-dragging');
+                // Now that this is a real drag, capture so it survives the
+                // pointer leaving the sheet.
+                try { sheet.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+              }
+              if (dy <= 0) {
+                // Rubber-band upwards instead of a hard stop.
+                dy = dy * RESISTANCE;
+              }
+              sheet.style.transform = 'translateY(' + dy + 'px)';
+            });
+
+            function releaseCapture(e) {
+              try {
+                if (sheet.hasPointerCapture && sheet.hasPointerCapture(e.pointerId)) {
+                  sheet.releasePointerCapture(e.pointerId);
+                }
+              } catch (err) { /* already released */ }
+            }
+
+            function endDrag(e) {
+              if (startY === null) return;
+              var dy = (e.clientY || lastY) - startY;
+              // A flick only counts if the pointer was still MOVING at release.
+              // Without this, holding the sheet and pausing before letting go
+              // would reuse a stale velocity sample and dismiss it — the exact
+              // "swipe is too sensitive" complaint.
+              var sinceMove = (e.timeStamp || lastT) - lastT;
+              var flicked = sinceMove < 100 && velocity > DISMISS_VELOCITY;
+              var draggedFar = dy > DISMISS_PX;
+              startY = null;
+              dragging = false;
+              releaseCapture(e);
+              if (flicked || draggedFar) {
+                // Let it finish the motion before closing, so it does not snap.
+                sheet.style.transition = 'transform ' + SETTLE_MS + 'ms cubic-bezier(0.22, 1, 0.36, 1)';
+                sheet.style.transform = 'translateY(100%)';
+                window.setTimeout(function () {
+                  sheet.classList.remove('is-dragging');
+                  sheet.style.transition = '';
+                  sheet.style.transform = '';
+                  sheet.close();
+                }, SETTLE_MS - 20);
+              } else {
+                reset(true);
+              }
+            }
+
+            sheet.addEventListener('pointerup', endDrag);
+            sheet.addEventListener('pointercancel', function (e) { releaseCapture(e); reset(true); });
+          });
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', wireSheets);
+        } else {
+          wireSheets();
+        }
       })();
     </script>
   `;
@@ -255,7 +420,7 @@ export function renderDocumentShell(options: {
   <title>${escapeHtml(pageTitle)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   ${includeChart ? '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>' : ''}
   <style>${getDashboardStyles()}</style>
 </head>

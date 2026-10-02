@@ -249,7 +249,9 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     totalTestsRun,
     recentFailuresCount: latestRun?.failed ?? 0,
     approvedRunsCount: approvedCount,
-    activeTestSeriesCount: Math.max(1, activeSeries),
+    // Real count: flooring to 1 claimed an active series before any run was
+    // saved, which is a number the dashboard invented rather than measured.
+    activeTestSeriesCount: activeSeries,
     flakyCount: flakyTests.length,
   };
 
@@ -282,18 +284,37 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     }
   >();
 
+  // Count how many of the listed runs (archived history + the current latest
+  // run) reported each scenario as failing. A failure that appears once is not
+  // "recurring" — the count is what makes the label true.
+  const runFailureKeys: string[][] = history
+    .map((h) => h.failedTestIds ?? [])
+    .filter((ids) => ids.length > 0);
+  if (summary && Array.isArray(summary.testCases)) {
+    const latestKeys = (summary.testCases as Array<Record<string, unknown>>)
+      .filter((tc) => isUnhealthyStatus(tc.status))
+      .map((tc) => (tc.scenarioId as string) || (tc.testId as string) || '')
+      .filter(Boolean);
+    if (latestKeys.length > 0) runFailureKeys.push(latestKeys);
+  }
+
+  /** How many distinct runs reported this key as failing (>= 1). */
+  const recurrenceOf = (key: string): number =>
+    runFailureKeys.reduce((n, keys) => n + (keys.includes(key) ? 1 : 0), 0);
+
   // Scan latest run test cases if available
   if (summary && Array.isArray(summary.testCases)) {
     for (const tc of summary.testCases as Array<Record<string, unknown>>) {
       if (tc.status === 'failed' || tc.status === 'timedOut') {
         const id = (tc.testId as string) || (tc.title as string);
+        const key = (tc.scenarioId as string) || (tc.testId as string) || id;
         failureCounts.set(id, {
           scenarioId: (tc.testId as string) || (tc.scenarioId as string) || id,
           title: (tc.title as string) || id,
           role: tc.role as string | undefined,
           module: tc.module as string | undefined,
           feature: tc.feature as string | undefined,
-          occurrences: 1,
+          occurrences: recurrenceOf(key),
           lastErrorMessage: tc.errorMessage as string | undefined,
           lastFailureSource: tc.failureSource as string | undefined,
         });
@@ -356,17 +377,9 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     }))
     .sort((a, b) => a.passRate - b.passRate || b.total - a.total);
 
-  // 5. Recent QA Decisions
-  const recentQaDecisions = history
-    .filter((h) => Boolean(h.qaDecision))
-    .slice(0, 5)
-    .map((h) => ({
-      runId: h.runId,
-      displayName: h.displayName || h.runId,
-      decision: h.qaDecision as import('../../../agents/reporter/report-archive').QaDecision,
-      notes: h.qaNotes,
-      savedAt: h.savedAt || h.ranAt,
-    }));
+  // 5. Recent QA decisions are already surfaced by RecentRuns (each row carries
+  // its decision badge), so a second list here would be a duplicate that no
+  // surface renders.
 
   return {
     latestRun,
@@ -374,7 +387,6 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     recentRuns: history.slice(0, 6),
     passRateTrend: trendPoints,
     recurringFailures,
-    recentQaDecisions,
     aiRunInsights: buildAiRunInsights(summary, options.testNotes),
     failureSourceMix,
     moduleHealth,

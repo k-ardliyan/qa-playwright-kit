@@ -1,69 +1,175 @@
-/* ─── Print Stylesheet for Export & Physical Audit ───────────────────────── */
+/* ============================================================================
+   Print — the report as a document.
+   Interactive chrome disappears; the table becomes fully legible on paper.
+   The 13-column set is preserved here too (columns drop only if the user hid
+   them in the column picker).
+   ========================================================================== */
+
 @media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    --card: #ffffff;
+    --card-foreground: #000000;
+    --muted: #f5f5f5;
+    --muted-foreground: #404040;
+    --border: #a3a3a3;
+    --secondary: #f5f5f5;
+    --secondary-foreground: #000000;
+    --accent: #f5f5f5;
+    --accent-foreground: #000000;
+    --shadow-2xs: none;
+    --shadow-xs: none;
+    --shadow-sm: none;
+    --shadow-lg: none;
+    --shadow-xl: none;
+  }
+
+  html,
   body {
-    background: #ffffff !important;
-    color: #000000 !important;
-    font-size: 10pt;
+    background: #ffffff;
+    color: #000000;
   }
 
-  .page-shell {
-    padding: 0 !important;
-    max-width: 100% !important;
-  }
-
-  /* Hide interactive controls, toolbars, and banners in print */
+  /* Interactive chrome */
+  .app-header,
   .app-nav,
-  .save-banner-top,
+  .hash-nav,
   .unified-toolbar,
   .view-toggle,
   .theme-toggle,
   .export-buttons,
   .column-picker,
   .btn-save-primary,
-  .repo-footer {
+  .btn-save-sm,
+  .btn-export-sm,
+  .repo-footer,
+  .triage-strip,
+  .alert__actions,
+  .qa-note-edit,
+  .step-filter,
+  .page-backdrop,
+  #frag-host,
+  .modal-overlay,
+  .modal-backdrop {
     display: none !important;
   }
 
-  /* Expand table and rows cleanly */
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+
+  /* Nothing hidden behind a tab on paper. */
+  .view-panel--hidden {
+    display: block !important;
+  }
+
+  .report-layout,
+  .main-column {
+    display: block;
+  }
+
   .table-wrapper {
-    overflow: visible !important;
-    box-shadow: none !important;
-    border: 1px solid #cccccc !important;
+    overflow: visible;
+    border-color: #525252;
+    border-radius: 0;
+    box-shadow: none;
   }
 
-  .qa-report-table {
-    width: 100% !important;
-    border-collapse: collapse !important;
+  .qa-report-table,
+  .data-table {
+    font-size: 8pt;
+    width: 100%;
   }
 
-  .qa-report-table th,
-  .qa-report-table td {
-    border: 1px solid #dddddd !important;
-    padding: 4px 6px !important;
+  .qa-report-table thead th,
+  .data-table thead th {
+    position: static !important;
+    background: #f5f5f5 !important;
+    color: #000000 !important;
+    border-bottom: 1px solid #525252 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .qa-report-table td,
+  .data-table td {
+    border-bottom: 1px solid #d4d4d4 !important;
     color: #000000 !important;
   }
 
-  .hero {
-    border: 1px solid #cccccc !important;
-    box-shadow: none !important;
-    break-after: avoid;
-    page-break-after: avoid;
+  /* Verdict tints become transparent; the rail is dropped for ink economy. */
+  .tbl-row--failed,
+  .tbl-row--timedOut,
+  .tbl-row--interrupted,
+  .tbl-row--skipped {
+    background: transparent !important;
   }
 
-  .hero-stat-bar {
-    border-top: 1px solid #cccccc !important;
+  .tbl-row--failed > td:first-child,
+  .tbl-row--timedOut > td:first-child,
+  .tbl-row--interrupted > td:first-child,
+  .tbl-row--skipped > td:first-child,
+  .tbl-row--passed > td:first-child {
+    box-shadow: none;
   }
 
-  .error-block {
-    background: #f8f8f8 !important;
-    color: #990000 !important;
-    border: 1px solid #e0e0e0 !important;
-    white-space: pre-wrap !important;
+  /* Verdict chips keep their borders so status stays readable in greyscale. */
+  .status-pill,
+  .priority-badge,
+  .decision-badge,
+  .analysis-badge,
+  .failure-source,
+  .badge,
+  .latest-badge,
+  .env-tag,
+  .role-tag,
+  .module-chip,
+  .feature-chip {
+    border-color: #525252 !important;
+    background: transparent !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  /* Page break rules */
-  tr {
-    page-break-inside: avoid;
+  .hero,
+  .latest-run-card,
+  .panel,
+  .test-card,
+  .artifacts-card,
+  .card {
+    border-color: #525252;
+    box-shadow: none;
     break-inside: avoid;
+  }
+
+  .artifacts-card > .artifacts-card__body,
+  .test-card__body,
+  .detail-expand-content {
+    display: block !important;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  tr,
+  .test-card,
+  .triage-group,
+  .comparison-stat-card {
+    break-inside: avoid;
+  }
+
+  /* Suppress URL printing after links — paths are already in the cells. */
+  a[href]::after {
+    content: "";
+  }
+
+  .print-only {
+    display: block;
   }
 }

@@ -29,13 +29,18 @@ test.describe('Custom Dashboard Render Baseline', () => {
   test('renders all-passed dataset in local and CI modes', () => {
     const localHtml = buildLocalHtml(allPassedSummary, allPassedTests);
     expect(localHtml).toContain('<!doctype html>');
-    expect(localHtml).toContain('LOCAL EXECUTION REPORT');
+    // Mode is carried by the document title, not a badge in the masthead —
+    // "LOCAL MODE" beside a local run said nothing a QA did not already know.
+    expect(localHtml).toContain('Playwright Custom Dashboard (Local)');
+    expect(localHtml).not.toContain('LOCAL MODE');
+    expect(localHtml).not.toContain('EXECUTION REPORT');
     expect(localHtml).toContain('SC-01');
     expect(localHtml).toContain('SC-02');
     expect(localHtml).toContain('100%');
 
     const ciHtml = buildCiHtml(allPassedSummary, allPassedTests);
-    expect(ciHtml).toContain('CI EXECUTION REPORT');
+    expect(ciHtml).toContain('Playwright Custom Dashboard (CI Detailed)');
+    expect(ciHtml).not.toContain('CI MODE');
     expect(ciHtml).toContain('SC-01');
   });
 

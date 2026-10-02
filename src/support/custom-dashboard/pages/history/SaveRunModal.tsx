@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { QaDecision } from '../../../../agents/reporter/report-archive';
-import { IconSave } from '../../components/shared/icons';
+import { IconSave, IconX } from '../../components/shared/icons';
 
 export interface SaveRunModalProps {
   defaultLabel?: string;
@@ -52,7 +52,7 @@ export function SaveRunModal({
             onclick="closeSaveModal && closeSaveModal()"
             aria-label="Close"
           >
-            ✕
+            <IconX size={14} />
           </button>
         </div>
 

@@ -1,5 +1,5 @@
 import type { CollectedTestData, ReportMode } from './types';
-import { escapeHtml } from './shared';
+import { escapeHtml, formatDuration } from './shared';
 
 // ---------------------------------------------------------------------------
 // Column definitions — same order for all export formats
@@ -52,11 +52,6 @@ const ROLE_HEADERS = [
   'NOTES',
   'AI NOTES',
 ];
-
-function formatDuration(ms: number): string {
-  const safe = Number.isFinite(ms) ? ms : 0;
-  return `${(safe / 1000).toFixed(2)}s`;
-}
 
 function formatInputData(inputData: Record<string, string>): string {
   const entries = Object.entries(inputData);

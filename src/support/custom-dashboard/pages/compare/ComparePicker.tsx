@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { ReportHistoryEntry } from '../../../../agents/reporter/report-history';
-import { IconCompare, IconSwap } from '../../components/shared/icons';
+import { IconCompare, IconSwap, IconX, IconChevronDown } from '../../components/shared/icons';
 
 export interface ComparePickerProps {
   history: ReportHistoryEntry[];
@@ -95,10 +95,10 @@ export function ComparePicker({
                 title="Clear"
                 tabindex={-1}
               >
-                ✕
+                <IconX size={13} />
               </button>
               <span class="combobox__chevron" aria-hidden="true">
-                ▾
+                <IconChevronDown size={14} />
               </span>
             </div>
             <input
@@ -206,10 +206,10 @@ export function ComparePicker({
                 title="Clear"
                 tabindex={-1}
               >
-                ✕
+                <IconX size={13} />
               </button>
               <span class="combobox__chevron" aria-hidden="true">
-                ▾
+                <IconChevronDown size={14} />
               </span>
             </div>
             <input

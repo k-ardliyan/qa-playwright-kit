@@ -4,3 +4,4 @@ export * from './QualityOverview';
 export * from './QualityTrend';
 export * from './RecentRuns';
 export * from './AttentionPanel';
+export * from './FlakyTestsPanel';

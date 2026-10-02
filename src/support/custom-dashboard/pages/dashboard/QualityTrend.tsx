@@ -85,8 +85,8 @@ export function QualityTrend({ trendPoints, width = 680, height = 140 }: Quality
           {/* Sparkline polyline */}
           <polyline
             fill="none"
-            stroke="var(--accent, #c4956a)"
-            stroke-width="2.5"
+            stroke="var(--chart-3)"
+            stroke-width="2"
             stroke-linejoin="round"
             stroke-linecap="round"
             points={points}
@@ -98,7 +98,7 @@ export function QualityTrend({ trendPoints, width = 680, height = 140 }: Quality
             const y =
               height - paddingY - ((p.passRate - minRate) / range) * (height - 2 * paddingY);
             const isGood = p.passRate >= 80;
-            const fill = isGood ? 'var(--accent, #c4956a)' : '#e06c75';
+            const fill = isGood ? 'var(--success)' : 'var(--destructive)';
             return (
               <g class="trend-point-group">
                 <circle
@@ -106,7 +106,7 @@ export function QualityTrend({ trendPoints, width = 680, height = 140 }: Quality
                   cy={y.toFixed(1)}
                   r="4"
                   fill={fill}
-                  stroke="var(--surface)"
+                  stroke="var(--card)"
                   stroke-width="1.5"
                 />
                 <title safe>{`${p.displayName}: ${p.passRate}% pass`}</title>

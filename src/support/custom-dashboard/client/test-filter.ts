@@ -16,6 +16,9 @@ export function buildTestFilterJs(): string {
     var moduleEl = document.getElementById('module-filter-select');
     var featureEl = document.getElementById('feature-filter-select');
     var resetBtn = document.getElementById('btn-reset-filters');
+    // The reset control appears twice: inline in the toolbar, and inside the
+    // filter sheet on narrow viewports. Both carry the same data-action.
+    var resetBtns = document.querySelectorAll('[data-action="reset-filters"]');
     var emptyResetBtn = document.getElementById('filter-empty-reset');
     var accEmptyEl = document.getElementById('accordion-filter-empty');
 
@@ -145,6 +148,9 @@ export function buildTestFilterJs(): string {
       if (resetBtn) {
         resetBtn.hidden = !hasActiveFilter;
       }
+      resetBtns.forEach(function (b) {
+        if (b !== resetBtn) b.hidden = !hasActiveFilter;
+      });
 
       try { localStorage.setItem(FILTER_KEY, JSON.stringify(state)); } catch (e) {}
       window.__DASHBOARD_FILTER_STATE__ = state;
@@ -171,6 +177,11 @@ export function buildTestFilterJs(): string {
         searchDebounceTimer = setTimeout(applyFilters, SEARCH_DEBOUNCE_MS);
       });
     }
+    resetBtns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        window.resetDashboardFilters();
+      });
+    });
     if (emptyResetBtn) {
       emptyResetBtn.addEventListener('click', function () {
         window.resetDashboardFilters();

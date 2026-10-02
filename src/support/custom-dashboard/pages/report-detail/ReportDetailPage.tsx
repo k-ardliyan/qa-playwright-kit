@@ -1,6 +1,5 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedTestData, TestSummary } from '../../types';
-import { AccordionToolbar } from '../../components/detail/AccordionToolbar';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AccordionView } from '../../components/detail/AccordionView';
 import { TableToolbar } from '../../components/table/TableToolbar';
@@ -17,7 +16,6 @@ import { EditRunModal } from '../history/EditRunModal';
 import { ConfirmDeleteModal } from '../history/ConfirmDeleteModal';
 import { TriageStrip } from '../../components/detail/TriageStrip';
 import { groupUnhealthyTests, dominantSuggestedDecision } from '../../domain/triage';
-import { IconSave } from '../../components/shared/icons';
 import { buildHistoryJs } from '../../build-history-view';
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
@@ -76,7 +74,6 @@ export function ReportDetailPage({
     { label: displayName || runId || 'Report Detail' },
   ];
 
-  const safeAccordionToolbar = <AccordionToolbar />;
   const safeHistoryJs = buildHistoryJs({ serveMode });
 
   return (
@@ -85,9 +82,7 @@ export function ReportDetailPage({
       summary={summary}
       includeChart={false}
     >
-      {serveMode && (
-        <AppNav activeTab="report" hasLatestRun={hasLatestRun} latestRunArchived={isArchived} />
-      )}
+      {serveMode && <AppNav activeTab="report" />}
 
       {serveMode && <Breadcrumb items={defaultBreadcrumbs} />}
 
@@ -107,40 +102,15 @@ export function ReportDetailPage({
           {!summary.analysisVerified ? (
             <span class="muted">Review gate evidence before APPROVE.</span>
           ) : null}
+          {summary.analysisIssues && summary.analysisIssues.length > 0 ? (
+            <ul class="analysis-issues">
+              {summary.analysisIssues.map((issue) => (
+                <li safe>{issue}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       ) : null}
-
-      {hasLatestRun && !isArchived && (
-        <div class="save-banner-top" id="save-banner">
-          <div class="save-banner-top__content">
-            <span class="save-banner-top__icon">
-              <IconSave size={16} />
-            </span>
-            <span class="save-banner-top__text">
-              {displayName ? <span safe>{displayName} — </span> : ''}Execution completed — not yet
-              saved to history
-            </span>
-          </div>
-          <div class="save-banner-top__actions">
-            <button
-              class="btn-save-primary"
-              onclick="openSaveModal && openSaveModal()"
-              type="button"
-            >
-              <IconSave size={14} />
-              <span>Save to History</span>
-            </button>
-            <button
-              class="btn-dismiss-sm"
-              onclick="dismissSaveBanner && dismissSaveBanner()"
-              type="button"
-              aria-label="Dismiss"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
 
       <SaveRunModal
         defaultLabel={displayName}
@@ -161,7 +131,12 @@ export function ReportDetailPage({
       ) : null}
 
       <div id="primary-view">
-        <Hero mode={mode} summary={summary} collectedTests={tests} />
+        <Hero
+          summary={summary}
+          collectedTests={tests}
+          runActions={serveMode && hasLatestRun}
+          isArchived={isArchived}
+        />
         <RoleHealthStrip summary={summary} collectedTests={tests} />
         <FailureAlert unhealthyCount={unhealthyCount} />
 
@@ -176,7 +151,7 @@ export function ReportDetailPage({
         <section class="command-zone" aria-label="View controls">
           <div class="section-head section-head--toolbar">
             <div>
-              <h2 class="section-title">Detailed test records</h2>
+              <h2 class="section-title">Test records</h2>
               <div class="section-copy" safe>
                 {copy}
               </div>
@@ -185,32 +160,36 @@ export function ReportDetailPage({
           </div>
         </section>
 
-        <TableToolbar collectedTests={tests} />
-        {safeAccordionToolbar}
+        {/* Filters stay pinned while the wide table scrolls, so a 13-column
+            scan never loses its controls. */}
+        <div class="sticky-filters" id="sticky-filters">
+          <TableToolbar
+            collectedTests={tests}
+            activeView={accordionActive ? 'accordion' : 'table'}
+          />
+        </div>
 
+        {/* No wrapper card: the table and the accordion already carry their own
+            framing, and a card around cards is always wrong. */}
         <div class="report-layout">
-          <section class="main-column">
-            <section class="panel panel--bleed">
-              <div
-                id="view-accordion"
-                class={`view-panel ${accordionActive ? 'view-panel--active' : 'view-panel--hidden'}`}
-                role="tabpanel"
-                aria-labelledby="tab-accordion"
-                aria-hidden={accordionActive ? 'false' : 'true'}
-              >
-                <AccordionView collectedTests={tests} runId={runId} openTest={testAnchor} />
-              </div>
-              <div
-                id="view-table"
-                class={`view-panel ${accordionActive ? 'view-panel--hidden' : 'view-panel--active'}`}
-                role="tabpanel"
-                aria-labelledby="tab-table"
-                aria-hidden={accordionActive ? 'true' : 'false'}
-              >
-                <TableView summary={summary} collectedTests={tests} runId={runId} />
-              </div>
-            </section>
-          </section>
+          <div
+            id="view-accordion"
+            class={`view-panel ${accordionActive ? 'view-panel--active' : 'view-panel--hidden'}`}
+            role="tabpanel"
+            aria-labelledby="tab-accordion"
+            aria-hidden={accordionActive ? 'false' : 'true'}
+          >
+            <AccordionView collectedTests={tests} runId={runId} openTest={testAnchor} />
+          </div>
+          <div
+            id="view-table"
+            class={`view-panel ${accordionActive ? 'view-panel--hidden' : 'view-panel--active'}`}
+            role="tabpanel"
+            aria-labelledby="tab-table"
+            aria-hidden={accordionActive ? 'true' : 'false'}
+          >
+            <TableView summary={summary} collectedTests={tests} runId={runId} />
+          </div>
         </div>
 
         <p class="results-footer" id="results-footer">

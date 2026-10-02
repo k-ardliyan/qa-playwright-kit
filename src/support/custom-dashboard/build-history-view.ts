@@ -12,6 +12,7 @@
  */
 
 import { escapeHtml } from './shared';
+import { iconX } from './components/shared/icon-strings';
 import type { ReportHistoryEntry } from '../../agents/reporter/report-history';
 import type { ReportComparison } from '../../agents/reporter/report-compare';
 
@@ -145,7 +146,7 @@ function buildSaveModal(): string {
             <span class="modal-icon-badge" aria-hidden="true"></span>
             <h3 id="modal-save-title">Save Run to History</h3>
           </div>
-          <button type="button" class="btn-close" onclick="closeSaveModal && closeSaveModal()" aria-label="Close">✕</button>
+          <button type="button" class="btn-close" onclick="closeSaveModal && closeSaveModal()" aria-label="Close">${iconX()}</button>
         </div>
         <div class="modal-body">
           <p id="modal-save-description" class="sr-only">Save the current test run with a QA decision and optional notes.</p>
@@ -187,7 +188,7 @@ function buildConfirmDeleteModal(): string {
             <span class="modal-icon-badge modal-icon-badge--danger" aria-hidden="true"></span>
             <h3 id="modal-delete-title">Confirm Archive Deletion</h3>
           </div>
-          <button type="button" class="btn-close" onclick="closeConfirmDelete && closeConfirmDelete()" aria-label="Close">✕</button>
+          <button type="button" class="btn-close" onclick="closeConfirmDelete && closeConfirmDelete()" aria-label="Close">${iconX()}</button>
         </div>
         <div class="modal-body">
           <p id="modal-delete-description">Are you sure you want to permanently delete this archived run?</p>
@@ -383,8 +384,6 @@ export function buildHistoryJs(opts?: { serveMode?: boolean }): string {
     '  }',
     '    },100);',
     '}',
-    '',
-    'function dismissSaveBanner(){["save-banner","save-banner-history"].forEach(function(id){var b=document.getElementById(id);if(b)b.style.display="none";});}',
     '',
     'function announceDashboard(message){',
     '  var live=document.getElementById("dashboard-live-region");',

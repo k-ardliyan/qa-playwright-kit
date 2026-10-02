@@ -552,7 +552,8 @@ async function property7ReporterCiModeSelection(): Promise<void> {
         assert.match(output.html, /Playwright Custom Dashboard \(Local\)/);
         assert.doesNotMatch(output.html, /cdn\.jsdelivr\.net\/npm\/chart\.js/);
         assert.doesNotMatch(output.html, /Playwright Custom Dashboard \(CI Detailed\)/);
-        assert.match(output.html, /LOCAL MODE/);
+        // Mode lives in the title only; the masthead badge was removed as noise.
+        assert.doesNotMatch(output.html, /LOCAL MODE/);
         assert.match(output.html, /class="test-card[\s"]/);
         assert.match(output.html, /artifacts-card|artifacts-bucket|artifacts-link|deep-links/);
       },

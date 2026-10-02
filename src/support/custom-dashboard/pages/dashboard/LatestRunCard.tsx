@@ -1,28 +1,37 @@
 /** @jsxImportSource @kitajs/html */
 import type { LatestRunSummary } from '../../domain/dashboard';
 import {
-  IconCheck,
-  IconCross,
-  IconSkip,
+  IconCircleCheck,
+  IconCircleX,
+  IconCircleSlash2,
   IconSave,
-  IconSearch,
-  IconDashboard,
+  IconArrowRight,
+  IconLayoutDashboard,
+  IconList,
 } from '../../components/shared/icons';
 
 export interface LatestRunCardProps {
   latestRun: LatestRunSummary | null;
 }
 
+/**
+ * Latest execution masthead — the first thing QA reads.
+ *
+ * Structure follows the shadcn Card anatomy (header / content / footer) but
+ * spans full width: identity and verdict on the top row, a four-cell metric
+ * strip beneath it, then the actions. Numbers use tabular mono so the columns
+ * of digits align between runs.
+ */
 export function LatestRunCard({ latestRun }: LatestRunCardProps) {
   if (!latestRun) {
     return (
       <div class="latest-run-card latest-run-card--empty">
         <div class="empty-icon">
-          <IconDashboard size={36} />
+          <IconLayoutDashboard size={22} />
         </div>
-        <h3>No Test Executions Found</h3>
+        <h3>No test executions found</h3>
         <p class="muted">
-          Run your Playwright tests with <code>npm run test</code> to view real-time results.
+          Run your Playwright tests with <code>npm run test</code> to view results here.
         </p>
       </div>
     );
@@ -38,23 +47,23 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
       <div class="latest-run-card__header">
         <div>
           <div class="card-badge-row">
-            <span class="badge-accent">LATEST EXECUTION</span>
+            <span class="badge-accent">Latest execution</span>
             <span class="env-tag" safe>
               {latestRun.appEnv}
             </span>
             {latestRun.isArchived ? (
-              <span class="archived-badge">ARCHIVED</span>
+              <span class="status-badge status-badge--archived">ARCHIVED</span>
             ) : (
-              <span class="unarchived-badge">UNARCHIVED</span>
+              <span class="status-badge status-badge--unarchived">UNARCHIVED</span>
             )}
           </div>
           <h2 class="latest-run-card__title" title={latestRun.displayName} safe>
             {latestRun.displayName}
           </h2>
-          <div class="latest-run-card__meta muted">
-            <span safe>Ran at {new Date(latestRun.ranAt).toLocaleString('en-GB')}</span>
-            <span safe>· Duration: {durationSec}</span>
-            {latestRun.testSeriesId ? <span safe>· Series: {latestRun.testSeriesId}</span> : null}
+          <div class="latest-run-card__meta">
+            <span safe>Ran {new Date(latestRun.ranAt).toLocaleString('en-GB')}</span>
+            <span safe>{durationSec}</span>
+            {latestRun.testSeriesId ? <span safe>{latestRun.testSeriesId}</span> : null}
           </div>
           {latestRun.analysisVerdict ? (
             <div class="latest-run-card__analysis">
@@ -67,44 +76,43 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
                 }
                 safe
               >
-                AI ANALYSIS: {latestRun.analysisVerdict.toUpperCase()}
+                AI analysis: {latestRun.analysisVerdict}
               </span>
             </div>
           ) : null}
         </div>
 
         <div class={`latest-run-card__gauge ${passRateClass}`}>
-          <span class="gauge-value font-mono">{latestRun.passRate}%</span>
-          <span class="gauge-label">PASS RATE</span>
+          <span class="gauge-value">{latestRun.passRate}%</span>
+          <span class="gauge-label">Pass rate</span>
         </div>
       </div>
 
       <div class="latest-run-card__metrics">
         <div class="metric-box">
-          <span class="metric-box__num font-mono">{latestRun.totalTests}</span>
-          <span class="metric-box__label">Total Tests</span>
+          <span class="metric-box__num">
+            <IconList size={16} class="metric-icon" />
+            <span>{latestRun.totalTests}</span>
+          </span>
+          <span class="metric-box__label">Total tests</span>
         </div>
         <div class="metric-box metric-box--passed">
-          <span class="metric-box__num font-mono">
-            <IconCheck size={14} class="metric-icon metric-icon--passed" />
+          <span class="metric-box__num">
+            <IconCircleCheck size={16} class="metric-icon metric-icon--passed" />
             <span>{latestRun.passed}</span>
           </span>
           <span class="metric-box__label">Passed</span>
         </div>
         <div class="metric-box metric-box--failed">
-          <span class="metric-box__num font-mono">
-            {latestRun.failed > 0 && (
-              <IconCross size={14} class="metric-icon metric-icon--failed" />
-            )}
+          <span class="metric-box__num">
+            <IconCircleX size={16} class="metric-icon metric-icon--failed" />
             <span>{latestRun.failed}</span>
           </span>
           <span class="metric-box__label">Failed</span>
         </div>
         <div class="metric-box metric-box--skipped">
-          <span class="metric-box__num font-mono">
-            {latestRun.skipped > 0 && (
-              <IconSkip size={14} class="metric-icon metric-icon--skipped" />
-            )}
+          <span class="metric-box__num">
+            <IconCircleSlash2 size={16} class="metric-icon metric-icon--skipped" />
             <span>{latestRun.skipped}</span>
           </span>
           <span class="metric-box__label">Skipped</span>
@@ -112,13 +120,9 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
       </div>
 
       <div class="latest-run-card__actions">
-        <a
-          href="/latest"
-          class="btn-primary"
-          title="Open full test report with step-by-step triage"
-        >
-          <IconSearch size={15} />
-          <span>Open Detailed Report</span>
+        <a href="/latest" class="btn-primary" title="Open the full report with step-level triage">
+          <span>Open report</span>
+          <IconArrowRight size={15} />
         </a>
         {!latestRun.isArchived && (
           <button
@@ -128,7 +132,7 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
             title="Save this run to history"
           >
             <IconSave size={15} />
-            <span>Save to History</span>
+            <span>Save to history</span>
           </button>
         )}
       </div>

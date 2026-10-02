@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import { IconEdit, IconSave } from '../../components/shared/icons';
+import { IconEdit, IconSave, IconX } from '../../components/shared/icons';
 
 /**
  * Global per-test QA note editor — one instance per document (mounted in
@@ -37,7 +37,7 @@ export function QaNoteModal() {
             onclick="closeQaNoteModal && closeQaNoteModal()"
             aria-label="Close"
           >
-            ✕
+            <IconX size={14} />
           </button>
         </div>
 

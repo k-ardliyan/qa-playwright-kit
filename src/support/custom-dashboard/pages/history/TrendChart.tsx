@@ -48,16 +48,16 @@ export function TrendChart({ history, width = 200, height = 32 }: TrendChartProp
       <svg
         class="trend-sparkline"
         viewBox={`0 0 ${width} ${height}`}
-        style="width:140px;height:28px;display:block;"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
         aria-labelledby="history-trend-label history-trend-summary"
       >
         <polyline
           fill="none"
-          stroke="var(--accent, #c4956a)"
+          stroke="var(--chart-3)"
           stroke-width="1.75"
           stroke-linejoin="round"
+          stroke-linecap="round"
           points={points}
         />
         {data.map((entry, i) => {
@@ -65,15 +65,8 @@ export function TrendChart({ history, width = 200, height = 32 }: TrendChartProp
           const y =
             height - padding - ((entry.passRate - minRate) / range) * (height - 2 * padding);
           const title = `${entry.passRate}% — ${entry.displayName || entry.runId}`;
-          return (
-            <circle
-              cx={x.toFixed(1)}
-              cy={y.toFixed(1)}
-              r="2.5"
-              fill="var(--accent, #c4956a)"
-              title={title}
-            />
-          );
+          const fill = entry.passRate >= 80 ? 'var(--success)' : 'var(--destructive)';
+          return <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="2.5" fill={fill} title={title} />;
         })}
       </svg>
     </div>

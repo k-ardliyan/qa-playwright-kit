@@ -3,7 +3,6 @@ import type { ReportHistoryEntry } from '../../../../agents/reporter/report-hist
 import type { CollectedTestData, TestSummary } from '../../types';
 import { buildHistoryJs, buildHistorySection, buildSaveModal } from '../../build-history-view';
 import { buildHashRouterJs, renderHashNav } from '../../build-hash-router';
-import { AccordionToolbar } from '../detail/AccordionToolbar';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AccordionView } from '../detail/AccordionView';
 import { TableToolbar } from '../table/TableToolbar';
@@ -13,7 +12,6 @@ import { FailureAlert } from './FailureAlert';
 import { Hero } from './Hero';
 import { RoleHealthStrip } from './RoleHealthStrip';
 import { ViewToggle } from './ViewToggle';
-import { IconSave } from '../shared/icons';
 
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
 
@@ -59,7 +57,6 @@ export function Dashboard({
 
   const safeHashNav = serveMode ? renderHashNav() : null;
   const safeSaveModal = buildSaveModal();
-  const safeAccordionToolbar = <AccordionToolbar />;
   const safeHistorySection = !serveMode
     ? buildHistorySection(history ?? [], { hasLatestRun, latestRunArchived, serveMode })
     : null;
@@ -70,39 +67,12 @@ export function Dashboard({
     <DashboardDocument pageTitle={title} summary={summary} includeChart={false}>
       {safeHashNav}
 
-      {hasLatestRun && !latestRunArchived && (
-        <div class="save-banner-top" id="save-banner">
-          <div class="save-banner-top__content">
-            <span class="save-banner-top__icon">
-              <IconSave size={16} />
-            </span>
-            <span class="save-banner-top__text">
-              Execution completed — not yet saved to history
-            </span>
-          </div>
-          <div class="save-banner-top__actions">
-            <button class="btn-save-primary" onclick="openSaveModal()" type="button">
-              <IconSave size={14} />
-              <span>Save to History</span>
-            </button>
-            <button
-              class="btn-dismiss-sm"
-              onclick="dismissSaveBanner()"
-              type="button"
-              aria-label="Dismiss"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
       {safeSaveModal}
 
       <script>{`window.__SERVE_MODE__ = ${serveMode};`}</script>
 
       <div id="primary-view">
-        <Hero mode={mode} summary={summary} collectedTests={tests} />
+        <Hero summary={summary} collectedTests={tests} />
         <RoleHealthStrip summary={summary} collectedTests={tests} />
         <FailureAlert unhealthyCount={unhealthyCount} />
 
@@ -119,7 +89,6 @@ export function Dashboard({
         </section>
 
         <TableToolbar collectedTests={tests} />
-        {safeAccordionToolbar}
 
         <div class="report-layout">
           <section class="main-column">

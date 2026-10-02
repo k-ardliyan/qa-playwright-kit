@@ -1,27 +1,47 @@
 /** @jsxImportSource @kitajs/html */
 import type { Children } from '@kitajs/html';
 import {
-  IconDashboard,
+  IconLayoutDashboard,
   IconHistory,
-  IconCompare,
-  IconSave,
+  IconArrowRightLeft,
   IconSun,
   IconMoon,
+  IconFlaskConical,
+  IconMenu,
 } from '../shared/icons';
 
 export type NavTab = 'dashboard' | 'history' | 'compare' | 'report';
 
 export interface AppNavProps {
   activeTab?: NavTab;
-  hasLatestRun?: boolean;
-  latestRunArchived?: boolean;
 }
 
-export function AppNav({ activeTab = 'dashboard', hasLatestRun, latestRunArchived }: AppNavProps) {
+/**
+ * Application chrome. Full-bleed bar: brand, primary navigation, then the
+ * global actions. Navigation is a row of pill links (shadcn button-ghost
+ * geometry) rather than an underlined tab bar, so the active state reads at a
+ * glance without a second horizontal rule.
+ *
+ * Run actions (Export / Markdown / Save) deliberately do NOT live here: they
+ * read the LATEST summary server-side, so on the history or compare pages they
+ * would export the wrong run. They sit on the latest report's masthead (Hero),
+ * which is the surface that actually describes that run.
+ */
+export function AppNav({ activeTab = 'dashboard' }: AppNavProps) {
   const tabs: Array<{ id: NavTab; label: string; href: string; icon: Children }> = [
-    { id: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: <IconDashboard size={15} /> },
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      href: '/dashboard',
+      icon: <IconLayoutDashboard size={15} />,
+    },
     { id: 'history', label: 'History', href: '/history', icon: <IconHistory size={15} /> },
-    { id: 'compare', label: 'Compare', href: '/compare', icon: <IconCompare size={15} /> },
+    {
+      id: 'compare',
+      label: 'Compare',
+      href: '/compare',
+      icon: <IconArrowRightLeft size={15} />,
+    },
   ];
 
   return (
@@ -29,70 +49,52 @@ export function AppNav({ activeTab = 'dashboard', hasLatestRun, latestRunArchive
       <div class="app-header__brand">
         <a href="/dashboard" class="app-header__logo">
           <span class="app-header__mark">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect
-                x="2"
-                y="2"
-                width="14"
-                height="14"
-                rx="4"
-                stroke="currentColor"
-                stroke-width="2"
-              />
-              <circle cx="9" cy="9" r="3" fill="currentColor" />
-            </svg>
+            <IconFlaskConical size={16} />
           </span>
           <span class="app-header__title">QA Playwright Kit</span>
         </a>
       </div>
 
-      <nav class="app-header__nav" aria-label="Main Navigation">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <a
-              href={tab.href}
-              class={`app-nav__link ${isActive ? 'is-active' : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              <span class="app-nav__icon">{tab.icon}</span>
-              <span class="app-nav__label" safe>
-                {tab.label}
-              </span>
-            </a>
-          );
-        })}
-        <a href="/studio" class="app-nav__link">
-          <span class="app-nav__label">Studio</span>
-        </a>
-      </nav>
+      {/* One <nav>, two presentations. Above the breakpoint the wrapper is
+          `display: contents`, so the nav lays out inline in the header exactly
+          as before. Below it the wrapper becomes a modal <dialog> and the same
+          links slide up as a bottom sheet. A modal dialog (rather than a
+          popover) is what makes the dimming backdrop honest: it makes the rest
+          of the page inert, moves focus into the sheet, and restores focus to
+          the trigger on close — all without JS. */}
+      <dialog class="app-nav-sheet" id="app-nav-sheet">
+        <span class="sheet-handle" aria-hidden="true"></span>
+        <nav class="app-header__nav" id="app-nav" aria-label="Main Navigation">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <a
+                href={tab.href}
+                class={`app-nav__link ${isActive ? 'is-active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <span class="app-nav__icon">{tab.icon}</span>
+                <span class="app-nav__label" safe>
+                  {tab.label}
+                </span>
+              </a>
+            );
+          })}
+        </nav>
+      </dialog>
+
+      <button
+        class="app-header__menu btn-icon"
+        type="button"
+        commandfor="app-nav-sheet"
+        command="show-modal"
+        aria-label="Open navigation menu"
+        title="Navigation"
+      >
+        <IconMenu size={17} />
+      </button>
 
       <div class="app-header__actions">
-        {hasLatestRun && (
-          <a class="btn-export-sm" href="/export/portable">
-            Export
-          </a>
-        )}
-        {hasLatestRun &&
-          !latestRunArchived &&
-          activeTab !== 'history' &&
-          activeTab !== 'compare' && (
-            <button
-              class="btn-save-sm"
-              type="button"
-              onclick="openSaveModal && openSaveModal()"
-              title="Save latest run to archive"
-            >
-              <IconSave size={14} />
-              <span>Save Run</span>
-            </button>
-          )}
         <button
           class="theme-toggle btn-icon"
           id="theme-toggle-btn"

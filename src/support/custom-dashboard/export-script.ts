@@ -164,10 +164,15 @@ export function buildExportScript(
         return entries.map(function (k) { return k + ': ' + input[k]; }).join('\\n');
       }
 
+      function formatDur(ms) {
+        var safe = typeof ms === 'number' && isFinite(ms) && ms > 0 ? ms : 0;
+        return safe < 1000 ? Math.round(safe) + 'ms' : (safe / 1000).toFixed(2) + 's';
+      }
+
       function formatNotesClient(r) {
         var parts = [];
         if (r.scenarioId) parts.push(r.scenarioId);
-        parts.push(((r.duration || 0) / 1000).toFixed(2) + 's');
+        parts.push(formatDur(r.duration));
         if (r.affectedLayer && r.affectedLayer.length) {
           parts.push(r.affectedLayer.map(function (l) { return '[' + l + ']'; }).join(''));
         }

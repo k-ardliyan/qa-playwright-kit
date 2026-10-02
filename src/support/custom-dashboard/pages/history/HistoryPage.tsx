@@ -13,8 +13,6 @@ import { buildHistoryJs } from '../../build-history-view';
 
 export interface HistoryPageProps {
   history: ReportHistoryEntry[];
-  hasLatestRun?: boolean;
-  latestRunArchived?: boolean;
   latestRunId?: string;
   serveMode?: boolean;
   defaultLabel?: string;
@@ -29,8 +27,6 @@ export interface HistoryPageProps {
 
 export function HistoryPage({
   history = [],
-  hasLatestRun = false,
-  latestRunArchived = false,
   latestRunId,
   serveMode = true,
   defaultLabel,
@@ -48,13 +44,7 @@ export function HistoryPage({
 
   return (
     <DashboardDocument pageTitle="Report History · QA Playwright Kit" includeChart={false}>
-      {serveMode && (
-        <AppNav
-          activeTab="history"
-          hasLatestRun={hasLatestRun}
-          latestRunArchived={latestRunArchived}
-        />
-      )}
+      {serveMode && <AppNav activeTab="history" />}
 
       {serveMode && <Breadcrumb items={breadcrumbs} />}
 

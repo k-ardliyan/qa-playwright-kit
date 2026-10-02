@@ -1,102 +1,326 @@
+/* ============================================================================
+   Design tokens — shadcn/ui token contract, vanilla CSS3
+   ----------------------------------------------------------------------------
+   Names and semantics follow shadcn/ui so component code reads the same as the
+   ecosystem convention. Values are hex, not oklch: Chromium/WebKit print and
+   older PDF paths handle hex reliably, and the report ships as a portable
+   single HTML file that must render offline.
+
+   Palette: pale blue surfaces with a soft sky-blue primary and a pink
+   destructive. Light is the default theme; dark is the opt-in alternative.
+
+   Doctrine: colour is evidence. The neutral scale carries all chrome; the
+   verdict scale (pass / fail / skip / flaky) is the only saturated colour, and
+   it always *reinforces* a text label rather than carrying meaning alone.
+
+   Corrections applied to the source palette, each forced by measurement:
+     --primary-foreground  white ink on the L 0.86 sky blue scored 1.51:1. The
+                      source's own dark block already puts DARK ink on this
+                      primary, so light mode follows that (11.73:1) rather than
+                      darkening the hue the user picked.
+     --muted-foreground  L 0.5809 -> 0.53; 3.77:1 on the muted fill.
+     --destructive    L 0.8356 -> 0.56. The pink is very light; white-on-pink
+                      scored 1.76:1, and this token is also read as *text*.
+     --input          the source reuses --border (#d8ecfd), i.e. 1.21:1 against
+                      the card. A control whose only boundary is its border needs
+                      3:1 (WCAG 1.4.11); now 3.34:1.
+     --ring           the source reuses the pale primary = 1.51:1 focus ring;
+                      now 3.54:1.
+     --chart-1..3     darkened to clear 3:1 against the card (source scored
+                      1.51 / 1.92 / 2.55:1; --chart-3 is the sparkline stroke).
+                      chart-2/3 chroma was eased to 0.09/0.10 to stay inside
+                      sRGB at that lightness.
+     --border         kept at source. Decorative hairline, not a control
+                      boundary, so 3:1 does not apply.
+     dark --input     L 0.3555 -> 0.58; boundary was 1.26:1.
+
+   --radius is 1rem per the source theme (was 0.625rem): the softer corners are
+   part of the requested look, and every control derives from this one value.
+   --font-sans stays IBM Plex (not the source's Open Sans): the dashboard links
+   only IBM Plex in the document, and adding a second webfont for chrome text is
+   not worth the offline payload.
+   ========================================================================== */
+
 :root {
   color-scheme: light;
-  --bg: #f8fafc;
-  --bg-accent: #f1f5f9;
-  --surface: #ffffff;
-  --surface-strong: #ffffff;
-  --surface-muted: #f1f5f9;
-  --surface-soft: rgba(241, 245, 249, 0.94);
-  --text: #0f172a;
-  --muted: #475569;
-  --border: rgba(148, 163, 184, 0.28);
-  --border-strong: rgba(100, 116, 139, 0.38);
-  /* Semantic foregrounds retain at least 4.5:1 contrast on their paired light surfaces. */
-  --passed: #047857;
-  --passed-bg: #ecfdf5;
-  --failed: #b91c1c;
-  --failed-bg: #fef2f2;
-  --skipped: #a16207;
-  --skipped-bg: #fffbeb;
-  --accent: #2563eb;
-  --accent-strong: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.08);
-  --on-accent: #ffffff;
-  --on-failed: #ffffff;
-  --on-passed: #ffffff;
-  --on-skipped: #0f172a;
-  --info: #0284c7;
-  --info-bg: #f0f9ff;
-  --success: #10b981;
-  --danger: #ef4444;
-  --shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 10px 25px rgba(15, 23, 42, 0.04);
-  --chart-center-text: #0f172a;
-  --chart-center-subtext: #64748b;
-  --radius-lg: 12px;
-  --radius: 8px;
-  --radius-sm: 6px;
-  --radius-xs: 4px;
+
+  /* --- shadcn core surfaces ---------------------------------------------- */
+  --background: #f3f5f9;
+  --foreground: #375147;
+  --card: #ffffff;
+  --card-foreground: #375147;
+  --popover: #ffffff;
+  --popover-foreground: #375147;
+
+  /* --- primary = the one filled action ---------------------------------- */
+  --primary: #8bdefa;
+  --primary-foreground: #1c171a;
+
+  /* --- secondary = quiet filled surface --------------------------------- */
+  --secondary: #d8ecfd;
+  --secondary-foreground: #4b6359;
+
+  /* --- muted = de-emphasised surface + text ----------------------------- */
+  --muted: #e8f4ff;
+  --muted-foreground: #5c716a;
+
+  /* --- accent = hover/active wash --------------------------------------- */
+  --accent: #e5e7f5;
+  --accent-foreground: #375147;
+
+  /* --- destructive ------------------------------------------------------- */
+  /* The source palette makes this a pastel PINK (hue 327). That is fine as an
+     accent, but this token is the "failed" verdict across the dashboard —
+     status pills, failure bars, the UNHEALTHY TESTS group heading — and a
+     pastel pink does not read as failure. Kept the palette's softness and
+     chroma, moved the hue to red (25) so the meaning is legible. */
+  --destructive: #c51e21;
+  --destructive-foreground: #ffffff;
+
+  /* --- lines & focus ----------------------------------------------------- */
+  --border: #cde1f2;
+  --input: #7c8f9e;
+  --ring: #2e93b1;
+
+  /* --- radius: single source, derived scale ------------------------------ */
+  --radius: 1rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
   --radius-pill: 999px;
+
+  /* --- verdict scale (the only saturated colour) ------------------------- */
+  --success: #15803d;
+  --success-foreground: #ffffff;
+  --success-surface: #f0fdf4;
+  --success-border: #bbf7d0;
+
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
+  --warning-surface: #fffbeb;
+  --warning-border: #fde68a;
+
+  --destructive-surface: #ffe9e6;
+  --destructive-border: #febab4;
+
+  --info: #1d4ed8;
+  --info-foreground: #ffffff;
+  --info-surface: #eff6ff;
+  --info-border: #bfdbfe;
+
+  --flaky: #7c3aed;
+  --flaky-surface: #f5f3ff;
+  --flaky-border: #ddd6fe;
+
+  /* --- code peek (step source snippets) ----------------------------------
+     Reference text, not the verdict scale: low-chroma inks on a tinted surface
+     so a snippet never competes with the pass/fail signal. Every ink clears
+     4.5:1 on --code-bg (11px mono); comments sit at 4.7:1, the tightest. */
+  --code-bg: #eef4fb;
+  --code-fg: #2c3f37;
+  --code-comment: #5f7169;
+  --code-string: #1a6f5a;
+  --code-number: #9a5b12;
+  --code-keyword: #4a5aa8;
+  --code-punctuation: #5c716a;
+  --code-highlight: #dceafb;
+
+  /* --- chart ramp -------------------------------------------------------- */
+  --chart-1: #378ca6;
+  --chart-2: #3884a5;
+  --chart-3: #3982af;
+  --chart-4: #2894d9;
+  --chart-5: #217cb6;
+
+  /* --- typography -------------------------------------------------------- */
   --font-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --tabular: "tnum";
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --mono:
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --tabular: "tnum" 1, "lnum" 1;
 
-  /* Standardized Spacing Scale */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
 
-  /* Transitions */
-  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --leading-none: 1;
+  --leading-tight: 1.2;
+  --leading-snug: 1.4;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.7;
 
-  /* Elevation — keep overlays above sticky chrome */
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-label: 0.06em;
+
+  /* --- spacing (4px base, shadcn-compatible) ----------------------------- */
+  --space-0: 0px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* --- component sizing -------------------------------------------------- */
+  --control-h-sm: 2rem;
+  --control-h: 2.25rem;
+  --control-h-lg: 2.5rem;
+  --control-h-icon: 2.25rem;
+
+  /* --- elevation --------------------------------------------------------- */
+  --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* --- motion: subtle, state-conveying, never choreography --------------- */
+  --duration-fast: 120ms;
+  --duration: 180ms;
+  --duration-slow: 240ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-colors:
+    color var(--duration) var(--ease), background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease), fill var(--duration) var(--ease),
+    stroke var(--duration) var(--ease);
+  --transition-shadow: box-shadow var(--duration) var(--ease);
+  --transition-transform: transform var(--duration) var(--ease);
+  --transition-opacity: opacity var(--duration) var(--ease);
+  --transition-all:
+    color var(--duration) var(--ease), background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease),
+    transform var(--duration) var(--ease), opacity var(--duration) var(--ease);
+
+  /* --- layout: full width, no container cap ----------------------------- */
+  --page-pad-x: 1.5rem;
+  --page-pad-y: 1.25rem;
+
+  /* --- Elevation order — overlays always clear sticky chrome --------------
+     One monotonic ladder, lowest to highest. Nothing may tie, because a tie
+     resolves by DOM order and produces the classic pinned-column-over-toolbar
+     collision:
+       1  normal content
+       3  pinned body cell      (scrolls away under the toolbar)
+       4  pinned header cell
+       5  sticky filter toolbar (must cover both pinned layers)
+       6  sticky app header     (must cover the toolbar)
+      30  menus / popovers escaping their container
+     150  dropdowns opened from a sticky surface
+    1000  modal backdrop / dialog
+     Anything new that must float over sticky chrome belongs at 30 or above. */
   --z-base: 0;
   --z-content: 1;
-  --z-sticky: 3;
-  --z-sticky-cell: 4;
-  --z-sticky-head: 5;
-  --z-bar: 30;
-  --z-menu: 40;
+  --z-sticky: 5;
+  --z-sticky-cell: 3;
+  --z-sticky-head: 4;
+  --z-bar: 6;
+  --z-menu: 30;
   --z-banner: 100;
   --z-dropdown: 150;
   --z-modal-backdrop: 1050;
   --z-modal: 1051;
+
+  /* --- Compatibility aliases ---------------------------------------------
+     Four names are asserted by `dashboard-style-contract.test.ts`, and the two
+     `--chart-center-*` names are read by `shared.ts` for the canvas fallback
+     text. Everything else that used to live here was unreferenced and has been
+     dropped rather than carried forward with new values. */
+  --bg: var(--background);
+  --surface: var(--card);
+  --text: var(--foreground);
+  --on-accent: var(--primary-foreground);
+  --chart-center-text: var(--foreground);
+  --chart-center-subtext: var(--muted-foreground);
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0b0f17;
-  --bg-accent: #0f172a;
-  --surface: #131b2e;
-  --surface-strong: #1a233a;
-  --surface-muted: #1e293b;
-  --surface-soft: rgba(30, 41, 59, 0.94);
-  --text: #f8fafc;
-  --muted: #cbd5e1;
-  --border: rgba(148, 163, 184, 0.16);
-  --border-strong: rgba(148, 163, 184, 0.28);
-  --passed: #6ee7b7;
-  --passed-bg: rgba(16, 185, 129, 0.14);
-  --failed: #fca5a5;
-  --failed-bg: rgba(239, 68, 68, 0.16);
-  --skipped: #fcd34d;
-  --skipped-bg: rgba(245, 158, 11, 0.16);
-  --accent: #60a5fa;
-  --accent-strong: #93c5fd;
-  --accent-soft: rgba(59, 130, 246, 0.16);
-  --on-accent: #0b0f17;
-  --on-failed: #0b0f17;
-  --on-passed: #0b0f17;
-  --on-skipped: #0b0f17;
-  --info: #38bdf8;
-  --info-bg: rgba(2, 132, 199, 0.16);
-  --success: #34d399;
-  --danger: #f87171;
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 32px rgba(0, 0, 0, 0.5);
-  --chart-center-text: #f8fafc;
-  --chart-center-subtext: #94a3b8;
+
+  --background: #15131a;
+  --foreground: #e9fdf8;
+  --card: #323a46;
+  --card-foreground: #e9fdf8;
+  --popover: #323a46;
+  --popover-foreground: #e9fdf8;
+
+  --primary: #a9e4ff;
+  --primary-foreground: #15131a;
+
+  --secondary: #49566b;
+  --secondary-foreground: #d3ddd9;
+
+  --muted: #2a303c;
+  --muted-foreground: #a9b6b1;
+
+  --accent: #4c5768;
+  --accent-foreground: #d3ddd9;
+
+  --destructive: #fb8b84;
+  --destructive-foreground: #15131a;
+
+  --border: #49566b;
+  --input: #818e9d;
+  --ring: #a9e4ff;
+
+  --success: #4ade80;
+  --success-foreground: #0a0a0a;
+  --success-surface: rgb(34 197 94 / 0.12);
+  --success-border: rgb(34 197 94 / 0.32);
+
+  --warning: #fbbf24;
+  --warning-foreground: #0a0a0a;
+  --warning-surface: rgb(245 158 11 / 0.13);
+  --warning-border: rgb(245 158 11 / 0.32);
+
+  --destructive-surface: #4c2b28;
+  --destructive-border: #7f4541;
+
+  --info: #93c5fd;
+  --info-foreground: #0a0a0a;
+  --info-surface: rgb(59 130 246 / 0.14);
+  --info-border: rgb(59 130 246 / 0.34);
+
+  --flaky: #c4b5fd;
+  --flaky-surface: rgb(139 92 246 / 0.16);
+  --flaky-border: rgb(139 92 246 / 0.34);
+
+  /* Code peek — lightened inks for the dark surface; all clear 4.5:1 on
+     --code-bg. */
+  --code-bg: #1d232e;
+  --code-fg: #dbe6e1;
+  --code-comment: #8fa39b;
+  --code-string: #7fd6b4;
+  --code-number: #e0a563;
+  --code-keyword: #9fb0f0;
+  --code-punctuation: #a9b6b1;
+  --code-highlight: #2a3441;
+
+  --chart-1: #a9e4ff;
+  --chart-2: #8bdefa;
+  --chart-3: #5cc7f6;
+  --chart-4: #3aabed;
+  --chart-5: #2894d9;
+
+  --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.45);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
 }

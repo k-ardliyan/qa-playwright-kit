@@ -58,12 +58,14 @@ export function TriageStrip({ groups, isArchived = false }: TriageStripProps) {
                     ? `${t.errorMessage.slice(0, 140)}…`
                     : t.errorMessage
                   : '';
+                // Counts, not a yes/no: "trace ×1 · screenshot ×1" tells a
+                // reviewer what they can actually open before deciding.
                 const evidenceParts = [
-                  t.hasAttachment || t.screenshotPath ? 'evidence' : '',
-                  t.hasAttachment && t.tracePath ? ' · ' : '',
-                  t.tracePath ? 'trace' : '',
+                  t.traceCount ? `trace ×${t.traceCount}` : '',
+                  t.screenshotCount ? `screenshot ×${t.screenshotCount}` : '',
+                  t.videoCount ? `video ×${t.videoCount}` : '',
                 ].filter(Boolean);
-                const evidence = evidenceParts.join('');
+                const evidence = evidenceParts.join(' · ');
                 return (
                   <li class="triage-test">
                     <span class="triage-test__title" safe>

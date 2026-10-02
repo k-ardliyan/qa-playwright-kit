@@ -3,6 +3,7 @@ import type { Children } from '@kitajs/html';
 import { getDashboardStyles } from '../renderer/render-assets';
 import { renderChartScript, renderInteractiveScript, renderThemeScript } from '../shared';
 import { buildClientBootstrapJs } from '../client';
+import { MediaLightbox } from '../components/shared/MediaLightbox';
 import { QaNoteModal } from '../pages/history/QaNoteModal';
 import { RepoFooter } from './RepoFooter';
 import type { TestSummary } from '../types';
@@ -38,7 +39,7 @@ export function DashboardDocument({
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
           <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
             rel="stylesheet"
           />
           {includeChart && (
@@ -53,6 +54,7 @@ export function DashboardDocument({
           </div>
           <RepoFooter />
           <QaNoteModal />
+          <MediaLightbox />
           {safeThemeScript}
           {safeChartScript}
           {safeInteractiveScript}

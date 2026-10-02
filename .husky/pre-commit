@@ -1,2 +1,5 @@
-npx lint-staged
+# Windows caps a command line at ~32k chars, so a large staged set makes
+# lint-staged pass every file to biome at once and the spawn fails with
+# "The command line is too long". Chunking keeps the hook working at any size.
+npx lint-staged --max-arg-length 2000
 npm run validate

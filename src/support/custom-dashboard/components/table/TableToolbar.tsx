@@ -1,14 +1,23 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedTestData } from '../../types';
-import { IconReset } from '../shared/icons';
+import {
+  IconReset,
+  IconColumns3,
+  IconChevronDown,
+  IconSearch,
+  IconSlidersHorizontal,
+  IconX,
+} from '../shared/icons';
 
 export interface TableToolbarProps {
   collectedTests?: CollectedTestData[];
+  /** Which view is active, so trailing controls match what the view renders. */
+  activeView?: 'table' | 'accordion';
 }
 
-export function TableColumnPicker() {
+export function TableColumnPicker({ hidden = false }: { hidden?: boolean } = {}) {
   return (
-    <div class="column-picker" id="column-picker">
+    <div class="column-picker" id="column-picker" data-view-only="table" hidden={hidden}>
       <button
         type="button"
         class="column-picker__btn"
@@ -17,19 +26,7 @@ export function TableColumnPicker() {
         aria-controls="column-picker-menu"
         aria-expanded="false"
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <rect x="3" y="4" width="5" height="16" rx="1" />
-          <rect x="10" y="4" width="5" height="16" rx="1" />
-          <rect x="17" y="4" width="5" height="16" rx="1" />
-        </svg>
+        <IconColumns3 size={14} />
         Filter columns
       </button>
       <div class="column-picker__menu" id="column-picker-menu" role="menu" hidden>
@@ -120,7 +117,10 @@ export function SortDropdown({ id = 'table-sort-select' }: { id?: string }) {
   );
 }
 
-export function TableToolbar({ collectedTests = [] }: TableToolbarProps = {}) {
+export function TableToolbar({
+  collectedTests = [],
+  activeView = 'table',
+}: TableToolbarProps = {}) {
   const tests = Array.isArray(collectedTests) ? collectedTests : [];
 
   const rawModules = tests
@@ -176,17 +176,7 @@ export function TableToolbar({ collectedTests = [] }: TableToolbarProps = {}) {
       <div class="unified-toolbar__row">
         <label class="cmd-search-wrap" for="dash-search">
           <span class="cmd-search__icon" aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
+            <IconSearch size={14} />
           </span>
           <span class="sr-only">Search tests</span>
           <input
@@ -198,82 +188,126 @@ export function TableToolbar({ collectedTests = [] }: TableToolbarProps = {}) {
           />
         </label>
 
-        <select id="filter-status" class="cmd-select" aria-label="Filter by status">
-          <option value="">All statuses</option>
-          <option value="failed">Failed / unhealthy</option>
-          <option value="passed">Passed</option>
-          <option value="skipped">Skipped</option>
-        </select>
+        {/* Below the toolbar breakpoint these controls become a bottom sheet;
+            search stays inline because it is the control people reach for
+            first. Above the breakpoint the wrapper is `display: contents`, so
+            they lay out in the row exactly as before — same markup, one DOM. */}
+        <dialog class="filter-sheet" id="table-filter-sheet">
+          <span class="sheet-handle" aria-hidden="true"></span>
+          <div class="filter-sheet__head">
+            <span class="filter-sheet__title">Filters</span>
+            <button
+              type="button"
+              class="filter-sheet__close"
+              commandfor="table-filter-sheet"
+              command="close"
+              aria-label="Close filters"
+            >
+              <IconX size={16} />
+            </button>
+          </div>
 
-        {showPriorityFilter ? (
-          <select id="filter-priority" class="cmd-select" aria-label="Filter by priority">
-            <option value="">All priorities</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        ) : null}
+          <div class="filter-sheet__body">
+            <select id="filter-status" class="cmd-select" aria-label="Filter by status">
+              <option value="">All statuses</option>
+              <option value="failed">Failed / unhealthy</option>
+              <option value="passed">Passed</option>
+              <option value="skipped">Skipped</option>
+            </select>
 
-        {showRoleFilter ? (
-          <select id="filter-role" class="cmd-select" aria-label="Filter by role">
-            <option value="">All roles</option>
-            {distinctRoles.map((role) => (
-              <option value={role} safe>
-                {role}
-              </option>
-            ))}
-          </select>
-        ) : null}
+            {showPriorityFilter ? (
+              <select id="filter-priority" class="cmd-select" aria-label="Filter by priority">
+                <option value="">All priorities</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            ) : null}
 
-        {showEvidenceFilter ? (
-          <label class="cmd-check" for="filter-evidence">
-            <input
-              id="filter-evidence"
-              type="checkbox"
-              aria-label="Filter to unhealthy tests with evidence"
-            />
-            <span>Has evidence (unhealthy only)</span>
-          </label>
-        ) : null}
+            {showRoleFilter ? (
+              <select id="filter-role" class="cmd-select" aria-label="Filter by role">
+                <option value="">All roles</option>
+                {distinctRoles.map((role) => (
+                  <option value={role} safe>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            ) : null}
 
-        {showScopeFilter ? (
-          <select id="filter-scope" class="cmd-select" aria-label="Filter by data scope">
-            <option value="">All data scopes</option>
-            {distinctScopes.map((scope) => (
-              <option value={scope}>{scope}</option>
-            ))}
-          </select>
-        ) : null}
+            {showScopeFilter ? (
+              <select id="filter-scope" class="cmd-select" aria-label="Filter by data scope">
+                <option value="">All data scopes</option>
+                {distinctScopes.map((scope) => (
+                  <option value={scope}>{scope}</option>
+                ))}
+              </select>
+            ) : null}
 
-        {showModuleFilter ? (
-          <select
-            id="module-filter-select"
-            class="sort-select cmd-select"
-            aria-label="Filter by module"
-          >
-            <option value="">All modules</option>
-            {distinctModules.map((m) => (
-              <option value={m} safe>
-                {m}
-              </option>
-            ))}
-          </select>
-        ) : null}
+            {showModuleFilter ? (
+              <select
+                id="module-filter-select"
+                class="sort-select cmd-select"
+                aria-label="Filter by module"
+              >
+                <option value="">All modules</option>
+                {distinctModules.map((m) => (
+                  <option value={m} safe>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : null}
 
-        {showFeatureFilter ? (
-          <select
-            id="feature-filter-select"
-            class="sort-select cmd-select"
-            aria-label="Filter by feature"
-          >
-            <option value="">All features</option>
-            {distinctFeatures.map((f) => (
-              <option value={f} safe>
-                {f}
-              </option>
-            ))}
-          </select>
-        ) : null}
+            {showFeatureFilter ? (
+              <select
+                id="feature-filter-select"
+                class="sort-select cmd-select"
+                aria-label="Filter by feature"
+              >
+                <option value="">All features</option>
+                {distinctFeatures.map((f) => (
+                  <option value={f} safe>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            {showEvidenceFilter ? (
+              <label class="cmd-check filter-sheet__check" for="filter-evidence">
+                <input
+                  id="filter-evidence"
+                  type="checkbox"
+                  aria-label="Filter to unhealthy tests with evidence"
+                />
+                <span>Has evidence (unhealthy only)</span>
+              </label>
+            ) : null}
+
+            <button
+              type="button"
+              class="btn-reset-filters filter-sheet__reset"
+              id="btn-reset-filters-sheet"
+              data-action="reset-filters"
+              hidden
+            >
+              <IconReset size={13} class="icon-reset" />
+              <span>Reset filters</span>
+            </button>
+          </div>
+        </dialog>
+
+        <button
+          type="button"
+          class="filter-sheet-trigger"
+          commandfor="table-filter-sheet"
+          command="show-modal"
+          aria-label="Open filters"
+        >
+          <IconSlidersHorizontal size={14} />
+          <span>Filters</span>
+        </button>
 
         <button
           type="button"
@@ -290,7 +324,23 @@ export function TableToolbar({ collectedTests = [] }: TableToolbarProps = {}) {
 
         <div class="unified-toolbar__end">
           <SortDropdown id="table-sort-select" />
-          <TableColumnPicker />
+          {/* Trailing controls are view-specific: the column picker acts on
+              table columns, so it is meaningless (and was dead) in the
+              accordion; the accordion gets its own expand/collapse-all. Both
+              are rendered and the client shows the one matching the view. */}
+          <TableColumnPicker hidden={activeView !== 'table'} />
+          <button
+            type="button"
+            class="btn-secondary accordion-toggle-all"
+            id="accordion-toggle-all"
+            data-action="toggle-all-accordion"
+            data-view-only="accordion"
+            aria-expanded="false"
+            hidden={activeView !== 'accordion'}
+          >
+            <IconChevronDown size={14} />
+            <span>Expand all</span>
+          </button>
           <span class="filter-count" id="filter-count" aria-live="polite">
             Showing 0 of 0
           </span>

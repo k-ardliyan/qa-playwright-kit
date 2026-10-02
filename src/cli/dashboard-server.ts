@@ -49,6 +49,7 @@ import { escapeHtml } from '../support/custom-dashboard/shared';
 import { resolveWorkspaceReportDir } from '../shared/workspace-paths';
 import { resolveCurrentRunIdentity } from '../agents/reporter/run-context';
 import { writePortableReport } from '../support/reporter/portable-html';
+import { writeMarkdownReport } from '../support/reporter/markdown-report';
 
 import {
   jsonResponse,
@@ -103,7 +104,9 @@ export {
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_PORT = 4567;
-const HEARTBEAT_TIMEOUT_MS = 20_000; // server shuts down if no heartbeat for 20s
+// Idle grace before the watchdog reclaims a server whose browser tab is gone.
+// Overridable so the contract can be exercised without a 60s wait in tests.
+const HEARTBEAT_TIMEOUT_MS = Number(process.env['DASHBOARD_IDLE_TIMEOUT_MS']) || 60_000;
 
 /**
  * Canonical archive runId of the latest run (run-YYYYMMDD-HHmmss-SSS from the
@@ -150,9 +153,36 @@ function broadcastEvent(event: string, data: unknown = {}) {
 
 let shutdownTimer: ReturnType<typeof setTimeout> | null = null;
 let idleEnabled = true;
+let sawClient = false;
+let openedBrowser = false;
 
+/**
+ * Arm (or re-arm) the idle watchdog.
+ *
+ * The watchdog exists for ONE flow: this server opened a browser tab, so when
+ * that tab is closed the server should clean itself up. Several traps made it
+ * kill live sessions instead:
+ *
+ *  1. Treating `/heartbeat` as the only proof of life. curl, scripts and MCP
+ *     tools never send it, so they looked like an abandoned tab and the server
+ *     exited ~20s later — silently, and with code 0, which reads as success.
+ *     Any request now counts (see noteActivity).
+ *  2. Relying on the page's setInterval heartbeat. Browsers throttle timers in
+ *     background tabs to roughly once a minute, well past the timeout, so
+ *     merely switching tabs could kill the server. An OPEN SSE STREAM is the
+ *     reliable signal instead: the browser holds it while the page is loaded
+ *     and drops it on navigation away or tab close.
+ *  3. Arming it at all when the server never opened a browser (`--no-open`).
+ *     There is no owned tab to clean up in that case, so a non-browser client
+ *     idling quietly would lose its server for no reason. The watchdog is
+ *     therefore only armed when this process actually opened the browser.
+ *
+ * It also stays disarmed until a client shows up, so a server that nobody has
+ * contacted yet never self-destructs while the browser is still starting.
+ */
 function resetHeartbeat() {
   if (!idleEnabled) return;
+  if (!openedBrowser) return; // no tab of ours to watch — never self-destruct
   if (shutdownTimer) clearTimeout(shutdownTimer);
   shutdownTimer = setTimeout(() => {
     // A running spec/auth child is proof of an active user: the page that
@@ -161,9 +191,35 @@ function resetHeartbeat() {
       resetHeartbeat();
       return;
     }
-    console.log('\n[dashboard-server] No heartbeat received — shutting down.');
+    console.log(
+      `\n[dashboard-server] The browser tab appears closed (no activity for ${HEARTBEAT_TIMEOUT_MS / 1000}s) — shutting down.\n` +
+        '  This is the idle watchdog, not a crash. To keep it running regardless,\n' +
+        '  use --no-idle (or `npm run dashboard`, which already passes it).',
+    );
     process.exit(0);
   }, HEARTBEAT_TIMEOUT_MS);
+}
+
+/** Every request is evidence that a client is still using this server. */
+function noteActivity() {
+  if (!sawClient) {
+    sawClient = true;
+    console.log('[dashboard-server] First client request — idle watchdog armed.');
+  }
+  resetHeartbeat();
+}
+
+/**
+ * A live SSE stream is the strongest signal that a page is still open, so it
+ * keeps the watchdog disarmed outright rather than merely re-arming it. Without
+ * this, a backgrounded tab whose timers are throttled would still time out.
+ */
+function noteStreamOpen() {
+  sawClient = true;
+  if (shutdownTimer) {
+    clearTimeout(shutdownTimer);
+    shutdownTimer = null;
+  }
 }
 
 // ─── Static File Handler for Artifacts & Reports ─────────────────────────────
@@ -333,6 +389,10 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     return;
   }
 
+  // Any request is proof a client is still using this server — not just the
+  // page's /heartbeat ping, which curl/scripts/MCP tools never send.
+  noteActivity();
+
   // CORS preflight — kept minimal; dashboard is same-origin so no wildcard.
   if (method === 'OPTIONS') {
     res.writeHead(204, {
@@ -356,7 +416,14 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     res.write('retry: 5000\n\n');
     res.write(':connected\n\n');
     sseClients.add(res);
-    req.on('close', () => sseClients.delete(res));
+    noteStreamOpen();
+    req.on('close', () => {
+      sseClients.delete(res);
+      // The page that held this stream is gone. If it was the last one, start
+      // the idle countdown; a navigation between pages reconnects within
+      // milliseconds, so the grace period absorbs it.
+      if (sseClients.size === 0) resetHeartbeat();
+    });
     return;
   }
 
@@ -371,6 +438,25 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
         'Cache-Control': 'no-store',
       });
       res.end(html);
+    } catch {
+      jsonResponse(res, 404, {
+        error: 'Belum ada hasil run untuk diekspor. Jalankan tes dulu, lalu coba lagi.',
+      });
+    }
+    return;
+  }
+
+  // ── GET /export/markdown — on-demand Markdown report ────────────────────
+  if (pathname === '/export/markdown' && method === 'GET') {
+    try {
+      const out = writeMarkdownReport();
+      const markdown = fs.readFileSync(out);
+      res.writeHead(200, {
+        'Content-Type': 'text/markdown; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="qa-report.md"',
+        'Cache-Control': 'no-store',
+      });
+      res.end(markdown);
     } catch {
       jsonResponse(res, 404, {
         error: 'Belum ada hasil run untuk diekspor. Jalankan tes dulu, lalu coba lagi.',
@@ -430,7 +516,7 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
   // Accept GET as well as POST: some clients/probes send GET; a fast 200 keeps
   // the idle watchdog fed and avoids stacked pending requests.
   if (pathname === '/heartbeat' && (method === 'POST' || method === 'GET')) {
-    resetHeartbeat();
+    noteActivity();
     jsonResponse(res, 200, { ok: true });
     return;
   }
@@ -846,17 +932,26 @@ async function main() {
 
   server.listen(port, '127.0.0.1', () => {
     const dashboardUrl = `http://localhost:${port}`;
+    // The countdown is advertised only when this process owns a tab to reclaim.
+    // Without one (`--no-open`), a quiet client must never lose its server, so
+    // the banner says so instead of promising a shutdown that will not happen.
+    const idleLine = !idleEnabled
+      ? 'Persists until Ctrl+C (idle watchdog disabled)'
+      : open
+        ? `Shuts down ${HEARTBEAT_TIMEOUT_MS / 1000}s after this browser tab closes`
+        : 'Persists until Ctrl+C (started without a browser tab)';
     console.log('');
     console.log('────────────────────────────────────────────────────────');
     console.log(`  🌐 Dashboard running at: ${dashboardUrl}`);
     console.log(`  💾 Save / view / delete runs directly from the browser`);
     console.log(`  🔄 Auto-refresh via Server-Sent Events`);
-    console.log(
-      `  ⏱️  Server ${idleEnabled ? `shuts down ${HEARTBEAT_TIMEOUT_MS / 1000}s after tab is closed` : 'persists (idle disabled)'}`,
-    );
+    console.log(`  ⏱️  Server ${idleLine}`);
     console.log('  Press Ctrl+C to stop manually');
     console.log('────────────────────────────────────────────────────────');
     console.log('');
+
+    // The watchdog only watches a tab this process opened.
+    openedBrowser = open && idleEnabled;
 
     if (open) {
       // Cross-platform open — Windows: start, macOS: open, Linux: xdg-open
@@ -871,8 +966,9 @@ async function main() {
       });
     }
 
-    // Start heartbeat watchdog
-    resetHeartbeat();
+    // No timer is armed here: the watchdog starts counting only once a client
+    // has actually appeared, so a server still waiting for its browser to boot
+    // never self-destructs.
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {

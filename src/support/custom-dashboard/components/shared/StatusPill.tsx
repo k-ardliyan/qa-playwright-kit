@@ -1,4 +1,6 @@
 /** @jsxImportSource @kitajs/html */
+import { statusIcon } from '../table/TableCells';
+
 const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
 
 export interface StatusPillProps {
@@ -20,13 +22,11 @@ export function StatusPill({ status, showIcon = false }: StatusPillProps) {
         ? 'status-pill--passed'
         : '';
 
-  const iconText = isUnhealthy ? '✕' : isSkipped ? '⊘' : '✓';
-
   return (
     <span class={`status-pill ${toneCls}`} role="img" aria-label={`Status: ${normalized}`}>
       {showIcon && (
         <span class="status-pill__icon" aria-hidden="true">
-          {iconText}
+          {statusIcon(normalized)}
         </span>
       )}
       <span safe>{normalized}</span>

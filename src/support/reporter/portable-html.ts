@@ -93,7 +93,17 @@ export function buildPortableHtml(summary: Record<string, unknown>, reportDir: s
       : cases.reduce((sum, c) => sum + ((c as { duration?: number }).duration ?? 0), 0);
   if (totalMs > 0) metaBits.push(`Durasi: ${(totalMs / 1000).toFixed(1)}s`);
 
-  const rows = cases
+  // Failures first: a QA opening this export is looking for what broke, not
+  // for the passing majority. Stable inside each band.
+  const rank = (status: string): number =>
+    status === 'failed' || status === 'timedOut' || status === 'interrupted'
+      ? 0
+      : status === 'skipped'
+        ? 1
+        : 2;
+  const ordered = [...cases].sort((a, b) => rank(a.status ?? '') - rank(b.status ?? ''));
+
+  const rows = ordered
     .map((c) => {
       const img = shotFor(reportDir, c);
       const thumb = img ? `<img alt="" src="${img}">` : '';

@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { FailureSourceMixEntry } from '../../domain/dashboard';
-import { IconAlert } from '../../components/shared/icons';
+import { IconChartPie, IconCircleCheck } from '../../components/shared/icons';
 
 /** Short display label per failure source. */
 export function failureSourceLabel(source: string): string {
@@ -27,10 +27,11 @@ export interface FailureSourceMixPanelProps {
 }
 
 /**
- * Failure-source mix — a stacked bar whose segments are the semantic
- * failure-source colors already used across the dashboard, so QA can read at
- * a glance whether the run is dominated by app bugs, test issues, or
- * environment failures.
+ * Failure-source mix — one stacked bar plus a legend.
+ *
+ * The bar gives the proportion (length is the preattentive attribute people
+ * read most accurately); the legend carries the exact counts, so the colour is
+ * never the only channel conveying the number.
  */
 export function FailureSourceMixPanel({ mix, totalFailures }: FailureSourceMixPanelProps) {
   const hasFailures = mix.length > 0 && totalFailures > 0;
@@ -38,22 +39,22 @@ export function FailureSourceMixPanel({ mix, totalFailures }: FailureSourceMixPa
   return (
     <div class="panel health-panel">
       <div class="panel-header">
-        <div class="attention-header-title">
-          <IconAlert size={16} class="icon-warning" />
-          <h3 class="panel-title">Failure Source Mix</h3>
-        </div>
+        <h3 class="panel-title">
+          <IconChartPie size={15} class="icon-neutral" />
+          <span>Failure source</span>
+        </h3>
         <span class="muted font-mono">
           {totalFailures} failure{totalFailures === 1 ? '' : 's'}
         </span>
       </div>
 
       {!hasFailures ? (
-        <div class="attention-healthy">
-          <p>
-            <strong>No failures — source mix is clean.</strong>
-          </p>
-          <span class="muted">All scenarios in the latest run are passing.</span>
-        </div>
+        <p class="panel-empty">
+          <span class="panel-empty__mark panel-empty__mark--ok" aria-hidden="true">
+            <IconCircleCheck size={12} />
+          </span>
+          <span>No failures in the latest run.</span>
+        </p>
       ) : (
         <div class="mix-panel">
           <div class="mix-bar" role="img" aria-label="Failure source distribution">
@@ -73,10 +74,8 @@ export function FailureSourceMixPanel({ mix, totalFailures }: FailureSourceMixPa
                 <span class="mix-legend__label" safe>
                   {failureSourceLabel(entry.source)}
                 </span>
-                <span class="mix-legend__count font-mono">{entry.count}</span>
-                <span class="mix-legend__share font-mono muted">
-                  {Math.round(entry.share * 100)}%
-                </span>
+                <span class="mix-legend__count">{entry.count}</span>
+                <span class="mix-legend__share">{Math.round(entry.share * 100)}%</span>
               </li>
             ))}
           </ul>

@@ -145,18 +145,16 @@ test.describe('Modern Reporting Subsystem', () => {
     const html = String(
       DashboardPage({
         overview,
-        hasLatestRun: true,
-        latestRunArchived: false,
         serveMode: true,
       }),
     );
 
-    expect(html).toContain('QA Overview & Quality Health');
+    expect(html).toContain('Quality health');
     expect(html).toContain('QA Playwright Kit');
     expect(html).toContain('Overall Pass Rate');
-    expect(html).toContain('LATEST EXECUTION');
-    expect(html).toContain('Open Detailed Report');
-    expect(html).toContain('Needs Attention');
+    expect(html).toContain('Latest execution');
+    expect(html).toContain('Open report');
+    expect(html).toContain('Attention');
     expect(html).toContain('href="/latest"');
     expect(html).toContain('href="/history/run-20260820-100000-001"');
     expect(html).not.toContain("window.location.href='/history/");
@@ -166,8 +164,6 @@ test.describe('Modern Reporting Subsystem', () => {
     const html = String(
       HistoryPage({
         history: mockHistory,
-        hasLatestRun: true,
-        latestRunArchived: false,
         latestRunId: 'run-20260820-100000-001',
         serveMode: true,
       }),
@@ -319,7 +315,7 @@ test.describe('Modern Reporting Subsystem', () => {
 
     expect(html).toContain('Login Regression — Staging RC12');
     expect(html).toContain('Breadcrumb');
-    expect(html).toContain('Detailed test records');
+    expect(html).toContain('Test records');
   });
 
   test('buildDashboardOverview exposes failure-source mix, module health, and flaky tests', () => {
@@ -378,15 +374,13 @@ test.describe('Modern Reporting Subsystem', () => {
     const html = String(
       DashboardPage({
         overview,
-        hasLatestRun: true,
-        latestRunArchived: false,
         serveMode: true,
       }),
     );
 
-    expect(html).toContain('Failure Source Mix');
+    expect(html).toContain('Failure source');
     expect(html).toContain('mix-bar');
-    expect(html).toContain('Module Health');
+    expect(html).toContain('Module health');
     expect(html).toContain('module-health-row');
   });
 
@@ -475,7 +469,6 @@ test.describe('Modern Reporting Subsystem', () => {
     const html = String(
       HistoryPage({
         history: mockHistory,
-        hasLatestRun: true,
         serveMode: true,
         initialQuery: 'regression',
         initialDecision: 'APPROVE',

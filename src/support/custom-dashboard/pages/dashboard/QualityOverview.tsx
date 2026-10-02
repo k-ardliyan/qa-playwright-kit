@@ -1,66 +1,41 @@
 /** @jsxImportSource @kitajs/html */
-import type { Children } from '@kitajs/html';
 import type { QualityMetrics } from '../../domain/dashboard';
-import { IconTrend, IconHistory, IconCheck, IconDashboard } from '../../components/shared/icons';
 
 export interface QualityOverviewProps {
   metrics: QualityMetrics;
 }
 
+/**
+ * Portfolio line — the cross-run health readout.
+ *
+ * Deliberately not four cards: these are five scalars read together, so they
+ * live on one ruled strip. The flaky count is promoted here (it was previously
+ * computed but never surfaced) because a test that only passes on retry is the
+ * single most actionable quality signal in the set.
+ */
 export function QualityOverview({ metrics }: QualityOverviewProps) {
-  const cards: Array<{
-    title: string;
-    value: string;
-    subtitle: string;
-    icon: Children;
-    cls: string;
-  }> = [
-    {
-      title: 'Overall Pass Rate',
-      value: `${metrics.overallPassRate}%`,
-      subtitle: 'Across all recorded runs',
-      icon: <IconTrend size={18} />,
-      cls: 'kpi-pass-rate',
-    },
-    {
-      title: 'Archived Runs',
-      value: String(metrics.totalArchivedRuns),
-      subtitle: 'QA-validated benchmarks',
-      icon: <IconHistory size={18} />,
-      cls: 'kpi-archives',
-    },
-    {
-      title: 'Approved Runs',
-      value: String(metrics.approvedRunsCount),
-      subtitle: 'Passed exit criteria',
-      icon: <IconCheck size={18} />,
-      cls: 'kpi-approved',
-    },
-    {
-      title: 'Active Test Series',
-      value: String(metrics.activeTestSeriesCount),
-      subtitle: 'Distinct test suites',
-      icon: <IconDashboard size={18} />,
-      cls: 'kpi-series',
-    },
+  const cells: Array<{ label: string; value: string; tone?: string }> = [
+    { label: 'Overall Pass Rate', value: `${metrics.overallPassRate}%` },
+    { label: 'Archived Runs', value: String(metrics.totalArchivedRuns) },
+    { label: 'Approved Runs', value: String(metrics.approvedRunsCount) },
+    { label: 'Active Test Series', value: String(metrics.activeTestSeriesCount) },
+    { label: 'Tests Tracked', value: String(metrics.totalTestsRun) },
   ];
 
+  if (metrics.flakyCount > 0) {
+    cells.push({ label: 'Flaky', value: String(metrics.flakyCount), tone: 'skipped' });
+  }
+
   return (
-    <div class="quality-overview-grid">
-      {cards.map((card) => (
-        <div class={`kpi-card ${card.cls}`}>
-          <div class="kpi-card__header">
-            <span class="kpi-card__title" safe>
-              {card.title}
-            </span>
-            <span class="kpi-card__icon">{card.icon}</span>
-          </div>
-          <div class="kpi-card__value font-mono" safe>
-            {card.value}
-          </div>
-          <div class="kpi-card__subtitle muted" safe>
-            {card.subtitle}
-          </div>
+    <div class="stat-ribbon quality-overview-grid" role="group" aria-label="Quality metrics">
+      {cells.map((cell) => (
+        <div class={`stat-ribbon__cell${cell.tone ? ` stat-ribbon__cell--${cell.tone}` : ''}`}>
+          <span class="stat-ribbon__value font-mono" safe>
+            {cell.value}
+          </span>
+          <span class="stat-ribbon__label" safe>
+            {cell.label}
+          </span>
         </div>
       ))}
     </div>

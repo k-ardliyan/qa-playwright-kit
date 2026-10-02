@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import { IconTrash } from '../../components/shared/icons';
+import { IconTrash, IconX } from '../../components/shared/icons';
 
 export function ConfirmDeleteModal() {
   return (
@@ -31,7 +31,7 @@ export function ConfirmDeleteModal() {
             onclick="closeConfirmDelete && closeConfirmDelete()"
             aria-label="Close"
           >
-            ✕
+            <IconX size={14} />
           </button>
         </div>
         <div class="modal-body">

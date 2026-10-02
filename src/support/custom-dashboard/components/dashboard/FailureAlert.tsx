@@ -1,5 +1,11 @@
 /** @jsxImportSource @kitajs/html */
-import { Icon } from '../shared/Icon';
+import {
+  IconCircleCheck,
+  IconTriangleAlert,
+  IconFileText,
+  IconTable,
+  IconDownload,
+} from '../shared/icons';
 
 export interface FailureAlertProps {
   unhealthyCount: number;
@@ -17,7 +23,7 @@ export function FailureAlert({ unhealthyCount }: FailureAlertProps) {
     >
       <div class="alert__body">
         <span class="alert__icon" aria-hidden="true">
-          <Icon name={isHealthy ? 'check' : 'warn'} />
+          {isHealthy ? <IconCircleCheck size={16} /> : <IconTriangleAlert size={16} />}
         </span>
         <div class="alert__copy">
           {isHealthy ? (
@@ -42,19 +48,19 @@ export function FailureAlert({ unhealthyCount }: FailureAlertProps) {
       <div class="alert__actions export-buttons" role="group" aria-label="Export options">
         <button class="btn btn--ghost btn--sm" id="btn-copy-confluence" type="button">
           <span class="btn__icon" aria-hidden="true">
-            <Icon name="doc" />
+            <IconFileText size={14} />
           </span>
           Copy for Confluence
         </button>
         <button class="btn btn--ghost btn--sm" id="btn-copy-tsv" type="button">
           <span class="btn__icon" aria-hidden="true">
-            <Icon name="table" />
+            <IconTable size={14} />
           </span>
           Copy Data (TSV)
         </button>
         <button class="btn btn--primary btn--sm" id="btn-download-csv" type="button">
           <span class="btn__icon" aria-hidden="true">
-            <Icon name="download" />
+            <IconDownload size={14} />
           </span>
           Download CSV
         </button>

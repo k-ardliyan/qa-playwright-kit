@@ -63,6 +63,7 @@ import {
   materializeAttachments,
   collectAttachments,
   ensureReportDirectory,
+  attachmentsDir,
 } from './reporter/attachments';
 import { forcePlaywrightHtmlToLight } from './reporter/theme-patch';
 
@@ -239,7 +240,10 @@ export default class CustomReporter implements Reporter {
     const filePath = path.relative(process.cwd(), test.location.file).replace(/\\/g, '/');
     const fullTitle = test.titlePath().join(' > ');
     const logicalKey = test.id || `${filePath}::${fullTitle}`;
-    const attachments = collectAttachments(result);
+    // Body-only attachments (`testInfo.attach(name, { body })`) have no file on
+    // disk; without an output dir they would be dropped, taking the network and
+    // JSON captures with them.
+    const attachments = collectAttachments(result, attachmentsDir());
 
     const testId = getAnnotation(test, 'testId') || deriveTestId(test.title);
     const scenarioId = getAnnotation(test, 'scenarioId');
@@ -279,6 +283,7 @@ export default class CustomReporter implements Reporter {
       attachments,
       retry: result.retry,
       attempts: 1,
+      workerIndex: result.workerIndex,
       metadataIncomplete: !expectedResult || !actualResultAnnotation,
       testId,
       scenarioId,
@@ -380,6 +385,7 @@ export default class CustomReporter implements Reporter {
         aiNotes: t.aiNotes,
         retry: t.retry,
         attempts: t.attempts,
+        workerIndex: t.workerIndex,
         metadataIncomplete: t.metadataIncomplete,
         // Richer runtime data for detail views, exports, and MCP summaries
         errorMessage: t.errorMessage,

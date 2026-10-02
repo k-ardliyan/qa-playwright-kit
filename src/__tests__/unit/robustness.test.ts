@@ -447,7 +447,7 @@ test.describe('export helper localStorage key version', () => {
 import { toCsv } from '../../support/custom-dashboard/export-helpers';
 
 test.describe('export formatDuration NaN guard', () => {
-  test('toCsv with undefined duration produces 0.00s not NaN', () => {
+  test('toCsv with undefined duration produces 0ms not NaN', () => {
     const csv = toCsv(
       [
         {
@@ -476,7 +476,7 @@ test.describe('export formatDuration NaN guard', () => {
       'general',
     );
     expect(csv).not.toContain('NaN');
-    expect(csv).toContain('0.00s');
+    expect(csv).toContain('0ms');
   });
 });
 

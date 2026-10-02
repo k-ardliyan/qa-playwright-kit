@@ -1,6 +1,5 @@
 import type { Page, TestInfo } from '@playwright/test';
 import { logger } from '@/utils/logger';
-import { isTestQuarantined } from '../support/flaky/flaky-detector';
 import { sessionGuardFixture } from '../support/session-guard';
 
 /**
@@ -43,13 +42,6 @@ export const frameworkFixtureExtend = {
       use: (value: void) => Promise<void>,
       testInfo: TestInfo,
     ) => {
-      if (isTestQuarantined(testInfo.title)) {
-        testInfo.annotations.push({
-          type: 'quarantine',
-          description: 'Flaky test quarantined by framework',
-        });
-        log.warn(`[QUARANTINE] Executing quarantined flaky test: ${testInfo.title}`);
-      }
       log.info(`Test started: ${testInfo.title}`, {
         project: testInfo.project.name,
       });

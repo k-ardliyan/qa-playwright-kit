@@ -1,24 +1,53 @@
 /** @jsxImportSource @kitajs/html */
+import type { Children } from '@kitajs/html';
 import type { CollectedTestData, FailureSource } from '../../types';
 import { generateErrorFingerprint } from '../../../classifier/fingerprint';
-import { escapeHtml } from '../../shared';
+import { escapeHtml, formatDuration } from '../../shared';
+import {
+  IconCircleCheck,
+  IconCircleX,
+  IconCircleSlash2,
+  IconTimer,
+  IconCircleHelp,
+  IconPlay,
+  IconSquarePen,
+} from '../shared/icons';
 import {
   decisionHintFor,
   decisionHintTooltipFor,
   decisionHintBlurbFor,
 } from '../../failure-source';
 
+/** Status → Lucide icon. One map so the table, the pill and the server-side
+ *  twin (render-cells.ts) can never drift apart visually. */
+export const STATUS_ICON_SIZE = 12;
+
+export function statusIcon(status: string, size = STATUS_ICON_SIZE): Children {
+  switch (status) {
+    case 'passed':
+      return <IconCircleCheck size={size} />;
+    case 'timedOut':
+      return <IconTimer size={size} />;
+    case 'skipped':
+      return <IconCircleSlash2 size={size} />;
+    case 'failed':
+    case 'interrupted':
+      return <IconCircleX size={size} />;
+    default:
+      return <IconCircleHelp size={size} />;
+  }
+}
+
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { cls: string; icon: string; label: string }> = {
-    passed: { cls: 'status-pill--passed', icon: '✓', label: 'Passed' },
-    failed: { cls: 'status-pill--failed', icon: '✗', label: 'Failed' },
-    timedOut: { cls: 'status-pill--failed', icon: '⏱', label: 'Timed out' },
-    interrupted: { cls: 'status-pill--failed', icon: '✗', label: 'Interrupted' },
-    skipped: { cls: 'status-pill--skipped', icon: '⊘', label: 'Skipped' },
+  const map: Record<string, { cls: string; label: string }> = {
+    passed: { cls: 'status-pill--passed', label: 'Passed' },
+    failed: { cls: 'status-pill--failed', label: 'Failed' },
+    timedOut: { cls: 'status-pill--failed', label: 'Timed out' },
+    interrupted: { cls: 'status-pill--failed', label: 'Interrupted' },
+    skipped: { cls: 'status-pill--skipped', label: 'Skipped' },
   };
   const entry = map[status] ?? {
     cls: 'status-pill--skipped',
-    icon: '?',
     label: status || 'Unknown',
   };
 
@@ -28,9 +57,9 @@ export function StatusBadge({ status }: { status: string }) {
       role="img"
       aria-label={`Status: ${entry.label}`}
     >
-      <span class="status-pill__icon" aria-hidden="true" safe>
-        {entry.icon}
-      </span>{' '}
+      <span class="status-pill__icon" aria-hidden="true">
+        {statusIcon(status)}
+      </span>
       <span safe>{entry.label}</span>
     </span>
   );
@@ -185,11 +214,6 @@ export function MultilineTextCell({ text, class: className }: { text?: string; c
   );
 }
 
-function formatDuration(ms: number): string {
-  const safeMs = Number.isFinite(ms) ? ms : 0;
-  return `${(safeMs / 1000).toFixed(2)}s`;
-}
-
 function encodeEvidencePath(relPath: string): string {
   if (relPath.startsWith('/')) return relPath.replace(/^\/+/, '');
   return relPath
@@ -245,7 +269,7 @@ export function NotesCell({ test, runId }: { test: CollectedTestData; runId?: st
           title="Tulis / edit catatan QA"
           aria-label={`Edit QA note for ${test.testId || test.title}`}
         >
-          ✎
+          <IconSquarePen size={12} />
         </button>
       </div>
       {screenshots.length > 0 ? (
@@ -256,11 +280,13 @@ export function NotesCell({ test, runId }: { test: CollectedTestData; runId?: st
             rel="noopener noreferrer"
             class="evidence-thumb"
             title="Screenshot"
+            data-media-preview="image"
+            data-media-name={screenshots[0].name}
             aria-label={`Open screenshot evidence: ${screenshots[0].name}`}
           >
             <img
               src={evidenceUrl(screenshots[0].relativePath)}
-              alt="screenshot"
+              alt={`Evidence preview: ${screenshots[0].name}`}
               loading="lazy"
               onerror="this.closest('a')?.classList.add('evidence-missing')"
             />
@@ -277,14 +303,30 @@ export function NotesCell({ test, runId }: { test: CollectedTestData; runId?: st
       ) : null}
       {videos.length > 0 ? (
         <div class="notes-row notes-row--video">
+          {/* A real <video> frame, not a text chip: the two evidence kinds used
+              to look unlike each other, and a thumbnail shows WHAT was recorded.
+              The href stays real so middle-click and no-JS still reach the file. */}
           <a
-            class="evidence-link"
+            class="evidence-thumb evidence-thumb--video"
             href={evidenceUrl(videos[0].relativePath)}
             target="_blank"
             rel="noopener noreferrer"
             title="Video"
+            data-media-preview="video"
+            data-media-name={videos[0].name}
+            aria-label={`Preview video evidence: ${videos[0].name}`}
           >
-            video
+            {/* KitaJS's HtmlVideoTag type carries neither `preload` nor
+                `playsinline`; both are set from the client bundle instead. */}
+            <video
+              src={evidenceUrl(videos[0].relativePath)}
+              muted
+              aria-hidden="true"
+              tabindex="-1"
+            />
+            <span class="evidence-play" aria-hidden="true">
+              <IconPlay size={14} />
+            </span>
           </a>
         </div>
       ) : null}

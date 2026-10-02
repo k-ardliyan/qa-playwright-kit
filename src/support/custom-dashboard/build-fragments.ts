@@ -10,6 +10,14 @@ import {
   renderInputDataCell,
   renderLayerBadges,
 } from './export-helpers';
+import {
+  iconArrowLeft,
+  iconCircleCheck,
+  iconCircleSlash,
+  iconCircleX,
+  iconSquarePen,
+  iconTriangleAlert,
+} from './components/shared/icon-strings';
 
 /**
  * Lightweight HTML-fragment builders for the hash-routed secondary views
@@ -181,8 +189,8 @@ export function buildDetailPage(options: {
   const analysisBadge =
     rawAnalysis && typeof rawAnalysis === 'object' && 'completed' in rawAnalysis
       ? rawAnalysis['completed'] === true
-        ? `<p class="muted"><span class="analysis-badge analysis-badge--complete">✓ AI Analysis completed</span></p>`
-        : `<p class="muted"><span class="analysis-badge analysis-badge--incomplete" title="Analyze sub-phase tidak terbukti berjalan — insight AI naratif mungkin tidak tersedia">⚠ AI Analysis incomplete</span></p>`
+        ? `<p class="muted"><span class="analysis-badge analysis-badge--complete">${iconCircleCheck()} AI Analysis completed</span></p>`
+        : `<p class="muted"><span class="analysis-badge analysis-badge--incomplete" title="Analyze sub-phase tidak terbukti berjalan — insight AI naratif mungkin tidak tersedia">${iconTriangleAlert()} AI Analysis incomplete</span></p>`
       : '';
   const total = (summary?.total as number) ?? 0;
   const passed = (summary?.passed as number) ?? 0;
@@ -213,7 +221,7 @@ export function buildDetailPage(options: {
       const idx = rowIndex++;
       const isExpandable = status === 'failed' || (s.errorMessage && s.errorMessage.length > 0);
       const expandBtn = isExpandable
-        ? `<button class="detail-expand-btn" type="button" title="Show details" aria-expanded="false" aria-controls="detail-expand-${idx}">▸</button>`
+        ? `<button class="detail-expand-btn" type="button" title="Show details" aria-expanded="false" data-expanded="false" aria-controls="detail-expand-${idx}"></button>`
         : '';
 
       const mainRow = `
@@ -267,7 +275,7 @@ export function buildDetailPage(options: {
                 </div>
                 <div class="detail-expand-block">
                   <h4>Catatan QA</h4>
-                  <div class="notes-row--qa">${s.qaNotes ? `<span class="qa-note">${escapeHtml(s.qaNotes)}</span>` : '<span class="muted">—</span>'}<button type="button" class="qa-note-edit" data-action="edit-qa-note" data-scenario-id="${escapeHtml(s.scenarioId ?? '')}" data-test-id="${escapeHtml(s.testId ?? '')}" data-role="${escapeHtml(s.role ?? '')}" data-note="${escapeHtml(s.qaNotes ?? '')}" data-run-id="${escapeHtml(runId)}" data-test-label="${escapeHtml(s.testId || s.title || '')}" title="Tulis / edit catatan QA" aria-label="Edit QA note for ${escapeHtml(s.testId || s.title || 'test')}">✎</button></div>
+                  <div class="notes-row--qa">${s.qaNotes ? `<span class="qa-note">${escapeHtml(s.qaNotes)}</span>` : '<span class="muted">—</span>'}<button type="button" class="qa-note-edit" data-action="edit-qa-note" data-scenario-id="${escapeHtml(s.scenarioId ?? '')}" data-test-id="${escapeHtml(s.testId ?? '')}" data-role="${escapeHtml(s.role ?? '')}" data-note="${escapeHtml(s.qaNotes ?? '')}" data-run-id="${escapeHtml(runId)}" data-test-label="${escapeHtml(s.testId || s.title || '')}" title="Tulis / edit catatan QA" aria-label="Edit QA note for ${escapeHtml(s.testId || s.title || 'test')}">${iconSquarePen()}</button></div>
                 </div>
                 <div class="detail-expand-block">
                   <h4>Catatan AI</h4>
@@ -287,7 +295,7 @@ export function buildDetailPage(options: {
   return `
     <section class="frag-page" id="frag-detail">
       <div class="frag-head">
-        <button class="btn-back" onclick="window.location.hash='#/history'">← Back to History</button>
+        <button class="btn-back" onclick="window.location.hash='#/history'">${iconArrowLeft()} Back to History</button>
         <h2>Run Detail: <code>${escapeHtml(runId)}</code> ${statusIcon}</h2>
         <p class="muted">${metadata?.qaDecision ? `Decision: <strong>${escapeHtml(metadata.qaDecision)}</strong>` : 'No QA decision saved'}</p>
         ${analysisBadge}
@@ -296,9 +304,9 @@ export function buildDetailPage(options: {
       <div class="archive-detail__summary" id="detail-summary">
         <div class="compare-stats">
           <span>Total ${total}</span>
-          <span>${passed}✅</span>
-          <span>${failed}❌</span>
-          <span>${skipped}⏭️</span>
+          <span class="stat-inline stat-inline--passed">${iconCircleCheck(12)} ${passed} passed</span>
+          <span class="stat-inline stat-inline--failed">${iconCircleX(12)} ${failed} failed</span>
+          <span class="stat-inline stat-inline--skipped">${iconCircleSlash(12)} ${skipped} skipped</span>
           <span>Pass rate <strong>${passRate}%</strong></span>
           ${metadata?.ranAt ? `<span>Ran: <strong><time datetime="${escapeHtml(metadata.ranAt)}" data-iso="${escapeHtml(metadata.ranAt)}">${escapeHtml(metadata.ranAt.replace('T', ' ').replace(/\.\d+Z$/, ' UTC'))}</time></strong></span>` : ''}
           ${metadata?.savedAt ? `<span>Saved: <strong><time datetime="${escapeHtml(metadata.savedAt)}" data-iso="${escapeHtml(metadata.savedAt)}">${escapeHtml(metadata.savedAt.replace('T', ' ').replace(/\.\d+Z$/, ' UTC'))}</time></strong></span>` : ''}

@@ -1,561 +1,693 @@
-/* ─── Global & Large Viewports ─────────────────────────────────────────────── */
+/* ============================================================================
+   Responsive — structural reflow only.
+   ----------------------------------------------------------------------------
+   HARD RULE: the 13-column report table is never responsively reduced. Its
+   wrapper scrolls horizontally at every width. The only columns that may
+   disappear are ones the user hid through the column picker (data-col-hidden).
 
-@media (min-width: 1440px) {
-  .page {
-    padding: 24px 32px 56px;
+   The nav and filter toolbar each have two presentations. The desktop one
+   ("wrapper dissolves, controls lay out inline") MUST live in this min-width
+   query, and the base `display: none` in dashboard.css/table.css must stay a
+   plain single-class selector. Reason: both wrappers are <dialog> elements, so
+   any author `display` rule that applies at mobile width — including one
+   written to describe only the closed desktop state, such as
+   `dialog.app-nav-sheet:not([open])` — will out-specify the base `display:
+   none` and spill the nav links and filter controls into the header and
+   toolbar. Verified: that exact selector produced a 128px-tall nav block
+   overlapping the header at 390px. The regression tests in
+   src/__tests__/dashboard-browser/dashboard.spec.ts ("responsive chrome")
+   pin this behaviour.
+   ========================================================================== */
+
+/* --- >= 961px: wrappers dissolve, toolbar becomes a two-row grid ----------
+   The filter count varies with the run (2–6 selects), so a single flex row
+   cannot hold search + filters + trailing controls at every width: it wraps
+   unpredictably and `margin-left:auto` strands the trailing group on its own
+   line with a ragged right-hand void. Instead the toolbar is a fixed two-row
+   grid — search + trailing controls on row 1, filters on row 2 — which reads
+   the same whether there are two filters or six.
+
+   The `filter-sheet__body` must NOT stay a single rigid block (≈874px for five
+   filters): as one grid item it shares row 2 with nothing and the controls
+   inside it still wrap cleanly. */
+@media (min-width: 961px) {
+  .app-nav-sheet,
+  .filter-sheet {
+    display: contents;
+  }
+
+  .unified-toolbar__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .cmd-search-wrap {
+    grid-area: 1 / 1;
+  }
+
+  #btn-reset-filters {
+    grid-area: 1 / 2;
+  }
+
+  .unified-toolbar__end {
+    grid-area: 1 / 3;
+    margin-left: 0;
+  }
+
+  .filter-sheet__body {
+    grid-area: 2 / 1 / 3 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  /* The handle only exists for the mobile bottom-sheet gesture. */
+  .sheet-handle {
+    display: none;
   }
 }
 
-@media (min-width: 1120px) {
-  .attachment-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* ─── Desktop / Laptop (<= 1120px) ────────────────────────────────────────── */
-
-@media (max-width: 1120px) {
-  .run-details__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .artifacts-card__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .artifacts-card__links-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1040px) {
-  .rail {
-    position: static;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  }
-}
-
-/* ─── Tablet Landscape / Medium Screens (<= 960px) ───────────────────────── */
-
-@media (max-width: 960px) {
+/* --- <= 1440px: sidebar drops below main --------------------------------- */
+@media (max-width: 1440px) {
   .dashboard-grid-layout {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .dashboard-grid-main,
-  .dashboard-grid-sidebar {
+  .health-grid-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .health-grid-layout > .panel + .panel {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* --- <= 1024px: overview's main/rail split stacks -------------------------
+   `.workspace` is `minmax(0,1fr) minmax(20rem,26rem)`. The rail's 20rem floor
+   is rigid, so below roughly 1000px the MAIN column collapses toward 0px and
+   its panels crush while the rail spills past the grid — the failure looked
+   like "Attention / Pass Rate Trend are broken". Stacking is the only sane
+   reflow, and the rail reads fine as a set of full-width panels. */
+@media (max-width: 1024px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- <= 1200px: mastheads and stat rails compress ------------------------ */
+@media (max-width: 1200px) {
+  :root {
+    --page-pad-x: 1.25rem;
+  }
+
+  .latest-run-card__header {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .latest-run-card__gauge {
+    align-items: flex-start;
     min-width: 0;
-    width: 100%;
-  }
-
-  .quality-overview-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .hero-stat-bar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .hero-stat {
-    border-bottom: 1px solid var(--border);
-  }
-
-  .artifacts-card__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .artifacts-card__links-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .comparison-hero {
-    grid-template-columns: 1fr auto 1fr;
-    gap: 12px;
   }
 
   .latest-run-card__metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
 
-/* ─── Tablet Portrait (<= 768px) ─────────────────────────────────────────── */
-
-@media (max-width: 768px) {
-  .page {
-    padding: 16px 14px 36px;
+  .metric-box:nth-child(odd) {
+    border-left: 0;
   }
 
-  /* App Navigation Header */
+  .metric-box:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
+
+  .hero-stat-bar {
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  }
+
+  .hero-stat {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .hero-stat:first-child {
+    border-top: 0;
+  }
+
+  .comparison-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .comparison-vs-badge {
+    justify-self: start;
+  }
+
   .app-header {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 10px 14px;
+    gap: var(--space-4);
+  }
+}
+
+/* --- <= 960px: navigation moves into a bottom sheet ----------------------
+   The inline nav is a horizontal strip of labelled links; squeezed onto a
+   phone it either scrolls sideways (hiding destinations) or wraps into a
+   second row. Instead the SAME <nav> is re-hosted as a bottom sheet, opened
+   by a menu button in the header. Native `popover` supplies the top layer,
+   light-dismiss, Escape-to-close and focus handling, so there is no JS here. */
+@media (max-width: 960px) {
+  .app-header {
+    flex-wrap: nowrap;
+    height: 3.5rem;
+    padding: 0 var(--page-pad-x);
+    row-gap: 0;
   }
 
   .app-header__brand {
-    flex: 0 0 auto;
-  }
-
-  .app-header__actions {
-    flex: 0 0 auto;
-    margin-left: auto;
-  }
-
-  .app-header__nav {
-    order: 3;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-top: 6px;
-    border-top: 1px solid var(--border);
-    justify-content: flex-start;
-    gap: 6px;
-  }
-
-  /* Breadcrumb */
-  .breadcrumb__list {
-    flex-wrap: wrap;
-    gap: 4px 8px;
-  }
-
-  /* Latest Run Card */
-  .latest-run-card__header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .latest-run-card__gauge {
-    align-self: flex-start;
+    order: 1;
+    flex: 1 1 auto;
     min-width: 0;
   }
 
-  .latest-run-card__actions {
-    flex-wrap: wrap;
-    gap: 8px;
+  .app-header__actions {
+    order: 2;
   }
 
-  /* History Page Header & Toolbar */
-  .history-page .section-header {
+  .app-header__menu {
+    display: inline-grid;
+    place-items: center;
+    order: 3;
+  }
+
+  /* The wrapper stops being `display: contents` and becomes the sheet. */
+  .app-nav-sheet {
+    display: none;
+  }
+
+  .app-nav-sheet[open] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    position: fixed;
+    inset: auto 0 0 0;
+    width: auto;
+    max-width: none;
+    max-height: 80vh;
+    margin: 0;
+    /* No top padding: .sheet-handle owns that offset, so both sheets measure
+       the same distance from the edge. */
+    padding: 0 var(--page-pad-x) calc(var(--space-4) + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    background: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .app-nav-sheet::backdrop {
+    background: rgb(0 0 0 / 0.45);
+    backdrop-filter: blur(2px);
+  }
+
+  /* Sheet links become full-width rows: a comfortable tap target, and the
+     active destination is obvious without a second highlight style. */
+  .app-nav-sheet .app-header__nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .app-nav-sheet .app-nav__link {
+    height: var(--control-h-lg);
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-md);
+  }
+
+  .app-nav-sheet .app-nav__link.is-active {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  .app-nav-sheet .app-nav__icon {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .app-nav-sheet .app-nav__icon svg {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  /* The sheet is a drag surface, but only its handle/head strip may claim the
+     gesture. `touch-action: none` is scoped there: applying it to the whole
+     sheet would also kill touch scrolling of its contents on a real device. */
+  .app-nav-sheet,
+  .filter-sheet {
+    will-change: transform;
+  }
+
+  .sheet-handle,
+  .filter-sheet__head {
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .app-nav-sheet.is-dragging,
+  .filter-sheet.is-dragging {
+    cursor: grabbing;
+    /* No transition while the finger drives the sheet. */
+    transition: none !important;
+  }
+
+  .app-nav-sheet.is-dragging .sheet-handle,
+  .filter-sheet.is-dragging .sheet-handle,
+  .filter-sheet.is-dragging .filter-sheet__head {
+    cursor: grabbing;
+  }
+
+  /* Both sheets share one handle: same size, colour, radius and — crucially —
+     the same distance from the sheet's top edge. The handle owns its offset
+     rather than inheriting the sheet's padding, or it sits flush against the
+     edge on one sheet and inset on the other. */
+  .sheet-handle {
+    align-self: center;
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 0.3125rem;
+    margin-top: var(--space-3);
+    margin-bottom: var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--border);
+  }
+
+  .hero__top-row {
+    flex-direction: column;
+  }
+
+  .hero__meta-inline {
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .section-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
-  .history-page .history-trend {
+  /* The trailing controls (sort, column picker, count) are pushed right by
+     `margin-left: auto` and cannot shrink below their content, which overflows
+     the page at phone widths. Let them wrap onto their own line instead. */
+  .unified-toolbar__end {
     width: 100%;
-    max-width: 100%;
-    align-items: flex-start;
+    margin-left: 0;
+    flex-wrap: wrap;
   }
 
-  .history-toolbar {
-    display: grid;
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .toolbar-search {
-    width: 100%;
+  .unified-toolbar__end .cmd-select,
+  .unified-toolbar__end .sort-select {
+    flex: 1 1 9rem;
     min-width: 0;
     max-width: none;
   }
 
-  .filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+  .filter-count {
+    margin-left: auto;
+    white-space: nowrap;
   }
 
-  .filter-group .cmd-select {
-    flex: 0 1 auto;
-    min-width: 120px;
+  /* Search and the Filters trigger share one row: the field takes the space,
+     the button keeps its natural width. Stacking them made the toolbar two
+     rows tall for no gain, since the button is a fixed-size control. */
+  .cmd-search-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* Filter controls move into a bottom sheet. Search stays inline: it is the
+     control people reach for first, and it is one row on any width. */
+  .filter-sheet {
+    display: none;
+  }
+
+  .filter-sheet[open] {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: auto 0 0 0;
+    width: auto;
+    max-width: none;
+    max-height: 85vh;
+    margin: 0;
+    padding: 0 0 calc(var(--space-4) + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    background: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: var(--shadow-xl);
+  }
+  .filter-sheet::backdrop {
+    background: rgb(0 0 0 / 0.45);
+    backdrop-filter: blur(2px);
+  }
+
+  .filter-sheet__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--page-pad-x);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .filter-sheet__title {
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+
+  .filter-sheet__close {
+    display: inline-grid;
+    place-items: center;
+    width: var(--control-h-sm);
+    height: var(--control-h-sm);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+
+  .filter-sheet__close:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  /* One control per row, each a full-width tap target. */
+  .filter-sheet__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    overflow-y: auto;
+    padding: var(--space-4) var(--page-pad-x);
+  }
+
+  /* One control per row, each a full-width tap target. The base rule caps
+     selects at 14rem, so the sheet has to release both min and max. */
+  .filter-sheet__body .cmd-select,
+  .filter-sheet__body .sort-select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: var(--control-h-lg);
+  }
+
+  .filter-sheet__check {
+    min-height: var(--control-h-lg);
+  }
+
+  .filter-sheet__reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: var(--control-h-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--foreground);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .filter-sheet__reset[hidden] {
+    display: none;
+  }
+
+  .filter-sheet-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: var(--control-h);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--background);
+    color: var(--foreground);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .filter-sheet-trigger svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  /* The inline reset is superseded by the one inside the sheet. */
+  #btn-reset-filters {
+    display: none;
+  }
+
+  .history-toolbar {
+    align-items: stretch;
+  }
+
+  .toolbar-search {
+    flex-basis: 100%;
+    max-width: none;
   }
 
   .history-count {
     margin-left: 0;
-    font-size: 0.78rem;
-  }
-
-  /* Compare Picker */
-  .compare-picker-panel {
-    padding: 14px;
   }
 
   .compare-picker-form {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
   }
 
-  .picker-group {
-    width: 100%;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
+  .picker-group,
   .picker-group--series {
-    flex: 1 1 auto;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .picker-swap-wrap {
-    align-self: center;
-    transform: rotate(90deg);
-    margin: -4px 0;
-    height: 38px;
+    flex-basis: auto;
   }
 
   .picker-actions {
-    width: 100%;
-    height: auto;
-  }
-
-  .picker-actions button,
-  .picker-actions .btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* Comparison Hero */
-  .comparison-hero {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .comparison-vs-badge {
-    margin: 0 auto;
-  }
-
-  /* Tables & Horizontal Scrolling */
-  .table-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    display: block;
-  }
-
-  .table-wrapper[data-scroll-hint]::after {
-    content: attr(data-scroll-hint);
-    position: sticky;
-    right: 8px;
-    bottom: 6px;
-    display: block;
-    width: max-content;
-    margin: 6px 8px 0 auto;
-    padding: 4px 8px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-pill);
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    color: var(--muted);
-    font-size: 0.68rem;
-    pointer-events: none;
-  }
-
-  /* Accordion test card */
-  .test-card__summary-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .test-card__title {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .test-card__duration {
-    margin-left: 0;
-  }
-
-  .test-card__meta-row {
-    padding-left: 0;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  /* Save Banner */
-  .save-banner-top {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .save-banner-top__actions {
     justify-content: flex-end;
   }
 
-  /* Modal Card */
-  .modal-card {
-    max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 24px);
+  .triage-groups {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .modal-overlay {
-    align-items: flex-start;
-    padding-top: 12px;
-    padding-bottom: 12px;
+  .detail-expand-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .history-table .history-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .history-table .history-actions button {
-    min-width: 44px;
-    min-height: 44px;
+  .artifacts-card__grid {
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   }
 }
 
-/* ─── Mobile Devices (<= 640px) ──────────────────────────────────────────── */
-
-@media (max-width: 640px) {
-  .page {
-    padding: 12px 10px 28px;
+/* --- <= 768px: tablet ---------------------------------------------------- */
+@media (max-width: 768px) {
+  .latest-run-card__title {
+    font-size: var(--text-xl);
   }
 
-  .section-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .gauge-value {
+    font-size: var(--text-2xl);
   }
 
-  .section-head--toolbar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .section-head--toolbar > div {
-    flex: 1 1 200px;
-    min-width: 0;
-  }
-
-  .section-head--toolbar .view-toggle {
-    flex: 0 0 auto;
-    margin-left: auto;
-  }
-
-  .top-action-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .top-action-bar__left,
-  .top-action-bar__right {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .unified-toolbar__row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: center;
-    gap: 8px;
-  }
-
-  .unified-toolbar__row .cmd-search-wrap {
-    grid-column: 1 / -1;
-    max-width: none;
-    width: 100%;
-  }
-
-  .unified-toolbar__end {
-    grid-column: 1 / -1;
-    width: 100%;
-    margin-left: 0;
-    justify-content: space-between;
-  }
-
-  .unified-toolbar .cmd-search-wrap,
-  .unified-toolbar .cmd-select,
-  .unified-toolbar .sort-select,
-  .column-picker,
-  .column-picker__btn {
-    min-height: 44px;
-  }
-
-  .unified-toolbar .cmd-search-wrap {
-    flex: 1 1 180px;
-    min-width: 150px;
-  }
-
-  .unified-toolbar .cmd-select {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .unified-toolbar .cmd-check {
-    min-height: 44px;
-  }
-
-  .quality-overview-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .kpi-card {
-    padding: 12px 10px;
-  }
-
-  .recent-run-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .recent-run-item__left {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .recent-run-item__right {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .attention-item {
-    padding: 10px 12px;
-  }
-
-  .attention-item__head {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .comparison-stats-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .hero {
-    padding: 14px;
-  }
-
-  .hero__subtitle {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-  }
-
-  .hero__top-actions {
-    width: 100%;
-    justify-content: flex-start;
+  .hero__title {
+    font-size: var(--text-xl);
   }
 
   .hero-stat-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
   }
 
-  .hero__meta-inline {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+  .stat-ribbon {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-ribbon__cell:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .stat-ribbon__cell:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
+
+  .comparison-stats-row,
+  .comparison-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quality-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .artifacts-card__grid,
+  .artifacts-card__links-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- <= 640px: phone ----------------------------------------------------- */
+@media (max-width: 640px) {
+  :root {
+    --page-pad-x: 1rem;
+    --page-pad-y: 1rem;
+  }
+
+  /* The header must fit brand + actions + menu on one 3.5rem row. The wordmark
+     is the only flexible part, so it truncates rather than pushing the
+     controls off-screen; the mark alone still identifies the app. */
+  .app-header__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Secondary actions lose their labels before anything overflows. */
+  .btn-export-sm span,
+  .btn-save-sm span {
+    display: none;
+  }
+
+  .btn-export-sm,
+  .btn-save-sm {
+    padding: 0 var(--space-2);
+  }
+
+  .metric-box {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .hero__top-row,
+  .hero__meta-inline,
+  .latest-run-card__header,
+  .latest-run-card__actions {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .hero-stat,
+  .metric-box,
+  .stat-ribbon__cell,
+  .compact-stat {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
   }
 
   .alert {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
-    height: auto;
-  }
-
-  .alert__body {
-    width: 100%;
   }
 
   .alert__actions {
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
     justify-content: flex-start;
   }
 
-  .alert__actions .btn {
-    flex: 1 1 auto;
-    min-width: 130px;
-    justify-content: center;
-    white-space: nowrap;
-  }
-
-  .results-comparison {
-    grid-template-columns: 1fr;
-  }
-
-  .run-details__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .artifacts-card__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .artifacts-card__links-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .artifacts-bucket {
-    max-height: none;
-  }
-
-  /* Modal Form Controls */
-  .modal-head {
-    padding: 12px 14px;
-  }
-
-  .modal-body {
-    padding: 14px;
-    gap: 12px;
-  }
-
-  .modal-foot {
-    padding: 10px 14px;
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .modal-foot button {
+  .modal-card {
     width: 100%;
+    max-height: calc(100vh - var(--space-6));
+  }
+
+  .modal-head,
+  .modal-body,
+  .modal-foot,
+  .save-modal__footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .artifacts-card__summary,
+  .artifacts-card__body {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .role-health__chip {
+    flex: 1 1 100%;
+  }
+
+  .view-toggle {
+    width: 100%;
+  }
+
+  .toggle-btn {
+    flex: 1 1 0;
     justify-content: center;
   }
 }
 
-/* ─── Narrow Mobile (<= 480px) ───────────────────────────────────────────── */
-
+/* --- <= 480px: narrow phone ---------------------------------------------- */
 @media (max-width: 480px) {
-  .quality-overview-grid {
-    grid-template-columns: 1fr;
-  }
-
   .latest-run-card__metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .comparison-stats-row {
-    grid-template-columns: 1fr;
+  .metric-box {
+    border-left: 0;
+    border-top: 1px solid var(--border);
   }
 
-  .hero-stat-bar {
-    grid-template-columns: 1fr;
+  .metric-box:first-child {
+    border-top: 0;
   }
 
-  .app-header__subtitle {
-    display: none;
+  .hero-stat-bar,
+  .stat-ribbon,
+  .comparison-stats-row,
+  .comparison-stats,
+  .quality-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stat-ribbon__cell {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .stat-ribbon__cell:first-child {
+    border-top: 0;
+  }
+
+  .app-header__title {
+    font-size: var(--text-xs);
+  }
+}
+
+/* --- Motion preferences --------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .frag-spinner__dot,
+  .combobox__dropdown,
+  .column-picker__menu,
+  .dropdown-menu,
+  .modal-overlay,
+  .modal-card,
+  .view-panel--active {
+    animation: none;
+  }
+
+  /* Bars still show their width — only the grow-in is dropped. */
+  .step-bar__fill {
+    animation: none;
+  }
+
+  .artifacts-card__chevron {
+    transition: none;
   }
 }

@@ -1,4 +1,5 @@
 import type { TestResult } from '@playwright/test/reporter';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { logger } from '../../utils/logger';
@@ -165,19 +166,130 @@ export function classifyAttachment(name: string, contentType?: string): Attachme
   return 'other';
 }
 
-export function collectAttachments(result: TestResult): CollectedAttachment[] {
+/** Text-ish captures get an inline head so the report can show them without a download. */
+function isTextLike(name: string, contentType?: string): boolean {
+  const type = (contentType ?? '').toLowerCase();
+  if (type.startsWith('text/')) return true;
+  if (type.includes('json') || type.includes('xml') || type.includes('javascript')) return true;
+  return /\.(json|log|txt|csv|xml|yaml|yml|md|har)$/i.test(name);
+}
+
+/** Cap on an inline preview — big enough to read a capture, small enough to embed. */
+const PREVIEW_MAX_CHARS = 20_000;
+
+/** Distinguishes two same-named captures from different tests without a uuid suffix. */
+function contentSuffix(body: Buffer): string {
+  return createHash('sha1').update(body).digest('hex').slice(0, 8);
+}
+
+/** Slice to the cap and report whether anything was left behind. */
+function previewFields(raw: string): { preview: string; previewTruncated: boolean } {
+  return {
+    preview: raw.slice(0, PREVIEW_MAX_CHARS),
+    previewTruncated: raw.length > PREVIEW_MAX_CHARS,
+  };
+}
+
+/**
+ * Read only the head of a file. A 5 MB log must never be slurped whole just to
+ * show its first lines, so the read is bounded before the bytes are decoded.
+ */
+function readPreviewHead(absPath: string): { preview: string; previewTruncated: boolean } | null {
+  try {
+    const size = fs.statSync(absPath).size;
+    // 4 bytes per char is the UTF-8 worst case, so this always covers the cap.
+    const bytesToRead = Math.min(size, (PREVIEW_MAX_CHARS + 1) * 4);
+    const fd = fs.openSync(absPath, 'r');
+    let raw: string;
+    try {
+      const buf = Buffer.alloc(bytesToRead);
+      const read = fs.readSync(fd, buf, 0, bytesToRead, 0);
+      raw = buf.subarray(0, read).toString('utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
+    const fields = previewFields(raw);
+    // The file may simply be longer than the bytes we were willing to read.
+    return { ...fields, previewTruncated: fields.previewTruncated || size > bytesToRead };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Collect a test's attachments for the report.
+ *
+ * `outputDir` (when given) receives every attachment that has no file on disk —
+ * `testInfo.attach(name, { body })` produces an in-memory buffer only, and the
+ * old implementation dropped those silently, losing JSON/network captures.
+ * Same-named captures with different content get a content-hash suffix;
+ * identical re-attaches reuse the existing file.
+ */
+export function collectAttachments(result: TestResult, outputDir?: string): CollectedAttachment[] {
   const attachments: CollectedAttachment[] = [];
 
   for (const attachment of result.attachments) {
-    if (!attachment.path) {
+    const name = attachment.name;
+    const kind = classifyAttachment(name, attachment.contentType);
+    const body = (attachment as { body?: Buffer }).body;
+
+    // File-backed: read metadata (and a text head) from disk. The path is
+    // recorded even when the file is not on disk YET — Playwright hands us the
+    // path at onTestEnd, and materializeAttachments copies it later. Requiring
+    // existsSync() here silently dropped every trace/screenshot in that window.
+    if (attachment.path) {
+      const absPath = attachment.path;
+      const onDisk = fs.existsSync(absPath);
+      let size: number | undefined;
+      if (onDisk) {
+        try {
+          size = fs.statSync(absPath).size;
+        } catch {
+          size = undefined;
+        }
+      }
+      const head =
+        onDisk && isTextLike(name, attachment.contentType) ? readPreviewHead(absPath) : null;
+      attachments.push({
+        name,
+        contentType: attachment.contentType,
+        relativePath: toReportRelativePath(absPath),
+        kind,
+        ...(size !== undefined ? { size } : {}),
+        ...(head ?? {}),
+      });
       continue;
     }
 
+    // Body-only: persist it, or skip when there is nowhere to write.
+    if (!body || !outputDir) continue;
+    const safeName = path.basename(name).replace(/[\\/]/g, '_') || 'attachment';
+    let dest = path.join(outputDir, safeName);
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+      if (fs.existsSync(dest)) {
+        const existing = fs.readFileSync(dest);
+        if (!existing.equals(body)) {
+          const ext = path.extname(safeName);
+          const stem = safeName.slice(0, safeName.length - ext.length);
+          dest = path.join(outputDir, `${stem}-${contentSuffix(body)}${ext}`);
+        }
+      }
+      if (!fs.existsSync(dest)) fs.writeFileSync(dest, body);
+    } catch {
+      continue;
+    }
+
+    const head = isTextLike(name, attachment.contentType)
+      ? previewFields(body.toString('utf8'))
+      : null;
     attachments.push({
-      name: attachment.name,
+      name,
       contentType: attachment.contentType,
-      relativePath: toReportRelativePath(attachment.path),
-      kind: classifyAttachment(attachment.name, attachment.contentType),
+      relativePath: toReportRelativePath(dest),
+      kind,
+      size: body.length,
+      ...(head ?? {}),
     });
   }
 

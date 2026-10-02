@@ -1,5 +1,6 @@
 import type { TestResult, TestStep } from '@playwright/test/reporter';
 import type { CollectedError, CollectedStep } from '../custom-dashboard/types';
+import { buildStepSnippet, toStepLocation } from './snippet';
 
 export function collectSteps(steps: TestStep[]): CollectedStep[] {
   return steps.map((step) => {
@@ -7,6 +8,7 @@ export function collectSteps(steps: TestStep[]): CollectedStep[] {
     const stepAny = step as unknown as {
       subtitle?: string;
       params?: Record<string, unknown>;
+      location?: { file: string; line: number; column: number };
     };
     const subtitle =
       typeof stepAny.subtitle === 'string' && stepAny.subtitle.trim()
@@ -14,6 +16,7 @@ export function collectSteps(steps: TestStep[]): CollectedStep[] {
         : undefined;
     const params =
       stepAny.params && typeof stepAny.params === 'object' ? stepAny.params : undefined;
+    const location = toStepLocation(stepAny.location);
 
     return {
       title: step.title,
@@ -22,6 +25,8 @@ export function collectSteps(steps: TestStep[]): CollectedStep[] {
       errorMessage: step.error?.message,
       subtitle,
       params,
+      location,
+      snippet: buildStepSnippet(location),
       steps: collectSteps(step.steps ?? []),
     };
   });

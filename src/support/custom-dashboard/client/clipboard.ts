@@ -35,13 +35,18 @@ export function buildClipboardJs(): string {
     }
   }
 
+  function formatDur(ms) {
+    var safe = typeof ms === 'number' && isFinite(ms) && ms > 0 ? ms : 0;
+    return safe < 1000 ? Math.round(safe) + 'ms' : (safe / 1000).toFixed(2) + 's';
+  }
+
   function formatFailureContext(testData) {
     if (!testData) return '';
     var lines = [
       'Test: ' + (testData.title || testData.testId || 'Unknown'),
       'Status: ' + (testData.status || 'Failed'),
       'File: ' + (testData.filePath || '-'),
-      'Duration: ' + ((testData.duration || 0) / 1000).toFixed(1) + 's'
+      'Duration: ' + formatDur(testData.duration)
     ];
     if (testData.errorMessage) {
       lines.push('Error: ' + testData.errorMessage.split('\\n')[0]);

@@ -1,5 +1,6 @@
 import type { FailureSource } from './types';
 import { escapeHtml } from './shared';
+import { statusIcon } from './components/table/TableCells';
 import { decisionHintFor, decisionHintTooltipFor, decisionHintBlurbFor } from './failure-source';
 
 // ---------------------------------------------------------------------------
@@ -7,19 +8,20 @@ import { decisionHintFor, decisionHintTooltipFor, decisionHintBlurbFor } from '.
 // ---------------------------------------------------------------------------
 
 export function renderStatusBadge(status: string): string {
-  const map: Record<string, { cls: string; icon: string; label: string }> = {
-    passed: { cls: 'status-pill--passed', icon: '✓', label: 'Passed' },
-    failed: { cls: 'status-pill--failed', icon: '✗', label: 'Failed' },
-    timedOut: { cls: 'status-pill--failed', icon: '⏱', label: 'Timed out' },
-    interrupted: { cls: 'status-pill--failed', icon: '✗', label: 'Interrupted' },
-    skipped: { cls: 'status-pill--skipped', icon: '⊘', label: 'Skipped' },
+  const map: Record<string, { cls: string; label: string }> = {
+    passed: { cls: 'status-pill--passed', label: 'Passed' },
+    failed: { cls: 'status-pill--failed', label: 'Failed' },
+    timedOut: { cls: 'status-pill--failed', label: 'Timed out' },
+    interrupted: { cls: 'status-pill--failed', label: 'Interrupted' },
+    skipped: { cls: 'status-pill--skipped', label: 'Skipped' },
   };
   const entry = map[status] ?? {
     cls: 'status-pill--skipped',
-    icon: '?',
     label: status || 'Unknown',
   };
-  return `<span class="status-pill status-pill--full ${entry.cls}" role="img" aria-label="Status: ${escapeHtml(entry.label)}"><span class="status-pill__icon" aria-hidden="true">${entry.icon}</span> ${entry.label}</span>`;
+  // Same icon source as the TSX StatusBadge — no drift between the two paths.
+  const icon = String(statusIcon(status));
+  return `<span class="status-pill status-pill--full ${entry.cls}" role="img" aria-label="Status: ${escapeHtml(entry.label)}"><span class="status-pill__icon" aria-hidden="true">${icon}</span> <span>${escapeHtml(entry.label)}</span></span>`;
 }
 
 export function renderPriorityBadge(priority: string): string {

@@ -85,15 +85,28 @@ export function buildActionsJs(): string {
       }
     });
 
-    var activeTab = document.querySelector('.toggle-btn.toggle-btn--active');
-    var activeView = activeTab ? activeTab.getAttribute('data-view') : 'table';
+    // One toolbar serves both views, so it is never hidden on view change.
+    // (It used to toggle on the data-toolbar-for attribute, which hid the
+    // search box and every filter as soon as the user opened the accordion.)
     document.querySelectorAll('[data-toolbar-for]').forEach(function (tb) {
-      var forView = tb.getAttribute('data-toolbar-for');
-      var show = forView === activeView;
-      tb.hidden = !show;
-      tb.setAttribute('aria-hidden', String(!show));
-      tb.classList.toggle('view-toolbar--hidden', !show);
+      tb.hidden = false;
+      tb.setAttribute('aria-hidden', 'false');
     });
+
+    // Trailing controls are view-specific (column picker vs expand-all): show
+    // only the ones that act on the view currently rendered.
+    window.__qaSyncViewControls = function (view) {
+      document.querySelectorAll('[data-view-only]').forEach(function (el) {
+        var match = el.getAttribute('data-view-only') === view;
+        el.hidden = !match;
+        if (!match) el.setAttribute('aria-hidden', 'true');
+        else el.removeAttribute('aria-hidden');
+      });
+    };
+    var initialView = document.querySelector('.view-panel--active');
+    window.__qaSyncViewControls(
+      initialView && initialView.id === 'view-accordion' ? 'accordion' : 'table',
+    );
   })();
 
   document.addEventListener('click', function (e) {
@@ -120,13 +133,24 @@ export function buildActionsJs(): string {
           b.setAttribute('aria-selected', String(isActive));
         });
         document.querySelectorAll('[data-toolbar-for]').forEach(function (tb) {
-          var forView = tb.getAttribute('data-toolbar-for');
-          var show = forView === targetView;
-          tb.hidden = !show;
-          tb.setAttribute('aria-hidden', String(!show));
-          tb.classList.toggle('view-toolbar--hidden', !show);
+          // Always visible — one toolbar serves table and accordion alike.
+          tb.hidden = false;
+          tb.setAttribute('aria-hidden', 'false');
         });
+        if (typeof window.__qaSyncViewControls === 'function') window.__qaSyncViewControls(targetView);
         if (typeof window.applyFilters === 'function') window.applyFilters();
+        break;
+
+      case 'toggle-all-accordion':
+        e.preventDefault();
+        var accRoot = document.getElementById('view-accordion');
+        if (!accRoot) break;
+        var cards = accRoot.querySelectorAll('details.test-card');
+        var anyClosed = Array.prototype.some.call(cards, function (c) { return !c.open; });
+        Array.prototype.forEach.call(cards, function (c) { c.open = anyClosed; });
+        el.setAttribute('aria-expanded', String(anyClosed));
+        var accLabel = el.querySelector('span');
+        if (accLabel) accLabel.textContent = anyClosed ? 'Collapse all' : 'Expand all';
         break;
 
       case 'open-save-modal':

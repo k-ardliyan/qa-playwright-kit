@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { QaDecision } from '../../../../agents/reporter/report-archive';
-import { IconEdit, IconSave } from '../../components/shared/icons';
+import { IconEdit, IconSave, IconX } from '../../components/shared/icons';
 
 const DECISIONS: Array<{ value: QaDecision; label: string; desc: string }> = [
   { value: 'APPROVE', label: 'APPROVE', desc: 'All tests pass / baseline ready' },
@@ -41,7 +41,7 @@ export function EditRunModal() {
             onclick="closeEditModal && closeEditModal()"
             aria-label="Close"
           >
-            ✕
+            <IconX size={14} />
           </button>
         </div>
 

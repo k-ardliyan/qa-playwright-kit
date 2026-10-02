@@ -123,6 +123,7 @@ export function normalizeTestCases(
       attachments:
         attachments as unknown as import('../../support/custom-dashboard/types').CollectedAttachment[],
       retry: (t['retry'] as number) ?? 0,
+      workerIndex: typeof t['workerIndex'] === 'number' ? (t['workerIndex'] as number) : undefined,
       attachmentCount:
         (t['attachmentCount'] as number) ??
         (Array.isArray(t['attachments']) ? (t['attachments'] as unknown[]).length : 0),
@@ -249,8 +250,6 @@ export function renderDashboardOverviewPage(): string {
   return String(
     DashboardPage({
       overview,
-      hasLatestRun: latestRun !== null,
-      latestRunArchived,
       serveMode: true,
     }),
   );
@@ -282,14 +281,11 @@ function safeParam(value: string | undefined, allowed: Set<string>): string | un
 export function renderHistoryPage(query?: HistoryPageQuery): string {
   const history = listReportHistory({ sort: 'newest', limit: 100 });
   const latestRun = getLatestRunInfo();
-  const latestRunArchived = isLatestRunArchived();
   const latestRunId = latestRun ? generateRunId(latestRun.timestamp) : undefined;
 
   return String(
     HistoryPage({
       history,
-      hasLatestRun: latestRun !== null,
-      latestRunArchived,
       latestRunId,
       serveMode: true,
       initialQuery: query?.q,
@@ -301,8 +297,6 @@ export function renderHistoryPage(query?: HistoryPageQuery): string {
 
 export function renderComparePage(baseline?: string, candidate?: string, series?: string): string {
   const history = listReportHistory({ sort: 'newest', limit: 100 });
-  const latestRun = getLatestRunInfo();
-  const latestRunArchived = isLatestRunArchived();
 
   let comparison: ReportComparison | null = null;
   if (baseline && candidate) {
@@ -318,8 +312,6 @@ export function renderComparePage(baseline?: string, candidate?: string, series?
       selectedCandidate: candidate || '',
       selectedSeries: series,
       serveMode: true,
-      hasLatestRun: latestRun !== null,
-      latestRunArchived,
     }),
   );
 }
@@ -423,6 +415,16 @@ export function renderArchivedDetailPage(runId: string, query?: DetailPageQuery)
         reportMode: (rawSummary.reportMode as any) ?? metadata?.reportMode ?? 'general',
         timestamp: metadata?.ranAt ?? (rawSummary.timestamp as string) ?? '',
         rolesInScope: (rawSummary.rolesInScope as string[]) ?? [],
+        // Analysis gate fields must survive into the literal — the detail page
+        // reads them to render the "AI ANALYSIS" banner, and an archived run
+        // that carried a verdict would otherwise render as if it had none.
+        // The archiver stamps them onto metadata.json, so that is the fallback.
+        analysisVerdict:
+          (rawSummary.analysisVerdict as string) ?? metadata?.analysisVerdict ?? undefined,
+        analysisVerified:
+          (rawSummary.analysisVerified as boolean) ?? metadata?.analysisVerified ?? undefined,
+        analysisIssues:
+          (rawSummary.analysisIssues as string[]) ?? metadata?.analysisIssues ?? undefined,
         // biome-ignore lint/suspicious/noExplicitAny: runtime-validated report payload
         testCases: (rawSummary.testCases as any) ?? [],
         // biome-ignore lint/suspicious/noExplicitAny: runtime-validated report payload

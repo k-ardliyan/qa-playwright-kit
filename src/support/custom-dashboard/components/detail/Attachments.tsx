@@ -1,5 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedAttachment } from '../../types';
+import { IconMaximize2 } from '../shared/icons';
 import { EmptyState } from '../shared/EmptyState';
 
 export interface AttachmentsProps {
@@ -52,13 +53,37 @@ function ScreenshotAttachment({
       class="attachment-card attachment-card--screenshot"
       aria-label={`Screenshot evidence: ${attachment.name || 'unnamed file'}`}
     >
-      <img
-        src={src}
-        alt={`Screenshot evidence: ${attachment.name}`}
-        loading="lazy"
-        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachment-chip attachment-chip--missing',role:'img',ariaLabel:'Missing screenshot',textContent:'Missing screenshot'}))"
-      />
-      <figcaption safe>{attachment.name || 'Unnamed attachment'}</figcaption>
+      {/* The media itself is the click target (it is what a QA aims at), and the
+          explicit button below gives the card the same affordance as the video
+          card. Both route through the shared lightbox via data-media-preview. */}
+      <a
+        class="attachment-card__media"
+        href={src}
+        data-media-preview="image"
+        data-media-name={attachment.name}
+        aria-label={`Preview screenshot larger: ${attachment.name || 'unnamed file'}`}
+      >
+        <img
+          src={src}
+          alt={`Screenshot evidence: ${attachment.name}`}
+          loading="lazy"
+          onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachment-chip attachment-chip--missing',role:'img',ariaLabel:'Missing screenshot',textContent:'Missing screenshot'}))"
+        />
+      </a>
+      <button
+        type="button"
+        class="attachment-card__expand"
+        data-media-preview="image"
+        data-media-src={src}
+        data-media-name={attachment.name}
+        title={`Preview screenshot larger: ${attachment.name || 'unnamed file'}`}
+        aria-label={`Preview screenshot larger: ${attachment.name || 'unnamed file'}`}
+      >
+        <IconMaximize2 size={16} />
+      </button>
+      <figcaption class="attachment-card__caption" safe>
+        {attachment.name || 'Unnamed attachment'}
+      </figcaption>
     </figure>
   );
 }
@@ -88,7 +113,20 @@ function VideoAttachment({
       <video controls aria-label={`Play video evidence: ${attachment.name || 'unnamed file'}`}>
         <source src={src} type={attachment.contentType} />
       </video>
-      <figcaption safe>{attachment.name || 'Unnamed attachment'}</figcaption>
+      <button
+        type="button"
+        class="attachment-card__expand"
+        data-media-preview="video"
+        data-media-src={src}
+        data-media-name={attachment.name}
+        title={`Preview video larger: ${attachment.name || 'unnamed file'}`}
+        aria-label={`Preview video larger: ${attachment.name || 'unnamed file'}`}
+      >
+        <IconMaximize2 size={16} />
+      </button>
+      <figcaption class="attachment-card__caption" safe>
+        {attachment.name || 'Unnamed attachment'}
+      </figcaption>
     </figure>
   );
 }
