@@ -11,40 +11,6 @@
 
 import type { QaDecision, TriggerSource } from '../../../agents/reporter/report-archive';
 
-export interface ArchiveMetadataV2 {
-  schemaVersion: 2;
-  runId: string;
-  displayName: string;
-  testSeriesId?: string;
-  requirementId?: string;
-  requirementTitle?: string;
-  requirementPath?: string;
-  appEnv: string;
-  baseUrl?: string;
-  branch?: string;
-  buildRef?: string;
-  gitSha?: string;
-  ranAt: string;
-  savedAt: string;
-  durationMs?: number;
-  reportMode?: string;
-  qaDecision: QaDecision;
-  qaNotes: string;
-  triggeredBy?: 'manual' | 'dashboard';
-  triggerSource: TriggerSource;
-}
-
-export interface RunIdentity {
-  runId: string;
-  displayName: string;
-  testSeriesId?: string;
-  requirementId?: string;
-  requirementTitle?: string;
-  appEnv: string;
-  ranAt: string;
-  savedAt?: string;
-}
-
 /**
  * Derives a human-readable display name for a run if not explicitly provided.
  */

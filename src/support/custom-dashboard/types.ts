@@ -225,17 +225,3 @@ export interface TestSummary {
   analysisIssues?: string[];
   runMeta: RunMeta;
 }
-
-export interface ExecutionReportOptions {
-  /** Whether a latest test run exists (for Save to History action). */
-  hasLatestRun?: boolean;
-  /** Whether the latest run has already been archived by QA. */
-  latestRunArchived?: boolean;
-  /** When true, served via dashboard-server.ts (localhost API mode). */
-  serveMode?: boolean;
-}
-
-export interface GlobalDashboardOptions {
-  /** When true, served via dashboard-server.ts. */
-  serveMode?: boolean;
-}
