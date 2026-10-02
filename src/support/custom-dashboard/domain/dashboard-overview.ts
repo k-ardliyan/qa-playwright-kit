@@ -70,41 +70,6 @@ export function computeFailureSourceMix(
   }));
 }
 
-/**
- * Per-module pass rate from collected test cases. Modules derive from each
- * test's `module` field (fallback: `feature`, then `unknown`). Pure.
- */
-export function computeModuleHealth(
-  rawTestCases: unknown[],
-  windowLimit = 500,
-): ModuleHealthEntry[] {
-  const testCases = normalizeTestCases(rawTestCases);
-  const perModule = new Map<string, { total: number; failed: number }>();
-  const moduleOf = (tc: Record<string, unknown>): string => {
-    const m = tc.module;
-    const f = tc.feature;
-    if (typeof m === 'string' && m && m !== '-') return m;
-    if (typeof f === 'string' && f && f !== '-') return f;
-    return 'unknown';
-  };
-  for (const tc of testCases.slice(-windowLimit)) {
-    if (typeof tc.status !== 'string' || tc.status === 'skipped') continue;
-    const module = moduleOf(tc);
-    const entry = perModule.get(module) ?? { total: 0, failed: 0 };
-    entry.total += 1;
-    if (isUnhealthyStatus(tc.status)) entry.failed += 1;
-    perModule.set(module, entry);
-  }
-  return [...perModule.entries()]
-    .map(([module, { total, failed }]) => ({
-      module,
-      total,
-      failed,
-      passRate: total === 0 ? 0 : Math.round(((total - failed) / total) * 100),
-    }))
-    .sort((a, b) => b.passRate - a.passRate || b.total - a.total);
-}
-
 /** Titles of tests in the latest run that passed only after a retry. */
 export function computeFlakyTests(rawTestCases: unknown[]): string[] {
   const testCases = normalizeTestCases(rawTestCases);
