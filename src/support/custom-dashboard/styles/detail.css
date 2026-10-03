@@ -1454,7 +1454,8 @@
   overflow: hidden;
 }
 
-/* The media fills the tile; the zoom control floats over it. */
+/* The media fills the tile; the zoom control lives in the caption-end row so it
+   never covers the evidence it previews. */
 .attachment-card__media {
   display: block;
   line-height: 0;
@@ -1469,36 +1470,50 @@
   background: var(--muted);
 }
 
-/* One shared affordance on both media cards — a screenshot used to rely on the
-   image being clickable, so the two tiles looked unlike each other. */
+/* Caption-end row: name on the left, zoom control on the right. One shared
+   affordance on both media cards — a screenshot used to rely on the image
+   being clickable, so the two tiles looked unlike each other. */
+.attachment-card__caption-end {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.attachment-card__caption {
+  font-size: var(--text-2xs);
+  color: var(--muted-foreground);
+  line-height: var(--leading-snug);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 24×24: big enough to hit, small enough to sit in the caption row. */
 .attachment-card__expand {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--card) 82%, transparent);
+  background: var(--card);
   color: var(--foreground);
   cursor: pointer;
   transition: var(--transition-all);
 }
 
 .attachment-card__expand:hover {
-  background: var(--card);
   border-color: var(--ring);
+  background: var(--muted);
 }
 
-.attachment-card__caption {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-2xs);
-  color: var(--muted-foreground);
-  line-height: var(--leading-snug);
-  overflow-wrap: anywhere;
+.attachment-card__expand svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  display: block;
 }
 
 .attachment-chips {

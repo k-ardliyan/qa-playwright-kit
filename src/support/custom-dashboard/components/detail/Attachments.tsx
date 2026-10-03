@@ -70,19 +70,23 @@ function ScreenshotAttachment({
           onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachment-chip attachment-chip--missing',role:'img',ariaLabel:'Missing screenshot',textContent:'Missing screenshot'}))"
         />
       </a>
-      <button
-        type="button"
-        class="attachment-card__expand"
-        data-media-preview="image"
-        data-media-src={src}
-        data-media-name={attachment.name}
-        title={`Preview screenshot larger: ${attachment.name || 'unnamed file'}`}
-        aria-label={`Preview screenshot larger: ${attachment.name || 'unnamed file'}`}
-      >
-        <IconMaximize2 size={16} />
-      </button>
-      <figcaption class="attachment-card__caption" safe>
-        {attachment.name || 'Unnamed attachment'}
+      {/* The caption-end row carries the name and the zoom control, so the
+          affordance never covers the evidence it previews. */}
+      <figcaption class="attachment-card__caption-end">
+        <span class="attachment-card__caption" safe>
+          {attachment.name || 'Unnamed attachment'}
+        </span>
+        <button
+          type="button"
+          class="attachment-card__expand"
+          data-media-preview="image"
+          data-media-src={src}
+          data-media-name={attachment.name}
+          title={`Preview screenshot larger: ${attachment.name || 'unnamed file'}`}
+          aria-label={`Preview screenshot larger: ${attachment.name || 'unnamed file'}`}
+        >
+          <IconMaximize2 size={14} />
+        </button>
       </figcaption>
     </figure>
   );
@@ -113,19 +117,21 @@ function VideoAttachment({
       <video controls aria-label={`Play video evidence: ${attachment.name || 'unnamed file'}`}>
         <source src={src} type={attachment.contentType} />
       </video>
-      <button
-        type="button"
-        class="attachment-card__expand"
-        data-media-preview="video"
-        data-media-src={src}
-        data-media-name={attachment.name}
-        title={`Preview video larger: ${attachment.name || 'unnamed file'}`}
-        aria-label={`Preview video larger: ${attachment.name || 'unnamed file'}`}
-      >
-        <IconMaximize2 size={16} />
-      </button>
-      <figcaption class="attachment-card__caption" safe>
-        {attachment.name || 'Unnamed attachment'}
+      <figcaption class="attachment-card__caption-end">
+        <span class="attachment-card__caption" safe>
+          {attachment.name || 'Unnamed attachment'}
+        </span>
+        <button
+          type="button"
+          class="attachment-card__expand"
+          data-media-preview="video"
+          data-media-src={src}
+          data-media-name={attachment.name}
+          title={`Preview video larger: ${attachment.name || 'unnamed file'}`}
+          aria-label={`Preview video larger: ${attachment.name || 'unnamed file'}`}
+        >
+          <IconMaximize2 size={14} />
+        </button>
       </figcaption>
     </figure>
   );

@@ -1043,6 +1043,13 @@ html[data-sticky-left="off"] .col-sticky-0 {
   background: rgb(0 0 0 / 0.5);
 }
 
+/* Same missing tile as the screenshot thumb: a broken recording must not
+   render as a silent black square beside a play badge. */
+.evidence-thumb--video.evidence-missing video,
+.evidence-thumb--video.evidence-missing .evidence-play {
+  display: none;
+}
+
 .evidence-missing-label {
   display: none;
 }

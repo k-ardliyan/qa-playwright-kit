@@ -317,13 +317,19 @@ export function NotesCell({ test, runId }: { test: CollectedTestData; runId?: st
             aria-label={`Preview video evidence: ${videos[0].name}`}
           >
             {/* KitaJS's HtmlVideoTag type carries neither `preload` nor
-                `playsinline`; both are set from the client bundle instead. */}
+                `playsinline`; both are set from the client bundle instead.
+                A failed src fires `error` on the video itself, so the thumb
+                degrades to the same missing tile the screenshot uses. */}
             <video
               src={evidenceUrl(videos[0].relativePath)}
               muted
               aria-hidden="true"
               tabindex="-1"
+              onerror="this.closest('a')?.classList.add('evidence-missing')"
             />
+            <span class="evidence-missing-label" aria-hidden="true">
+              Missing video
+            </span>
             <span class="evidence-play" aria-hidden="true">
               <IconPlay size={14} />
             </span>
