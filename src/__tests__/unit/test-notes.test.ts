@@ -384,6 +384,22 @@ test.describe('buildRunInsights', () => {
     expect(joined).toContain('tanpa assertion terdeteksi');
   });
 
+  test('does not attribute placeholder modules to a hot module', () => {
+    const insights = buildRunInsights([
+      makeTest({ testId: 'TC-1', status: 'failed', module: '-', errorMessage: '' }),
+      makeTest({ testId: 'TC-2', status: 'failed', module: '-', errorMessage: '' }),
+    ]);
+    expect(insights.join(' ')).not.toContain('Modul "-"');
+  });
+
+  test('reports a named hot module when multiple failures support it', () => {
+    const insights = buildRunInsights([
+      makeTest({ testId: 'TC-1', status: 'failed', module: 'invoice', errorMessage: '' }),
+      makeTest({ testId: 'TC-2', status: 'failed', module: 'invoice', errorMessage: '' }),
+    ]);
+    expect(insights.join(' ')).toContain('Modul "invoice"');
+  });
+
   test('stays silent for small clean runs', () => {
     const insights = buildRunInsights([makeTest(), makeTest({ testId: 'TC-2' })]);
     expect(insights).toEqual([]);

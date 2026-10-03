@@ -170,68 +170,6 @@ body.modal-open {
   display: none;
 }
 
-/* Dropdown primitives */
-.dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  right: 0;
-  z-index: var(--z-dropdown);
-  min-width: 11rem;
-  padding: var(--space-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--popover);
-  color: var(--popover-foreground);
-  box-shadow: var(--shadow-lg);
-  animation: dropdown-in var(--duration) var(--ease-out);
-}
-
-.dropdown-menu[hidden] {
-  display: none;
-}
-
-.dropdown-item {
-  display: block;
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--foreground);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  text-align: left;
-  cursor: pointer;
-  transition: var(--transition-colors);
-}
-
-.dropdown-item:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.top-action-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-4);
-}
-
-.top-action-bar__left,
-.top-action-bar__right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
 .status-badge--archived {
   border-color: var(--success-border);
   background: var(--success-surface);

@@ -233,11 +233,11 @@ export function buildRunInsights(
     }
   }
 
-  // 2. Hot module — most failures (meaningful only when ≥2)
+  // 2. Hot module — most failures (meaningful only when ≥2; ignore placeholders)
   const byModule = new Map<string, number>();
   for (const t of unhealthy) {
     const m = (t.module || '').trim();
-    if (m) byModule.set(m, (byModule.get(m) ?? 0) + 1);
+    if (m && m !== '-') byModule.set(m, (byModule.get(m) ?? 0) + 1);
   }
   const hotModule = [...byModule.entries()].sort((a, b) => b[1] - a[1])[0];
   if (hotModule && hotModule[1] >= 2) {

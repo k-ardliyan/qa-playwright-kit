@@ -19,7 +19,6 @@ export function QualityOverview({ metrics }: QualityOverviewProps) {
     { label: 'Archived Runs', value: String(metrics.totalArchivedRuns) },
     { label: 'Approved Runs', value: String(metrics.approvedRunsCount) },
     { label: 'Active Test Series', value: String(metrics.activeTestSeriesCount) },
-    { label: 'Tests Tracked', value: String(metrics.totalTestsRun) },
   ];
 
   if (metrics.flakyCount > 0) {

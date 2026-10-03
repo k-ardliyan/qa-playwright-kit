@@ -58,7 +58,9 @@ export function AttentionPanel({ recurringFailures }: AttentionPanelProps) {
                 {/* The count is what makes "recurring" a fact rather than a
                     label: a scenario seen once is a new break, seen three times
                     it is a pattern. */}
-                <span class="attention-count font-mono muted">×{item.occurrences}</span>
+                {item.occurrences > 1 ? (
+                  <span class="attention-count font-mono muted">×{item.occurrences}</span>
+                ) : null}
                 <strong class="attention-title" safe>
                   {item.title || item.scenarioId}
                 </strong>

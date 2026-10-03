@@ -112,6 +112,29 @@ test.describe('archived detail page — Analyze gate wiring', () => {
     expect(html!).not.toContain('Review gate evidence before APPROVE.');
   });
 
+  test('not-applicable plain archive renders no Analyze warning', async () => {
+    writeArchive(
+      'run-20260820-130000-001',
+      {
+        ...baseSummary,
+        analysisVerdict: 'not-applicable',
+        analysisVerified: false,
+      },
+      {
+        ...baseMetadata,
+        runId: 'run-20260820-130000-001',
+        analysisVerdict: 'not-applicable',
+        analysisVerified: false,
+      },
+    );
+
+    const { renderArchivedDetailPage } = await import('../../cli/routes/render');
+    const html = renderArchivedDetailPage('run-20260820-130000-001');
+
+    expect(html!).not.toContain('Review gate evidence before APPROVE.');
+    expect(html!).not.toContain('AI ANALYSIS: NOT-APPLICABLE');
+  });
+
   test('an archive with no analysis record renders no banner at all', async () => {
     writeArchive('run-20260820-120000-001', baseSummary, {
       ...baseMetadata,

@@ -108,7 +108,8 @@ test.describe('Custom Dashboard Render Baseline', () => {
 
   test('renders empty dataset without throwing', () => {
     const html = buildDashboardHtml('local', emptySummary, emptyTests);
-    expect(html).toContain('Total 0 results');
+    expect(html).not.toContain('results-footer');
+    expect(html).not.toContain('Total 0 results');
   });
 
   test('renders accessible table, dialog, and chart contracts', () => {

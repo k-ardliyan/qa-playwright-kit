@@ -54,7 +54,9 @@ export function DashboardPage({ overview, serveMode = true }: DashboardPageProps
 
         {/* The card badge already carries the verdict; this banner appears only
             when it has something extra to say — that the gate is not satisfied. */}
-        {overview.latestRun?.analysisVerdict && !overview.latestRun.analysisVerified ? (
+        {overview.latestRun?.analysisVerdict &&
+        overview.latestRun.analysisVerdict !== 'not-applicable' &&
+        !overview.latestRun.analysisVerified ? (
           <div class="analysis-status-banner" role="status">
             <span
               class={`analysis-badge analysis-badge--${overview.latestRun.analysisVerdict}`}

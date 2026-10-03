@@ -65,7 +65,7 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
             <span safe>{durationSec}</span>
             {latestRun.testSeriesId ? <span safe>{latestRun.testSeriesId}</span> : null}
           </div>
-          {latestRun.analysisVerdict ? (
+          {latestRun.analysisVerdict && latestRun.analysisVerdict !== 'not-applicable' ? (
             <div class="latest-run-card__analysis">
               <span
                 class={`analysis-badge analysis-badge--${latestRun.analysisVerdict}`}

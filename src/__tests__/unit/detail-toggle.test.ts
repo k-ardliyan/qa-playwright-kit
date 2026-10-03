@@ -11,6 +11,18 @@ test.describe('hash-router detail fragment toggle', () => {
     expect(js).toContain('[data-idx="\'+idx+\'"]');
   });
 
+  test('not-applicable analysis is not labelled incomplete', () => {
+    const html = buildDetailPage({
+      runId: 'run-20260804-132457-920',
+      summary: {
+        analysisVerdict: 'not-applicable',
+        analysis: { completed: false },
+      },
+    });
+    expect(html).not.toContain('AI Analysis incomplete');
+    expect(html).not.toContain('analysis-badge--incomplete');
+  });
+
   test('buildDetailPage no longer embeds its own <script> toggle (innerHTML-safe)', () => {
     const html = buildDetailPage({
       runId: 'run-20260804-132457-920',

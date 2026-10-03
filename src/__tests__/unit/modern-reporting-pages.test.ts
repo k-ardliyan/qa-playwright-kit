@@ -152,12 +152,56 @@ test.describe('Modern Reporting Subsystem', () => {
     expect(html).toContain('Quality health');
     expect(html).toContain('QA Playwright Kit');
     expect(html).toContain('Overall Pass Rate');
+    expect(html).not.toContain('Tests Tracked');
     expect(html).toContain('Latest execution');
     expect(html).toContain('Open report');
     expect(html).toContain('Attention');
     expect(html).toContain('href="/latest"');
     expect(html).toContain('href="/history/run-20260820-100000-001"');
     expect(html).not.toContain("window.location.href='/history/");
+  });
+
+  test('not-applicable analysis is omitted, but unverified pipeline analysis still warns', () => {
+    const plainSummary = {
+      ...mockSummary,
+      analysisVerdict: 'not-applicable',
+      analysisVerified: false,
+    } as TestSummary;
+    const plainOverview = buildDashboardOverview({
+      latestSummary: plainSummary as unknown as Record<string, unknown>,
+      latestRunArchived: false,
+      history: [],
+    });
+    const dashboardHtml = String(DashboardPage({ overview: plainOverview, serveMode: true }));
+    expect(dashboardHtml).not.toContain('Review gate evidence before APPROVE');
+    expect(dashboardHtml).not.toContain('analysis-badge--not-applicable');
+
+    const latestHtml = String(
+      ReportDetailPage({
+        summary: plainSummary,
+        collectedTests: [],
+        serveMode: true,
+        hasLatestRun: true,
+      }),
+    );
+    expect(latestHtml).not.toContain('Review gate evidence before APPROVE');
+    expect(latestHtml).not.toContain('AI ANALYSIS: NOT-APPLICABLE');
+
+    const incompleteSummary = {
+      ...mockSummary,
+      requirementPath: 'requirements/auth/login.md',
+      analysisVerdict: 'incomplete',
+      analysisVerified: false,
+      analysisIssues: ['analysis.completed !== true'],
+    } as TestSummary;
+    const incompleteOverview = buildDashboardOverview({
+      latestSummary: incompleteSummary as unknown as Record<string, unknown>,
+      latestRunArchived: false,
+      history: [],
+    });
+    const incompleteHtml = String(DashboardPage({ overview: incompleteOverview, serveMode: true }));
+    expect(incompleteHtml).toContain('Review gate evidence before APPROVE');
+    expect(incompleteHtml).toContain('analysis-badge--incomplete');
   });
 
   test('HistoryPage renders runs table with human labels and QA decisions', () => {
@@ -190,6 +234,20 @@ test.describe('Modern Reporting Subsystem', () => {
 
     expect(TrendChart({ history: mockHistory.slice(0, 1) })).toBeNull();
     expect(TrendChart({ history: [] })).toBeNull();
+  });
+
+  test('ComparePage shows one actionable empty state until two runs are available', () => {
+    const none = String(ComparePage({ history: [], serveMode: true }));
+    expect(none).toContain('Need at least 2 archived runs');
+    expect(none).not.toContain('Select test runs to compare');
+
+    const one = String(ComparePage({ history: mockHistory.slice(0, 1), serveMode: true }));
+    expect(one).toContain('Need at least 2 archived runs');
+    expect(one).not.toContain('Select test runs to compare');
+
+    const two = String(ComparePage({ history: mockHistory, serveMode: true }));
+    expect(two).toContain('Select test runs to compare');
+    expect(two).not.toContain('Need at least 2 archived runs');
   });
 
   test('ComparePage renders comparison stats, compatibility notice, and scenario diffs', () => {

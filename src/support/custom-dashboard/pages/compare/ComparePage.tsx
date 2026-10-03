@@ -88,7 +88,7 @@ export function ComparePage({
               <CompareDiffTable comparison={comparison} />
             </div>
           </div>
-        ) : (
+        ) : history.length >= 2 ? (
           <div class="compare-placeholder panel">
             <div class="compare-placeholder__inner">
               <div class="compare-placeholder__icon">
@@ -100,7 +100,7 @@ export function ComparePage({
               </p>
             </div>
           </div>
-        )}
+        ) : null}
       </section>
     </DashboardDocument>
   );

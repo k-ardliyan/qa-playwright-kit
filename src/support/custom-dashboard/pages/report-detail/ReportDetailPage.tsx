@@ -86,7 +86,7 @@ export function ReportDetailPage({
 
       {serveMode && <Breadcrumb items={defaultBreadcrumbs} />}
 
-      {summary.analysisVerdict ? (
+      {summary.analysisVerdict && summary.analysisVerdict !== 'not-applicable' ? (
         <div class="analysis-status-banner" role="status">
           <span
             class={`analysis-badge analysis-badge--${summary.analysisVerdict}`}
@@ -131,12 +131,7 @@ export function ReportDetailPage({
       ) : null}
 
       <div id="primary-view">
-        <Hero
-          summary={summary}
-          collectedTests={tests}
-          runActions={serveMode && hasLatestRun}
-          isArchived={isArchived}
-        />
+        <Hero summary={summary} runActions={serveMode && hasLatestRun} isArchived={isArchived} />
         <RoleHealthStrip summary={summary} collectedTests={tests} />
         <FailureAlert unhealthyCount={unhealthyCount} />
 
@@ -191,10 +186,6 @@ export function ReportDetailPage({
             <TableView summary={summary} collectedTests={tests} runId={runId} />
           </div>
         </div>
-
-        <p class="results-footer" id="results-footer">
-          Total {tests.length} results
-        </p>
 
         <ArtifactsStrip collectedTests={tests} runId={runId} />
       </div>

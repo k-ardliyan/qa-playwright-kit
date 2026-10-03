@@ -70,23 +70,6 @@
   }
 }
 
-/* --- <= 1440px: sidebar drops below main --------------------------------- */
-@media (max-width: 1440px) {
-  .dashboard-grid-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .health-grid-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .health-grid-layout > .panel + .panel {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-}
-
 /* --- <= 1024px: overview's main/rail split stacks -------------------------
    `.workspace` is `minmax(0,1fr) minmax(20rem,26rem)`. The rail's 20rem floor
    is rigid, so below roughly 1000px the MAIN column collapses toward 0px and
@@ -585,8 +568,7 @@
 
   .hero-stat,
   .metric-box,
-  .stat-ribbon__cell,
-  .compact-stat {
+  .stat-ribbon__cell {
     padding-left: var(--space-4);
     padding-right: var(--space-4);
   }

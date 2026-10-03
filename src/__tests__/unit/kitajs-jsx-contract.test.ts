@@ -149,7 +149,6 @@ test.describe('KitaJS dashboard — boolean short-circuit must not leak text', (
     const failed = String(
       Hero({
         summary: mk({ passed: 3, failed: 1, skipped: 0, passRate: 75 }),
-        collectedTests: [],
       }),
     );
     expect(failed).toContain('hero--critical');
@@ -160,7 +159,6 @@ test.describe('KitaJS dashboard — boolean short-circuit must not leak text', (
     const degraded = String(
       Hero({
         summary: mk({ passed: 3, failed: 0, skipped: 1, passRate: 75 }),
-        collectedTests: [],
       }),
     );
     expect(degraded).toContain('hero--warning');
@@ -171,7 +169,6 @@ test.describe('KitaJS dashboard — boolean short-circuit must not leak text', (
     const healthy = String(
       Hero({
         summary: mk({ passed: 4, failed: 0, skipped: 0, passRate: 100 }),
-        collectedTests: [],
       }),
     );
     expect(healthy).toContain('hero--healthy');
@@ -200,7 +197,7 @@ test.describe('KitaJS dashboard — boolean short-circuit must not leak text', (
       },
     } as unknown as Parameters<typeof Hero>[0]['summary'];
 
-    const live = String(Hero({ summary, collectedTests: [], runActions: true }));
+    const live = String(Hero({ summary, runActions: true }));
     expect(live).toContain('hero__run-actions');
     // Both exports act on the latest run: the HTML one and the Markdown one.
     expect(live).toContain('/export/portable');
@@ -210,14 +207,12 @@ test.describe('KitaJS dashboard — boolean short-circuit must not leak text', (
 
     // An archived latest run keeps the exports (still the latest summary) but
     // must not offer Save again.
-    const archived = String(
-      Hero({ summary, collectedTests: [], runActions: true, isArchived: true }),
-    );
+    const archived = String(Hero({ summary, runActions: true, isArchived: true }));
     expect(archived).toContain('/export/markdown');
     expect(archived).not.toContain('btn-save-sm');
 
     // Without runActions (history/compare/static) the block is absent entirely.
-    const bare = String(Hero({ summary, collectedTests: [] }));
+    const bare = String(Hero({ summary }));
     expect(bare).not.toContain('hero__run-actions');
     expect(bare).not.toContain('/export/markdown');
   });

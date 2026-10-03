@@ -48,7 +48,6 @@ export interface ModuleHealthEntry {
 export interface QualityMetrics {
   overallPassRate: number;
   totalArchivedRuns: number;
-  totalTestsRun: number;
   recentFailuresCount: number;
   approvedRunsCount: number;
   activeTestSeriesCount: number;

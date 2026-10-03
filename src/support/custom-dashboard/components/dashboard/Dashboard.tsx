@@ -72,7 +72,7 @@ export function Dashboard({
       <script>{`window.__SERVE_MODE__ = ${serveMode};`}</script>
 
       <div id="primary-view">
-        <Hero summary={summary} collectedTests={tests} />
+        <Hero summary={summary} />
         <RoleHealthStrip summary={summary} collectedTests={tests} />
         <FailureAlert unhealthyCount={unhealthyCount} />
 
@@ -113,10 +113,6 @@ export function Dashboard({
             </section>
           </section>
         </div>
-
-        <p class="results-footer" id="results-footer">
-          Total {tests.length} results
-        </p>
 
         <ArtifactsStrip collectedTests={tests} />
       </div>

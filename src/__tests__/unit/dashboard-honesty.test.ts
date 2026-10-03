@@ -122,6 +122,16 @@ test.describe('Triage evidence label reports real counts', () => {
 });
 
 test.describe('Attention panel counts recurrence', () => {
+  test('a single-run failure stays visible without a fake recurrence count', () => {
+    const html = String(
+      AttentionPanel({
+        recurringFailures: [{ scenarioId: 'SC-1', title: 'Login', occurrences: 1 }],
+      }),
+    );
+    expect(html).toContain('Login');
+    expect(html).not.toContain('×1');
+  });
+
   test('the occurrence count is rendered, not just implied', () => {
     const html = String(
       AttentionPanel({
@@ -183,6 +193,32 @@ test.describe('buildDashboardOverview measures instead of inventing', () => {
     });
     // Two archives + the latest run all report SC-1.
     expect(overview.recurringFailures[0]?.occurrences).toBe(3);
+  });
+
+  test('an already-archived latest run is counted once for recurrence', () => {
+    const archivedLatest = { ...summary, runId: 'run-latest' };
+    const overview = buildDashboardOverview({
+      latestSummary: archivedLatest,
+      latestRunArchived: true,
+      history: [{ runId: 'run-latest', failedTestIds: ['SC-1'] }] as never,
+    });
+    expect(overview.recurringFailures[0]?.occurrences).toBe(1);
+  });
+
+  test('filters stale hot-module insight with a placeholder module', () => {
+    const overview = buildDashboardOverview({
+      latestSummary: {
+        ...summary,
+        aiInsights: [
+          'Jenis: Trend — Modul "-" mencatat failure terbanyak (2 dari 4 gagal).',
+          'Jenis: Trend — Modul "invoice" mencatat failure terbanyak (2 dari 4 gagal).',
+        ],
+      },
+      history: [],
+    });
+    expect(overview.aiRunInsights.map((insight) => insight.text)).toEqual([
+      'Jenis: Trend — Modul "invoice" mencatat failure terbanyak (2 dari 4 gagal).',
+    ]);
   });
 
   test('active test series is 0 with no saved runs, not a floored 1', () => {

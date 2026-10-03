@@ -66,11 +66,6 @@
   color: var(--success-foreground);
 }
 
-/* Kept as a hook for older markup; the current mark carries its own state. */
-.hero__mark-x {
-  display: none;
-}
-
 .hero__body,
 .hero__copy {
   display: flex;
@@ -1816,67 +1811,6 @@
   white-space: nowrap;
 }
 
-/* Legacy deep-link markup */
-.deep-links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.deep-links--row {
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-
-.deep-link {
-  display: flex;
-  flex-direction: column;
-  gap: 0.0625rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--card);
-}
-
-.deep-link__title {
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
-
-.deep-link__copy {
-  font-size: var(--text-2xs);
-  color: var(--muted-foreground);
-}
-
-.deep-link__path {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--muted-foreground);
-}
-
-.deep-links__hint {
-  font-size: var(--text-2xs);
-  color: var(--muted-foreground);
-}
-
-.panel--deep-links,
-.panel--chart {
-  min-width: 0;
-}
-
-.panel__eyebrow {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-.panel__title {
-  font-size: var(--text-md);
-  font-weight: 600;
-}
-
 /* ============================================================================
    12. Chart fallback + summary lists
    ========================================================================== */
@@ -1970,48 +1904,6 @@
   margin-left: auto;
 }
 
-.info-strip {
-  margin-bottom: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--card);
-}
-
-.info-strip__toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  cursor: pointer;
-  list-style: none;
-}
-
-.info-strip__toggle::-webkit-details-marker {
-  display: none;
-}
-
-.info-strip__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
-}
-
-.info-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--space-3);
-}
-
 .stat-card {
   display: flex;
   flex-direction: column;
@@ -2068,57 +1960,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: var(--space-3);
-}
-
-.kpi-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--card);
-}
-
-.kpi-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.kpi-card__title {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-.kpi-card__icon {
-  display: inline-grid;
-  place-items: center;
-  color: var(--muted-foreground);
-}
-
-.kpi-card__icon svg {
-  width: 1rem;
-  height: 1rem;
-  display: block;
-}
-
-.kpi-card__value {
-  font-family: var(--mono);
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  line-height: var(--leading-none);
-  letter-spacing: -0.02em;
-  font-variant-numeric: var(--tabular);
-  color: var(--foreground);
-}
-
-.kpi-card__subtitle {
-  font-size: var(--text-2xs);
 }
 
 .detail-table {

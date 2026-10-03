@@ -99,6 +99,41 @@ test.describe('Custom Dashboard Style Contract', () => {
     expect(styles).toContain('[data-scroll-hint]');
     expect(styles).toContain('focus-visible');
     expect(styles).toContain('--on-accent');
+    for (const selector of [
+      '.hero__mark-x',
+      '.page-section--bleed',
+      '.panel--elevated',
+      '.card--elevated',
+      '.btn-primary-action',
+      '.btn-secondary-action',
+      '.btn-cancel',
+      '.btn-dismiss',
+      '.badge--ci',
+      '.archived-badge',
+      '.unarchived-badge',
+      '.modal-input',
+      '.modal-select',
+      '.modal-textarea',
+      '.filter-empty__title',
+      '.filter-empty__copy',
+      '.portfolio-line',
+      '.dashboard-grid-layout',
+      '.health-grid-layout',
+      '.deep-links--row',
+      '.deep-link__title',
+      '.deep-link__copy',
+      '.deep-link__path',
+      '.deep-links__hint',
+      '.info-strip',
+      '.stat-grid',
+      '.kpi-card',
+      '.dropdown-item',
+      '.top-action-bar',
+    ]) {
+      expect(styles, `${selector} is dead CSS`).not.toContain(selector);
+    }
+    expect(styles).toContain('.stat-card');
+    expect(styles).toContain('.command-bar');
     expect(styles).not.toContain('125, 211, 252');
     expect(styles).not.toContain('#0a1929');
     expect(styles).not.toContain('#ffb3c9');

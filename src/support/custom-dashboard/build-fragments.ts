@@ -168,6 +168,7 @@ export function buildDetailPage(options: {
     savedAt?: string;
     ranAt?: string;
     durationMs?: number;
+    analysisVerdict?: string;
   } | null;
   runInsights?: Array<{
     text: string;
@@ -187,11 +188,13 @@ export function buildDetailPage(options: {
   // right at the top of the archived run detail.
   const rawAnalysis = summary?.['analysis'] as { completed?: boolean } | undefined;
   const analysisBadge =
-    rawAnalysis && typeof rawAnalysis === 'object' && 'completed' in rawAnalysis
-      ? rawAnalysis['completed'] === true
-        ? `<p class="muted"><span class="analysis-badge analysis-badge--complete">${iconCircleCheck()} AI Analysis completed</span></p>`
-        : `<p class="muted"><span class="analysis-badge analysis-badge--incomplete" title="Analyze sub-phase tidak terbukti berjalan — insight AI naratif mungkin tidak tersedia">${iconTriangleAlert()} AI Analysis incomplete</span></p>`
-      : '';
+    summary?.['analysisVerdict'] === 'not-applicable'
+      ? ''
+      : rawAnalysis && typeof rawAnalysis === 'object' && 'completed' in rawAnalysis
+        ? rawAnalysis['completed'] === true
+          ? `<p class="muted"><span class="analysis-badge analysis-badge--complete">${iconCircleCheck()} AI Analysis completed</span></p>`
+          : `<p class="muted"><span class="analysis-badge analysis-badge--incomplete" title="Analyze sub-phase tidak terbukti berjalan — insight AI naratif mungkin tidak tersedia">${iconTriangleAlert()} AI Analysis incomplete</span></p>`
+        : '';
   const total = (summary?.total as number) ?? 0;
   const passed = (summary?.passed as number) ?? 0;
   const failed = (summary?.failed as number) ?? 0;

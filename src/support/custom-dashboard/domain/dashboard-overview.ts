@@ -196,9 +196,6 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   const avgPassRate =
     allRates.length > 0 ? Math.round(allRates.reduce((a, b) => a + b, 0) / allRates.length) : 0;
 
-  const totalTestsRun =
-    history.reduce((sum, h) => sum + h.totalTests, 0) +
-    (latestRun && !latestIsAlreadyArchived ? latestRun.totalTests : 0);
   const approvedCount = history.filter((h) => h.qaDecision === 'APPROVE').length;
   const activeSeries = new Set(history.map((h) => h.testSeriesId).filter(Boolean)).size;
 
@@ -211,7 +208,6 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   const metrics: QualityMetrics = {
     overallPassRate: avgPassRate,
     totalArchivedRuns: totalArchived,
-    totalTestsRun,
     recentFailuresCount: latestRun?.failed ?? 0,
     approvedRunsCount: approvedCount,
     // Real count: flooring to 1 claimed an active series before any run was
@@ -255,7 +251,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   const runFailureKeys: string[][] = history
     .map((h) => h.failedTestIds ?? [])
     .filter((ids) => ids.length > 0);
-  if (summary && Array.isArray(summary.testCases)) {
+  if (!latestIsAlreadyArchived && summary && Array.isArray(summary.testCases)) {
     const latestKeys = (summary.testCases as Array<Record<string, unknown>>)
       .filter((tc) => isUnhealthyStatus(tc.status))
       .map((tc) => (tc.scenarioId as string) || (tc.testId as string) || '')
@@ -371,7 +367,9 @@ function buildAiRunInsights(
   const entries: DashboardOverviewData['aiRunInsights'] = [];
   const deterministic =
     summary && Array.isArray(summary['aiInsights'])
-      ? (summary['aiInsights'] as unknown[]).filter((v): v is string => typeof v === 'string')
+      ? (summary['aiInsights'] as unknown[]).filter(
+          (v): v is string => typeof v === 'string' && !/\bModul\s+"-"/i.test(v),
+        )
       : [];
   for (const text of deterministic) {
     entries.push({ text, source: 'analyzer' });

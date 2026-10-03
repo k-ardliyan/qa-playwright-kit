@@ -1,12 +1,11 @@
 /** @jsxImportSource @kitajs/html */
-import type { CollectedTestData, TestSummary } from '../../types';
+import type { TestSummary } from '../../types';
 import { formatDuration as formatDurationMs } from '../../shared';
 import {
   IconLayers,
   IconList,
   IconCalendar,
   IconClock,
-  IconHeartPulse,
   IconCircleCheck,
   IconCircleX,
   IconCircleSlash2,
@@ -20,7 +19,6 @@ import {
 
 export interface HeroProps {
   summary: TestSummary;
-  collectedTests: CollectedTestData[];
   /**
    * Render the run actions (Export / Markdown / Save) in the masthead. Only the
    * LATEST run gets them: `/export/*` reads the latest summary server-side, so
@@ -30,8 +28,6 @@ export interface HeroProps {
   /** The latest run is already archived — Save is no longer offered. */
   isArchived?: boolean;
 }
-
-const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
 
 function getVerdict(summary?: TestSummary): {
   label: string;
@@ -100,10 +96,8 @@ function truncateMiddle(value: string, max = 18): string {
   return `${value.slice(0, keep)}…${value.slice(-keep)}`;
 }
 
-export function Hero({ summary, collectedTests, runActions, isArchived }: HeroProps) {
+export function Hero({ summary, runActions, isArchived }: HeroProps) {
   const verdict = getVerdict(summary);
-  const tests = Array.isArray(collectedTests) ? collectedTests : [];
-  const unhealthyCount = tests.filter((testData) => UNHEALTHY_STATUSES.has(testData.status)).length;
 
   const displayTime = formatDisplayTime(summary?.timestamp || '');
   const appEnv = summary?.runMeta?.appEnv ?? 'unknown';
@@ -204,15 +198,6 @@ export function Hero({ summary, collectedTests, runActions, isArchived }: HeroPr
           <span class="hero__meta-text">
             <span class="hero__meta-label">Duration</span>
             <strong safe>{totalDuration}</strong>
-          </span>
-        </div>
-        <div class="hero__meta-item">
-          <span class="hero__meta-icon" aria-hidden="true">
-            <IconHeartPulse size={14} />
-          </span>
-          <span class="hero__meta-text">
-            <span class="hero__meta-label">Unhealthy</span>
-            <strong>{unhealthyCount}</strong>
           </span>
         </div>
       </div>

@@ -194,7 +194,7 @@ export function HistoryRunsTable({
                   <div class="run-machine-id muted font-mono" safe>
                     {entry.runId}
                   </div>
-                  {entry.analysisVerdict ? (
+                  {entry.analysisVerdict && entry.analysisVerdict !== 'not-applicable' ? (
                     <span
                       class={`analysis-badge analysis-badge--${entry.analysisVerdict}`}
                       title={

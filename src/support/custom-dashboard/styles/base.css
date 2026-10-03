@@ -152,7 +152,6 @@ a:hover {
 /* Icon slots that hold a Lucide SVG must centre it and size it to the slot. */
 .panel-empty__mark svg,
 .hero__mark svg,
-.hero__mark-x svg,
 .hero__meta-icon svg,
 .hero-stat__icon svg,
 .status-pill__icon svg,
@@ -175,7 +174,6 @@ a:hover {
 }
 
 .panel-empty__mark svg,
-.hero__mark-x svg,
 .status-pill__icon svg,
 .tree-item__status svg,
 .alert__icon svg,
@@ -286,12 +284,6 @@ summary:focus-visible,
   min-width: 0;
 }
 
-/* Opt out of the gutter to bleed content to the viewport edge. */
-.page-section--bleed {
-  padding-left: 0;
-  padding-right: 0;
-}
-
 /* ============================================================================
    Card — shadcn anatomy: header / title / description / action / content / footer
    ========================================================================== */
@@ -312,26 +304,13 @@ summary:focus-visible,
   transition: var(--transition-shadow);
 }
 
-/* A card that carries a shadow drops the border instead of stacking both. */
-.panel--elevated,
-.card--elevated {
-  border-color: transparent;
-  box-shadow: var(--shadow-sm);
-}
-
-.panel--elevated:hover,
-.card--elevated:hover {
-  box-shadow: var(--shadow-md);
-}
-
 .panel--bleed {
   padding: 0;
   gap: 0;
   overflow: hidden;
 }
 
-.panel-header,
-.card-header {
+.panel-header {
   display: grid;
   grid-auto-rows: min-content;
   align-items: start;
@@ -339,14 +318,11 @@ summary:focus-visible,
   grid-template-columns: 1fr auto;
 }
 
-.panel-header > .panel-title,
-.card-header > .card-title {
+.panel-header > .panel-title {
   grid-column: 1;
 }
 
-.panel-header > .panel-link,
-.panel-header > .attention-header-title,
-.card-header > .card-action {
+.panel-header > .panel-link {
   grid-column: 2;
   grid-row: 1;
   justify-self: end;
@@ -357,8 +333,7 @@ summary:focus-visible,
   grid-template-columns: 1fr;
 }
 
-.panel-title,
-.card-title {
+.panel-title {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -376,18 +351,6 @@ summary:focus-visible,
 
 .panel-link:hover {
   color: var(--foreground);
-}
-
-.panel-header .attention-header-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  justify-self: start;
-  grid-column: 1;
-}
-
-.panel-header .attention-header-title ~ .panel-title {
-  grid-column: 1;
 }
 
 /* Eyebrow — small uppercase marker for section context. */
@@ -461,13 +424,9 @@ summary:focus-visible,
 .btn-primary,
 .btn-secondary,
 .btn-save-secondary,
-.btn-primary-action,
-.btn-secondary-action,
 .btn-save-primary,
 .btn-save-confirm,
-.btn-cancel,
 .btn-danger,
-.btn-dismiss,
 .btn-back,
 .btn-swap-action,
 .btn-swap-runs,
@@ -506,8 +465,6 @@ summary:focus-visible,
 .btn-compare svg,
 .btn-view svg,
 .btn-delete svg,
-.btn-primary-action svg,
-.btn-secondary-action svg,
 .btn-save-primary svg,
 .btn-export-sm svg,
 .btn-save-sm svg,
@@ -529,10 +486,8 @@ button:disabled {
 /* --- default: the one filled action per surface -------------------------- */
 .btn--primary,
 .btn-primary,
-.btn-primary-action,
 .btn-save-primary,
 .btn-save-confirm,
-.btn-save,
 .btn-save-sm {
   background: var(--primary);
   color: var(--primary-foreground);
@@ -542,10 +497,8 @@ button:disabled {
 
 .btn--primary:hover,
 .btn-primary:hover,
-.btn-primary-action:hover,
 .btn-save-primary:hover,
 .btn-save-confirm:hover,
-.btn-save:hover,
 .btn-save-sm:hover {
   background: var(--primary);
   color: var(--primary-foreground);
@@ -555,7 +508,6 @@ button:disabled {
 /* --- secondary ----------------------------------------------------------- */
 .btn--secondary,
 .btn-secondary,
-.btn-secondary-action,
 .btn-save-secondary {
   background: var(--secondary);
   color: var(--secondary-foreground);
@@ -564,7 +516,6 @@ button:disabled {
 
 .btn--secondary:hover,
 .btn-secondary:hover,
-.btn-secondary-action:hover,
 .btn-save-secondary:hover {
   background: var(--secondary);
   color: var(--secondary-foreground);
@@ -577,9 +528,7 @@ button:disabled {
 .btn-view,
 .btn-compare,
 .btn-edit,
-.btn-dismiss,
 .btn-back,
-.btn-cancel,
 .btn-export-sm,
 .btn-reset-filters,
 .btn-swap-action,
@@ -596,9 +545,7 @@ button:disabled {
 .btn-view:hover,
 .btn-compare:hover,
 .btn-edit:hover,
-.btn-dismiss:hover,
 .btn-back:hover,
-.btn-cancel:hover,
 .btn-export-sm:hover,
 .btn-reset-filters:hover,
 .btn-swap-action:hover,
@@ -711,15 +658,12 @@ button:disabled {
   display: block;
 }
 
-.badge--local,
-.badge--ci,
-.badge--secondary {
+.badge--local {
   background: var(--secondary);
   color: var(--secondary-foreground);
   border-color: transparent;
 }
 
-.badge--outline,
 .badge--meta {
   background: transparent;
   color: var(--foreground);
@@ -741,8 +685,6 @@ button:disabled {
 }
 
 /* Tag family — quiet outline chips for metadata. */
-.archived-badge,
-.unarchived-badge,
 .env-tag,
 .role-tag,
 .series-tag,
@@ -784,12 +726,6 @@ button:disabled {
   border-color: var(--primary);
 }
 
-.unarchived-badge {
-  border-color: var(--warning-border);
-  background: var(--warning-surface);
-  color: var(--warning);
-}
-
 /* ============================================================================
    Inputs — shadcn form control
    ========================================================================== */
@@ -797,9 +733,6 @@ button:disabled {
 .form-input,
 .form-select,
 .form-textarea,
-.modal-input,
-.modal-select,
-.modal-textarea,
 .cmd-input,
 .cmd-search,
 .cmd-select,
@@ -821,8 +754,7 @@ button:disabled {
   transition: var(--transition-all);
 }
 
-.form-textarea,
-.modal-textarea {
+.form-textarea {
   height: auto;
   min-height: 5rem;
   padding: var(--space-2) var(--space-3);
@@ -1110,19 +1042,6 @@ input[type="radio"]:focus-visible {
 
 .filter-empty[hidden] {
   display: none !important;
-}
-
-.filter-empty__title {
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.filter-empty__copy {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--muted-foreground);
 }
 
 .filter-empty .btn {
