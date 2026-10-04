@@ -410,6 +410,15 @@ test.describe('dashboard client contracts', () => {
     expect(js).toContain('refreshCurrentView()');
   });
 
+  test('serve mode reloads the current tab for report changes and server restarts', () => {
+    const js = buildHistoryJs({ serveMode: true });
+    expect(js).toContain('server-ready');
+    expect(js).toContain('dashboardInstanceId!==nextId){location.reload();');
+    expect(js).toContain('report-updated",function(){location.reload();}');
+    expect(js).not.toContain('setInterval(');
+    expect(js).not.toContain('fetch("/heartbeat"');
+  });
+
   test('clipboard helper falls back when Clipboard API is unavailable', () => {
     const js = buildClientBootstrapJs();
     expect(js).toContain("document.execCommand('copy')");

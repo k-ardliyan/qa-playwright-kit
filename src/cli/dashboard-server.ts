@@ -5,12 +5,12 @@
  * - Serves dynamic dashboard HTML (rebuilt on every GET /)
  * - REST API: save, delete, compare, history
  * - Server-Sent Events (SSE) for auto-refresh after mutations
- * - Heartbeat-based auto-shutdown when browser tab is closed
+ * - Persistent dev server with SSE refresh on source and report changes
  * - Zero external dependencies — uses Node.js built-in http/fs/url
  *
  * Usage:
  *   npm run dashboard
- *   npm run dashboard -- --port=4567 --no-open
+ *   npm run dashboard -- --port=4567
  *
  * @module src/cli/dashboard-server
  */
@@ -19,7 +19,7 @@ import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as url from 'node:url';
-import { exec } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 
 import { listReportHistory } from '../agents/reporter/report-history';
 import {
@@ -77,7 +77,6 @@ import { handleStudioRoute } from './routes/studio';
 import { getStudioEnvStatus } from './studio-env';
 import { startStudioRun, stopStudioRun } from './studio-run';
 import { startAuthRefresh, authRefreshState } from './studio-auth';
-import { studioChildRunning } from './spawn-playwright';
 import { switchStudioEnv } from './studio-env-switch';
 import { listStudioSpecs } from './studio-specs';
 import { findRepoRoot } from '../shared/workspace-paths';
@@ -104,9 +103,24 @@ export {
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_PORT = 4567;
-// Idle grace before the watchdog reclaims a server whose browser tab is gone.
-// Overridable so the contract can be exercised without a 60s wait in tests.
-const HEARTBEAT_TIMEOUT_MS = Number(process.env['DASHBOARD_IDLE_TIMEOUT_MS']) || 60_000;
+const REPORT_CHANGE_DEBOUNCE_MS = 450;
+const REPORT_RELOAD_FILES = [
+  'test-summary.json',
+  '.latest-run',
+  'custom-dashboard.html',
+  'test-notes.json',
+] as const;
+const DASHBOARD_STYLES_DIR = path.resolve(__dirname, '../support/custom-dashboard/styles');
+const DASHBOARD_STYLE_FILES = [
+  'tokens.css',
+  'base.css',
+  'dashboard.css',
+  'table.css',
+  'detail.css',
+  'states.css',
+  'responsive.css',
+  'print.css',
+] as const;
 
 /**
  * Canonical archive runId of the latest run (run-YYYYMMDD-HHmmss-SSS from the
@@ -121,22 +135,22 @@ function canonicalLatestArchiveRunId(): string | null {
 
 // ─── Arg parsing ─────────────────────────────────────────────────────────────
 
-function parseServArgs(argv: string[]): { port: number; open: boolean; idle: boolean } {
+function parseServArgs(argv: string[]): { port: number } {
   let port = DEFAULT_PORT;
-  let open = true;
-  let idle = true;
   for (const arg of argv.slice(2)) {
     const m = arg.match(/^--port=(\d+)$/);
     if (m) port = parseInt(m[1], 10);
-    if (arg === '--no-open') open = false;
-    if (arg === '--no-idle') idle = false;
   }
-  return { port, open, idle };
+  return { port };
 }
 
 // ─── SSE clients ─────────────────────────────────────────────────────────────
 
+const serverInstanceId = randomUUID();
+const dashboardSessionId = process.env['DASHBOARD_SESSION_ID'] || serverInstanceId;
 const sseClients = new Set<http.ServerResponse>();
+const watchedReportFiles = new Set<string>();
+let reportChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
 function broadcastEvent(event: string, data: unknown = {}) {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -149,77 +163,41 @@ function broadcastEvent(event: string, data: unknown = {}) {
   }
 }
 
-// ─── Heartbeat ───────────────────────────────────────────────────────────────
+// ─── Report watcher ──────────────────────────────────────────────────────────
 
-let shutdownTimer: ReturnType<typeof setTimeout> | null = null;
-let idleEnabled = true;
-let sawClient = false;
-let openedBrowser = false;
-
-/**
- * Arm (or re-arm) the idle watchdog.
- *
- * The watchdog exists for ONE flow: this server opened a browser tab, so when
- * that tab is closed the server should clean itself up. Several traps made it
- * kill live sessions instead:
- *
- *  1. Treating `/heartbeat` as the only proof of life. curl, scripts and MCP
- *     tools never send it, so they looked like an abandoned tab and the server
- *     exited ~20s later — silently, and with code 0, which reads as success.
- *     Any request now counts (see noteActivity).
- *  2. Relying on the page's setInterval heartbeat. Browsers throttle timers in
- *     background tabs to roughly once a minute, well past the timeout, so
- *     merely switching tabs could kill the server. An OPEN SSE STREAM is the
- *     reliable signal instead: the browser holds it while the page is loaded
- *     and drops it on navigation away or tab close.
- *  3. Arming it at all when the server never opened a browser (`--no-open`).
- *     There is no owned tab to clean up in that case, so a non-browser client
- *     idling quietly would lose its server for no reason. The watchdog is
- *     therefore only armed when this process actually opened the browser.
- *
- * It also stays disarmed until a client shows up, so a server that nobody has
- * contacted yet never self-destructs while the browser is still starting.
- */
-function resetHeartbeat() {
-  if (!idleEnabled) return;
-  if (!openedBrowser) return; // no tab of ours to watch — never self-destruct
-  if (shutdownTimer) clearTimeout(shutdownTimer);
-  shutdownTimer = setTimeout(() => {
-    // A running spec/auth child is proof of an active user: the page that
-    // started it may be idle between requests. Never kill work in progress.
-    if (studioChildRunning()) {
-      resetHeartbeat();
-      return;
+function watchFiles(directory: string, names: readonly string[], event: string): void {
+  for (const name of names) {
+    const filePath = path.join(directory, name);
+    try {
+      fs.watchFile(filePath, { interval: 250 }, (current, previous) => {
+        if (current.mtimeMs === previous.mtimeMs && current.size === previous.size) return;
+        if (reportChangeTimer) clearTimeout(reportChangeTimer);
+        reportChangeTimer = setTimeout(() => {
+          reportChangeTimer = null;
+          broadcastEvent(event, { file: name });
+        }, REPORT_CHANGE_DEBOUNCE_MS);
+      });
+      watchedReportFiles.add(filePath);
+    } catch (error) {
+      console.warn(
+        `[dashboard-server] Could not watch ${name}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
-    console.log(
-      `\n[dashboard-server] The browser tab appears closed (no activity for ${HEARTBEAT_TIMEOUT_MS / 1000}s) — shutting down.\n` +
-        '  This is the idle watchdog, not a crash. To keep it running regardless,\n' +
-        '  use --no-idle (or `npm run dashboard`, which already passes it).',
-    );
-    process.exit(0);
-  }, HEARTBEAT_TIMEOUT_MS);
+  }
 }
 
-/** Every request is evidence that a client is still using this server. */
-function noteActivity() {
-  if (!sawClient) {
-    sawClient = true;
-    console.log('[dashboard-server] First client request — idle watchdog armed.');
-  }
-  resetHeartbeat();
+function watchDashboardInputs(): void {
+  const reportDir = resolveWorkspaceReportDir();
+  fs.mkdirSync(reportDir, { recursive: true });
+  watchFiles(reportDir, REPORT_RELOAD_FILES, 'report-updated');
+  watchFiles(DASHBOARD_STYLES_DIR, DASHBOARD_STYLE_FILES, 'dashboard-updated');
 }
 
-/**
- * A live SSE stream is the strongest signal that a page is still open, so it
- * keeps the watchdog disarmed outright rather than merely re-arming it. Without
- * this, a backgrounded tab whose timers are throttled would still time out.
- */
-function noteStreamOpen() {
-  sawClient = true;
-  if (shutdownTimer) {
-    clearTimeout(shutdownTimer);
-    shutdownTimer = null;
-  }
+function closeReportWatcher(): void {
+  if (reportChangeTimer) clearTimeout(reportChangeTimer);
+  reportChangeTimer = null;
+  for (const filePath of watchedReportFiles) fs.unwatchFile(filePath);
+  watchedReportFiles.clear();
 }
 
 // ─── Static File Handler for Artifacts & Reports ─────────────────────────────
@@ -389,10 +367,6 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     return;
   }
 
-  // Any request is proof a client is still using this server — not just the
-  // page's /heartbeat ping, which curl/scripts/MCP tools never send.
-  noteActivity();
-
   // CORS preflight — kept minimal; dashboard is same-origin so no wildcard.
   if (method === 'OPTIONS') {
     res.writeHead(204, {
@@ -413,16 +387,11 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     });
     // Tell the browser how long to wait before reconnecting after a drop, and
     // send an immediate comment so the stream is flushed as open.
-    res.write('retry: 5000\n\n');
-    res.write(':connected\n\n');
     sseClients.add(res);
-    noteStreamOpen();
+    res.write('retry: 1000\n\n');
+    res.write(`event: server-ready\ndata: ${JSON.stringify({ instanceId: serverInstanceId })}\n\n`);
     req.on('close', () => {
       sseClients.delete(res);
-      // The page that held this stream is gone. If it was the last one, start
-      // the idle countdown; a navigation between pages reconnects within
-      // milliseconds, so the grace period absorbs it.
-      if (sseClients.size === 0) resetHeartbeat();
     });
     return;
   }
@@ -512,12 +481,14 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     return;
   }
 
-  // ── Heartbeat ─────────────────────────────────────────────────────────────
-  // Accept GET as well as POST: some clients/probes send GET; a fast 200 keeps
-  // the idle watchdog fed and avoids stacked pending requests.
+  // ── Health probe ─────────────────────────────────────────────────────────
+  // Accept GET as well as POST for readiness checks and local diagnostics.
   if (pathname === '/heartbeat' && (method === 'POST' || method === 'GET')) {
-    noteActivity();
-    jsonResponse(res, 200, { ok: true });
+    jsonResponse(res, 200, {
+      ok: true,
+      instanceId: serverInstanceId,
+      sessionId: dashboardSessionId,
+    });
     return;
   }
 
@@ -904,8 +875,7 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const { port, open, idle } = parseServArgs(process.argv);
-  idleEnabled = idle;
+  const { port } = parseServArgs(process.argv);
 
   const server = http.createServer((req, res) => {
     const startedAt = Date.now();
@@ -932,43 +902,16 @@ async function main() {
 
   server.listen(port, '127.0.0.1', () => {
     const dashboardUrl = `http://localhost:${port}`;
-    // The countdown is advertised only when this process owns a tab to reclaim.
-    // Without one (`--no-open`), a quiet client must never lose its server, so
-    // the banner says so instead of promising a shutdown that will not happen.
-    const idleLine = !idleEnabled
-      ? 'Persists until Ctrl+C (idle watchdog disabled)'
-      : open
-        ? `Shuts down ${HEARTBEAT_TIMEOUT_MS / 1000}s after this browser tab closes`
-        : 'Persists until Ctrl+C (started without a browser tab)';
     console.log('');
     console.log('────────────────────────────────────────────────────────');
     console.log(`  🌐 Dashboard running at: ${dashboardUrl}`);
     console.log(`  💾 Save / view / delete runs directly from the browser`);
-    console.log(`  🔄 Auto-refresh via Server-Sent Events`);
-    console.log(`  ⏱️  Server ${idleLine}`);
-    console.log('  Press Ctrl+C to stop manually');
+    console.log(`  🔄 Report changes reload this tab via Server-Sent Events`);
+    console.log('  Source changes restart with npm run dashboard; stop with Ctrl+C');
     console.log('────────────────────────────────────────────────────────');
     console.log('');
 
-    // The watchdog only watches a tab this process opened.
-    openedBrowser = open && idleEnabled;
-
-    if (open) {
-      // Cross-platform open — Windows: start, macOS: open, Linux: xdg-open
-      const cmd =
-        process.platform === 'win32'
-          ? `start ${dashboardUrl}`
-          : process.platform === 'darwin'
-            ? `open ${dashboardUrl}`
-            : `xdg-open ${dashboardUrl}`;
-      exec(cmd, (err) => {
-        if (err) console.log(`  [info] Could not auto-open browser: ${err.message}`);
-      });
-    }
-
-    // No timer is armed here: the watchdog starts counting only once a client
-    // has actually appeared, so a server still waiting for its browser to boot
-    // never self-destructs.
+    watchDashboardInputs();
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {
@@ -981,10 +924,15 @@ async function main() {
   });
 
   // Graceful shutdown on Ctrl+C
-  process.on('SIGINT', () => {
+  const shutdown = () => {
     console.log('\n[dashboard-server] Stopping...');
+    closeReportWatcher();
+    for (const client of sseClients) client.end();
+    sseClients.clear();
     server.close(() => process.exit(0));
-  });
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 // Only start the server when executed directly (not when imported by tests).

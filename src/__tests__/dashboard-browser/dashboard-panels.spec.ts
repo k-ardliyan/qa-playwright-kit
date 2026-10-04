@@ -145,17 +145,117 @@ test.describe('dashboard save workflow (analysis gate)', () => {
 });
 
 test.describe('dashboard SSE events', () => {
-  test('/events opens an SSE stream (content-type event-stream)', async ({ page }) => {
+  test('report-updated reloads the current tab without opening another page', async ({ page }) => {
+    await page.addInitScript(() => {
+      const sources: Array<{
+        listeners: Record<string, Array<(event?: { data: string }) => void>>;
+      }> = [];
+      class TestEventSource {
+        listeners: Record<string, Array<(event?: { data: string }) => void>> = {};
+        constructor() {
+          sources.push(this);
+        }
+        addEventListener(name: string, listener: (event?: { data: string }) => void) {
+          (this.listeners[name] ??= []).push(listener);
+        }
+        close() {}
+      }
+      Object.defineProperty(window, 'EventSource', { configurable: true, value: TestEventSource });
+      Object.defineProperty(window, '__testEventSources', { configurable: true, value: sources });
+    });
+
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('heading', { name: 'Quality health' })).toBeVisible();
+    const navigation = page.waitForEvent('framenavigated');
+    await page.evaluate(() => {
+      const sources = (
+        window as unknown as {
+          __testEventSources: Array<{
+            listeners: Record<string, Array<(event?: { data: string }) => void>>;
+          }>;
+        }
+      ).__testEventSources;
+      for (const listener of sources.at(-1)?.listeners['report-updated'] ?? []) listener();
+    });
+    await navigation;
+    await expect(page).toHaveURL(/\/dashboard(?:#\/)?$/);
+    await expect(page.getByRole('heading', { name: 'Quality health' })).toBeVisible();
+    expect(await page.context().pages()).toHaveLength(1);
+  });
+
+  test('a new server instance reloads this tab once after a watch restart', async ({ page }) => {
+    await page.addInitScript(() => {
+      const sources: Array<{
+        listeners: Record<string, Array<(event?: { data: string }) => void>>;
+      }> = [];
+      class TestEventSource {
+        listeners: Record<string, Array<(event?: { data: string }) => void>> = {};
+        constructor() {
+          sources.push(this);
+        }
+        addEventListener(name: string, listener: (event?: { data: string }) => void) {
+          (this.listeners[name] ??= []).push(listener);
+        }
+        close() {}
+      }
+      Object.defineProperty(window, 'EventSource', { configurable: true, value: TestEventSource });
+      Object.defineProperty(window, '__testEventSources', { configurable: true, value: sources });
+    });
+
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('heading', { name: 'Quality health' })).toBeVisible();
+    await page.evaluate(() => {
+      const sources = (
+        window as unknown as {
+          __testEventSources: Array<{
+            listeners: Record<string, Array<(event?: { data: string }) => void>>;
+          }>;
+        }
+      ).__testEventSources;
+      const ready = sources.at(-1)?.listeners['server-ready'] ?? [];
+      for (const listener of ready) listener({ data: JSON.stringify({ instanceId: 'first' }) });
+    });
+
+    const navigation = page.waitForEvent('framenavigated');
+    await page.evaluate(() => {
+      const sources = (
+        window as unknown as {
+          __testEventSources: Array<{
+            listeners: Record<string, Array<(event?: { data: string }) => void>>;
+          }>;
+        }
+      ).__testEventSources;
+      const ready = sources.at(-1)?.listeners['server-ready'] ?? [];
+      for (const listener of ready) listener({ data: JSON.stringify({ instanceId: 'restarted' }) });
+    });
+    await navigation;
+    await expect(page).toHaveURL(/\/dashboard(?:#\/)?$/);
+    expect(await page.context().pages()).toHaveLength(1);
+  });
+
+  test('/events opens an SSE stream and identifies the server instance', async ({ page }) => {
     // Fetch the stream relative to the page origin via an anchor-free request:
     // goto('/') first so location.origin is a real http origin, then check the
     // SSE head and cancel the never-ending body.
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
-    const contentType = await page.evaluate(async () => {
-      const res = await fetch('/events');
-      await res.body?.cancel();
-      return res.headers.get('content-type') ?? '';
+    const result = await page.evaluate(async () => {
+      const response = await fetch('/events');
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let body = '';
+      while (!body.includes('event: server-ready')) {
+        const chunk = await reader?.read();
+        if (!chunk || chunk.done) break;
+        body += decoder.decode(chunk.value, { stream: true });
+      }
+      await reader?.cancel();
+      return { contentType: response.headers.get('content-type') ?? '', body };
     });
-    expect(contentType).toContain('text/event-stream');
+    expect(result.contentType).toContain('text/event-stream');
+    expect(result.body).toContain('event: server-ready');
+    expect(result.body).toMatch(/"instanceId":"[\w-]+"/);
   });
 });

@@ -22,7 +22,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'npx tsx ../src/cli/dashboard-server.ts --port=4567 --no-idle --no-open',
+    command: 'npx tsx ../src/cli/dashboard-server.ts --port=4567 --no-open',
     url: 'http://127.0.0.1:4567/heartbeat',
     reuseExistingServer: false,
     timeout: 30_000,

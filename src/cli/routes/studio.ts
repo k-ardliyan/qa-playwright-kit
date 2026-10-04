@@ -282,10 +282,6 @@ function listen(){
   });
 }
 listen();
-// Keep the idle watchdog fed while this page is open: the studio has no
-// history view to emit heartbeats, so a non-coder filling the form would
-// otherwise lose the server (and any running spec) after 20s.
-setInterval(()=>{fetch('/heartbeat',{method:'POST'}).catch(()=>{})},5000);
 fetch('/api/studio/specs').then(r=>r.json()).then(data=>{
   const list=document.getElementById('speclist');
   const specs=Array.isArray(data)?data:(data&&Array.isArray(data.specs)?data.specs:[]);
