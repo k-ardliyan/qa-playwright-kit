@@ -523,6 +523,15 @@
    5. Accordion view
    ========================================================================== */
 
+/* The parent frame belongs to the table; leaving it around the accordion nests
+   the grouped cards inside an unrelated card surface and clips focus rings. */
+.panel--bleed:has(> #view-accordion.view-panel--active) {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 /* The accordion lives inside the page gutter already, so it must NOT add its
    own padding — that boxed the cards in and made them narrower than the table
    view above them. It is only a vertical stack. */
