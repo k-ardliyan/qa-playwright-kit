@@ -1,0 +1,159 @@
+# Dependencies
+node_modules/
+
+# Per-environment configuration & secrets (never commit real credentials)
+# Create config/environments/{local|dev|staging|production}.env with your credentials.
+# Template examples (*.env.example) are tracked for reference.
+config/environments/*.env
+!config/environments/*.env.example
+environments/*.env
+!environments/*.env.example
+
+# Local active profile pin (written by npm run env:use)
+config/environments/.active-env
+environments/.active-env
+
+# dotenvx encryption keys
+**/.env.keys
+.env.keys
+
+# Env edit & encryption backups (may contain secrets)
+*.env.bak
+config/environments/*.bak
+environments/*.bak
+**/*.env.bak
+**/*.bak
+
+# AI agent local cache & state (not part of release)
+.hermes/
+.agents/
+.claude/
+.gemini/
+.codegraph/
+
+# Consolidated Runtime Artifacts (Hybrid Architecture)
+#
+# `artifacts/test-results/` is intentionally NOT tracked: it is Playwright's
+# `outputDir` and is wiped at the start of every run, so any .gitkeep there is
+# volatile by design. Playwright recreates the directory on demand.
+artifacts/*
+!artifacts/.gitkeep
+!artifacts/reports/
+artifacts/reports/*
+!artifacts/reports/.gitkeep
+!artifacts/selector-catalog/
+artifacts/selector-catalog/*
+!artifacts/selector-catalog/.gitkeep
+!artifacts/blob-report/
+artifacts/blob-report/*
+!artifacts/blob-report/.gitkeep
+
+# Legacy output directories (fallback) — root-anchored so they cannot shadow
+# the canonical `artifacts/<dir>/` exceptions above (the unanchored
+# `test-results/` rule previously re-ignored artifacts/test-results/, making
+# its .gitkeep dead).
+/test-results/
+/playwright-report/
+/blob-report/
+/reports/
+!/reports/.gitkeep
+/selector-catalog/
+!/selector-catalog/.gitkeep
+!/selector-catalog/.meta.json
+
+# Logger output
+logs/
+
+# Auth state cache (login cookies/localStorage per environment)
+.auth/
+
+# Property test transient artifacts
+tests/__property_*/
+src/__tests__/__property_*/
+src/tests/__property_*/
+
+# TypeScript build outputs
+*.tsbuildinfo
+tools/mcp/dist/
+mcp-server/dist/
+
+# Generated platform MCP configs (regenerable via `npm run mcp:config`)
+claude_desktop_config.json
+.cursor/mcp.json
+.kiro/
+.codex/
+
+# Generated capability manifest (generated at build/runtime)
+agent-manifest.json
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+.vscode/settings.json
+.zcode/
+
+# Local debug / temp artifacts
+debug-validator.ts
+*.diff
+
+# Scratch dirs (dashboard-browser seeds, ad-hoc runs)
+.tmp/
+
+# Debug dumps / screenshots / MCP console logs (never commit)
+_rpc*.json
+_rpc*.jsonl
+snack-*.png
+*.mockup-detail.html
+.playwright-mcp/
+tools/scripts/_*.html
+tools/scripts/_*.mjs
+scripts/_*.html
+scripts/_*.mjs
+
+# Playwright visual-test snapshots (platform-specific PNG artifacts)
+**/*.spec.ts-snapshots/
+
+# Compiled env loader for plain node execution in MCP server
+src/utils/*.js
+src/utils/*.d.ts
+
+# Setup wizard state & run pointer (per-machine, not tracked)
+.wizard-state.json
+.latest-run
+
+# Per-project login requirement (written by npm run setup from AUTH_CHALLENGE_MODE)
+requirements/login.md
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+__pycache__/
+site-packages/
+venv/
+coverage/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）
