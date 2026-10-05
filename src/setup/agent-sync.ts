@@ -3,9 +3,10 @@
  *
  * Synchronizes:
  * 1. Project skills (`skills/` -> `.agents/skills/`, plus `.claude/skills/`
- *    only when Claude is installed on this machine) AND QA-owned self-learned
- *    skills (`.learned-skills/*-learned/` -> the same targets, never overwritten
- *    by `npm run upgrade`).
+ *    only when Claude is installed on this machine) — both repo-owned, disposable
+ *    targets. The active Hermes profile skills dir is NEVER written: it is where
+ *    Hermes learns, so mirroring into it would wipe real lessons. Hermes instead
+ *    reads the repo's `skills/` via `hermes skills trust <repo>` (top tier).
  * 2. Cross-platform MCP configs (`.mcp.json` -> `.cursor/`, `.kiro/`,
  *    `claude_desktop_config.json`) — ONLY for clients detected installed.
  *    Hermes reads root `.mcp.json` directly; the standalone
@@ -24,35 +25,66 @@ import { npmSpawn } from './spawn-bin';
 
 export interface AgentSyncResult {
   skillsSynced: string[];
-  /** Self-learned skills mirrored from {@link LEARNED_SKILLS_DIR}. */
-  learnedSkillsSynced: string[];
   /** Clients detected on this machine whose MCP configs were generated. */
   mcpPlatforms: Platform[];
   mcpServerBuilt: boolean;
-  hermesProfileSkillsDir?: string | null;
+  /** Hermes Agent is installed on this machine (its base dir exists). */
+  hermesDetected: boolean;
+  /** Hermes now trusts this repo, so its skills load as the top tier. */
+  hermesTrusted: boolean;
+  /** Exact command to run when the automatic trust step did not succeed. */
+  hermesTrustCommand: string;
   errors: string[];
 }
 
 /**
- * QA-owned self-learned skill zone.
+ * Hermes Agent base dir across platforms (Windows / Linux / macOS).
  *
- * A dot-dir at the repo root, matching the repo's own convention for
- * agent-local state (`.hermes/`, `.agents/`, `.claude/`) — it adds nothing to
- * the visible root listing.
- *
- * Deliberately a SIBLING of `skills/`, never a subdirectory of it: `skills/` is
- * a `FRAMEWORK_PATHS` entry, so `npm run upgrade` overwrites everything inside.
- * Learned skills written here survive every upgrade while the framework pack is
- * refreshed underneath them.
- *
- * Also NOT nested under `.agents/`: that dir is disposable build output, and a
- * learned skill is the one thing here that cannot be regenerated.
+ * The active Hermes PROFILE skills dir lives under here, but we never touch it:
+ * that is where Hermes learns (agent-authored skills + curator state). Writing
+ * there — as the old mirror did — wipes real lessons. We only detect the install
+ * and register the repo as a trusted project so Hermes reads `skills/` itself.
  */
-export const LEARNED_SKILLS_DIR = '.learned-skills';
+export function hermesBaseDir(homeDir: string = os.homedir()): string {
+  const localAppData =
+    process.env.LOCALAPPDATA ||
+    (process.platform === 'win32' ? path.join(homeDir, 'AppData', 'Local') : '');
+  return localAppData ? path.join(localAppData, 'hermes') : path.join(homeDir, '.hermes');
+}
 
-/** Suffix every learned skill directory must carry, so a learned skill is
- * recognizable at a glance and can never be mistaken for framework-owned. */
-export const LEARNED_SKILL_SUFFIX = '-learned';
+/** Hermes Agent is installed on this machine (its base dir exists). */
+export function detectHermesInstall(homeDir: string = os.homedir()): boolean {
+  return fs.existsSync(hermesBaseDir(homeDir));
+}
+
+/** The exact command that makes Hermes load this repo's `skills/` as the top tier. */
+export function hermesTrustCommand(repoRoot: string): string {
+  return `hermes skills trust ${repoRoot}`;
+}
+
+/**
+ * Register *repoRoot* as a Hermes trusted project, so `<repo>/skills/` loads as
+ * the highest-precedence tier (`hermes skills trust`). Idempotent — Hermes no-ops
+ * when the root is already trusted.
+ *
+ * Soft-fails like the MCP build: a missing `hermes` binary or a non-zero exit is
+ * reported (with the manual command) and never aborts setup. Hermes is optional.
+ */
+export type TrustRunner = (repoRoot: string) => { trusted: boolean; error?: string };
+
+function defaultTrustRunner(repoRoot: string): { trusted: boolean; error?: string } {
+  const res = spawnSync('hermes', ['skills', 'trust', repoRoot], {
+    encoding: 'utf-8',
+    shell: true,
+    timeout: 30_000,
+  });
+  if (res.status === 0) return { trusted: true };
+  return {
+    trusted: false,
+    error:
+      res.error?.message ?? res.stderr?.trim() ?? res.stdout?.trim() ?? `exit code ${res.status}`,
+  };
+}
 
 /** Immediate subdirectory names under *dir* (dot-dirs excluded). */
 function listSkillNames(dir: string): string[] {
@@ -61,61 +93,6 @@ function listSkillNames(dir: string): string[] {
     .readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
     .map((d) => d.name);
-}
-
-/**
- * Why a learned skill name is unsafe, or `null` when it is fine.
- *
- * Both rules protect the same thing: a learned skill is mirrored into the same
- * agent dirs as the framework pack, so a name that shadows a framework skill
- * would leave the learned file loaded AS the framework skill — the framework
- * pack silently "forgets" everything an upgrade taught it.
- */
-export function learnedSkillNameError(
-  name: string,
-  frameworkNames: Iterable<string>,
-): string | null {
-  if (!name.endsWith(LEARNED_SKILL_SUFFIX)) {
-    return `learned skill '${name}' must end with '${LEARNED_SKILL_SUFFIX}' (e.g. 'qa-playwright-kit${LEARNED_SKILL_SUFFIX}')`;
-  }
-  if (new Set(frameworkNames).has(name)) {
-    return `learned skill '${name}' collides with a framework skill name — rename it`;
-  }
-  return null;
-}
-
-/**
- * Resolve the active Hermes profile skills directory across platforms (Windows / Linux / macOS).
- */
-export function resolveHermesActiveSkillsDir(): string | null {
-  const localAppData =
-    process.env.LOCALAPPDATA ||
-    (process.platform === 'win32' ? path.join(os.homedir(), 'AppData', 'Local') : '');
-  const hermesBase = localAppData
-    ? path.join(localAppData, 'hermes')
-    : path.join(os.homedir(), '.hermes');
-
-  let profile = process.env.HERMES_PROFILE?.trim();
-  if (!profile) {
-    const activeProfileFile = path.join(hermesBase, 'active_profile');
-    if (fs.existsSync(activeProfileFile)) {
-      profile = fs.readFileSync(activeProfileFile, 'utf8').trim();
-    }
-  }
-
-  if (profile) {
-    const profileSkills = path.join(hermesBase, 'profiles', profile, 'skills');
-    if (fs.existsSync(path.dirname(profileSkills))) {
-      return profileSkills;
-    }
-  }
-
-  const defaultSkills = path.join(hermesBase, 'skills');
-  if (fs.existsSync(hermesBase)) {
-    return defaultSkills;
-  }
-
-  return null;
 }
 
 /**
@@ -158,9 +135,8 @@ export function detectInstalledClients(homeDir: string = os.homedir()): Platform
  * upstream (or a renamed reference) behind in the agent dirs, so the agent would
  * keep loading a file that no longer exists in the repo.
  *
- * Scoped to a single skill dir, NEVER the skills root: the Hermes profile skills
- * dir also holds Hermes' own state (`.hub/`, `.usage.json`, bundled skills), so
- * a root-level wipe there would destroy it.
+ * Scoped to a single skill dir, NEVER a skills root — a root-level wipe would
+ * destroy anything else living beside the skills.
  *
  * A path under *src* that is not a real file is skipped rather than copied — an
  * unresolvable symlink would make `copyFileSync` throw and abort the sync.
@@ -186,8 +162,8 @@ function mirrorSkill(src: string, dest: string): boolean {
  * Drop skill dirs in *targetDir* that *sourceDir* no longer has, so a skill
  * removed or renamed upstream stops loading from the agent dirs.
  *
- * Only ever called for targets the repo fully owns. The Hermes profile skills
- * dir is excluded by the caller: it contains skills the repo never wrote.
+ * Only ever called for targets the repo fully owns (`.agents/skills`,
+ * `.claude/skills`). The Hermes profile skills dir is never a target.
  */
 function pruneStaleSkills(sourceDir: string, targetDir: string): void {
   const current = new Set(listSkillNames(sourceDir));
@@ -270,26 +246,31 @@ export function ensureMcpServerBuild(repoRoot: string = process.cwd()): {
  * @param repoRoot - Repo root (defaults to cwd).
  * @param homeDir  - Home dir used for client detection (defaults to the real one;
  *                   injectable so tests are deterministic).
+ * @param trustRunner - Overrides the Hermes trust step (injectable so tests never
+ *                   spawn the real `hermes` binary).
  */
 export function syncAgentSkillsAndMcp(
   repoRoot: string = process.cwd(),
   homeDir: string = os.homedir(),
+  trustRunner: TrustRunner = defaultTrustRunner,
 ): AgentSyncResult {
   const result: AgentSyncResult = {
     skillsSynced: [],
-    learnedSkillsSynced: [],
     mcpPlatforms: [],
     mcpServerBuilt: false,
+    hermesDetected: false,
+    hermesTrusted: false,
+    hermesTrustCommand: hermesTrustCommand(repoRoot),
     errors: [],
   };
 
   const installedClients = detectInstalledClients(homeDir);
 
-  // 1. Mirror skills. The framework pack (`skills/`) is overwritten in every
-  // target; the QA-owned learned zone (`.learned-skills/`) is added alongside it
-  // and is never a target of `npm run upgrade`, so it survives framework updates.
+  // 1. Mirror the framework pack (`skills/`) into repo-owned, disposable targets
+  // only. The active Hermes profile skills dir is deliberately NOT a target: it
+  // is where Hermes learns, so writing there (as this used to) wiped real
+  // lessons. Hermes reads `skills/` itself once the repo is a trusted project.
   const sourceSkillsDir = path.join(repoRoot, 'skills');
-  const learnedSkillsDir = path.join(repoRoot, LEARNED_SKILLS_DIR);
   const targetAgentSkillsDirs = [
     path.join(repoRoot, '.agents', 'skills'),
     // Claude-only target: writing it when Claude is not installed just leaves
@@ -297,44 +278,34 @@ export function syncAgentSkillsAndMcp(
     ...(installedClients.includes('claude') ? [path.join(repoRoot, '.claude', 'skills')] : []),
   ];
 
-  // Also include active Hermes profile skills dir if available
-  const hermesSkillsDir = resolveHermesActiveSkillsDir();
-  result.hermesProfileSkillsDir = hermesSkillsDir;
-  if (hermesSkillsDir) {
-    targetAgentSkillsDirs.push(hermesSkillsDir);
-  }
-
   try {
     const frameworkNames = listSkillNames(sourceSkillsDir);
-    const learnedNames: string[] = [];
-    for (const name of listSkillNames(learnedSkillsDir)) {
-      const problem = learnedSkillNameError(name, frameworkNames);
-      if (problem) {
-        result.errors.push(`Skipped ${problem}`);
-        continue;
-      }
-      learnedNames.push(name);
-    }
     result.skillsSynced = frameworkNames;
-    result.learnedSkillsSynced = learnedNames;
 
     for (const targetDir of targetAgentSkillsDirs) {
-      // The Hermes profile dir holds Hermes' own skills and state; the repo only
-      // ever adds/overwrites its own entries there, never prunes.
-      if (targetDir !== hermesSkillsDir) {
-        pruneStaleSkills(sourceSkillsDir, targetDir);
-      }
+      pruneStaleSkills(sourceSkillsDir, targetDir);
       for (const name of frameworkNames) {
         mirrorSkill(path.join(sourceSkillsDir, name), path.join(targetDir, name));
-      }
-      for (const name of learnedNames) {
-        mirrorSkill(path.join(learnedSkillsDir, name), path.join(targetDir, name));
       }
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push(`Failed to sync skills: ${msg}`);
     logger.warn(`Failed to sync skills: ${msg}`);
+  }
+
+  // 1b. Register the repo as a Hermes trusted project so Hermes loads `skills/`
+  // as the top tier — no copy, so `npm run setup` can never wipe what Hermes
+  // learned. Soft-fails: Hermes is optional, and the manual command is reported.
+  result.hermesDetected = detectHermesInstall(homeDir);
+  if (result.hermesDetected) {
+    const trust = trustRunner(repoRoot);
+    result.hermesTrusted = trust.trusted;
+    if (!trust.trusted) {
+      logger.warn(
+        `Hermes project trust skipped: ${trust.error}. Run manually: ${result.hermesTrustCommand}`,
+      );
+    }
   }
 
   // 2. Generate MCP configs — only for clients actually installed here.

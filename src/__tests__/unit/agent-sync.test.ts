@@ -5,8 +5,22 @@ import * as path from 'path';
 import {
   syncAgentSkillsAndMcp,
   detectInstalledClients,
-  LEARNED_SKILLS_DIR,
+  detectHermesInstall,
+  hermesTrustCommand,
+  hermesBaseDir,
+  type TrustRunner,
 } from '@/setup/agent-sync';
+
+/** Records trust calls and succeeds, so tests never spawn the real `hermes`. */
+function fakeTrust(trusted = true): TrustRunner & { calls: string[] } {
+  const calls: string[] = [];
+  const runner = ((repoRoot: string) => {
+    calls.push(repoRoot);
+    return { trusted };
+  }) as TrustRunner & { calls: string[] };
+  runner.calls = calls;
+  return runner;
+}
 
 test.describe('syncAgentSkillsAndMcp', () => {
   let tempRepo: string;
@@ -15,9 +29,8 @@ test.describe('syncAgentSkillsAndMcp', () => {
 
   test.beforeEach(() => {
     tempRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sync-test-'));
-    // Isolate the Hermes target too: resolveHermesActiveSkillsDir() reads
-    // LOCALAPPDATA, so without this the sync writes test skills into the real
-    // ~/.hermes/skills of whoever runs the suite.
+    // Isolate the Hermes install probe too: detectHermesInstall() reads
+    // LOCALAPPDATA, so without this the suite would consult the real ~/.hermes.
     tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sync-localappdata-'));
     origLocalAppData = process.env.LOCALAPPDATA;
     process.env.LOCALAPPDATA = tempHome;
@@ -62,7 +75,7 @@ test.describe('syncAgentSkillsAndMcp', () => {
     fs.mkdirSync(path.join(fakeHome, '.claude'), { recursive: true });
 
     try {
-      const result = syncAgentSkillsAndMcp(tempRepo, fakeHome);
+      const result = syncAgentSkillsAndMcp(tempRepo, fakeHome, fakeTrust());
 
       expect(result.skillsSynced).toContain('test-skill');
       expect(result.mcpPlatforms.sort()).toEqual(['claude', 'cursor']);
@@ -88,9 +101,6 @@ test.describe('syncAgentSkillsAndMcp', () => {
       expect(fs.existsSync(path.join(tempRepo, '.kiro', 'mcp.json'))).toBe(false);
       expect(fs.existsSync(path.join(tempRepo, '.codex', 'config.toml'))).toBe(false);
       expect(fs.existsSync(path.join(tempRepo, 'claude_desktop_config.json'))).toBe(true);
-
-      // Verify Hermes skills detection property exists on result
-      expect('hermesProfileSkillsDir' in result).toBe(true);
     } finally {
       fs.rmSync(fakeHome, { recursive: true, force: true });
     }
@@ -107,7 +117,7 @@ test.describe('syncAgentSkillsAndMcp', () => {
 
     const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sync-empty-home-'));
     try {
-      const result = syncAgentSkillsAndMcp(tempRepo, emptyHome);
+      const result = syncAgentSkillsAndMcp(tempRepo, emptyHome, fakeTrust());
 
       expect(result.mcpPlatforms).toEqual([]);
       expect(result.errors).toHaveLength(0);
@@ -131,68 +141,68 @@ test.describe('syncAgentSkillsAndMcp', () => {
     }
   });
 
-  test('resolves active Hermes profile skills dir when hermes base exists', () => {
-    const origEnv = process.env.LOCALAPPDATA;
-    try {
-      process.env.LOCALAPPDATA = tempRepo;
-      // create <tempRepo>/hermes/active_profile
-      const hermesDir = path.join(tempRepo, 'hermes');
-      fs.mkdirSync(path.join(hermesDir, 'profiles', 'custom-qa', 'skills'), { recursive: true });
-      fs.writeFileSync(path.join(hermesDir, 'active_profile'), 'custom-qa', 'utf8');
+  test('never writes into the Hermes profile skills dir', () => {
+    // The profile skills dir is where Hermes learns (agent-authored skills +
+    // curator state). The sync must never create or touch it — that is the whole
+    // point of trusting the repo instead of copying.
+    const hermesSkills = path.join(tempHome, 'hermes', 'skills');
+    fs.mkdirSync(path.join(hermesSkills, 'learned-skill'), { recursive: true });
+    fs.writeFileSync(
+      path.join(hermesSkills, 'learned-skill', 'SKILL.md'),
+      '# Hermes own lesson',
+      'utf-8',
+    );
 
-      const { resolveHermesActiveSkillsDir } = require('@/setup/agent-sync');
-      const resolved = resolveHermesActiveSkillsDir();
-      expect(resolved).toContain('custom-qa');
-    } finally {
-      process.env.LOCALAPPDATA = origEnv;
-    }
-  });
-
-  test('mirrors .learned-skills/*-learned next to the framework pack', () => {
     fs.mkdirSync(path.join(tempRepo, 'skills', 'framework-skill'), { recursive: true });
     fs.writeFileSync(path.join(tempRepo, 'skills', 'framework-skill', 'SKILL.md'), '# F', 'utf-8');
-    fs.mkdirSync(path.join(tempRepo, LEARNED_SKILLS_DIR, 'framework-skill-learned'), {
-      recursive: true,
-    });
-    fs.writeFileSync(
-      path.join(tempRepo, LEARNED_SKILLS_DIR, 'framework-skill-learned', 'SKILL.md'),
-      '# Learned',
-      'utf-8',
+
+    syncAgentSkillsAndMcp(tempRepo, tempHome, fakeTrust());
+
+    // The lesson survives byte-for-byte, and no framework copy is planted beside it.
+    expect(fs.readFileSync(path.join(hermesSkills, 'learned-skill', 'SKILL.md'), 'utf-8')).toBe(
+      '# Hermes own lesson',
     );
-
-    const result = syncAgentSkillsAndMcp(tempRepo, os.homedir());
-
-    expect(result.skillsSynced).toEqual(['framework-skill']);
-    expect(result.learnedSkillsSynced).toEqual(['framework-skill-learned']);
-    const learned = path.join(tempRepo, '.agents', 'skills', 'framework-skill-learned', 'SKILL.md');
-    expect(fs.readFileSync(learned, 'utf-8')).toBe('# Learned');
+    expect(fs.existsSync(path.join(hermesSkills, 'framework-skill'))).toBe(false);
+    expect(fs.existsSync(path.join(hermesSkills, 'qa-playwright-kit'))).toBe(false);
   });
 
-  test('a learned skill cannot shadow a framework skill name', () => {
+  test('trusts the repo when Hermes is installed, with the exact command', () => {
+    fs.mkdirSync(path.join(tempHome, 'hermes'), { recursive: true });
     fs.mkdirSync(path.join(tempRepo, 'skills', 'framework-skill'), { recursive: true });
     fs.writeFileSync(path.join(tempRepo, 'skills', 'framework-skill', 'SKILL.md'), '# F', 'utf-8');
-    // Same name as the framework skill → refused, framework copy wins.
-    fs.mkdirSync(path.join(tempRepo, LEARNED_SKILLS_DIR, 'framework-skill'), { recursive: true });
-    fs.writeFileSync(
-      path.join(tempRepo, LEARNED_SKILLS_DIR, 'framework-skill', 'SKILL.md'),
-      '# Shadow attempt',
-      'utf-8',
-    );
-    // Wrong suffix → refused too.
-    fs.mkdirSync(path.join(tempRepo, LEARNED_SKILLS_DIR, 'no-suffix'), { recursive: true });
-    fs.writeFileSync(
-      path.join(tempRepo, LEARNED_SKILLS_DIR, 'no-suffix', 'SKILL.md'),
-      '# x',
-      'utf-8',
-    );
 
-    const result = syncAgentSkillsAndMcp(tempRepo, os.homedir());
+    const trust = fakeTrust(true);
+    const result = syncAgentSkillsAndMcp(tempRepo, tempHome, trust);
 
-    expect(result.learnedSkillsSynced).toEqual([]);
-    expect(result.errors).toHaveLength(2);
-    const synced = path.join(tempRepo, '.agents', 'skills', 'framework-skill', 'SKILL.md');
-    expect(fs.readFileSync(synced, 'utf-8')).toBe('# F');
-    expect(fs.existsSync(path.join(tempRepo, '.agents', 'skills', 'no-suffix'))).toBe(false);
+    expect(result.hermesDetected).toBe(true);
+    expect(result.hermesTrusted).toBe(true);
+    expect(trust.calls).toEqual([tempRepo]);
+    expect(result.hermesTrustCommand).toBe(`hermes skills trust ${tempRepo}`);
+  });
+
+  test('reports the manual command when automatic trust fails', () => {
+    fs.mkdirSync(path.join(tempHome, 'hermes'), { recursive: true });
+    fs.mkdirSync(path.join(tempRepo, 'skills', 'framework-skill'), { recursive: true });
+    fs.writeFileSync(path.join(tempRepo, 'skills', 'framework-skill', 'SKILL.md'), '# F', 'utf-8');
+
+    const result = syncAgentSkillsAndMcp(tempRepo, tempHome, fakeTrust(false));
+
+    expect(result.hermesDetected).toBe(true);
+    expect(result.hermesTrusted).toBe(false);
+    // Soft-fail: still a reported command, never an abort.
+    expect(result.hermesTrustCommand).toContain('hermes skills trust');
+  });
+
+  test('skips the trust step entirely when Hermes is absent', () => {
+    fs.mkdirSync(path.join(tempRepo, 'skills', 'framework-skill'), { recursive: true });
+    fs.writeFileSync(path.join(tempRepo, 'skills', 'framework-skill', 'SKILL.md'), '# F', 'utf-8');
+
+    const trust = fakeTrust(true);
+    const result = syncAgentSkillsAndMcp(tempRepo, tempHome, trust);
+
+    expect(result.hermesDetected).toBe(false);
+    expect(result.hermesTrusted).toBe(false);
+    expect(trust.calls).toEqual([]);
   });
 
   test('mirror replaces stale files instead of merging', () => {
@@ -208,40 +218,21 @@ test.describe('syncAgentSkillsAndMcp', () => {
     fs.mkdirSync(path.dirname(stale), { recursive: true });
     fs.writeFileSync(stale, '# gone upstream', 'utf-8');
 
-    syncAgentSkillsAndMcp(tempRepo, os.homedir());
+    syncAgentSkillsAndMcp(tempRepo, tempHome, fakeTrust());
 
     expect(fs.existsSync(stale)).toBe(false);
   });
 
-  test('never prunes unrelated skills out of the Hermes profile skills dir', () => {
-    // The Hermes profile skills dir is shared with Hermes' own install: bundled
-    // skills, .hub/ state, .usage.json. A root-level wipe there would destroy it.
-    process.env.LOCALAPPDATA = tempRepo;
-    const hermesSkills = path.join(tempRepo, 'hermes', 'skills');
-    fs.mkdirSync(path.join(hermesSkills, 'bundled-hermes-skill'), { recursive: true });
-    fs.writeFileSync(
-      path.join(hermesSkills, 'bundled-hermes-skill', 'SKILL.md'),
-      '# Hermes own',
-      'utf-8',
-    );
-    fs.writeFileSync(path.join(hermesSkills, '.usage.json'), '{}', 'utf-8');
-
-    fs.mkdirSync(path.join(tempRepo, 'skills', 'framework-skill'), { recursive: true });
-    fs.writeFileSync(path.join(tempRepo, 'skills', 'framework-skill', 'SKILL.md'), '# F', 'utf-8');
-
-    syncAgentSkillsAndMcp(tempRepo, os.homedir());
-
-    expect(
-      fs.readFileSync(path.join(hermesSkills, 'bundled-hermes-skill', 'SKILL.md'), 'utf-8'),
-    ).toBe('# Hermes own');
-    expect(fs.existsSync(path.join(hermesSkills, '.usage.json'))).toBe(true);
-    expect(fs.existsSync(path.join(hermesSkills, 'framework-skill', 'SKILL.md'))).toBe(true);
+  test('hermesTrustCommand and hermesBaseDir resolve per platform', () => {
+    expect(hermesTrustCommand('/tmp/repo')).toBe('hermes skills trust /tmp/repo');
+    expect(hermesBaseDir(tempHome)).toBe(path.join(tempHome, 'hermes'));
+    // With LOCALAPPDATA set (as in the fixture), the base dir follows it.
+    expect(hermesBaseDir('/somewhere/else')).toBe(path.join(tempHome, 'hermes'));
   });
 
-  test('learnedSkillNameError enforces suffix and collision rules', () => {
-    const { learnedSkillNameError } = require('@/setup/agent-sync');
-    expect(learnedSkillNameError('kit-learned', ['kit'])).toBeNull();
-    expect(learnedSkillNameError('kit', ['kit'])).toContain('-learned');
-    expect(learnedSkillNameError('kit-learned', ['kit-learned'])).toContain('collides');
+  test('detectHermesInstall is true only when the Hermes base dir exists', () => {
+    expect(detectHermesInstall(tempHome)).toBe(false);
+    fs.mkdirSync(path.join(tempHome, 'hermes'), { recursive: true });
+    expect(detectHermesInstall(tempHome)).toBe(true);
   });
 });

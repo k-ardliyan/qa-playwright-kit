@@ -35,6 +35,17 @@ import {
 } from '../framework-upgrade';
 import { generateAuthSetupContent } from '../wizard-auth-template';
 
+// Isolate the Hermes install probe for the WHOLE harness. `runUpgrade` runs the
+// real skill sync, which detects Hermes via LOCALAPPDATA; without this, the
+// integration runs would register their throwaway temp repos in the developer's
+// real ~/.hermes/config.yaml (trusted_project_dirs). Pointing LOCALAPPDATA at an
+// empty temp dir makes detectHermesInstall() false → no trust spawn, no writes.
+const isolatedLocalAppData = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-upgrade-hermes-'));
+process.env.LOCALAPPDATA = isolatedLocalAppData;
+process.on('exit', () => {
+  fs.rmSync(isolatedLocalAppData, { recursive: true, force: true });
+});
+
 let passed = 0;
 
 function check(name: string, fn: () => void): void {
@@ -89,10 +100,10 @@ check('inFrameworkZone: framework yes, QA-owned no', () => {
   assert.equal(inFrameworkZone('requirements/user-qa.md'), false);
   assert.equal(inFrameworkZone('tests/mine.spec.ts'), false);
   assert.equal(inFrameworkZone('specs/checkout-test-plan.md'), false);
-  // Self-learned skills must never be an upgrade target: skills/ IS in the zone
-  // (overwritten), .learned-skills/ is the QA-owned survivor beside it.
+  // The framework pack ships in the zone (refreshed by upgrade). Hermes learns
+  // outside the repo entirely (~/.hermes/skills), so no repo path is a learned
+  // zone and nothing the kit writes can overwrite a Hermes lesson.
   assert.equal(inFrameworkZone('skills/qa-playwright-kit/SKILL.md'), true);
-  assert.equal(inFrameworkZone('.learned-skills/qa-playwright-kit-learned/SKILL.md'), false);
 });
 
 check('computeZoneDiff splits updated / deleted / outside', () => {

@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Skill hasil belajar Hermes tidak lagi terhapus oleh `npm run setup` — 2026-10-05
+
+Dilaporkan maintainer: skill yang sudah "ditraining" hilang total setelah setup — kembali ke nol.
+
+- **Akar masalah:** pelakunya bukan `npm run upgrade` (perintah itu hanya menimpa `FRAMEWORK_PATHS` di dalam repo). Yang menghapus adalah `npm run setup` lewat `mirrorSkill` di `src/setup/agent-sync.ts` — `fs.rmSync(dest, { recursive: true, force: true })` lalu salin ulang dari repo — dan direktori skill profil Hermes (`~/.hermes/skills/`) ikut masuk daftar target. Padahal direktori itu **tempat Hermes benar-benar belajar**: ledger Hermes (`~/.hermes/skills/.curator_ledger.jsonl`) mencatat beberapa patch agen pada skill `qa-playwright-kit` di sana, dan semuanya tertimpa (hash `SKILL.md` profil identik dengan salinan repo). Ironi: `tools/skills_sync.py` milik Hermes sendiri sudah **melewati** skill yang dimodifikasi pengguna (origin-hash), tapi lapisan mirror repo justru selalu menimpa.
+- **Fix:** kit berhenti menyalin ke direktori profil Hermes sama sekali. `resolveHermesActiveSkillsDir()` dihapus; `syncAgentSkillsAndMcp` hanya menyalin `skills/` ke target milik repo (`.agents/skills/`, `.claude/skills/` bila Claude terpasang). Hermes menemukan skill framework lewat mekanisme native-nya — `hermes skills trust <repo>` (dijalankan otomatis saat setup, idempoten, soft-fail dengan perintah manual bila `hermes` tak ada), yang memuat `skills/` sebagai tier tertinggi tanpa copy. Hasil sync kini melaporkan `hermesDetected` / `hermesTrusted` / `hermesTrustCommand`; wizard mencetak status trust.
+- **Zona `.learned-skills/` dihapus.** Skill hasil belajar sepenuhnya milik Hermes di `~/.hermes/skills/` (auto-curated: stale/archived/usage) dan tidak pernah disentuh kit. Konvensi `-learned`, `learnedSkillNameError`, entri `.gitignore`, dan entri skip `format-markdown` ikut dibuang; `AGENTS.md` menjelaskan model baru.
+- **Verifikasi:** 10 unit test `agent-sync` (termasuk "tidak pernah menulis ke direktori profil Hermes", trust berhasil/gagal, skip saat Hermes absen) dan 17 check harness `framework-upgrade` hijau. Harness upgrade kini mengisolasi `LOCALAPPDATA` agar `runUpgrade` tidak pernah mendaftarkan repo temp-nya ke `~/.hermes/config.yaml` asli (regresi yang tertangkap dan dibersihkan saat pengembangan). Probe manual: hash `~/.hermes/skills/qa-playwright-kit/SKILL.md` tidak berubah setelah `npm run setup`.
+
 ### MCP `playwright` mati total bila path repo mengandung spasi — 2026-10-01
 
 Dilaporkan QA (Windows 11): server MCP `playwright` tidak pernah connect, 48 tool `browser_*` hilang, host reconnect terus tanpa pesan yang menunjuk penyebab.

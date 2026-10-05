@@ -56,7 +56,6 @@ import {
 
 import { validateSetup, type ValidationResult } from './wizard-validate';
 import type { AgentSyncResult } from './agent-sync';
-import { LEARNED_SKILLS_DIR } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
 import { copyText } from './prompt-dialog';
 import { verifySetupArtifacts, authSessionStatus, type SetupCheck } from './verify-setup';
@@ -467,6 +466,21 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
       ),
     );
   }
+  if (agentSync.hermesDetected) {
+    stepLine(
+      agentSync.hermesTrusted
+        ? t(
+            lang,
+            '✓ Hermes: project skills dipercaya (skills/ dimuat sebagai tier tertinggi)',
+            '✓ Hermes: project skills trusted (skills/ loads as the top tier)',
+          )
+        : t(
+            lang,
+            `ℹ Hermes: trust manual belum berhasil — jalankan: ${agentSync.hermesTrustCommand}`,
+            `ℹ Hermes: automatic trust did not succeed — run: ${agentSync.hermesTrustCommand}`,
+          ),
+    );
+  }
   if (agentSync.mcpPlatforms.length > 0) {
     stepLine(
       t(
@@ -557,7 +571,7 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     configValid: validation.valid,
     skillsSynced: agentSync.skillsSynced.length > 0,
     mcpPlatforms: agentSync.mcpPlatforms,
-    hermesDetected: agentSync.hermesProfileSkillsDir != null,
+    hermesDetected: agentSync.hermesDetected,
   });
   verifySpin?.stop(t(lang, 'Artefak diverifikasi.', 'Artifacts verified.'));
   printChecklist(checks.map(toChecklistItem));
@@ -844,12 +858,13 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
     `   ${t(lang, 'Role siap', 'Roles ready')}: ${sessions.ready.join(', ') || t(lang, 'tidak ada', 'none')}`,
   );
   if (agentSync.skillsSynced.length > 0) {
-    const dest = agentSync.hermesProfileSkillsDir ? ` (${agentSync.hermesProfileSkillsDir})` : '';
-    console.log(`   Skills synced: ${agentSync.skillsSynced.join(', ')}${dest}`);
+    console.log(`   Skills synced: ${agentSync.skillsSynced.join(', ')}`);
   }
-  if (agentSync.learnedSkillsSynced.length > 0) {
+  if (agentSync.hermesDetected) {
     console.log(
-      `   ${t(lang, 'Skill hasil belajar', 'Learned skills')}: ${agentSync.learnedSkillsSynced.join(', ')} (${LEARNED_SKILLS_DIR}/)`,
+      agentSync.hermesTrusted
+        ? `   Hermes: project skills trusted (skills/ loads as the top tier)`
+        : `   Hermes: run \`${agentSync.hermesTrustCommand}\` to load skills/ as the top tier`,
     );
   }
   for (const error of agentSync.errors) {
@@ -999,7 +1014,7 @@ async function printSummary(data: {
     stepLine(`  ${t(lang, 'Requirement', 'Requirement')}: ${data.loginRequirementPath}`);
   }
 
-  const hermesDetected = data.agentSync?.hermesProfileSkillsDir != null;
+  const hermesDetected = data.agentSync?.hermesDetected ?? false;
   if (data.loginRequirementPath && data.loginMarkdown && data.loginRequirementValidation?.valid) {
     if (!hermesDetected) {
       const hermesBorder = '─'.repeat(70);
