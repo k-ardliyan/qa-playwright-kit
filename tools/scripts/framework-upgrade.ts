@@ -24,6 +24,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { parseArgs } from 'node:util';
 import { EXIT, type ExitCode } from './exit-codes';
 import { printOk, printWarn, printInfo, printStep } from './format-error';
 import { npmCommand } from '../../src/setup/spawn-bin';
@@ -402,24 +403,34 @@ export interface UpgradeOptions {
 }
 
 export function parseUpgradeArgs(argv: string[]): UpgradeOptions | null {
-  const options: UpgradeOptions = { checkOnly: false, source: DEFAULT_SOURCE, ref: DEFAULT_REF };
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === '--check') {
-      options.checkOnly = true;
-    } else if (arg === '--source' && argv[i + 1]) {
-      options.source = argv[i + 1];
-      i += 1;
-    } else if (arg === '--ref' && argv[i + 1]) {
-      options.ref = argv[i + 1];
-      i += 1;
-    } else if (arg === '--help' || arg === '-h') {
-      return null;
-    } else {
-      throw new UpgradeError(`Argumen tidak dikenal: ${arg}`);
-    }
+  let parsed: ReturnType<typeof parseUpgradeCliArgs>;
+  try {
+    parsed = parseUpgradeCliArgs(argv);
+  } catch (err) {
+    throw new UpgradeError(err instanceof Error ? err.message : String(err));
   }
-  return options;
+
+  if (parsed.values.help) return null;
+
+  return {
+    checkOnly: parsed.values.check ?? false,
+    source: parsed.values.source ?? DEFAULT_SOURCE,
+    ref: parsed.values.ref ?? DEFAULT_REF,
+  };
+}
+
+function parseUpgradeCliArgs(argv: string[]) {
+  return parseArgs({
+    args: argv,
+    options: {
+      check: { type: 'boolean', default: false },
+      source: { type: 'string' },
+      ref: { type: 'string' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
 }
 
 export function printUpgradeHelp(): void {

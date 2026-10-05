@@ -4,6 +4,28 @@
 
 import { type WizardLang, t } from '../../src/setup/i18n';
 
+/**
+ * Fold decorative Unicode to ASCII.
+ *
+ * The prompt is written to stdout, which on Windows `cmd.exe` runs under code
+ * page 437/850 — so a UTF-8 arrow/em-dash byte pair renders as mojibake
+ * (`→` becomes `ΓåÆ`, `—` becomes `ΓÇö`) when QA copies it into the agent chat.
+ * The prompt is prose, not a UI, so keeping it pure ASCII removes terminal
+ * encoding from the equation entirely instead of patching the code page.
+ */
+export function toAscii(text: string): string {
+  return text
+    .replace(/\u2192/g, '->') // → rightwards arrow
+    .replace(/\u2190/g, '<-') // ← leftwards arrow
+    .replace(/\u21d2/g, '=>') // ⇒
+    .replace(/[\u2014\u2013]/g, '-') // — em dash, – en dash
+    .replace(/[\u2018\u2019]/g, "'") // curly single quotes
+    .replace(/[\u201c\u201d]/g, '"') // curly double quotes
+    .replace(/\u2026/g, '...') // … ellipsis
+    .replace(/\u2022/g, '*') // • bullet (only at line start matters, harmless elsewhere)
+    .replace(/\u00a0/g, ' '); // non-breaking space
+}
+
 /** Lightweight metadata from requirement markdown for prompt tailoring. */
 export function parseRequirementPromptHints(markdown: string): {
   authState: 'authenticated' | 'unauthenticated' | 'unknown';
@@ -260,5 +282,5 @@ export function buildAgentPrompt(
     reporting,
   ];
 
-  return `${sections.join('\n\n')}\n`;
+  return toAscii(`${sections.join('\n\n')}\n`);
 }

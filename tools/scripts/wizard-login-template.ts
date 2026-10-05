@@ -17,6 +17,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ChallengeMode } from '../../src/support/human-challenge';
+import { canonicalRoleName, roleToEnvPrefix } from '../../src/shared/utils/role-credentials';
 import { formScenarios, ssoScenarios, noneScenarios } from './wizard-login-scenarios';
 
 export type LoginMechanism = 'form' | 'sso' | 'none';
@@ -63,14 +64,11 @@ const CHALLENGE_REQ_ID: Record<ChallengeMode, string> = {
 };
 
 export function canonicalRole(name: string): string {
-  const n = name.trim().toLowerCase();
-  if (n === 'default' || n === 'general' || n === '') return 'user';
-  return n;
+  return canonicalRoleName(name);
 }
 
 export function envPrefixFor(role: RoleSpec): string {
-  const n = canonicalRole(role.name);
-  return n === 'user' ? 'TEST_USER' : n.toUpperCase().replace(/-/g, '_');
+  return roleToEnvPrefix(role.name);
 }
 
 function resolveChallenge(state: LoginTemplateState): ChallengeMode {

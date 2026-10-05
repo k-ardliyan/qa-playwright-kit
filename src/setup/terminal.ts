@@ -10,6 +10,7 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
+import { quoteAppleScriptPath, quoteCmdPath, quotePosixPath } from './spawn-bin';
 
 export function buildTerminalCommand(
   repoRoot: string,
@@ -20,7 +21,7 @@ export function buildTerminalCommand(
     // start "" cmd /k "cd /d <path> && <cli>"
     // The first quoted token is the window title (empty string = no title ambiguity).
     // Using windowsVerbatimArguments prevents Node from re-escaping quotes to \".
-    const fullCmd = `start "" cmd /k "cd /d "${repoRoot}" && ${cli}"`;
+    const fullCmd = `start "" cmd /k "cd /d ${quoteCmdPath(repoRoot)} && ${cli}"`;
     return {
       command: 'cmd.exe',
       args: ['/c', fullCmd],
@@ -32,13 +33,13 @@ export function buildTerminalCommand(
       command: 'osascript',
       args: [
         '-e',
-        `tell application "Terminal" to do script "cd " & quoted form of "${repoRoot}" & " && ${cli}"`,
+        `tell application "Terminal" to do script "cd " & quoted form of "${quoteAppleScriptPath(repoRoot)}" & " && ${cli}"`,
       ],
     };
   }
   return {
     command: 'gnome-terminal',
-    args: ['--', 'bash', '-c', `cd '${repoRoot}' && ${cli}; exec bash`],
+    args: ['--', 'bash', '-c', `cd ${quotePosixPath(repoRoot)} && ${cli}; exec bash`],
   };
 }
 
@@ -66,7 +67,7 @@ function linuxAlternatives(
   repoRoot: string,
   cli: string,
 ): Array<{ command: string; args: string[] }> {
-  const script = `cd '${repoRoot}' && ${cli}; exec bash`;
+  const script = `cd ${quotePosixPath(repoRoot)} && ${cli}; exec bash`;
   return [
     { command: 'konsole', args: ['-e', 'bash', '-c', script] },
     { command: 'xfce4-terminal', args: ['-e', 'bash', '-c', script] },

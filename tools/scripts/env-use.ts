@@ -12,7 +12,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import prompts from 'prompts';
+import { abortIfCancelled, isInteractive, select } from '../../src/setup/prompts/clack';
 import {
   isKnownAppEnv,
   writeActiveEnvPin,
@@ -61,27 +61,15 @@ function printHelp(): void {
 }
 
 async function pickAppEnv(): Promise<string | null> {
-  if (!process.stdin.isTTY) return null;
-  process.stdout.write('\n');
-  KNOWN_APP_ENVS.forEach((env, i) => {
-    process.stdout.write(`  ${i + 1}. ${env}\n`);
-  });
-  const { value } = await prompts({
-    type: 'text',
-    name: 'value',
-    message: `Pilih environment — ketik angka 1-${KNOWN_APP_ENVS.length} lalu Enter`,
-    initial: '1',
-    validate: (raw: string) => {
-      const n = Number(String(raw).trim());
-      if (!Number.isInteger(n) || n < 1 || n > KNOWN_APP_ENVS.length) {
-        return `Masukkan angka 1-${KNOWN_APP_ENVS.length}`;
-      }
-      return true;
-    },
-  });
-  if (value == null) return null;
-  const n = Number(String(value).trim());
-  return KNOWN_APP_ENVS[n - 1] ?? null;
+  if (!isInteractive()) return null;
+  const chosen = abortIfCancelled(
+    await select<string>({
+      message: 'Pilih environment / Choose an environment',
+      options: [...KNOWN_APP_ENVS].map((env) => ({ value: env, label: env })),
+    }),
+    'Dibatalkan.',
+  );
+  return chosen;
 }
 
 async function main(): Promise<void> {

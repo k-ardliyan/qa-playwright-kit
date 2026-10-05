@@ -13,7 +13,7 @@
  */
 
 import { encodeEnvValue } from './env-text';
-import { ROLE_KEY_RE, ROLE_SUFFIXES } from '../shared/utils/role-credentials';
+import { envPrefixToRole, ROLE_KEY_RE, ROLE_SUFFIXES } from '../shared/utils/role-credentials';
 
 /**
  * Non-secret defaults a fresh env file starts with (mirror the active keys
@@ -43,12 +43,6 @@ const BROWSER_KEYS = ['HEADLESS', 'SLOW_MO'];
 
 /** Key prefixes shown under "Playwright". */
 const PLAYWRIGHT_PREFIX = 'PLAYWRIGHT_';
-
-/** Role display name from env prefix. TEST_USER → user, SUPER_ADMIN → super-admin. */
-function prefixToRoleName(prefix: string): string {
-  if (prefix === 'TEST_USER') return 'user';
-  return prefix.toLowerCase().replace(/_/g, '-');
-}
 
 function sectionHeader(title: string): string {
   return `# ── ${title} ${'─'.repeat(Math.max(2, 52 - title.length))}`;
@@ -147,7 +141,7 @@ export function buildCleanEnvContent(opts: {
   if (urlSection) blocks.push(urlSection);
 
   for (const prefix of rolePrefixes) {
-    const section = renderSection(`Role: ${prefixToRoleName(prefix)}`, roles.get(prefix)!, active);
+    const section = renderSection(`Role: ${envPrefixToRole(prefix)}`, roles.get(prefix)!, active);
     if (section) blocks.push(section);
   }
 

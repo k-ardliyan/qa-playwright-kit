@@ -96,6 +96,32 @@ export function resolveNpmCli(execPath: string = process.execPath): string | nul
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
+// ─── Shell-string path quoting ───────────────────────────────────────────────
+//
+// Terminal-launcher commands embed the repo path inside a `cmd.exe` / `bash -c`
+// / AppleScript string. Left raw, a path containing the platform's quote char
+// (`"` on Windows, `'` on POSIX) closes the quote early and the rest of the
+// command is mis-parsed — silently, on a machine whose only sin is an unusual
+// install path. Each helper targets exactly one shell's escaping rules.
+
+/**
+ * Quote a path for `cmd.exe` (Windows `start "" cmd /k "cd /d <path> && …"`).
+ * Doubles every internal `"` — the cmd.exe escape — and wraps in quotes.
+ */
+export function quoteCmdPath(p: string): string {
+  return `"${p.replace(/"/g, '""')}"`;
+}
+
+/** Quote a path for a POSIX shell single-quoted context: `'` → `'\''`. */
+export function quotePosixPath(p: string): string {
+  return `'${p.replace(/'/g, `'\\''`)}'`;
+}
+
+/** Escape a path for an AppleScript double-quoted literal: `\` and `"`. */
+export function quoteAppleScriptPath(p: string): string {
+  return p.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 /**
  * Portable spawn descriptor for npm: `[process.execPath, [npmCli, ...args]]`
  * when npm's JS entry is resolvable, else the platform command with a shell.
@@ -108,4 +134,30 @@ export function npmSpawn(
   const cli = resolveNpmCli(execPath);
   if (cli) return { command: execPath, args: [cli, ...args], shell: false };
   return binSpawn(npmCommand(), args);
+}
+
+/**
+ * Absolute path to npx's own JS entry, next to the running Node binary.
+ * Returns null when the layout is unknown (then callers fall back to `npx.cmd`).
+ */
+export function resolveNpxCli(execPath: string = process.execPath): string | null {
+  const candidates = [
+    path.join(path.dirname(execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js'),
+    path.join(path.dirname(execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npx-cli.js'),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
+/**
+ * Portable spawn descriptor for npx — same rationale as npmSpawn(). Prefers
+ * `[process.execPath, [npxCli, ...args]]` (no shell) and only falls back to the
+ * `npx.cmd` + shell shape when the JS entry cannot be located.
+ */
+export function npxSpawn(
+  args: string[],
+  execPath: string = process.execPath,
+): { command: string; args: string[]; shell: boolean } {
+  const cli = resolveNpxCli(execPath);
+  if (cli) return { command: execPath, args: [cli, ...args], shell: false };
+  return binSpawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args);
 }

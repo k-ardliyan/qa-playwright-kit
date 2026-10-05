@@ -13,14 +13,17 @@ import {
   isValidAppPathInput,
   challengeModeChoices,
   normalizeCompanyCode,
+  promptAppEnv,
+  promptBaseUrl,
+  promptRoles,
+  promptChallengeMode,
+  BACK,
+  PREV,
 } from '@/setup/wizard-prompts';
+import { authSetupScript } from '@/setup/tasks/auth-session';
 import { browsersDir, hasChromiumInstalled, buildInstallCommand } from '@/setup/browser-check';
 import { buildTerminalCommand } from '@/setup/terminal';
-import {
-  buildClipboardCommand,
-  buildDialogCommand,
-  buildXclipCommand,
-} from '@/setup/prompt-dialog';
+import { buildClipboardCommand, buildXclipCommand } from '@/setup/prompt-dialog';
 import {
   buildAgentPrompt,
   parseRequirementPromptHints,
@@ -807,16 +810,58 @@ test('clipboard command is clip/pbcopy/wl-copy by OS', () => {
   expect(buildClipboardCommand('hi', 'win32')).toMatchObject({ command: 'clip.exe', input: 'hi' });
   expect(buildClipboardCommand('hi', 'darwin')).toMatchObject({ command: 'pbcopy', input: 'hi' });
   expect(buildClipboardCommand('hi', 'linux')!.command).toBe('wl-copy');
+  expect(buildXclipCommand('x').args).toEqual(['-selection', 'clipboard']);
 });
 
-test('dialog command is a native box, prompt travels as data not as shell', () => {
-  const win = buildDialogCommand('paste "quoted"', 'win32')!;
-  expect(win.command).toBe('powershell.exe');
-  expect(win.args.join(' ')).toContain('MessageBox');
-  expect(win.args.join(' ')).toContain('paste "quoted"');
-  const mac = buildDialogCommand('hello', 'darwin')!;
-  expect(mac.command).toBe('osascript');
-  expect(mac.args.join(' ')).toContain('display dialog');
-  expect(buildDialogCommand('hello', 'linux')!.command).toBe('zenity');
-  expect(buildXclipCommand('x').args).toEqual(['-selection', 'clipboard']);
+// ─── Stage navigation (Fase 3a) ──────────────────────────────────────────────
+
+test('PREV and BACK are distinct sentinels (stage vs field navigation)', () => {
+  expect(typeof PREV).toBe('symbol');
+  expect(typeof BACK).toBe('symbol');
+  expect(PREV).not.toBe(BACK);
+});
+
+test('stage prompts are typed to be able to return PREV', async () => {
+  // Signature guard: allowPrev defaults are documented by the .d.ts the build
+  // emits; here we assert the exports exist and are callable.
+  expect(typeof promptAppEnv).toBe('function');
+  expect(typeof promptBaseUrl).toBe('function');
+  expect(typeof promptRoles).toBe('function');
+  expect(typeof promptChallengeMode).toBe('function');
+});
+
+test('auth session outcome helpers pick the right npm script per challenge mode', () => {
+  expect(authSetupScript('none')).toBe('auth:setup');
+  expect(authSetupScript('auto')).toBe('auth:setup:headed');
+  expect(authSetupScript('otp-browser')).toBe('auth:setup:headed');
+  expect(authSetupScript('captcha-browser')).toBe('auth:setup:headed');
+});
+
+// ─── @clack/prompts migration guards ─────────────────────────────────────────
+
+const wizardPromptsSrc = path.join(__dirname, '..', '..', 'setup', 'wizard-prompts.ts');
+
+test('wizard-prompts uses @clack/prompts, not the unmaintained `prompts` library', () => {
+  const src = fs.readFileSync(wizardPromptsSrc, 'utf-8');
+  expect(src).toContain("from './prompts/clack'");
+  expect(src).not.toMatch(/from 'prompts'/);
+});
+
+test('stage choices use clack select, not a numbered text picker', () => {
+  const src = fs.readFileSync(wizardPromptsSrc, 'utf-8');
+  expect(src).toContain('clackSelect');
+  expect(src).not.toContain('promptNumberedChoice');
+});
+
+test('prefill-bearing prompts use initialValue so the previous value is visible', () => {
+  // clack semantics: initialValue fills the readline buffer (VISIBLE, editable,
+  // returned on Enter). defaultValue is applied only at finalize (invisible);
+  // placeholder is inert. Prompts that carry a previous env value (BASE_URL,
+  // roles, login/success paths) MUST use initialValue, never defaultValue.
+  const src = fs.readFileSync(wizardPromptsSrc, 'utf-8');
+  const textBlocks = src.match(/clack(Text|Password)\(\{[\s\S]*?\n\s*\}\)/g) ?? [];
+  for (const block of textBlocks) {
+    expect(block).not.toMatch(/\bdefaultValue:/);
+  }
+  expect(src).toContain('initialValue:');
 });

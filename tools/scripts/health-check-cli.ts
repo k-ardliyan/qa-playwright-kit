@@ -29,7 +29,7 @@ const HINTS: Record<string, { hint: string; docs: string; severity: 'fixable' | 
     severity: 'fixable',
   },
   environment: {
-    hint: 'Salin template: cp config/environments/local.env.example config/environments/<APP_ENV>.env (local|dev|staging|…) lalu isi BASE_URL + kredensial. Cek: npm run env:status',
+    hint: 'Jalankan: npm run setup (membuat config/environments/<APP_ENV>.env dari template, lintas-platform) — atau salin manual config/environments/local.env.example. Cek: npm run env:status',
     docs: 'docs/GUIDE.md#setup-lokal',
     severity: 'fixable',
   },

@@ -12,7 +12,7 @@
  */
 
 import type { Page } from '@playwright/test';
-import prompts from 'prompts';
+import { abortIfCancelled, text } from '../setup/prompts/clack';
 
 export type ChallengeMode = 'auto' | 'none' | 'otp-browser' | 'otp-stdin' | 'captcha-browser';
 
@@ -254,13 +254,14 @@ export async function promptOtpFromTerminal(
   message = 'Masukkan kode OTP / verifikasi:',
 ): Promise<string> {
   assertChallengeAllowed({ mode: 'otp-stdin', viaTerminal: true });
-  const ans = await prompts({
-    type: 'text',
-    name: 'otp',
-    message,
-    validate: (v: string) => (v && String(v).trim().length > 0) || 'OTP tidak boleh kosong',
-  });
-  const code = String(ans.otp ?? '').trim();
+  const code = abortIfCancelled(
+    await text({
+      message,
+      validate: (v) =>
+        v && String(v).trim().length > 0 ? undefined : 'OTP tidak boleh kosong / cannot be empty',
+    }),
+    'OTP dibatalkan.',
+  ).trim();
   if (!code) {
     throw new Error('[human-challenge] OTP input dibatalkan atau kosong.');
   }

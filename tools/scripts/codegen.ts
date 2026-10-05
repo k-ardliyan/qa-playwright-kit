@@ -29,6 +29,7 @@ import { sessionTenantVerdict } from '../../src/shared/mcp/auth-probe';
 import { roleCredentialKeys } from '../../src/shared/utils/role-credentials';
 import { resolveAppUrl } from '../../src/support/app-url';
 import { loadEnvironment } from '../../src/utils/env-loader';
+import { describeSpawn, npxSpawn } from '../../src/setup/spawn-bin';
 import { resolveAppEnv } from '../../src/utils/app-env';
 import { logger } from '../../src/utils/logger';
 
@@ -124,12 +125,16 @@ function main(): void {
       : 'Running codegen via repo-installed playwright',
   );
 
-  const isWin = process.platform === 'win32';
-  const cmd = isWin ? 'npx.cmd' : 'npx';
+  // Portable spawn: run npx's own JS entry with the current Node binary instead
+  // of `npx.cmd` + `shell: true`. On Windows hosts that ship their own Node
+  // (Hermes, portable installs) without `cmd.exe`/`npx` on PATH, the shell route
+  // fails with ENOENT — the same class of bug npmSpawn() was created to kill.
+  const npxPlan = npxSpawn(codegenArgs);
+  logger.info(`Exec: ${describeSpawn(npxPlan)}`);
 
-  const child = spawn(cmd, codegenArgs, {
+  const child = spawn(npxPlan.command, npxPlan.args, {
     stdio: 'inherit',
-    shell: isWin,
+    shell: npxPlan.shell,
   });
 
   child.on('error', (err) => {

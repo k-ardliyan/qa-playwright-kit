@@ -16,7 +16,14 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import prompts from 'prompts';
+import {
+  abortIfCancelled,
+  confirm as clackConfirm,
+  isInteractive,
+  password as clackPassword,
+  select as clackSelect,
+  text as clackText,
+} from '../../src/setup/prompts/clack';
 import { printOk, printWarn, printError, printInfo } from './format-error';
 import { EXIT } from './exit-codes';
 import { writeAuthSetup } from './wizard-auth-template';
@@ -46,6 +53,29 @@ import {
 const ROOT = process.cwd();
 const ENV_DIR = getEnvironmentsDir(ROOT);
 const AUTH_SETUP_OUT = path.join(ROOT, 'src', 'support', 'auth.setup.ts');
+
+// ─── clack adapters ──────────────────────────────────────────────────────────
+// The old array-form `prompts([...])` is expressed as sequential clack calls;
+// these two helpers keep the call sites as short as the array form was while
+// funnelling every cancellation through the shared abort token.
+
+const t = (message: string, defaultValue?: string) =>
+  clackText({ message, defaultValue, placeholder: defaultValue });
+
+const pw = (message: string) => clackPassword({ message });
+
+const sel = <T extends string>(
+  message: string,
+  options: Array<{ value: T; label: string }>,
+  initialValue?: T,
+) =>
+  clackSelect<T>({
+    message,
+    options: options as Parameters<typeof clackSelect<T>>[0]['options'],
+    initialValue: initialValue ?? options[0]!.value,
+  });
+
+const conf = (message: string, initialValue = true) => clackConfirm({ message, initialValue });
 
 // ─── CLI flags ─────────────────────────────────────────────────────────────
 
@@ -270,68 +300,49 @@ async function actionEditBase(content: string, map: Record<string, string>): Pro
     },
   ];
   const currentMode = (map.AUTH_CHALLENGE_MODE ?? 'none').trim().toLowerCase();
-  const modeInitial = Math.max(
-    0,
-    modeChoices.findIndex((c) => c.value === currentMode),
+  const modeInitial = modeChoices.find((c) => c.value === currentMode)?.value ?? 'none';
+
+  const baseUrl = abortIfCancelled(await t('BASE_URL:', map.BASE_URL || 'http://localhost:3000'));
+  const loginUrlPath = abortIfCancelled(
+    await t('Path halaman login (mis. /login):', map.AUTH_LOGIN_URL_PATH || '/login'),
+  );
+  const successUrlPath = abortIfCancelled(
+    await t(
+      'Path setelah login sukses (mis. /dashboard):',
+      map.AUTH_SUCCESS_URL_PATH || '/dashboard',
+    ),
+  );
+  const challengeMode = abortIfCancelled(
+    await sel(
+      'Langkah tambahan setelah login (OTP/CAPTCHA):',
+      modeChoices.map((c) => ({ value: c.value, label: c.title })),
+      modeInitial,
+    ),
+  );
+  const headless = abortIfCancelled(
+    await sel(
+      'HEADLESS (jalankan browser tanpa UI?):',
+      [
+        { value: 'true', label: 'true — tanpa UI (CI, lebih cepat)' },
+        { value: 'false', label: 'false — browser terlihat (debug lokal)' },
+      ],
+      (map.HEADLESS ?? 'true') === 'false' ? 'false' : 'true',
+    ),
+  );
+  const slowMoRaw = abortIfCancelled(
+    await t(
+      'SLOW_MO (delay ms per aksi browser — 0 untuk off):',
+      String(parseInt(map.SLOW_MO ?? '0', 10) || 0),
+    ),
+  );
+  const challengeTimeoutRaw = abortIfCancelled(
+    await t(
+      'Timeout langkah tambahan (ms, min 5000):',
+      String(parseInt(map.AUTH_CHALLENGE_TIMEOUT_MS ?? '180000', 10) || 180000),
+    ),
   );
 
-  const ans = await prompts([
-    {
-      type: 'text',
-      name: 'baseUrl',
-      message: 'BASE_URL:',
-      initial: map.BASE_URL || 'http://localhost:3000',
-    },
-    {
-      type: 'text',
-      name: 'loginUrlPath',
-      message: 'Path halaman login (mis. /login):',
-      initial: map.AUTH_LOGIN_URL_PATH || '/login',
-    },
-    {
-      type: 'text',
-      name: 'successUrlPath',
-      message: 'Path setelah login sukses (mis. /dashboard):',
-      initial: map.AUTH_SUCCESS_URL_PATH || '/dashboard',
-    },
-    {
-      type: 'select',
-      name: 'challengeMode',
-      message: 'Langkah tambahan setelah login (OTP/CAPTCHA):',
-      choices: modeChoices,
-      initial: modeInitial,
-    },
-    {
-      type: 'select',
-      name: 'headless',
-      message: 'HEADLESS (jalankan browser tanpa UI?):',
-      choices: [
-        { title: 'true — tanpa UI (CI, lebih cepat)', value: 'true' },
-        { title: 'false — browser terlihat (debug lokal)', value: 'false' },
-      ],
-      initial: (map.HEADLESS ?? 'true') === 'false' ? 1 : 0,
-    },
-    {
-      type: 'number',
-      name: 'slowMo',
-      message: 'SLOW_MO (delay ms per aksi browser — 0 untuk off):',
-      initial: parseInt(map.SLOW_MO ?? '0', 10) || 0,
-      min: 0,
-      max: 10000,
-      validate: (v: number) => (Number.isFinite(v) && v >= 0) || 'Harus angka >= 0',
-    },
-    {
-      type: 'number',
-      name: 'challengeTimeout',
-      message: 'Timeout langkah tambahan (ms, min 5000):',
-      initial: parseInt(map.AUTH_CHALLENGE_TIMEOUT_MS ?? '180000', 10) || 180000,
-      min: 5000,
-      max: 900000,
-    },
-  ]);
-  if (ans.baseUrl === undefined) return content;
-
-  const mode = String(ans.challengeMode ?? 'none');
+  const mode = String(challengeMode ?? 'none');
   const { challengeModeEnvUpserts } = require('../../src/support/human-challenge') as {
     challengeModeEnvUpserts: (
       m: string,
@@ -339,29 +350,29 @@ async function actionEditBase(content: string, map: Record<string, string>): Pro
     ) => Record<string, string>;
   };
 
-  const userHeadless = String(ans.headless ?? 'true');
-  const userSlow = String(Math.max(0, Math.floor(Number(ans.slowMo ?? 0))));
+  const userHeadless = String(headless ?? 'true');
+  const userSlow = String(Math.max(0, Math.floor(Number(slowMoRaw ?? 0))));
   const fromMode = challengeModeEnvUpserts(mode as 'none', {
     headless: userHeadless,
     slowMo: userSlow,
   });
 
   // Browser modes force headed; otherwise keep user choice
-  const headless = fromMode.HEADLESS ?? userHeadless;
+  const headlessFinal = fromMode.HEADLESS ?? userHeadless;
   const slowMo = fromMode.SLOW_MO ?? userSlow;
 
-  const loginPath = normalizeAppPath(String(ans.loginUrlPath ?? ''), '/login');
-  const successPath = normalizeAppPath(String(ans.successUrlPath ?? ''), '/dashboard');
+  const loginPath = normalizeAppPath(String(loginUrlPath ?? ''), '/login');
+  const successPath = normalizeAppPath(String(successUrlPath ?? ''), '/dashboard');
 
   return upsertEnvContent(content, {
-    BASE_URL: String(ans.baseUrl).trim().replace(/\/$/, ''),
+    BASE_URL: String(baseUrl).trim().replace(/\/$/, ''),
     AUTH_LOGIN_URL_PATH: loginPath,
     AUTH_SUCCESS_URL_PATH: successPath,
-    HEADLESS: headless,
+    HEADLESS: headlessFinal,
     SLOW_MO: slowMo,
     AUTH_CHALLENGE_MODE: mode,
     AUTH_CHALLENGE_TIMEOUT_MS: String(
-      Math.max(5000, Math.floor(Number(ans.challengeTimeout ?? 180000))),
+      Math.max(5000, Math.floor(Number(challengeTimeoutRaw ?? 180000))),
     ),
   });
 }
@@ -373,113 +384,89 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
     return content;
   }
 
-  const { roleName } = await prompts({
-    type: 'select',
-    name: 'roleName',
-    message: 'Pilih role yang mau diedit:',
-    choices: roles.map((r) => ({
-      title: `${r.name}  (${maskSecret(map[r.emailKey] || map[r.usernameKey] || map[r.phoneKey])})`,
-      value: r.name,
-    })),
-  });
+  const roleName = abortIfCancelled(
+    await sel(
+      'Pilih role yang mau diedit:',
+      roles.map((r) => ({
+        value: r.name,
+        label: `${r.name}  (${maskSecret(map[r.emailKey] || map[r.usernameKey] || map[r.phoneKey])})`,
+      })),
+    ),
+  );
   if (!roleName) return content;
 
   const ref = roleCredentialKeys(roleName);
-  const ans = await prompts([
-    {
-      type: 'password',
-      name: 'password',
-      message: `${ref.passwordKey} (kosongkan jika tidak ganti):`,
-    },
-    {
-      type: 'text',
-      name: 'email',
-      message: `${ref.emailKey} (Enter skip / kosongkan):`,
-      initial: map[ref.emailKey] || '',
-    },
-    {
-      type: 'text',
-      name: 'username',
-      message: `${ref.usernameKey} (opsional):`,
-      initial: map[ref.usernameKey] || '',
-    },
-    {
-      type: 'text',
-      name: 'phone',
-      message: `${ref.phoneKey} (opsional):`,
-      initial: map[ref.phoneKey] || '',
-    },
-    {
-      type: 'select',
-      name: 'loginIdPref',
-      message: 'Preferensi login id:',
-      choices: [
-        { title: 'Auto (username → email → phone)', value: 'auto' },
-        { title: 'Username', value: 'username' },
-        { title: 'Email', value: 'email' },
-        { title: 'Phone', value: 'phone' },
-      ],
-      initial: 0,
-    },
-    {
-      type: 'text',
-      name: 'loginUrlPath',
-      message: `Path halaman login ${roleName} (Enter = ${map[ref.loginUrlPathKey] || '/login'}):`,
-      initial: map[ref.loginUrlPathKey] || '',
-    },
-    {
-      type: 'text',
-      name: 'successUrlPath',
-      message: `Path redirect sukses ${roleName} (Enter = ${map[ref.successUrlPathKey] || '/dashboard'}):`,
-      initial: map[ref.successUrlPathKey] || '',
-    },
-    {
-      type: 'text',
-      name: 'company',
-      message: `${ref.companyKey} (opsional, kode company/tenant di form login):`,
-      initial: map[ref.companyKey] || '',
-    },
-  ]);
-  if (ans.email === undefined && ans.username === undefined && ans.password === undefined)
-    return content;
+  const password = abortIfCancelled(await pw(`${ref.passwordKey} (kosongkan jika tidak ganti):`));
+  const email = abortIfCancelled(
+    await t(`${ref.emailKey} (Enter skip / kosongkan):`, map[ref.emailKey] || ''),
+  );
+  const username = abortIfCancelled(
+    await t(`${ref.usernameKey} (opsional):`, map[ref.usernameKey] || ''),
+  );
+  const phone = abortIfCancelled(await t(`${ref.phoneKey} (opsional):`, map[ref.phoneKey] || ''));
+  const loginIdPref = abortIfCancelled(
+    await sel('Preferensi login id:', [
+      { value: 'auto', label: 'Auto (username → email → phone)' },
+      { value: 'username', label: 'Username' },
+      { value: 'email', label: 'Email' },
+      { value: 'phone', label: 'Phone' },
+    ]),
+  );
+  const loginUrlPath = abortIfCancelled(
+    await t(
+      `Path halaman login ${roleName} (Enter = ${map[ref.loginUrlPathKey] || '/login'}):`,
+      map[ref.loginUrlPathKey] || '',
+    ),
+  );
+  const successUrlPath = abortIfCancelled(
+    await t(
+      `Path redirect sukses ${roleName} (Enter = ${map[ref.successUrlPathKey] || '/dashboard'}):`,
+      map[ref.successUrlPathKey] || '',
+    ),
+  );
+  const company = abortIfCancelled(
+    await t(
+      `${ref.companyKey} (opsional, kode company/tenant di form login):`,
+      map[ref.companyKey] || '',
+    ),
+  );
 
-  const password =
-    ans.password && String(ans.password).length > 0
-      ? String(ans.password)
-      : map[ref.passwordKey] || '';
-  const email = String(ans.email ?? '').trim();
-  const username = String(ans.username ?? '').trim();
-  const phone = String(ans.phone ?? '').trim();
-  const loginUrlPath = String(ans.loginUrlPath ?? '').trim();
-  const successUrlPath = String(ans.successUrlPath ?? '').trim();
-  const company = String(ans.company ?? '').trim();
-  if (!password) {
+  const passwordFinal =
+    password && String(password).length > 0 ? String(password) : map[ref.passwordKey] || '';
+  const emailFinal = String(email ?? '').trim();
+  const usernameFinal = String(username ?? '').trim();
+  const phoneFinal = String(phone ?? '').trim();
+  const loginUrlPathFinal = String(loginUrlPath ?? '').trim();
+  const successUrlPathFinal = String(successUrlPath ?? '').trim();
+  const companyFinal = String(company ?? '').trim();
+  if (!passwordFinal) {
     printWarn('Password wajib untuk role yang login.');
     return content;
   }
-  if (!email && !username && !phone) {
+  if (!emailFinal && !usernameFinal && !phoneFinal) {
     printWarn('Isi minimal satu identitas: email, username, atau telepon.');
     return content;
   }
 
   const values: Record<string, string> = {
-    [ref.passwordKey]: password,
+    [ref.passwordKey]: passwordFinal,
   };
-  if (email) values[ref.emailKey] = email;
-  if (username) values[ref.usernameKey] = username;
-  if (phone) values[ref.phoneKey] = phone;
-  const pref = String(ans.loginIdPref ?? 'auto');
+  if (emailFinal) values[ref.emailKey] = emailFinal;
+  if (usernameFinal) values[ref.usernameKey] = usernameFinal;
+  if (phoneFinal) values[ref.phoneKey] = phoneFinal;
+  const pref = String(loginIdPref ?? 'auto');
   if (pref && pref !== 'auto') values[ref.loginIdPrefKey] = pref;
-  if (loginUrlPath) values[ref.loginUrlPathKey] = normalizeAppPath(loginUrlPath, '/login');
-  if (successUrlPath)
-    values[ref.successUrlPathKey] = normalizeAppPath(successUrlPath, '/dashboard');
-  if (company) values[ref.companyKey] = company;
+  if (loginUrlPathFinal)
+    values[ref.loginUrlPathKey] = normalizeAppPath(loginUrlPathFinal, '/login');
+  if (successUrlPathFinal)
+    values[ref.successUrlPathKey] = normalizeAppPath(successUrlPathFinal, '/dashboard');
+  if (companyFinal) values[ref.companyKey] = companyFinal;
 
   const trial = { ...map, ...values };
   // Cleared fields must not linger from previous map
-  if (!email) delete trial[ref.emailKey];
-  if (!username) delete trial[ref.usernameKey];
-  if (!phone) delete trial[ref.phoneKey];
+  if (!emailFinal) delete trial[ref.emailKey];
+  if (!usernameFinal) delete trial[ref.usernameKey];
+  if (!phoneFinal) delete trial[ref.phoneKey];
   if (!pref || pref === 'auto') delete trial[ref.loginIdPrefKey];
 
   const resolved = resolveLoginIdentifier(trial, ref);
@@ -491,101 +478,84 @@ async function actionEditRole(content: string, map: Record<string, string>): Pro
   let next = upsertEnvContent(content, values);
   // Remove identity keys that user cleared
   const toRemove: string[] = [];
-  if (!email && map[ref.emailKey] !== undefined) toRemove.push(ref.emailKey);
-  if (!username && map[ref.usernameKey] !== undefined) toRemove.push(ref.usernameKey);
-  if (!phone && map[ref.phoneKey] !== undefined) toRemove.push(ref.phoneKey);
+  if (!emailFinal && map[ref.emailKey] !== undefined) toRemove.push(ref.emailKey);
+  if (!usernameFinal && map[ref.usernameKey] !== undefined) toRemove.push(ref.usernameKey);
+  if (!phoneFinal && map[ref.phoneKey] !== undefined) toRemove.push(ref.phoneKey);
   if ((!pref || pref === 'auto') && map[ref.loginIdPrefKey] !== undefined) {
     toRemove.push(ref.loginIdPrefKey);
   }
-  if (!company && map[ref.companyKey] !== undefined) toRemove.push(ref.companyKey);
+  if (!companyFinal && map[ref.companyKey] !== undefined) toRemove.push(ref.companyKey);
   if (toRemove.length > 0) next = removeEnvKeys(next, toRemove);
   return next;
 }
 
 async function actionAddRole(content: string, map: Record<string, string>): Promise<string> {
-  const ans = await prompts([
-    {
-      type: 'text',
-      name: 'roleName',
+  const roleName = abortIfCancelled(
+    await clackText({
       message: 'Nama role (lowercase-hyphen, misal: finance, user) — jangan "general":',
-      validate: (v: string) => {
-        const n = v.trim().toLowerCase();
+      validate: (v) => {
+        const n = (v ?? '').trim().toLowerCase();
         if (n === 'general') return 'Pakai "user" untuk default; general = mode pipeline saja';
         if (n === 'default') return 'Pakai "user" untuk default TEST_USER_*';
         if (!isValidRoleName(n)) return 'Hanya a-z, 0-9, dan tanda hubung';
         const existing = parseRolesFromEnvMap(map).some((r) => r.name === canonicalRoleName(n));
         if (existing) return `Role "${canonicalRoleName(n)}" sudah ada — pilih Edit`;
-        return true;
+        return undefined;
       },
-    },
-    {
-      type: 'password',
-      name: 'password',
+    }),
+  );
+  const password = abortIfCancelled(
+    await clackPassword({
       message: 'Password:',
-      validate: (v: string) => v.length > 0 || 'Wajib diisi',
-    },
-    { type: 'text', name: 'email', message: 'Email (Enter skip):' },
-    { type: 'text', name: 'username', message: 'Username (Enter skip):' },
-    { type: 'text', name: 'phone', message: 'Telepon (Enter skip):' },
-    {
-      type: 'select',
-      name: 'loginIdPref',
-      message: 'Preferensi login id:',
-      choices: [
-        { title: 'Auto (username → email → phone)', value: 'auto' },
-        { title: 'Username', value: 'username' },
-        { title: 'Email', value: 'email' },
-        { title: 'Phone', value: 'phone' },
-      ],
-      initial: 0,
-    },
-    {
-      type: 'text',
-      name: 'loginUrlPath',
-      message: 'Path halaman login (Enter = /login):',
-      initial: '/login',
-    },
-    {
-      type: 'text',
-      name: 'successUrlPath',
-      message: 'Path redirect sukses (Enter = /dashboard):',
-      initial: '/dashboard',
-    },
-    {
-      type: 'text',
-      name: 'company',
-      message: 'Kode company/tenant (opsional, Enter skip):',
-    },
-  ]);
-  if (!ans.roleName || !ans.password) return content;
+      validate: (v) => ((v ?? '').length > 0 ? undefined : 'Wajib diisi / Required'),
+    }),
+  );
+  const email = abortIfCancelled(await t('Email (Enter skip):'));
+  const username = abortIfCancelled(await t('Username (Enter skip):'));
+  const phone = abortIfCancelled(await t('Telepon (Enter skip):'));
+  const loginIdPref = abortIfCancelled(
+    await sel('Preferensi login id:', [
+      { value: 'auto', label: 'Auto (username → email → phone)' },
+      { value: 'username', label: 'Username' },
+      { value: 'email', label: 'Email' },
+      { value: 'phone', label: 'Phone' },
+    ]),
+  );
+  const loginUrlPath = abortIfCancelled(await t('Path halaman login (Enter = /login):', '/login'));
+  const successUrlPath = abortIfCancelled(
+    await t('Path redirect sukses (Enter = /dashboard):', '/dashboard'),
+  );
+  const company = abortIfCancelled(await t('Kode company/tenant (opsional, Enter skip):'));
 
-  const email = String(ans.email ?? '').trim();
-  const username = String(ans.username ?? '').trim();
-  const phone = String(ans.phone ?? '').trim();
-  const loginUrlPath = String(ans.loginUrlPath ?? '').trim();
-  const successUrlPath = String(ans.successUrlPath ?? '').trim();
-  const company = String(ans.company ?? '').trim();
-  if (!email && !username && !phone) {
+  if (!roleName || !password) return content;
+
+  const emailFinal = String(email ?? '').trim();
+  const usernameFinal = String(username ?? '').trim();
+  const phoneFinal = String(phone ?? '').trim();
+  const loginUrlPathFinal = String(loginUrlPath ?? '').trim();
+  const successUrlPathFinal = String(successUrlPath ?? '').trim();
+  const companyFinal = String(company ?? '').trim();
+  if (!emailFinal && !usernameFinal && !phoneFinal) {
     printWarn('Isi minimal satu identitas: email, username, atau telepon.');
     return content;
   }
 
-  const ref = roleCredentialKeys(String(ans.roleName).trim());
+  const ref = roleCredentialKeys(String(roleName).trim());
   const values: Record<string, string> = {
-    [ref.passwordKey]: String(ans.password),
+    [ref.passwordKey]: String(password),
   };
-  if (email) values[ref.emailKey] = email;
-  if (username) values[ref.usernameKey] = username;
-  if (phone) values[ref.phoneKey] = phone;
-  const pref = String(ans.loginIdPref ?? 'auto');
+  if (emailFinal) values[ref.emailKey] = emailFinal;
+  if (usernameFinal) values[ref.usernameKey] = usernameFinal;
+  if (phoneFinal) values[ref.phoneKey] = phoneFinal;
+  const pref = String(loginIdPref ?? 'auto');
   if (pref && pref !== 'auto') values[ref.loginIdPrefKey] = pref;
-  if (loginUrlPath && loginUrlPath !== '/login') {
-    values[ref.loginUrlPathKey] = normalizeAppPath(loginUrlPath, '/login');
+  if (loginUrlPathFinal && loginUrlPathFinal !== '/login') {
+    values[ref.loginUrlPathKey] = normalizeAppPath(loginUrlPathFinal, '/login');
   }
-  if (successUrlPath && successUrlPath !== '/dashboard') {
-    values[ref.successUrlPathKey] = normalizeAppPath(successUrlPath, '/dashboard');
+  if (successUrlPathFinal && successUrlPathFinal !== '/dashboard') {
+    values[ref.successUrlPathKey] = normalizeAppPath(successUrlPathFinal, '/dashboard');
   }
-  if (company) values[ref.companyKey] = company;
+  if (companyFinal) values[ref.companyKey] = companyFinal;
 
   const next = upsertEnvContent(content, values, 'Kredensial per role');
   printOk(`Role ${ref.name} ditambahkan`);
@@ -603,21 +573,18 @@ async function actionRemoveRole(
     return { content };
   }
 
-  const { roleName } = await prompts({
-    type: 'select',
-    name: 'roleName',
-    message: 'Role yang dihapus:',
-    choices: roles.map((r) => ({ title: r.name, value: r.name })),
-  });
+  const roleName = abortIfCancelled(
+    await sel(
+      'Role yang dihapus:',
+      roles.map((r) => ({ value: r.name, label: r.name })),
+    ),
+  );
   if (!roleName) return { content };
 
-  const { confirm } = await prompts({
-    type: 'confirm',
-    name: 'confirm',
-    message: `Hapus keys untuk role "${roleName}" dari env file?`,
-    initial: false,
-  });
-  if (!confirm) return { content };
+  const confirmed = abortIfCancelled(
+    await conf(`Hapus keys untuk role "${roleName}" dari env file?`, false),
+  );
+  if (!confirmed) return { content };
 
   const ref = roleCredentialKeys(roleName);
   const keys = [
@@ -634,12 +601,7 @@ async function actionRemoveRole(
 
   const authAbs = path.join(ROOT, ref.authFile);
   if (fs.existsSync(authAbs)) {
-    const { delAuth } = await prompts({
-      type: 'confirm',
-      name: 'delAuth',
-      message: `Hapus juga ${ref.authFile}?`,
-      initial: true,
-    });
+    const delAuth = abortIfCancelled(await conf(`Hapus juga ${ref.authFile}?`, true));
     if (delAuth) {
       fs.unlinkSync(authAbs);
       printOk(`${ref.authFile} dihapus`);
@@ -651,22 +613,18 @@ async function actionRemoveRole(
 }
 
 async function actionFreeKey(content: string): Promise<string> {
-  const ans = await prompts([
-    {
-      type: 'text',
-      name: 'key',
+  const key = abortIfCancelled(
+    await clackText({
       message: 'Nama KEY (UPPER_SNAKE):',
-      validate: (v: string) =>
-        /^[A-Z][A-Z0-9_]*$/.test(v.trim()) || 'Harus UPPER_SNAKE (misal: MY_KEY)',
-    },
-    {
-      type: 'text',
-      name: 'value',
-      message: 'Value:',
-    },
-  ]);
-  if (!ans.key) return content;
-  return upsertEnvContent(content, { [String(ans.key).trim()]: String(ans.value ?? '') });
+      validate: (v) =>
+        /^[A-Z][A-Z0-9_]*$/.test((v ?? '').trim())
+          ? undefined
+          : 'Harus UPPER_SNAKE (misal: MY_KEY)',
+    }),
+  );
+  const value = abortIfCancelled(await t('Value:'));
+  if (!key) return content;
+  return upsertEnvContent(content, { [String(key).trim()]: String(value ?? '') });
 }
 
 function regenAuthSetup(map: Record<string, string>): void {
@@ -749,39 +707,33 @@ async function main(): Promise<void> {
   let running = true;
 
   while (running) {
-    const { action } = await prompts({
-      type: 'select',
-      name: 'action',
-      message: 'Pilih aksi:',
-      choices: [
-        { title: 'Lihat kredensial (masked)', value: 'list' },
-        { title: 'Edit BASE_URL / browser / OTP-CAPTCHA', value: 'base' },
-        { title: 'Edit kredensial role', value: 'edit-role' },
-        { title: 'Tambah role', value: 'add-role' },
-        { title: 'Hapus role', value: 'remove-role' },
-        { title: 'Edit key bebas (advanced)', value: 'free' },
-        { title: 'Simpan & encrypt', value: 'save' },
-        { title: 'Re-encrypt file saja (tanpa ubah isi)', value: 'reencrypt' },
+    const action = abortIfCancelled(
+      await sel('Pilih aksi:', [
+        { value: 'list', label: 'Lihat kredensial (masked)' },
+        { value: 'base', label: 'Edit BASE_URL / browser / OTP-CAPTCHA' },
+        { value: 'edit-role', label: 'Edit kredensial role' },
+        { value: 'add-role', label: 'Tambah role' },
+        { value: 'remove-role', label: 'Hapus role' },
+        { value: 'free', label: 'Edit key bebas (advanced)' },
+        { value: 'save', label: 'Simpan & encrypt' },
+        { value: 'reencrypt', label: 'Re-encrypt file saja (tanpa ubah isi)' },
         {
-          title: 'Rapikan file — rebuild bersih dari key aktif (hapus komentar placeholder)',
           value: 'tidy',
+          label: 'Rapikan file — rebuild bersih dari key aktif (hapus komentar placeholder)',
         },
         {
-          title: 'Regenerasi src/support/auth.setup.ts dari roles di env',
           value: 'regen-auth',
+          label: 'Regenerasi src/support/auth.setup.ts dari roles di env',
         },
-        { title: 'Keluar', value: 'exit' },
-      ],
-    });
+        { value: 'exit', label: 'Keluar' },
+      ]),
+    );
 
     if (!action || action === 'exit') {
       if (dirty) {
-        const { save } = await prompts({
-          type: 'confirm',
-          name: 'save',
-          message: 'Ada perubahan belum disimpan. Simpan & encrypt sekarang?',
-          initial: true,
-        });
+        const save = abortIfCancelled(
+          await conf('Ada perubahan belum disimpan. Simpan & encrypt sekarang?', true),
+        );
         if (save) {
           saveEnvMap(filePath, content, resolveKeysPath() ?? keysPath);
         } else {
@@ -893,14 +845,14 @@ async function main(): Promise<void> {
 
     if (action === 'regen-auth') {
       map = parseEnvText(content);
-      const { ok } = await prompts({
-        type: 'confirm',
-        name: 'ok',
-        message: fs.existsSync(AUTH_SETUP_OUT)
-          ? 'Overwrite src/support/auth.setup.ts? (backup .bak dibuat)'
-          : 'Generate src/support/auth.setup.ts dari roles di env?',
-        initial: true,
-      });
+      const ok = abortIfCancelled(
+        await conf(
+          fs.existsSync(AUTH_SETUP_OUT)
+            ? 'Overwrite src/support/auth.setup.ts? (backup .bak dibuat)'
+            : 'Generate src/support/auth.setup.ts dari roles di env?',
+          true,
+        ),
+      );
       if (ok) regenAuthSetup(map);
       continue;
     }

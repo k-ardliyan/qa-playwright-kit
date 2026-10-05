@@ -101,13 +101,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@clack/prompts": "^1.8.1",
     "@dotenvx/dotenvx": "^2.32.4",
     "@kitajs/html": "^4.2.13",
     "@kitajs/ts-html-plugin": "^4.1.4",
     "@playwright/mcp": "^0.0.83",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
-    "@types/prompts": "^2.4.9",
     "eslint": "^10.12.0",
     "eslint-plugin-playwright": "^2.12.0",
     "fast-check": "^4.10.2",
@@ -116,7 +116,6 @@
     "pdf-parse": "^2.4.5",
     "playwright": "1.63.0",
     "playwright-core": "1.63.0",
-    "prompts": "^2.4.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.0"

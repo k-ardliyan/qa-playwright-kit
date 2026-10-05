@@ -11,7 +11,7 @@ import { execSync } from 'node:child_process';
 import * as path from 'node:path';
 import * as exitCodes from '../exit-codes';
 import * as formatError from '../format-error';
-import { buildAgentPrompt, parseRequirementPromptHints } from '../qa-run-prompt';
+import { buildAgentPrompt, parseRequirementPromptHints, toAscii } from '../qa-run-prompt';
 import { findPlaceholderCredentialKeys } from '../qa-run-lib';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
@@ -144,6 +144,42 @@ AUTH_CHALLENGE_MODE=otp-browser
     expect(prompt).toContain('Phase 0.5');
     expect(prompt).not.toContain('BASE_URL + path login');
     expect(prompt).toContain('\n\n');
+  });
+
+  test('prompt is pure ASCII (Windows cp437 cannot render → / — without mojibake)', () => {
+    const md = `
+# REQ-AUTH-01: Login form
+## Metadata
+- **Auth state:** unauthenticated
+- **Halaman awal:** /login
+AUTH_CHALLENGE_MODE=otp-browser
+`;
+    const idPrompt = buildAgentPrompt('requirements/login.md', md, 'id', {
+      baseUrl: 'https://staging.example.com',
+      appEnv: 'staging',
+      appEnvSource: 'pin',
+    });
+    const enPrompt = buildAgentPrompt('requirements/login.md', md, 'en', {
+      baseUrl: 'https://staging.example.com',
+      appEnv: 'staging',
+      appEnvSource: 'pin',
+    });
+
+    const nonAscii = (s: string) => [...s].some((c) => c.codePointAt(0)! > 127);
+    expect(nonAscii(idPrompt)).toBe(false);
+    expect(nonAscii(enPrompt)).toBe(false);
+    // Arrows rendered as ASCII, not the UTF-8 byte pair that becomes ΓåÆ on cp437.
+    expect(idPrompt).toContain('01. Explore -> 02. Model');
+    expect(enPrompt).toContain('01. Explore -> 02. Model');
+  });
+
+  test('toAscii folds decorative Unicode but keeps real text intact', () => {
+    expect(toAscii('a → b')).toBe('a -> b');
+    expect(toAscii('x — y')).toBe('x - y');
+    expect(toAscii('“q”')).toBe('"q"');
+    expect(toAscii('it’s')).toBe("it's");
+    expect(toAscii('wait…')).toBe('wait...');
+    expect(toAscii('plain ascii stays')).toBe('plain ascii stays');
   });
 });
 

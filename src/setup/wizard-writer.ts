@@ -15,17 +15,20 @@
  */
 
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { type AppEnv, writeActiveEnvPin } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
 import {
   type WizardRoleInput,
   normalizeWizardRoles,
+  roleToEnvPrefix,
   ROLE_KEY_RE,
 } from '../shared/utils/role-credentials';
 import { parseEnvText } from '../utils/env-text';
 import { buildCleanEnvContent, ENV_FILE_DEFAULTS } from '../utils/env-clean';
 import { encryptSecretKeysInFile } from '../utils/env-secrets';
+import { getGlobalKeysPath, mergeLocalKeysIntoSecure } from '../utils/dotenv-keys';
 
 export interface EnvWriteOptions {
   appEnv: AppEnv;
@@ -103,9 +106,7 @@ export function buildEnvFileContent(options: EnvWriteOptions): BuiltEnvFile {
     put(key, value);
   }
 
-  const configuredPrefixes = new Set(
-    roles.map((r) => (r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_'))),
-  );
+  const configuredPrefixes = new Set(roles.map((r) => roleToEnvPrefix(r.name)));
 
   let keysPreserved = 0;
   for (const [key, value] of Object.entries(existing)) {
@@ -153,9 +154,15 @@ export function writeEnvFile(options: EnvWriteOptions): EnvWriteResult {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(envPath, built.content, 'utf-8');
 
-  const { encryptedKeys } = encryptSecretKeysInFile(envPath, { repoRoot });
+  // Encrypt on a staging file outside the repo, then swap it in atomically.
+  // Writing the plaintext straight to envPath (the old flow) left passwords on
+  // disk whenever dotenvx failed or the wizard was Ctrl+C'd mid-encrypt.
+  const encryptedKeys = encryptToStagingThenSwap({
+    repoRoot,
+    envPath,
+    content: built.content,
+  });
 
   return {
     envFilePath: envPath,
@@ -165,6 +172,47 @@ export function writeEnvFile(options: EnvWriteOptions): EnvWriteResult {
     keysEncrypted: encryptedKeys,
     warnings: built.warnings,
   };
+}
+
+/**
+ * Write `content` to a staging file, encrypt it, then atomically rename it over
+ * `envPath`. The staging file keeps `envPath`'s exact basename because dotenvx
+ * derives the `DOTENV_PUBLIC_KEY_*` name from it — a different basename would
+ * mint a key that no existing `.env.keys` entry can decrypt.
+ *
+ * The staging dir also catches the `.env.keys` dotenvx mints when no global keys
+ * file exists yet: `migrateWorkspaceEnvKeys` only scans two fixed repo paths, so
+ * a staging-dir mint would otherwise be dropped and the next decrypt would fail.
+ */
+function encryptToStagingThenSwap(opts: {
+  repoRoot: string;
+  envPath: string;
+  content: string;
+}): string[] {
+  const { repoRoot, envPath, content } = opts;
+  const stageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-env-'));
+  const stagedPath = path.join(stageDir, path.basename(envPath));
+  // Same directory as the target so the rename stays one atomic filesystem op.
+  const swapPath = `${envPath}.${process.pid}.tmp`;
+
+  try {
+    fs.writeFileSync(stagedPath, content, 'utf-8');
+    const { encryptedKeys } = encryptSecretKeysInFile(stagedPath, { repoRoot });
+
+    const stagedKeys = path.join(stageDir, '.env.keys');
+    if (fs.existsSync(stagedKeys)) {
+      mergeLocalKeysIntoSecure(stagedKeys, getGlobalKeysPath(repoRoot));
+    }
+
+    fs.copyFileSync(stagedPath, swapPath);
+    fs.renameSync(swapPath, envPath);
+    return encryptedKeys;
+  } catch (err: unknown) {
+    fs.rmSync(swapPath, { force: true });
+    throw err;
+  } finally {
+    fs.rmSync(stageDir, { recursive: true, force: true });
+  }
 }
 
 /**

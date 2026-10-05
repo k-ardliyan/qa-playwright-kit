@@ -14,8 +14,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import prompts from 'prompts';
 import { type WizardLang, t } from './i18n';
+import { confirmPrompt } from './wizard-prompts';
+import { quoteAppleScriptPath, quoteCmdPath, quotePosixPath } from './spawn-bin';
 
 /**
  * Resolve the Playwright browsers registry directory for this OS.
@@ -60,7 +61,7 @@ export function buildInstallCommand(
   platform: NodeJS.Platform = process.platform,
 ): { command: string; args: string[]; windowsVerbatimArguments?: boolean } {
   if (platform === 'win32') {
-    const fullCmd = `start "" cmd /k "cd /d "${repoRoot}" && npx playwright install chromium"`;
+    const fullCmd = `start "" cmd /k "cd /d ${quoteCmdPath(repoRoot)} && npx playwright install chromium"`;
     return {
       command: 'cmd.exe',
       args: ['/c', fullCmd],
@@ -72,13 +73,18 @@ export function buildInstallCommand(
       command: 'osascript',
       args: [
         '-e',
-        `tell application "Terminal" to do script "cd " & quoted form of "${repoRoot}" & " && npx playwright install chromium"`,
+        `tell application "Terminal" to do script "cd " & quoted form of "${quoteAppleScriptPath(repoRoot)}" & " && npx playwright install chromium"`,
       ],
     };
   }
   return {
     command: 'gnome-terminal',
-    args: ['--', 'bash', '-c', `cd '${repoRoot}' && npx playwright install chromium; exec bash`],
+    args: [
+      '--',
+      'bash',
+      '-c',
+      `cd ${quotePosixPath(repoRoot)} && npx playwright install chromium; exec bash`,
+    ],
   };
 }
 
@@ -104,7 +110,7 @@ function spawnDetached(
 
 /** Linux fallback chain: pick the first terminal emulator present. */
 function linuxAlternatives(repoRoot: string): Array<{ command: string; args: string[] }> {
-  const script = `cd '${repoRoot}' && npx playwright install chromium; exec bash`;
+  const script = `cd ${quotePosixPath(repoRoot)} && npx playwright install chromium; exec bash`;
   return [
     { command: 'konsole', args: ['-e', 'bash', '-c', script] },
     { command: 'xfce4-terminal', args: ['-e', 'bash', '-c', script] },
@@ -169,22 +175,13 @@ export async function ensureBrowsers(
     ),
   );
 
-  const { install } = await prompts(
-    {
-      type: 'confirm',
-      name: 'install',
-      message: t(
-        lang,
-        'Buka terminal baru untuk menginstall Chromium? (pilih "tidak" untuk skip)',
-        'Open a new terminal to install Chromium? (choose "no" to skip)',
-      ),
-      initial: true,
-    },
-    {
-      onCancel(): never {
-        throw new Error('SETUP_WIZARD_CANCELLED');
-      },
-    },
+  const install = await confirmPrompt(
+    t(
+      lang,
+      'Buka terminal baru untuk menginstall Chromium? (pilih "tidak" untuk skip)',
+      'Open a new terminal to install Chromium? (choose "no" to skip)',
+    ),
+    true,
   );
 
   if (!install) {

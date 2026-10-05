@@ -25,8 +25,9 @@
 import { type AppEnv, resolveAppEnv } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
 import {
-  ROLE_KEY_RE,
   roleCredentialKeys,
+  roleToEnvPrefix,
+  parseRolesFromEnvMap,
   type WizardRoleInput,
 } from '../shared/utils/role-credentials';
 import {
@@ -37,43 +38,43 @@ import {
   promptRoles,
   promptChallengeMode,
   confirmOverwrite,
+  confirmPrompt,
   type RoleFields,
   BACK,
+  PREV,
 } from './wizard-prompts';
+import { intro, isInteractive, outro, requireTty, spinner } from './prompts/clack';
 import { type WizardLang, t, DEFAULT_LANG } from './i18n';
-import prompts from 'prompts';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import {
-  writeEnvFile,
   readExistingEnv,
   isEncryptedValue,
   resolveEnvPath,
-  pinEnvAfterSetup,
   type EnvWriteResult,
 } from './wizard-writer';
 
 import { validateSetup, type ValidationResult } from './wizard-validate';
-import { syncAgentSkillsAndMcp, type AgentSyncResult } from './agent-sync';
+import type { AgentSyncResult } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
-import { openTerminalFor } from './terminal';
-import { copyText, showPromptDialog } from './prompt-dialog';
-import { binSpawn, npmCommand } from './spawn-bin';
+import { copyText } from './prompt-dialog';
 import { verifySetupArtifacts, authSessionStatus, type SetupCheck } from './verify-setup';
 import { printBanner, printChecklist, printSection, printStep, stepLine } from './ui';
-import {
-  buildLoginRequirement,
-  loginStateFromWizard,
-  writeLoginRequirementFile,
-} from '../../tools/scripts/wizard-login-template';
-import { writeAuthSetup } from '../../tools/scripts/wizard-auth-template';
 import { buildAgentPrompt } from '../../tools/scripts/qa-run-prompt';
 import {
   formatRequirementValidationFailure,
   validateRequirementFile,
   type RequirementValidationResult,
 } from './requirement-validation';
+import { writeAndValidateLoginRequirement } from './tasks/requirement';
+import { writeAuthSetupFile } from './tasks/auth-setup';
+import { writeEnvAndPin } from './tasks/env-write';
+import { syncAgentArtifacts } from './tasks/agent-sync';
+import {
+  authSetupScript,
+  materializeAuthSession,
+  type AuthSessionOutcome,
+} from './tasks/auth-session';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -84,6 +85,14 @@ export interface WizardOptions {
   appEnv?: AppEnv;
   /** Language override (default: Indonesian unless prompted) */
   lang?: WizardLang;
+  /** Non-interactive run: every step must be resolvable from flags or the env file */
+  headless?: boolean;
+  /** Headless BASE_URL */
+  baseUrl?: string;
+  /** Headless role list (comma-separated on the CLI) */
+  roles?: string[];
+  /** Headless challenge mode */
+  challengeMode?: ChallengeMode;
 }
 
 export interface WizardResult {
@@ -128,89 +137,207 @@ const TOTAL_STEPS = 6;
 export async function runSetupWizard(options?: WizardOptions): Promise<WizardResult> {
   const opts = options ?? {};
 
-  let lang: WizardLang = opts.lang ?? DEFAULT_LANG;
-
   // ─── Check-only mode (no prompts) ───────────────────────────────────────
   if (opts.checkOnly) {
     const appEnv = opts.appEnv ?? resolveAppEnv({ repoRoot: process.cwd() }).appEnv;
-    return runCheckOnly(appEnv, lang);
+    return runCheckOnly(appEnv, opts.lang ?? DEFAULT_LANG);
   }
 
-  printBanner(lang);
+  // Interactive runs need a real TTY: clack's `select` does not block on a
+  // non-TTY stdin (it resolves to the first option), which would silently pick a
+  // wrong environment. Headless (--yes) and flag-complete runs skip this.
+  const isTty = isInteractive();
+  if (!opts.headless) {
+    requireTty('Setup interaktif / Interactive setup');
+  }
+
+  intro(t(opts.lang ?? DEFAULT_LANG, 'qa-playwright-kit — setup', 'qa-playwright-kit — setup'));
   stepLine(
     t(
-      lang,
-      `${TOTAL_STEPS} tahap singkat — bahasa, environment, URL, kredensial, challenge, verifikasi. Setiap tahap bisa menanyakan 1-3 pertanyaan.`,
-      `${TOTAL_STEPS} short stages — language, environment, URL, credentials, challenge, verification. Each stage may ask 1-3 questions.`,
+      opts.lang ?? DEFAULT_LANG,
+      `${TOTAL_STEPS} tahap singkat — bahasa, environment, URL, kredensial, challenge, verifikasi.`,
+      `${TOTAL_STEPS} short stages — language, environment, URL, credentials, challenge, verification.`,
     ),
   );
 
-  // ─── Step 1: Language (skipped when pinned via --lang) ──────────────────
-  printStep(1, TOTAL_STEPS, lang, 'Bahasa', 'Language');
-  if (!opts.lang) {
-    lang = await promptLanguage();
-  }
+  // ─── Stage 1-5: bidirectional wizard stages ─────────────────────────────
+  // A user can step BACK to a previous stage by choosing the explicit
+  // "← Kembali" option in the stage's select. Values already collected are
+  // re-used as defaults, so going back is cheap and no data is lost. Headless
+  // runs supply every value via flags/env and never enter this loop.
+  let lang: WizardLang = opts.lang ?? DEFAULT_LANG;
+  let stage = 1;
+  let appEnv!: AppEnv;
+  let baseUrl!: string;
+  let roleNames!: string[];
+  let roleInputs: WizardRoleInput[] = [];
+  let challengeMode!: ChallengeMode;
+  let existing: Record<string, string> | null = null;
+  let envPath = '';
 
-  // ─── Step 2: APP_ENV — final target resolved ONCE (--env > prompt) ──────
-  printStep(2, TOTAL_STEPS, lang, 'Environment (APP_ENV)', 'Environment (APP_ENV)');
-  const defaultAppEnv = resolveAppEnv({ repoRoot: process.cwd() }).appEnv;
-  const appEnv: AppEnv = opts.appEnv ?? (await promptAppEnv(lang, defaultAppEnv));
-
-  // ─── Existing config check for the FINAL env ────────────────────────────
-  const existing = readExistingEnv(appEnv);
-  const envPath = resolveEnvPath(appEnv);
-
-  if (existing) {
-    describeExistingEnv(lang, existing);
-    const shouldUpdate = await confirmOverwrite(lang, envPath);
-    if (!shouldUpdate) {
-      stepLine(
-        t(
-          lang,
-          'Setup wizard dibatalkan — config yang ada dipertahankan.',
-          'Setup wizard cancelled — keeping existing config.',
-        ),
-      );
-      const validation = await validateSetup(appEnv, existing, envPath, lang);
-      return {
-        envFilePath: envPath,
-        roles: [],
-        isNewSetup: false,
-        validation,
-        checks: [],
-      };
+  while (stage <= 5) {
+    if (stage === 1) {
+      printStep(1, TOTAL_STEPS, lang, 'Bahasa', 'Language');
+      if (!opts.lang && !opts.headless) lang = await promptLanguage();
+      stage = 2;
+      continue;
     }
+
+    if (stage === 2) {
+      printStep(2, TOTAL_STEPS, lang, 'Environment (APP_ENV)', 'Environment (APP_ENV)');
+      const defaultAppEnv = resolveAppEnv({ repoRoot: process.cwd() }).appEnv;
+      if (opts.appEnv) {
+        appEnv = opts.appEnv;
+      } else if (opts.headless) {
+        appEnv = defaultAppEnv;
+      } else {
+        const picked = await promptAppEnv(lang, appEnv ?? defaultAppEnv, true);
+        if (picked === PREV) {
+          stage = 1;
+          continue;
+        }
+        appEnv = picked;
+      }
+      stage = 3;
+      continue;
+    }
+
+    if (stage === 3) {
+      // Existing-config check for the FINAL env (runs once when entering stage 3).
+      existing = readExistingEnv(appEnv);
+      envPath = resolveEnvPath(appEnv);
+      if (existing && !opts.headless) {
+        describeExistingEnv(lang, existing);
+        const shouldUpdate = await confirmOverwrite(lang, envPath);
+        if (!shouldUpdate) {
+          stepLine(
+            t(
+              lang,
+              'Setup wizard dibatalkan — config yang ada dipertahankan.',
+              'Setup wizard cancelled — keeping existing config.',
+            ),
+          );
+          const validation = await validateSetup(appEnv, existing, envPath, lang);
+          return {
+            envFilePath: envPath,
+            roles: [],
+            isNewSetup: false,
+            validation,
+            checks: [],
+          };
+        }
+      }
+
+      // Playwright browser availability (interactive only — install opens a
+      // second terminal window a headless/CI run has no use for).
+      if (!opts.headless) await ensureBrowsers(lang);
+
+      printStep(3, TOTAL_STEPS, lang, 'URL aplikasi (BASE_URL)', 'Application BASE_URL');
+      const existingUrl =
+        existing && !isEncryptedValue(existing['BASE_URL']) ? existing['BASE_URL'] : undefined;
+      if (opts.baseUrl) {
+        baseUrl = opts.baseUrl;
+      } else if (opts.headless) {
+        // Headless cannot ask. An encrypted BASE_URL is unreadable here, so fail
+        // loudly with the exact flag instead of hanging on stdin.
+        throw new Error(
+          t(
+            lang,
+            `Mode headless: BASE_URL tidak tersedia (${existing && isEncryptedValue(existing['BASE_URL']) ? 'nilai terenkripsi di env file' : 'env file belum ada'}). Jalankan dengan --base-url <url>.`,
+            `Headless mode: BASE_URL unavailable (${existing && isEncryptedValue(existing['BASE_URL']) ? 'encrypted value in the env file' : 'no env file yet'}). Run with --base-url <url>.`,
+          ),
+        );
+      } else {
+        const picked = await promptBaseUrl(lang, baseUrl ?? existingUrl, true);
+        if (picked === PREV) {
+          stage = 2;
+          continue;
+        }
+        baseUrl = picked;
+      }
+      stage = 4;
+      continue;
+    }
+
+    if (stage === 4) {
+      printStep(4, TOTAL_STEPS, lang, 'Kredensial & halaman role', 'Role credentials & pages');
+      const existingRoles = existing ? detectExistingRoles(existing) : [];
+      if (opts.roles) {
+        roleNames = opts.roles;
+      } else if (opts.headless) {
+        // Prefer roles already detected in the env file; otherwise ask via flag.
+        if (existingRoles.length > 0) {
+          roleNames = existingRoles;
+        } else {
+          throw new Error(
+            t(
+              lang,
+              'Mode headless: tidak ada role terdeteksi di env file dan --roles tidak diberikan (mis. npm run setup -- --yes --roles user).',
+              'Headless mode: no roles detected in the env file and --roles was not given (e.g. npm run setup -- --yes --roles user).',
+            ),
+          );
+        }
+      } else {
+        const picked = await promptRoles(
+          lang,
+          roleNames ?? (existingRoles.length > 0 ? existingRoles : undefined),
+          true,
+        );
+        if (picked === PREV) {
+          stage = 3;
+          continue;
+        }
+        roleNames = picked;
+      }
+
+      roleInputs = [];
+      for (const role of roleNames) {
+        const existingFields = existing ? getExistingRoleFields(existing, role) : undefined;
+        if (opts.headless) {
+          // Headless has no way to ask for a password, so the role must already
+          // be configured in the env file. Fail loudly instead of writing a file
+          // with a missing password.
+          if (!existingFields?.password) {
+            throw new Error(
+              t(
+                lang,
+                `Mode headless: role "${role}" belum punya kredensial di ${shortPath(envPath)}. Jalankan setup interaktif atau npm run env:edit.`,
+                `Headless mode: role "${role}" has no credentials in ${shortPath(envPath)}. Run the interactive setup or npm run env:edit.`,
+              ),
+            );
+          }
+          roleInputs.push({ name: role, fields: existingFields as RoleFields });
+          continue;
+        }
+        let fields: RoleFields | typeof BACK | undefined;
+        do {
+          fields = await promptRoleCredentials(lang, role, existingFields);
+        } while (fields === BACK);
+        roleInputs.push({ name: role, fields });
+      }
+      stage = 5;
+      continue;
+    }
+
+    // stage === 5
+    printStep(5, TOTAL_STEPS, lang, 'Mode challenge (OTP/CAPTCHA)', 'Challenge mode (OTP/CAPTCHA)');
+    if (opts.challengeMode) {
+      challengeMode = opts.challengeMode;
+    } else if (opts.headless) {
+      // No prompt in headless: reuse the env value or fall back to the safe
+      // default (`none`). --challenge <mode> overrides.
+      challengeMode = (existing?.['AUTH_CHALLENGE_MODE'] as ChallengeMode) ?? 'none';
+    } else {
+      const priorChallenge = challengeMode ?? existing?.['AUTH_CHALLENGE_MODE'];
+      const picked = await promptChallengeMode(lang, priorChallenge, true);
+      if (picked === PREV) {
+        stage = 4;
+        continue;
+      }
+      challengeMode = picked;
+    }
+    stage = 6;
   }
-
-  // ─── Playwright browser availability (install runs in parallel) ─────────
-  await ensureBrowsers(lang);
-
-  // ─── Step 3: Prompt BASE_URL ────────────────────────────────────────────
-  printStep(3, TOTAL_STEPS, lang, 'URL aplikasi (BASE_URL)', 'Application BASE_URL');
-  const existingUrl =
-    existing && !isEncryptedValue(existing['BASE_URL']) ? existing['BASE_URL'] : undefined;
-  const baseUrl = await promptBaseUrl(lang, existingUrl);
-
-  // ─── Step 4: Prompt roles (credentials + login/redirect paths) ──────────
-  printStep(4, TOTAL_STEPS, lang, 'Kredensial & halaman role', 'Role credentials & pages');
-  const existingRoles = existing ? detectExistingRoles(existing) : [];
-  const roleNames = await promptRoles(lang, existingRoles.length > 0 ? existingRoles : undefined);
-
-  const roleInputs: WizardRoleInput[] = [];
-
-  for (const role of roleNames) {
-    let fields: RoleFields | typeof BACK | undefined;
-    do {
-      const existingFields = existing ? getExistingRoleFields(existing, role) : undefined;
-      fields = await promptRoleCredentials(lang, role, existingFields);
-    } while (fields === BACK);
-    roleInputs.push({ name: role, fields });
-  }
-
-  // ─── Step 5: Prompt challenge mode ──────────────────────────────────────
-  printStep(5, TOTAL_STEPS, lang, 'Mode challenge (OTP/CAPTCHA)', 'Challenge mode (OTP/CAPTCHA)');
-  const existingChallenge = existing?.['AUTH_CHALLENGE_MODE'];
-  const challengeMode = await promptChallengeMode(lang, existingChallenge);
 
   // ─── Step 6: Preview (masked) + confirm before write ────────────────────
   printStep(6, TOTAL_STEPS, lang, 'Konfirmasi & verifikasi', 'Confirm & verify');
@@ -221,37 +348,53 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     roles: roleInputs,
     challengeMode,
   });
-  const { ok } = await prompts(
-    {
-      type: 'confirm',
-      name: 'ok',
-      message: t(lang, 'Tulis nilai-nilai ini ke file env?', 'Write these values to the env file?'),
-      initial: true,
-    },
-    {
-      onCancel(): never {
-        throw new Error('SETUP_WIZARD_CANCELLED');
-      },
-    },
-  );
-  if (!ok) throw new Error('SETUP_WIZARD_CANCELLED');
+  if (!opts.headless) {
+    const ok = await confirmPrompt(
+      t(lang, 'Tulis nilai-nilai ini ke file env?', 'Write these values to the env file?'),
+      true,
+    );
+    if (!ok) throw new Error('SETUP_WIZARD_CANCELLED');
+  }
 
-  // ─── Phase: write env + requirement + sync ──────────────────────────────
+  // ─── Phase: build + validate requirement, then write ─────────────────────
   printSection(lang, 'Menulis file', 'Writing files');
 
-  const writeResult = writeEnvFile({
+  // ─── Build requirements/login.md from this env + challenge ──────────────
+  // Built and compiled BEFORE the env file is written and pinned: the old
+  // order wrote + encrypted the env, then threw on an invalid requirement,
+  // leaving a half-configured repo behind on a failed run.
+  const requirement = await writeAndValidateLoginRequirement({
+    repoRoot: process.cwd(),
+    appEnv,
+    baseUrl,
+    roles: roleNames,
+    roleInputs,
+    challengeMode,
+  });
+  stepLine(
+    t(
+      lang,
+      requirement.skipped
+        ? `✓ ${requirement.relativePath} sudah ada (bukan auto-generated) — tidak ditimpa`
+        : `✓ Requirement login ditulis: ${requirement.relativePath} (mode ${challengeMode})`,
+      requirement.skipped
+        ? `✓ ${requirement.relativePath} already exists (not auto-generated) — left intact`
+        : `✓ Login requirement written: ${requirement.relativePath} (mode ${challengeMode})`,
+    ),
+  );
+
+  const { write: writeResult, pin } = writeEnvAndPin({
+    repoRoot: process.cwd(),
     appEnv,
     baseUrl,
     roles: roleInputs,
     challengeMode,
   });
 
-  // Publish the chosen APP_ENV immediately: every later command (auth:setup,
-  // qa:run, health:check) resolves APP_ENV through this pin. Without it the
-  // wizard writes dev.env but the next command reads the default `local`
-  // profile, which does not exist.
-  const pin = pinEnvAfterSetup(process.cwd(), appEnv);
-
+  // The pin is written inside writeEnvAndPin: every later command (auth:setup,
+  // qa:run, health:check) resolves APP_ENV through it. Without it the wizard
+  // writes dev.env but the next command reads the default `local` profile,
+  // which does not exist.
   stepLine(
     t(
       lang,
@@ -293,73 +436,27 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   for (const w of writeResult.warnings ?? []) {
     stepLine(`⚠ ${w}`);
   }
-  // ─── Write requirements/login.md from this env + challenge ──────────────
-  const primaryRole = roleInputs[0];
-  const loginState = loginStateFromWizard({
-    baseUrl,
-    appEnv,
-    roles: roleNames,
-    challengeMode,
-    loginIdPref: primaryRole?.fields.loginIdPref,
-    loginUrl: primaryRole?.fields.loginUrlPath || '/login',
-    successUrlPath: primaryRole?.fields.successUrlPath || '/dashboard',
-    company: primaryRole?.fields.company,
-  });
-  const loginFile = writeLoginRequirementFile(process.cwd(), loginState);
-  const loginMarkdown = loginFile.skipped
-    ? fs.readFileSync(loginFile.absolutePath, 'utf-8')
-    : buildLoginRequirement(loginState, { generated: true });
-  const loginRequirementValidation = await validateRequirementFile(
-    process.cwd(),
-    loginFile.relativePath,
-  );
-  if (!loginRequirementValidation.valid) {
-    throw new Error(
-      `Generated login requirement is invalid: ${formatRequirementValidationFailure(loginRequirementValidation)}`,
-    );
-  }
-  stepLine(
-    t(
-      lang,
-      loginFile.skipped
-        ? `✓ ${loginFile.relativePath} sudah ada (bukan auto-generated) — tidak ditimpa`
-        : `✓ Requirement login ditulis: ${loginFile.relativePath} (mode ${challengeMode})`,
-      loginFile.skipped
-        ? `✓ ${loginFile.relativePath} already exists (not auto-generated) — left intact`
-        : `✓ Login requirement written: ${loginFile.relativePath} (mode ${challengeMode})`,
-    ),
-  );
 
   // ─── Regenerate src/support/auth.setup.ts with real per-role paths ───────
-  const authSetupOut = path.join(process.cwd(), 'src', 'support', 'auth.setup.ts');
-  const authRoles = roleInputs.map((r) => ({
-    name: r.name,
-    authFile: `.auth/${appEnv}/${r.name}.json`,
-    loginUrl: r.fields.loginUrlPath || '/login',
-    successUrlPath: r.fields.successUrlPath || '/dashboard',
-  }));
-  const authWrite = writeAuthSetup(
-    {
-      roles: authRoles,
-      loginUrl: primaryRole?.fields.loginUrlPath || '/login',
-      successUrlPath: primaryRole?.fields.successUrlPath || '/dashboard',
-    },
-    authSetupOut,
-  );
+  const authWrite = writeAuthSetupFile({
+    repoRoot: process.cwd(),
+    appEnv,
+    roleInputs,
+  });
   stepLine(
     t(
       lang,
       authWrite.skipped
         ? `✓ Setup autentikasi: src/support/auth.setup.ts memiliki kustomisasi QA (// CUSTOM_AUTH_FLOW) — tidak ditimpa`
-        : `✓ Setup autentikasi di-update: src/support/auth.setup.ts (${roleNames.length} role)`,
+        : `✓ Setup autentikasi di-update: src/support/auth.setup.ts (${authWrite.roleCount} role)`,
       authWrite.skipped
         ? `✓ Auth setup: src/support/auth.setup.ts has custom QA flow (// CUSTOM_AUTH_FLOW) — left intact`
-        : `✓ Auth setup updated: src/support/auth.setup.ts (${roleNames.length} role)`,
+        : `✓ Auth setup updated: src/support/auth.setup.ts (${authWrite.roleCount} role)`,
     ),
   );
 
   // ─── Sync Agent Skills & MCP Configs ────────────────────────────────────
-  const agentSync = syncAgentSkillsAndMcp(process.cwd());
+  const agentSync = syncAgentArtifacts(process.cwd());
   if (agentSync.skillsSynced.length > 0) {
     stepLine(
       t(
@@ -401,75 +498,31 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   const validation = await validateSetup(appEnv, freshEnv, writeResult.envFilePath, lang);
 
   // ─── Materialize auth sessions (inline synchronous) ─────────────────────
-  if (roleNames.length > 0 && validation.reachable) {
+  // Interactive only: auth:setup drives a real browser, so a headless run
+  // leaves session creation to the caller's CI step.
+  if (roleNames.length > 0 && validation.reachable && !opts.headless) {
     printSection(lang, 'Sesi autentikasi login', 'Login authentication sessions');
-    const authCmd = challengeMode === 'none' ? 'npm run auth:setup' : 'npm run auth:setup:headed';
-    const { runAuth } = await prompts(
-      {
-        type: 'confirm',
-        name: 'runAuth',
-        message: t(
-          lang,
-          `Buat sesi login sekarang via ${authCmd}?`,
-          `Materialize login sessions now via ${authCmd}?`,
-        ),
-        initial: true,
-      },
-      {
-        onCancel(): boolean {
-          return false;
-        },
-      },
+    const script = authSetupScript(challengeMode);
+    const authCmd = `npm run ${script}`;
+    const runAuth = await confirmPrompt(
+      t(
+        lang,
+        `Buat sesi login sekarang via ${authCmd}?`,
+        `Materialize login sessions now via ${authCmd}?`,
+      ),
+      true,
     );
 
     if (runAuth) {
       stepLine(
         t(lang, `Menjalankan ${authCmd} (mohon tunggu)...`, `Running ${authCmd} (please wait)...`),
       );
-      const scriptName = challengeMode === 'none' ? 'auth:setup' : 'auth:setup:headed';
-      const spawnSpec = binSpawn(npmCommand(), ['run', scriptName]);
-      const authRes = spawnSync(spawnSpec.command, spawnSpec.args, {
-        cwd: process.cwd(),
-        stdio: 'inherit',
-        shell: spawnSpec.shell,
+      const outcome = materializeAuthSession({
+        repoRoot: process.cwd(),
+        appEnv,
+        challengeMode,
       });
-
-      if (authRes.status === 0) {
-        stepLine(
-          t(
-            lang,
-            `✓ Sesi login berhasil dibuat di .auth/${appEnv}/`,
-            `✓ Login sessions successfully created in .auth/${appEnv}/`,
-          ),
-        );
-      } else if (authRes.error) {
-        // The spawn itself failed (e.g. EINVAL on Windows). `status` is null in
-        // that case, which used to be reported as the meaningless "exit code
-        // null" while the real cause was discarded.
-        const err = authRes.error as NodeJS.ErrnoException;
-        stepLine(
-          t(
-            lang,
-            `⚠ Sesi login gagal dijalankan: ${err.code ?? err.name} — ${err.message}`,
-            `⚠ Login session could not run: ${err.code ?? err.name} — ${err.message}`,
-          ),
-        );
-        stepLine(
-          t(
-            lang,
-            `  Pemulihan: npm run env:use:${appEnv}  →  npm run auth:setup  →  npm run auth:verify`,
-            `  Recovery: npm run env:use:${appEnv}  →  npm run auth:setup  →  npm run auth:verify`,
-          ),
-        );
-      } else {
-        stepLine(
-          t(
-            lang,
-            `⚠ Sesi login belum terbentuk (exit code ${authRes.status}). Lihat pesan di atas, lalu: npm run auth:setup  →  npm run auth:verify`,
-            `⚠ Login session was not created (exit code ${authRes.status}). Check the output above, then: npm run auth:setup  →  npm run auth:verify`,
-          ),
-        );
-      }
+      printAuthSessionOutcome(lang, outcome);
     } else {
       stepLine(
         t(
@@ -484,6 +537,10 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
   // ─── Phase: REAL artifact verification ──────────────────────────────────
   printSection(lang, 'Verifikasi artefak (nyata)', 'Artifact verification (real)');
 
+  // The decrypt roundtrip shells out to dotenvx — a real wait, so show progress
+  // instead of a frozen terminal. Skipped when not a TTY (no animation target).
+  const verifySpin = isTty ? spinner() : null;
+  verifySpin?.start(t(lang, 'Memverifikasi artefak…', 'Verifying artifacts…'));
   const checks = verifySetupArtifacts({
     repoRoot: process.cwd(),
     appEnv,
@@ -491,16 +548,17 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     envMap: readExistingEnv(appEnv),
     roles: roleNames,
     lang,
-    loginRequirementPath: loginFile.relativePath,
-    loginRequirementValid: loginRequirementValidation.valid,
-    loginRequirementError: loginRequirementValidation.valid
+    loginRequirementPath: requirement.relativePath,
+    loginRequirementValid: requirement.validation.valid,
+    loginRequirementError: requirement.validation.valid
       ? undefined
-      : formatRequirementValidationFailure(loginRequirementValidation),
+      : formatRequirementValidationFailure(requirement.validation),
     configValid: validation.valid,
     skillsSynced: agentSync.skillsSynced.length > 0,
     mcpPlatforms: agentSync.mcpPlatforms,
     hermesDetected: agentSync.hermesProfileSkillsDir != null,
   });
+  verifySpin?.stop(t(lang, 'Artefak diverifikasi.', 'Artifacts verified.'));
   printChecklist(checks.map(toChecklistItem));
 
   // ─── Summary ────────────────────────────────────────────────────────────
@@ -513,10 +571,20 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     writeResult,
     validation,
     agentSync,
-    loginRequirementPath: loginFile.relativePath,
-    loginMarkdown,
-    loginRequirementValidation,
+    loginRequirementPath: requirement.relativePath,
+    loginMarkdown: requirement.markdown,
+    loginRequirementValidation: requirement.validation,
   });
+
+  outro(
+    validation.valid
+      ? t(lang, 'Setup selesai — env siap dipakai.', 'Setup complete — env is ready.')
+      : t(
+          lang,
+          'Setup selesai dengan peringatan — lihat checklist di atas.',
+          'Setup finished with warnings — see the checklist above.',
+        ),
+  );
 
   return {
     envFilePath: writeResult.envFilePath,
@@ -524,8 +592,8 @@ export async function runSetupWizard(options?: WizardOptions): Promise<WizardRes
     isNewSetup: writeResult.isNewFile,
     validation,
     checks,
-    loginRequirementPath: loginFile.relativePath,
-    loginRequirementValidation,
+    loginRequirementPath: requirement.relativePath,
+    loginRequirementValidation: requirement.validation,
   };
 }
 
@@ -546,29 +614,87 @@ function toChecklistItem(check: SetupCheck): {
   return { label: check.label, status: check.status, detail: check.detail, fix: check.fix };
 }
 
+/** Render the outcome of the auth-session materialization attempt. */
+function printAuthSessionOutcome(lang: WizardLang, outcome: AuthSessionOutcome): void {
+  if (outcome.status === 'created') {
+    stepLine(
+      t(
+        lang,
+        `✓ Sesi login berhasil dibuat di .auth/${outcome.appEnv}/`,
+        `✓ Login sessions successfully created in .auth/${outcome.appEnv}/`,
+      ),
+    );
+    return;
+  }
+  if (outcome.status === 'spawn-error') {
+    stepLine(
+      t(
+        lang,
+        `⚠ Sesi login gagal dijalankan: ${outcome.detail}`,
+        `⚠ Login session could not run: ${outcome.detail}`,
+      ),
+    );
+    stepLine(
+      t(
+        lang,
+        `  Pemulihan: npm run env:use:${outcome.appEnv}  →  npm run auth:setup  →  npm run auth:verify`,
+        `  Recovery: npm run env:use:${outcome.appEnv}  →  npm run auth:setup  →  npm run auth:verify`,
+      ),
+    );
+    return;
+  }
+  stepLine(
+    t(
+      lang,
+      `⚠ Sesi login belum terbentuk (${outcome.detail}). Lihat pesan di atas, lalu: npm run auth:setup  →  npm run auth:verify`,
+      `⚠ Login session was not created (${outcome.detail}). Check the output above, then: npm run auth:setup  →  npm run auth:verify`,
+    ),
+  );
+}
+
 /**
- * Show what the existing env currently configures so the update/keep decision
- * is informed: BASE_URL, detected roles (with encrypted-password marker), and
- * challenge mode.
+ * Show what the existing (active) env currently configures so the update/keep
+ * decision is informed. Only NON-encrypted values are echoed — secrets stay
+ * hidden on disk and are never printed back.
  */
 function describeExistingEnv(lang: WizardLang, envMap: Record<string, string>): void {
   printSection(lang, 'Config saat ini', 'Current config');
-  const baseUrl = envMap['BASE_URL'];
-  if (baseUrl && !isEncryptedValue(baseUrl)) {
-    stepLine(`  BASE_URL  : ${baseUrl}`);
+  const plain = (key: string): string | undefined => {
+    const v = envMap[key];
+    return v && !isEncryptedValue(v) ? v : undefined;
+  };
+
+  const baseUrl = plain('BASE_URL');
+  stepLine(`  BASE_URL     : ${baseUrl ?? t(lang, '(belum diisi)', '(not set)')}`);
+
+  const loginPath = plain('AUTH_LOGIN_URL_PATH');
+  const successPath = plain('AUTH_SUCCESS_URL_PATH');
+  if (loginPath || successPath) {
+    stepLine(
+      `  ${t(lang, 'Login/Redirect', 'Login/Redirect')}: ${loginPath ?? '/login'} → ${successPath ?? '/dashboard'}`,
+    );
   }
+
   const roles = detectExistingRoles(envMap);
   const roleParts = roles.map((role) => {
-    const prefix = role === 'user' ? 'TEST_USER' : role.toUpperCase().replace(/-/g, '_');
+    const prefix = roleToEnvPrefix(role);
     const pw = envMap[`${prefix}_PASSWORD`];
     return isEncryptedValue(pw) ? `${role} ${t(lang, '(terenkripsi)', '(encrypted)')}` : role;
   });
   stepLine(
-    `  ${t(lang, 'Roles', 'Roles')}    : ${roleParts.join(', ') || t(lang, 'tidak ada', 'none')}`,
+    `  ${t(lang, 'Roles', 'Roles')}        : ${roleParts.join(', ') || t(lang, 'tidak ada', 'none')}`,
   );
-  const challenge = envMap['AUTH_CHALLENGE_MODE'];
+
+  const challenge = plain('AUTH_CHALLENGE_MODE');
   if (challenge) {
-    stepLine(`  ${t(lang, 'Challenge', 'Challenge')}: ${challenge}`);
+    stepLine(`  ${t(lang, 'Challenge', 'Challenge')}    : ${challenge}`);
+  }
+  const headless = plain('HEADLESS');
+  const slowMo = plain('SLOW_MO');
+  if (headless || slowMo) {
+    stepLine(
+      `  ${t(lang, 'Browser', 'Browser')}      : HEADLESS=${headless ?? 'true'}${slowMo ? ` · SLOW_MO=${slowMo}` : ''}`,
+    );
   }
 }
 
@@ -594,7 +720,7 @@ function printPreview(opts: {
   );
   stepLine(`  CHALLENGE    ${challengeMode}`);
   for (const r of roles) {
-    const prefix = r.name === 'user' ? 'TEST_USER' : r.name.toUpperCase().replace(/-/g, '_');
+    const prefix = roleToEnvPrefix(r.name);
     const id = r.fields.email ?? r.fields.username ?? r.fields.phone ?? '-';
     const login = r.fields.loginUrlPath || '/login';
     const redir = r.fields.successUrlPath || '/dashboard';
@@ -603,30 +729,19 @@ function printPreview(opts: {
   }
 }
 
+/**
+ * Roles already present in the env file. Uses the canonical parser so the
+ * wizard agrees with wizard-validate / setup:check on what "configured" means.
+ */
 function detectExistingRoles(envMap: Record<string, string>): string[] {
-  const roles = new Set<string>();
-
-  for (const key of Object.keys(envMap)) {
-    const m = ROLE_KEY_RE.exec(key);
-    if (!m) continue;
-    const prefix = m[1];
-    if (prefix === 'DOTENV' || prefix === 'DOTENV_PUBLIC_KEY') continue;
-    if (prefix.endsWith('_LOGIN_ID')) continue;
-    if (prefix === 'TEST_USER') {
-      roles.add('user');
-    } else {
-      roles.add(prefix.toLowerCase().replace(/_/g, '-'));
-    }
-  }
-
-  return [...roles].sort();
+  return parseRolesFromEnvMap(envMap).map((ref) => ref.name);
 }
 
 function getExistingRoleFields(
   envMap: Record<string, string>,
   role: string,
 ): Partial<RoleFields> | undefined {
-  const prefix = role === 'user' ? 'TEST_USER' : role.toUpperCase().replace(/-/g, '_');
+  const prefix = roleToEnvPrefix(role);
   const fields: Partial<RoleFields> = {};
 
   if (envMap[`${prefix}_EMAIL`] && !isEncryptedValue(envMap[`${prefix}_EMAIL`]))
@@ -671,7 +786,7 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
     : undefined;
 
   // Sync / check skills and MCP
-  const agentSync = syncAgentSkillsAndMcp(process.cwd());
+  const agentSync = syncAgentArtifacts(process.cwd());
 
   if (validation.valid) {
     console.log(t(lang, '✅ Config valid.', '✅ Config valid.'));
@@ -970,25 +1085,21 @@ async function printSummary(data: {
 
     const pasted = prompt.trimEnd();
     const copied = await copyText(pasted);
-    const shown = await showPromptDialog(
-      t(
-        lang,
-        `Prompt Hermes sudah disalin. Tempel (Ctrl+V) ke chat Hermes.\n\n${pasted}`,
-        `Hermes prompt copied. Paste (Ctrl+V) into the Hermes chat.\n\n${pasted}`,
-      ),
+    // Terminal-only by design: no OS message-box is spawned (it blocks or fails
+    // on headless hosts). The prompt is already printed above.
+    stepLine(
+      copied
+        ? t(
+            lang,
+            '✓ Prompt Hermes disalin ke clipboard — tempel (Ctrl+V) ke chat Hermes.',
+            '✓ Hermes prompt copied to clipboard — paste (Ctrl+V) into the Hermes chat.',
+          )
+        : t(
+            lang,
+            'ℹ Clipboard tidak tersedia — salin blok di atas secara manual.',
+            'ℹ Clipboard unavailable — copy the block above by hand.',
+          ),
     );
-    if (copied) {
-      stepLine(t(lang, 'Prompt disalin ke clipboard.', 'Prompt copied to clipboard.'));
-    }
-    if (!shown) {
-      stepLine(
-        t(
-          lang,
-          'Dialog tidak tersedia — salin blok di atas secara manual.',
-          'No dialog available — copy the block above by hand.',
-        ),
-      );
-    }
   }
 
   console.log(line);

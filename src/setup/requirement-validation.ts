@@ -36,21 +36,11 @@ type CanonicalCompilerModule = {
   ) => CanonicalCompilerResult;
 };
 
-/** Compile a requirement through the canonical contract compiler. */
-export async function validateRequirementFile(
+async function compile(
   repoRoot: string,
-  relativePath: string,
+  text: string,
+  label: string,
 ): Promise<RequirementValidationResult> {
-  const absolutePath = path.resolve(repoRoot, relativePath);
-  if (!fs.existsSync(absolutePath)) {
-    return {
-      valid: false,
-      status: 'error',
-      message: `Requirement file not found: ${relativePath}`,
-      diagnostics: [],
-    };
-  }
-
   try {
     const compilerPath = path.resolve(
       repoRoot,
@@ -61,10 +51,7 @@ export async function validateRequirementFile(
       'compile-requirement.ts',
     );
     const compiler = (await import(pathToFileURL(compilerPath).href)) as CanonicalCompilerModule;
-    const result = compiler.compileRequirementFromText(
-      fs.readFileSync(absolutePath, 'utf-8'),
-      relativePath.replace(/\\/g, '/'),
-    );
+    const result = compiler.compileRequirementFromText(text, label);
     const diagnostics = result.diagnostics ?? [];
     return {
       valid: result.status !== 'error',
@@ -80,6 +67,39 @@ export async function validateRequirementFile(
       diagnostics: [],
     };
   }
+}
+
+/**
+ * Compile requirement markdown that is not on disk yet.
+ *
+ * The wizard uses this as a pre-flight gate: validating the generated text
+ * before writing anything means an invalid requirement can no longer leave a
+ * written+encrypted env file and a pinned APP_ENV behind on a failed run.
+ */
+export async function validateRequirementText(
+  repoRoot: string,
+  text: string,
+  label = 'requirement',
+): Promise<RequirementValidationResult> {
+  return compile(repoRoot, text, label.replace(/\\/g, '/'));
+}
+
+/** Compile a requirement through the canonical contract compiler. */
+export async function validateRequirementFile(
+  repoRoot: string,
+  relativePath: string,
+): Promise<RequirementValidationResult> {
+  const absolutePath = path.resolve(repoRoot, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    return {
+      valid: false,
+      status: 'error',
+      message: `Requirement file not found: ${relativePath}`,
+      diagnostics: [],
+    };
+  }
+
+  return compile(repoRoot, fs.readFileSync(absolutePath, 'utf-8'), relativePath);
 }
 
 export function formatRequirementValidationFailure(result: RequirementValidationResult): string {

@@ -1,14 +1,32 @@
 /**
  * Setup Wizard — interactive prompt UI for first-run and update flows.
  *
- * Uses the 'prompts' library (already a project dependency).
- * All prompts are cancellable — Ctrl+C aborts the wizard cleanly.
+ * Built on @clack/prompts following its best practices:
+ * - stage choices use `select` (arrow-key, descriptive labels) instead of a
+ *   numbered-text picker;
+ * - `PREV` ("<" / back) is offered as an explicit navigation option in the
+ *   select list, so going back is a visible choice, not a hidden keystroke;
+ * - validators come from `./prompts/clack` (pure, reusable by headless flags);
+ * - every prompt funnels cancellation through the shared `abortIfCancelled`.
+ *
+ * TTY contract: `select` requires a real terminal. Non-TTY callers (CI, pipes,
+ * agent sessions) must pass values via flags/env — the wizard's headless path
+ * never calls these prompts. See ./prompts/clack `requireTty`.
+ *
  * Messages are bilingual (id/en) — language is chosen at wizard start.
  *
  * @module src/setup/wizard-prompts
  */
 
-import prompts from 'prompts';
+import {
+  abortIfCancelled,
+  confirm as clackConfirm,
+  password as clackPassword,
+  select as clackSelect,
+  text as clackText,
+  validateRoleList,
+  validateUrl,
+} from './prompts/clack';
 import { KNOWN_APP_ENVS, type AppEnv } from '../utils/app-env';
 import { type ChallengeMode } from '../support/human-challenge';
 import { isPlaceholderCredential } from '../shared/utils/role-credentials';
@@ -29,23 +47,21 @@ export interface RoleFields {
 /** Sentinel returned when the user picks "back" on a numbered choice. */
 export const BACK = Symbol('back');
 
+/**
+ * Sentinel returned when the user asks to go back to the PREVIOUS wizard stage
+ * (not just the previous field). Returned only by stage-level prompts.
+ */
+export const PREV = Symbol('prev');
+
+/** Inputs that mean "back one field". */
+const BACK_INPUTS = new Set(['0', 'back', 'kembali']);
+/** Inputs that mean "back one whole stage" (typed at a stage's first prompt). */
+const PREV_INPUTS = new Set(['<', 'prev', 'sebelumnya']);
+
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
 function isValidEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-}
-
-function isNonEmpty(v: string): boolean {
-  return v.trim().length > 0;
-}
-
-function isValidUrl(v: string): boolean {
-  try {
-    const u = new URL(v);
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 function stripTrailingSlash(v: string): string {
@@ -81,51 +97,60 @@ export function parseNumberedChoice(
   return n;
 }
 
-/** Abort handler — re-throws a special cancel so the orchestrator can exit cleanly. */
-function onCancel(): never {
-  throw new Error('SETUP_WIZARD_CANCELLED');
+/**
+ * Yes/no confirm on clack. Ctrl+C aborts.
+ * Exported so other setup modules share one confirm implementation instead of
+ * each importing the prompt library directly.
+ */
+export async function confirmPrompt(message: string, initialValue = true): Promise<boolean> {
+  return abortIfCancelled(await clackConfirm({ message, initialValue }));
 }
 
 /**
- * Numbered choice — type-then-Enter (robust for non-technical users).
- * Prints `1. title — description` lines, then prompts for a number.
- * Never auto-submits on keypress; requires Enter to confirm.
- * ponytail: add arrow-key live preview when prompts lib is replaced.
+ * Stage choice via clack `select` (arrow-key, descriptive labels). When
+ * `allowPrev` is set the list gains an explicit "kembali" entry that resolves to
+ * PREV — back navigation is a visible option, not a hidden keystroke.
+ *
+ * clack's `select` types options as `Option<T>` where T is a plain value type,
+ * so PREV rides through as a private string token and is mapped back here —
+ * this keeps the caller-facing return type `T | typeof PREV` without fighting
+ * the library's generics with symbol unions.
+ *
+ * Requires a TTY (select does not block otherwise); callers are interactive-only.
  */
-async function promptNumberedChoice<T extends string>(opts: {
+const PREV_TOKEN = '__wizard_prev__';
+
+async function promptChoice<T extends string>(opts: {
   lang: WizardLang;
   message: string;
   choices: Array<{ title: string; value: T; description?: string }>;
   existing?: string;
-}): Promise<T> {
-  const { lang, choices, message, existing } = opts;
-  console.log('');
-  choices.forEach((c, i) => {
-    const marker = c.value === existing ? t(lang, ' (saat ini)', ' (current)') : '';
-    const desc = c.description ? ` — ${c.description}` : '';
-    console.log(`  ${i + 1}. ${c.title}${desc}${marker}`);
-  });
-  const initialIdx = existing ? choices.findIndex((c) => c.value === existing) : -1;
-  const initial = initialIdx >= 0 ? String(initialIdx + 1) : '1';
-  const { value } = await prompts(
-    {
-      type: 'text',
-      name: 'value',
-      message: `${message} — ${t(lang, 'ketik angka lalu Enter', 'type a number and press Enter')}`,
-      initial,
-      validate: (v: string) => {
-        const r = parseNumberedChoice(v, choices.length, lang);
-        return typeof r === 'number' ? true : r;
-      },
-    },
-    { onCancel },
-  );
-  const n = Number(String(value).trim());
-  return choices[n - 1]!.value;
-}
+  allowPrev?: boolean;
+}): Promise<T | typeof PREV> {
+  const { lang, choices, message, existing, allowPrev } = opts;
 
-/** Inputs that mean "go back" on a text/password prompt. */
-const BACK_INPUTS = new Set(['0', 'back', 'kembali']);
+  const options = choices.map((c) => ({
+    value: c.value as string,
+    label: `${c.title}${c.value === existing ? t(lang, ' (saat ini)', ' (current)') : ''}`,
+    hint: c.description,
+  }));
+  if (allowPrev) {
+    options.push({
+      value: PREV_TOKEN,
+      label: t(lang, '← Kembali ke langkah sebelumnya', '← Back to previous step'),
+      hint: undefined,
+    });
+  }
+
+  const chosen = abortIfCancelled(
+    await clackSelect<string>({
+      message,
+      options,
+      initialValue: String(choices.find((c) => c.value === existing)?.value ?? choices[0]!.value),
+    }),
+  );
+  return chosen === PREV_TOKEN ? PREV : (chosen as T);
+}
 
 /**
  * Text/password prompt with a back escape hatch.
@@ -140,18 +165,20 @@ async function promptTextWithBack(opts: {
   validate?: (v: string) => string | true;
 }): Promise<string | typeof BACK> {
   const { message, initial, isSecret, validate } = opts;
-  const { value } = await prompts(
-    {
-      type: isSecret ? 'password' : 'text',
-      name: 'value',
+  const run = isSecret ? clackPassword : clackText;
+  const value = abortIfCancelled(
+    await run({
       message,
-      initial,
-      validate: (v: string) => {
-        if (BACK_INPUTS.has(v.trim().toLowerCase())) return true;
-        return validate ? validate(v) : true;
+      // initialValue (NOT defaultValue): pre-fills the buffer so the previous
+      // env value is visible and editable. Passwords pass no initial (secrets
+      // stay encrypted on disk and are never echoed back into a prompt).
+      initialValue: isSecret ? undefined : initial,
+      validate: (v) => {
+        if (BACK_INPUTS.has((v ?? '').trim().toLowerCase())) return undefined;
+        const r = validate ? validate(v ?? '') : true;
+        return r === true ? undefined : r;
       },
-    },
-    { onCancel },
+    }),
   );
   const raw = String(value ?? '');
   if (BACK_INPUTS.has(raw.trim().toLowerCase())) return BACK;
@@ -164,76 +191,87 @@ async function promptTextWithBack(opts: {
  * First-run language selection (Indonesian default).
  */
 export async function promptLanguage(existing?: WizardLang): Promise<WizardLang> {
-  return promptNumberedChoice<WizardLang>({
+  const picked = await promptChoice<WizardLang>({
     lang: 'id',
     message: t('id', 'Pilih bahasa', 'Choose language'),
     choices: KNOWN_LANGS.map((l) => ({ title: LANG_LABELS[l], value: l })),
     existing: existing ?? 'id',
   });
+  return picked as WizardLang;
 }
 
 /**
  * Prompt for APP_ENV selection.
- * Pre-fills existing value if provided.
+ * Pre-fills existing value if provided. `allowPrev` lets QA go back to Language.
  */
-export async function promptAppEnv(lang: WizardLang, existing?: string): Promise<AppEnv> {
-  return promptNumberedChoice<AppEnv>({
+export async function promptAppEnv(
+  lang: WizardLang,
+  existing?: string,
+  allowPrev = false,
+): Promise<AppEnv | typeof PREV> {
+  return promptChoice<AppEnv>({
     lang,
     message: t(lang, 'Pilih environment (APP_ENV)', 'Select environment (APP_ENV)'),
     choices: KNOWN_APP_ENVS.map((env) => ({ title: env, value: env as AppEnv })),
     existing,
+    allowPrev,
   });
 }
 
 /**
  * Prompt for BASE_URL.
  * Validates: HTTP/HTTPS, no trailing slash, optionally reachable.
+ * `allowPrev` lets QA go back to the APP_ENV stage before entering a value.
  */
-export async function promptBaseUrl(lang: WizardLang, existing?: string): Promise<string> {
+export async function promptBaseUrl(
+  lang: WizardLang,
+  existing?: string,
+  allowPrev = false,
+): Promise<string | typeof PREV> {
   let attempts = 0;
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     attempts += 1;
-    const { value } = await prompts(
-      {
-        type: 'text',
-        name: 'value',
-        message: t(
-          lang,
-          'Base URL aplikasi yang akan ditest',
-          'Base URL of the application under test',
-        ),
-        initial: existing ?? 'http://localhost:3000',
-        validate: (v: string) => {
-          if (!isNonEmpty(v)) return t(lang, 'URL tidak boleh kosong', 'URL cannot be empty');
-          if (!isValidUrl(v))
-            return t(lang, 'Harus URL HTTP/HTTPS yang valid', 'Must be a valid HTTP/HTTPS URL');
-          return true;
+    // initialValue (NOT defaultValue): it writes the previous env value into the
+    // readline buffer so QA SEES and can edit it. defaultValue is applied only
+    // at finalize, so the value stays invisible behind a generic placeholder.
+    const fallbackUrl = 'http://localhost:3000';
+    const value = abortIfCancelled(
+      await clackText({
+        message:
+          t(lang, 'Base URL aplikasi yang akan ditest', 'Base URL of the application under test') +
+          (allowPrev
+            ? ` — ${t(lang, 'atau ketik "<" untuk kembali', 'or type "<" to go back')}`
+            : ''),
+        placeholder: fallbackUrl,
+        initialValue: existing && existing.length > 0 ? existing : fallbackUrl,
+        validate: (v) => {
+          if (allowPrev && PREV_INPUTS.has((v ?? '').trim().toLowerCase())) return undefined;
+          return validateUrl(v);
         },
-      },
-      { onCancel },
+      }),
     );
 
-    const url = stripTrailingSlash(stripControlChars(value as string));
+    const raw = stripControlChars(value);
+    if (allowPrev && PREV_INPUTS.has(raw.trim().toLowerCase())) return PREV;
+
+    const url = stripTrailingSlash(raw);
 
     // Reachability is tested automatically (no confirmation prompt).
     // On failure the user chooses: continue anyway or re-enter the URL.
     const reachable = await checkReachable(url);
 
     if (!reachable) {
-      const { proceed } = await prompts(
-        {
-          type: 'confirm',
-          name: 'proceed',
+      const proceed = abortIfCancelled(
+        await clackConfirm({
           message: t(
             lang,
             `⚠ ${url} tidak bisa diakses. Lanjutkan saja? (pilih "tidak" untuk ganti URL)`,
             `⚠ ${url} is not reachable. Continue anyway? (choose "no" to change the URL)`,
           ),
-          initial: false,
-        },
-        { onCancel },
+          initialValue: false,
+        }),
       );
       if (!proceed) continue;
     }
@@ -403,7 +441,7 @@ export async function promptRoleCredentials(
 
   for (;;) {
     if (step === 0) {
-      id = await promptNumberedChoice<'username' | 'email' | 'phone'>({
+      id = (await promptChoice<'username' | 'email' | 'phone'>({
         lang,
         message: t(lang, `Metode login untuk role "${role}"`, `Login method for role "${role}"`),
         choices: [
@@ -412,7 +450,7 @@ export async function promptRoleCredentials(
           { title: 'Phone', value: 'phone' },
         ],
         existing: pickId,
-      });
+      })) as 'username' | 'email' | 'phone';
       step = 1;
       continue;
     }
@@ -552,23 +590,36 @@ export async function promptRoleCredentials(
  * Accepts user-specified roles (e.g. "admin,guru,murid" or "user").
  * Defaults to 'user' when nothing is specified.
  */
-export async function promptRoles(lang: WizardLang, existingRoles?: string[]): Promise<string[]> {
+export async function promptRoles(
+  lang: WizardLang,
+  existingRoles?: string[],
+  allowPrev = false,
+): Promise<string[] | typeof PREV> {
   const defaultRoles = existingRoles && existingRoles.length > 0 ? existingRoles.join(',') : 'user';
-  const { input } = await prompts(
-    {
-      type: 'text',
-      name: 'input',
-      message: t(
-        lang,
-        'Roles yang dikonfigurasi (pisahkan koma, mis. "admin,guru,murid" atau "user")',
-        'Roles to configure (comma-separated, e.g. "admin,guru,murid" or "user")',
-      ),
-      initial: defaultRoles,
-    },
-    { onCancel },
+  const input = abortIfCancelled(
+    await clackText({
+      message:
+        t(
+          lang,
+          'Roles yang dikonfigurasi (pisahkan koma, mis. "admin,guru,murid" atau "user")',
+          'Roles to configure (comma-separated, e.g. "admin,guru,murid" or "user")',
+        ) +
+        (allowPrev
+          ? ` — ${t(lang, 'atau ketik "<" untuk kembali', 'or type "<" to go back')}`
+          : ''),
+      placeholder: 'user',
+      // initialValue (NOT defaultValue): the roles already configured in the
+      // active env are pre-filled and visible so QA can edit them in place.
+      initialValue: defaultRoles,
+      validate: (v) => {
+        if (allowPrev && PREV_INPUTS.has((v ?? '').trim().toLowerCase())) return undefined;
+        return validateRoleList(v);
+      },
+    }),
   );
 
   const raw = String(input ?? '').trim();
+  if (allowPrev && PREV_INPUTS.has(raw.toLowerCase())) return PREV;
   const rawList = raw.includes(',') ? raw.split(',') : [raw];
   const roles = rawList
     .map((r: string) => r.trim().toLowerCase())
@@ -642,17 +693,19 @@ export function normalizeCompanyCode(raw: string): string | undefined {
 }
 
 /**
- * Prompt for AUTH_CHALLENGE_MODE.
+ * Prompt for AUTH_CHALLENGE_MODE. `allowPrev` lets QA go back to the Roles stage.
  */
 export async function promptChallengeMode(
   lang: WizardLang,
   existing?: string,
-): Promise<ChallengeMode> {
-  return promptNumberedChoice<ChallengeMode>({
+  allowPrev = false,
+): Promise<ChallengeMode | typeof PREV> {
+  return promptChoice<ChallengeMode>({
     lang,
     message: t(lang, 'Mode challenge autentikasi', 'Auth challenge mode'),
     existing: existing ?? 'none',
     choices: challengeModeChoices(lang),
+    allowPrev,
   });
 }
 
@@ -660,18 +713,15 @@ export async function promptChallengeMode(
  * Prompt to confirm overwriting an existing env file.
  */
 export async function confirmOverwrite(lang: WizardLang, envFilePath: string): Promise<boolean> {
-  const { overwrite } = await prompts(
-    {
-      type: 'confirm',
-      name: 'overwrite',
+  const overwrite = abortIfCancelled(
+    await clackConfirm({
       message: t(
         lang,
         `File env sudah ada: ${envFilePath}\n  Update?`,
         `Env file already exists: ${envFilePath}\n  Update it?`,
       ),
-      initial: true,
-    },
-    { onCancel },
+      initialValue: true,
+    }),
   );
-  return overwrite as boolean;
+  return overwrite;
 }
