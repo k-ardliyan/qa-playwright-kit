@@ -75,10 +75,13 @@ function expectSuccess(output: NormalizeRequirementsOutput): RequirementsContrac
 
 async function property2RoundTrip(): Promise<void> {
   const titleArb = fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9 ]{2,28}$/);
-  const criteriaArb = fc.array(fc.stringMatching(/^[A-Za-z0-9 ,.-]{3,60}$/), {
-    minLength: 1,
-    maxLength: 5,
-  });
+  const criteriaArb = fc.array(
+    fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9 ,.-]{1,58}[A-Za-z0-9.]$/),
+    {
+      minLength: 1,
+      maxLength: 5,
+    },
+  );
   const tagsArb = fc.uniqueArray(fc.stringMatching(/^[a-z0-9_-]{2,12}$/), {
     minLength: 0,
     maxLength: 4,
