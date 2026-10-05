@@ -374,6 +374,28 @@ test.describe('Modern Reporting Subsystem', () => {
     expect(html).toContain('Login Regression — Staging RC12');
     expect(html).toContain('Breadcrumb');
     expect(html).toContain('Test records');
+    // Archived served pages keep the client-side copy row in the alert: the
+    // /export/* hero menu would export the wrong (latest) run here.
+    expect(html).toContain('alert__actions export-buttons');
+    expect(html).not.toContain('summary class="btn-export-sm"');
+  });
+
+  test('ReportDetailPage consolidates export/copy into the masthead for the latest run', () => {
+    const html = String(
+      ReportDetailPage({
+        mode: 'local',
+        summary: mockSummary,
+        collectedTests: [],
+        serveMode: true,
+        hasLatestRun: true,
+      }),
+    );
+    // Full cluster: Export menu (html/md/csv) + Copy menu (Confluence/TSV).
+    expect(html).toContain('<summary class="btn-export-sm"');
+    expect(html).toContain('/export/portable');
+    expect(html).toContain('action-menu__item" id="btn-copy-confluence"');
+    // The alert is message-only on the served latest page.
+    expect(html).not.toContain('alert__actions export-buttons');
   });
 
   test('buildDashboardOverview exposes failure-source mix, module health, and flaky tests', () => {
@@ -465,6 +487,8 @@ test.describe('Modern Reporting Subsystem', () => {
     expect(html).toContain('triage-group');
     expect(html).toContain('triage-set-decision');
     expect(html).toContain('applyTriageDecision');
+    // ONE incident surface: the strip replaces the generic alert when it renders.
+    expect(html).not.toContain('Incident queue active');
     // Save modal is preselected with the dominant suggested decision.
     expect(html).toContain('Preselected from triage');
   });
@@ -483,6 +507,9 @@ test.describe('Modern Reporting Subsystem', () => {
     );
 
     expect(passedOnly).not.toContain('Triage (');
+    // With no triage strip the alert is the single incident surface again —
+    // a healthy run reads "Queue clear".
+    expect(passedOnly).toContain('Queue clear');
   });
 
   test('ReportDetailPage deep-links: ?view=accordion and ?test=<id> expand server-side', () => {

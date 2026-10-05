@@ -53,6 +53,10 @@ test.describe('Custom Dashboard Render Baseline', () => {
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('403 Forbidden');
     expect(html).toContain('SOURCE');
+    // The static report has no server exports: the alert keeps the client-side
+    // copy/download row, and the masthead renders no export menu at all.
+    expect(html).toContain('btn-copy-confluence');
+    expect(html).not.toContain('summary class="btn-export-sm"');
   });
 
   test('renders mixed-results dataset with tabs and filters', () => {

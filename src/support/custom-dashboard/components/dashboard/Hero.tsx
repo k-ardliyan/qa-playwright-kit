@@ -2,6 +2,7 @@
 import type { TestSummary } from '../../types';
 import { formatDuration as formatDurationMs } from '../../shared';
 import {
+  IconCopy,
   IconLayers,
   IconList,
   IconCalendar,
@@ -20,9 +21,10 @@ import {
 export interface HeroProps {
   summary: TestSummary;
   /**
-   * Render the run actions (Export / Markdown / Save) in the masthead. Only the
-   * LATEST run gets them: `/export/*` reads the latest summary server-side, so
-   * offering them on a history or compare page would export the wrong run.
+   * Render the full action cluster (Export menu / Copy menu / Save) in the
+   * masthead. Only the LATEST run gets it: `/export/*` reads the latest
+   * summary server-side, so offering those on a history or compare page would
+   * export the wrong run.
    */
   runActions?: boolean;
   /** The latest run is already archived — Save is no longer offered. */
@@ -135,14 +137,37 @@ export function Hero({ summary, runActions, isArchived }: HeroProps) {
         <div class="hero__top-actions">
           {runActions ? (
             <div class="hero__run-actions">
-              <a class="btn-export-sm" href="/export/portable" title="Download portable report">
-                <IconDownload size={14} />
-                <span>Export</span>
-              </a>
-              <a class="btn-export-sm" href="/export/markdown" title="Download Markdown report">
-                <IconDownload size={14} />
-                <span>Markdown</span>
-              </a>
+              <details class="action-menu">
+                <summary class="btn-export-sm" title="Export the latest run">
+                  <IconDownload size={14} />
+                  <span>Export</span>
+                </summary>
+                <div class="action-menu__list">
+                  <a class="action-menu__item" href="/export/portable">
+                    Portable report (.html)
+                  </a>
+                  <a class="action-menu__item" href="/export/markdown">
+                    Markdown report (.md)
+                  </a>
+                  <button class="action-menu__item" id="btn-download-csv" type="button">
+                    Data (.csv)
+                  </button>
+                </div>
+              </details>
+              <details class="action-menu">
+                <summary class="btn-export-sm" title="Copy run data">
+                  <IconCopy size={14} />
+                  <span>Copy</span>
+                </summary>
+                <div class="action-menu__list">
+                  <button class="action-menu__item" id="btn-copy-confluence" type="button">
+                    Copy for Confluence
+                  </button>
+                  <button class="action-menu__item" id="btn-copy-tsv" type="button">
+                    Copy Data (TSV)
+                  </button>
+                </div>
+              </details>
               {!isArchived ? (
                 <button
                   class="btn-save-sm"

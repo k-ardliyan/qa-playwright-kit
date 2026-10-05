@@ -32,7 +32,15 @@ export function TriageStrip({ groups, isArchived = false }: TriageStripProps) {
   const total = groups.reduce((n, g) => n + g.count, 0);
 
   return (
-    <section class="triage-strip" aria-label="Failure triage">
+    // This strip IS the incident alert (the generic FailureAlert is suppressed
+    // when it renders), so it inherits the alert's announcing contract.
+    <section
+      class="triage-strip"
+      role="alert"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label="Failure triage"
+    >
       <div class="triage-strip__head">
         <span class="triage-strip__title">
           <IconAlert size={15} class="icon-warning" />

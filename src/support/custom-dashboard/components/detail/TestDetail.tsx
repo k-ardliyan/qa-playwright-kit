@@ -3,6 +3,7 @@ import type { CollectedError, CollectedTestData } from '../../types';
 import { decisionHintFor, decisionHintTooltipFor, explainFailure } from '../../failure-source';
 import { formatDuration } from '../../shared';
 import { generateErrorFingerprint } from '../../../classifier/fingerprint';
+import { stripAnsi } from '../../../reporter/collect';
 import { PriorityBadge } from '../shared/PriorityBadge';
 import { StatusPill } from '../shared/StatusPill';
 import { statusIcon } from '../table/TableCells';
@@ -82,10 +83,12 @@ function ErrorsSection({ errors }: { errors: CollectedError[] }) {
   return (
     <>
       {errors.map((error, idx) => {
-        const full = [error.message, error.stack]
-          .filter((part) => part && part.trim().length > 0)
-          .filter((part, i, parts) => i === 0 || !parts[0]?.includes(part ?? ''))
-          .join('\n\n');
+        const full = stripAnsi(
+          [error.message, error.stack]
+            .filter((part) => part && part.trim().length > 0)
+            .filter((part, i, parts) => i === 0 || !parts[0]?.includes(part ?? ''))
+            .join('\n\n'),
+        );
 
         return (
           <div class="test-error-container test-error-text" data-error-index={idx}>

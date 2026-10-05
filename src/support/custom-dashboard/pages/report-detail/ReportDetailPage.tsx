@@ -133,7 +133,13 @@ export function ReportDetailPage({
       <div id="primary-view">
         <Hero summary={summary} runActions={serveMode && hasLatestRun} isArchived={isArchived} />
         <RoleHealthStrip summary={summary} collectedTests={tests} />
-        <FailureAlert unhealthyCount={unhealthyCount} />
+        {/* ONE incident surface: the triage strip is the incident alert when it
+            renders. The FailureAlert only speaks when there is nothing to
+            group — a healthy run ("Queue clear") or unhealthy tests that no
+            failure source could classify. */}
+        {triageGroups.length === 0 ? (
+          <FailureAlert unhealthyCount={unhealthyCount} actions={!(serveMode && hasLatestRun)} />
+        ) : null}
 
         {triageGroups.length > 0 ? (
           <TriageStrip groups={triageGroups} isArchived={isArchived} />

@@ -2,6 +2,7 @@
 /** @jsxImportSource @kitajs/html */
 import type { CollectedStep, StepSnippet } from '../../types';
 import { formatDuration } from '../../shared';
+import { stripAnsi } from '../../../reporter/collect';
 import { tokenizeLine } from '../../code-highlight';
 import { EmptyState } from '../shared/EmptyState';
 import { IconCircleCheck, IconCircleX, IconCircleSlash2, IconSearch } from '../shared/icons';
@@ -37,6 +38,22 @@ function stepHasFailedDescendant(step: CollectedStep): boolean {
   return step.steps.some(stepHasFailedDescendant);
 }
 
+/**
+ * Playwright propagates a failed child step's error up through every wrapping
+ * test.step, so the same TimeoutError would render once per nesting level. A
+ * step whose message is identical to some descendant's is noise — the deepest
+ * failing step shows the block right at the failing action.
+ */
+function errorDuplicatedInDescendants(step: CollectedStep): boolean {
+  const message = (step.errorMessage || '').trim();
+  if (!message) return false;
+  const walk = (list: CollectedStep[]): boolean =>
+    list.some(
+      (s) => (s.errorMessage || '').trim() === message || (s.steps.length > 0 && walk(s.steps)),
+    );
+  return walk(step.steps);
+}
+
 /** Longest step in the tree — the scale for every duration bar. */
 function maxDuration(steps: CollectedStep[]): number {
   let max = 0;
@@ -67,10 +84,11 @@ function DurationBar({ duration, max, tone }: { duration: number; max: number; t
 
 function StepErrorBlock({ step }: { step: CollectedStep }) {
   if (!step.errorMessage) return null;
+  if (errorDuplicatedInDescendants(step)) return null;
   return (
     <div class="test-error-container">
-      <pre class="test-error-view step-error" safe>
-        {step.errorMessage}
+      <pre class="test-error-view error-block step-error" safe>
+        {stripAnsi(step.errorMessage)}
       </pre>
     </div>
   );

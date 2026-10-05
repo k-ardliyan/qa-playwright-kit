@@ -275,6 +275,13 @@
     flex-direction: column;
   }
 
+  /* The stacked hero starts its action cluster at the left edge, so the
+     right-anchored masthead menu panel would grow off-canvas to the left. */
+  .action-menu__list {
+    right: auto;
+    left: 0;
+  }
+
   .hero__meta-inline {
     gap: var(--space-3) var(--space-4);
   }
@@ -612,6 +619,30 @@
   .toggle-btn {
     flex: 1 1 0;
     justify-content: center;
+  }
+
+  /* Expanded card body on phones: the meta grid's auto-fit collapses to one
+     column of full-width items with the label stacked over the value — tall,
+     sparse, and hard to scan. Inline each pair as one label-left/value-right
+     row, and give input-data pairs the full row so two pairs never share a
+     line with ragged wrapping. Both classes render only inside .test-card__body. */
+  .meta-grid {
+    gap: var(--space-2) 0;
+  }
+
+  .meta-grid__item {
+    display: grid;
+    grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-items: baseline;
+  }
+
+  .meta-grid__value {
+    min-width: 0;
+  }
+
+  .input-kv {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

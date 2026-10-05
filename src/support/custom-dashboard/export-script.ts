@@ -451,10 +451,26 @@ export function buildExportScript(
         return html;
       }
 
+      // Native <details> masthead menus: any click outside a menu closes the
+      // others; a click inside stays for the native toggle / item actions.
+      document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t.closest) return;
+        var inside = t.closest('details.action-menu');
+        var open = document.querySelectorAll('details.action-menu[open]');
+        for (var i = 0; i < open.length; i++) {
+          if (open[i] !== inside) open[i].open = false;
+        }
+      });
+
       document.addEventListener('click', function (e) {
         var btn = e.target.closest ? e.target.closest('[id]') : e.target;
         if (!btn || !btn.id) return;
         if (['btn-copy-confluence','btn-copy-tsv','btn-download-csv'].indexOf(btn.id) === -1) return;
+
+        // Keep the menu open briefly so the ✓ feedback on the item is visible.
+        var menu = btn.closest ? btn.closest('details.action-menu') : null;
+        var closeMenu = function () { if (menu) menu.open = false; };
 
         // Always rebuild from currently visible rows + currently visible columns
         // so Filter columns show/hide is reflected live in every export path.
@@ -470,6 +486,7 @@ export function buildExportScript(
             downloadFile('\\uFEFF' + FULL_CSV, ${safeFilename}, 'text/csv;charset=utf-8;');
             showFeedback('btn-download-csv', '\\u2713 Downloaded');
           }
+          setTimeout(closeMenu, 2000);
           return;
         }
 
@@ -487,6 +504,7 @@ export function buildExportScript(
           downloadFile(csv, ${safeFilename}, 'text/csv;charset=utf-8;');
           showFeedback('btn-download-csv', '\\u2713 Downloaded');
         }
+        setTimeout(closeMenu, 2000);
       });
     })();
       `.trim();
