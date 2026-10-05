@@ -19,6 +19,8 @@ Before writing or editing any file:
 
 > **Skills & Rules:** Always consult [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) and its `references/` for standard requirement language, step titles, report contracts, and QA boundaries.
 
+> **Framework skill pack is READ-ONLY.** `skills/**` is a `FRAMEWORK_PATHS` entry — `npm run upgrade` overwrites all of it. Never write self-learned lessons into `skills/`. Write them to [`.learned-skills/<name>-learned/`](.learned-skills/README.md) instead: that dot-dir sits outside the framework zone, survives every upgrade, and `npm run setup` mirrors it into the same agent dirs (`.agents/skills/`, `.claude/skills/`, active Hermes profile). The `-learned` suffix is mandatory and a learned name may never equal a framework skill name — the framework copy wins and the learned skill is reported as a warning. See [`.learned-skills/README.md`](.learned-skills/README.md).
+
 > **Token budget:** Load sub-agent files on-demand — only when executing that specific phase. Do NOT read all agent files at session start. For quick lookups use Architecture Quick Reference above.
 
 > **Context maintenance:** When generated code is incorrect, immediately update the relevant TL;DR in the sub-agent file.

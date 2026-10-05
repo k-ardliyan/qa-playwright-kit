@@ -89,6 +89,10 @@ check('inFrameworkZone: framework yes, QA-owned no', () => {
   assert.equal(inFrameworkZone('requirements/user-qa.md'), false);
   assert.equal(inFrameworkZone('tests/mine.spec.ts'), false);
   assert.equal(inFrameworkZone('specs/checkout-test-plan.md'), false);
+  // Self-learned skills must never be an upgrade target: skills/ IS in the zone
+  // (overwritten), .learned-skills/ is the QA-owned survivor beside it.
+  assert.equal(inFrameworkZone('skills/qa-playwright-kit/SKILL.md'), true);
+  assert.equal(inFrameworkZone('.learned-skills/qa-playwright-kit-learned/SKILL.md'), false);
 });
 
 check('computeZoneDiff splits updated / deleted / outside', () => {

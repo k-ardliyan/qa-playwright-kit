@@ -56,6 +56,7 @@ import {
 
 import { validateSetup, type ValidationResult } from './wizard-validate';
 import type { AgentSyncResult } from './agent-sync';
+import { LEARNED_SKILLS_DIR } from './agent-sync';
 import { ensureBrowsers } from './browser-check';
 import { copyText } from './prompt-dialog';
 import { verifySetupArtifacts, authSessionStatus, type SetupCheck } from './verify-setup';
@@ -845,6 +846,14 @@ async function runCheckOnly(appEnv: AppEnv, lang: WizardLang): Promise<WizardRes
   if (agentSync.skillsSynced.length > 0) {
     const dest = agentSync.hermesProfileSkillsDir ? ` (${agentSync.hermesProfileSkillsDir})` : '';
     console.log(`   Skills synced: ${agentSync.skillsSynced.join(', ')}${dest}`);
+  }
+  if (agentSync.learnedSkillsSynced.length > 0) {
+    console.log(
+      `   ${t(lang, 'Skill hasil belajar', 'Learned skills')}: ${agentSync.learnedSkillsSynced.join(', ')} (${LEARNED_SKILLS_DIR}/)`,
+    );
+  }
+  for (const error of agentSync.errors) {
+    console.log(`   ${t(lang, 'Peringatan skill', 'Skill warning')}: ${error}`);
   }
   if (agentSync.mcpPlatforms.length > 0) {
     console.log(`   MCP configs: ready (${agentSync.mcpPlatforms.join(', ')})`);

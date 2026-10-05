@@ -31,6 +31,15 @@ environments/*.bak
 .gemini/
 .codegraph/
 
+# Self-learned agent skills — QA-owned, survives `npm run upgrade`.
+# A dot-dir like the other agent-local state above, so it adds nothing to the
+# visible root. NOT under skills/ on purpose: skills/ is a FRAMEWORK_PATHS entry
+# and is overwritten by every upgrade. Not under .agents/ either — that is
+# disposable build output, and learned skills cannot be regenerated.
+# Only the README is tracked; learned skills stay local to each QA machine.
+.learned-skills/*
+!.learned-skills/README.md
+
 # Consolidated Runtime Artifacts (Hybrid Architecture)
 #
 # `artifacts/test-results/` is intentionally NOT tracked: it is Playwright's

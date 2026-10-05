@@ -12,6 +12,7 @@ const SKIPPED_DIRS = new Set([
   'brain',
   '.zcode',
   '.hermes',
+  '.learned-skills',
 ]);
 
 function findMdFiles(dir: string): string[] {

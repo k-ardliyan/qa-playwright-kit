@@ -3,7 +3,9 @@
  *
  * Synchronizes:
  * 1. Project skills (`skills/` -> `.agents/skills/`, plus `.claude/skills/`
- *    only when Claude is installed on this machine)
+ *    only when Claude is installed on this machine) AND QA-owned self-learned
+ *    skills (`.learned-skills/*-learned/` -> the same targets, never overwritten
+ *    by `npm run upgrade`).
  * 2. Cross-platform MCP configs (`.mcp.json` -> `.cursor/`, `.kiro/`,
  *    `claude_desktop_config.json`) — ONLY for clients detected installed.
  *    Hermes reads root `.mcp.json` directly; the standalone
@@ -22,11 +24,64 @@ import { npmSpawn } from './spawn-bin';
 
 export interface AgentSyncResult {
   skillsSynced: string[];
+  /** Self-learned skills mirrored from {@link LEARNED_SKILLS_DIR}. */
+  learnedSkillsSynced: string[];
   /** Clients detected on this machine whose MCP configs were generated. */
   mcpPlatforms: Platform[];
   mcpServerBuilt: boolean;
   hermesProfileSkillsDir?: string | null;
   errors: string[];
+}
+
+/**
+ * QA-owned self-learned skill zone.
+ *
+ * A dot-dir at the repo root, matching the repo's own convention for
+ * agent-local state (`.hermes/`, `.agents/`, `.claude/`) — it adds nothing to
+ * the visible root listing.
+ *
+ * Deliberately a SIBLING of `skills/`, never a subdirectory of it: `skills/` is
+ * a `FRAMEWORK_PATHS` entry, so `npm run upgrade` overwrites everything inside.
+ * Learned skills written here survive every upgrade while the framework pack is
+ * refreshed underneath them.
+ *
+ * Also NOT nested under `.agents/`: that dir is disposable build output, and a
+ * learned skill is the one thing here that cannot be regenerated.
+ */
+export const LEARNED_SKILLS_DIR = '.learned-skills';
+
+/** Suffix every learned skill directory must carry, so a learned skill is
+ * recognizable at a glance and can never be mistaken for framework-owned. */
+export const LEARNED_SKILL_SUFFIX = '-learned';
+
+/** Immediate subdirectory names under *dir* (dot-dirs excluded). */
+function listSkillNames(dir: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
+    .map((d) => d.name);
+}
+
+/**
+ * Why a learned skill name is unsafe, or `null` when it is fine.
+ *
+ * Both rules protect the same thing: a learned skill is mirrored into the same
+ * agent dirs as the framework pack, so a name that shadows a framework skill
+ * would leave the learned file loaded AS the framework skill — the framework
+ * pack silently "forgets" everything an upgrade taught it.
+ */
+export function learnedSkillNameError(
+  name: string,
+  frameworkNames: Iterable<string>,
+): string | null {
+  if (!name.endsWith(LEARNED_SKILL_SUFFIX)) {
+    return `learned skill '${name}' must end with '${LEARNED_SKILL_SUFFIX}' (e.g. 'qa-playwright-kit${LEARNED_SKILL_SUFFIX}')`;
+  }
+  if (new Set(frameworkNames).has(name)) {
+    return `learned skill '${name}' collides with a framework skill name — rename it`;
+  }
+  return null;
 }
 
 /**
@@ -96,23 +151,49 @@ export function detectInstalledClients(homeDir: string = os.homedir()): Platform
 }
 
 /**
- * Copy directory recursively (standard Node fs helper).
+ * Mirror ONE skill dir *src* into *dest*, replacing it, and return whether it
+ * was copied.
+ *
+ * Replaces rather than merges on purpose: a merge would leave a file deleted
+ * upstream (or a renamed reference) behind in the agent dirs, so the agent would
+ * keep loading a file that no longer exists in the repo.
+ *
+ * Scoped to a single skill dir, NEVER the skills root: the Hermes profile skills
+ * dir also holds Hermes' own state (`.hub/`, `.usage.json`, bundled skills), so
+ * a root-level wipe there would destroy it.
+ *
+ * A path under *src* that is not a real file is skipped rather than copied — an
+ * unresolvable symlink would make `copyFileSync` throw and abort the sync.
  */
-function copyDirRecursive(src: string, dest: string): void {
-  if (!fs.existsSync(src)) return;
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
-  }
+function mirrorSkill(src: string, dest: string): boolean {
+  if (!fs.existsSync(src)) return false;
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(dest, { recursive: true });
 
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, entry.name);
+    const to = path.join(dest, entry.name);
     if (entry.isDirectory()) {
-      copyDirRecursive(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
+      fs.cpSync(from, to, { recursive: true });
+    } else if (entry.isFile()) {
+      fs.copyFileSync(from, to);
+    }
+  }
+  return true;
+}
+
+/**
+ * Drop skill dirs in *targetDir* that *sourceDir* no longer has, so a skill
+ * removed or renamed upstream stops loading from the agent dirs.
+ *
+ * Only ever called for targets the repo fully owns. The Hermes profile skills
+ * dir is excluded by the caller: it contains skills the repo never wrote.
+ */
+function pruneStaleSkills(sourceDir: string, targetDir: string): void {
+  const current = new Set(listSkillNames(sourceDir));
+  for (const name of listSkillNames(targetDir)) {
+    if (!current.has(name)) {
+      fs.rmSync(path.join(targetDir, name), { recursive: true, force: true });
     }
   }
 }
@@ -196,6 +277,7 @@ export function syncAgentSkillsAndMcp(
 ): AgentSyncResult {
   const result: AgentSyncResult = {
     skillsSynced: [],
+    learnedSkillsSynced: [],
     mcpPlatforms: [],
     mcpServerBuilt: false,
     errors: [],
@@ -203,8 +285,11 @@ export function syncAgentSkillsAndMcp(
 
   const installedClients = detectInstalledClients(homeDir);
 
-  // 1. Sync skills
+  // 1. Mirror skills. The framework pack (`skills/`) is overwritten in every
+  // target; the QA-owned learned zone (`.learned-skills/`) is added alongside it
+  // and is never a target of `npm run upgrade`, so it survives framework updates.
   const sourceSkillsDir = path.join(repoRoot, 'skills');
+  const learnedSkillsDir = path.join(repoRoot, LEARNED_SKILLS_DIR);
   const targetAgentSkillsDirs = [
     path.join(repoRoot, '.agents', 'skills'),
     // Claude-only target: writing it when Claude is not installed just leaves
@@ -219,26 +304,37 @@ export function syncAgentSkillsAndMcp(
     targetAgentSkillsDirs.push(hermesSkillsDir);
   }
 
-  if (fs.existsSync(sourceSkillsDir)) {
-    try {
-      const skills = fs
-        .readdirSync(sourceSkillsDir, { withFileTypes: true })
-        .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
-        .map((d) => d.name);
-
-      for (const skillName of skills) {
-        const skillSrc = path.join(sourceSkillsDir, skillName);
-        for (const targetDir of targetAgentSkillsDirs) {
-          const skillDest = path.join(targetDir, skillName);
-          copyDirRecursive(skillSrc, skillDest);
-        }
-        result.skillsSynced.push(skillName);
+  try {
+    const frameworkNames = listSkillNames(sourceSkillsDir);
+    const learnedNames: string[] = [];
+    for (const name of listSkillNames(learnedSkillsDir)) {
+      const problem = learnedSkillNameError(name, frameworkNames);
+      if (problem) {
+        result.errors.push(`Skipped ${problem}`);
+        continue;
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      result.errors.push(`Failed to sync skills: ${msg}`);
-      logger.warn(`Failed to sync skills: ${msg}`);
+      learnedNames.push(name);
     }
+    result.skillsSynced = frameworkNames;
+    result.learnedSkillsSynced = learnedNames;
+
+    for (const targetDir of targetAgentSkillsDirs) {
+      // The Hermes profile dir holds Hermes' own skills and state; the repo only
+      // ever adds/overwrites its own entries there, never prunes.
+      if (targetDir !== hermesSkillsDir) {
+        pruneStaleSkills(sourceSkillsDir, targetDir);
+      }
+      for (const name of frameworkNames) {
+        mirrorSkill(path.join(sourceSkillsDir, name), path.join(targetDir, name));
+      }
+      for (const name of learnedNames) {
+        mirrorSkill(path.join(learnedSkillsDir, name), path.join(targetDir, name));
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    result.errors.push(`Failed to sync skills: ${msg}`);
+    logger.warn(`Failed to sync skills: ${msg}`);
   }
 
   // 2. Generate MCP configs — only for clients actually installed here.
