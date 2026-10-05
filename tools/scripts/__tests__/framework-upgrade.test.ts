@@ -19,6 +19,7 @@ import { spawnSync } from 'node:child_process';
 import {
   assertCleanWorktree,
   applyZoneDiff,
+  commitExists,
   computeZoneDiff,
   firstChangelogSection,
   FRAMEWORK_PATHS,
@@ -26,13 +27,18 @@ import {
   hasCustomizationMarker,
   inFrameworkZone,
   findRiskyLocalFrameworkCommits,
+  looksBinary,
+  mergeFile,
   packageVersion,
   parsePorcelain,
   parseUpgradeArgs,
+  resolveBase,
   runUpgrade,
   shouldPreserveGeneratedFile,
+  toJsonResult,
   UpgradeError,
 } from '../framework-upgrade';
+import { readUpgradeState, writeUpgradeState } from '../upgrade-state';
 import { generateAuthSetupContent } from '../wizard-auth-template';
 
 // Isolate the Hermes install probe for the WHOLE harness. `runUpgrade` runs the
@@ -179,7 +185,7 @@ check('packageVersion / firstChangelogSection / parseUpgradeArgs', () => {
     '## [Unreleased]',
   );
   const options = parseUpgradeArgs(['--check', '--source', '/tmp/upstream', '--ref', 'v1']);
-  assert.deepEqual(options, { checkOnly: true, source: '/tmp/upstream', ref: 'v1' });
+  assert.deepEqual(options, { checkOnly: true, source: '/tmp/upstream', ref: 'v1', json: false });
   assert.equal(parseUpgradeArgs([])?.checkOnly, false);
   assert.equal(parseUpgradeArgs(['--help']), null);
   assert.throws(() => parseUpgradeArgs(['--bogus']), UpgradeError);
@@ -484,6 +490,274 @@ check('marker-bearing auth.setup.ts does not block runUpgrade (uncommitted local
   } finally {
     fs.rmSync(tmp3, { recursive: true, force: true });
   }
+});
+
+// ─── Upgrade state (base) ────────────────────────────────────────────────────
+
+process.stdout.write('\nupgrade state (base)\n');
+
+check('state round-trips and tolerates a corrupt file', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-state-'));
+  try {
+    assert.equal(readUpgradeState(dir), null); // absent
+    writeUpgradeState(dir, {
+      schemaVersion: 1,
+      upstream: 'up',
+      ref: 'main',
+      syncedCommit: 'abc123',
+      syncedAt: '2026-10-05T00:00:00.000Z',
+    });
+    const back = readUpgradeState(dir);
+    assert.equal(back?.syncedCommit, 'abc123');
+    assert.equal(back?.ref, 'main');
+
+    fs.writeFileSync(path.join(dir, '.upgrade-state.json'), '{ not json', 'utf-8');
+    assert.equal(readUpgradeState(dir), null); // corrupt → null, never throws
+
+    fs.writeFileSync(path.join(dir, '.upgrade-state.json'), '{"schemaVersion":2}', 'utf-8');
+    assert.equal(readUpgradeState(dir), null); // wrong schema → null
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check('resolveBase prefers the recorded commit, falls back to null', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-base-'));
+  try {
+    git(dir, ['init', '-q', '-b', 'main']);
+    git(dir, ['config', 'user.email', 'a@b.c']);
+    git(dir, ['config', 'user.name', 't']);
+    write(dir, 'a.txt', 'x\n');
+    commitAll(dir, 'c1');
+    const sha = git(dir, ['rev-parse', 'HEAD']).stdout.trim();
+
+    assert.equal(resolveBase(dir, null), null); // no state → no base
+    assert.equal(
+      resolveBase(dir, {
+        schemaVersion: 1,
+        upstream: '',
+        ref: '',
+        syncedCommit: 'deadbeef',
+        syncedAt: '',
+      }),
+      null,
+    ); // stale sha
+    assert.equal(
+      resolveBase(dir, {
+        schemaVersion: 1,
+        upstream: '',
+        ref: '',
+        syncedCommit: sha,
+        syncedAt: '',
+      }),
+      sha,
+    );
+    assert.equal(commitExists(dir, sha), true);
+    assert.equal(commitExists(dir, 'deadbeefdeadbeef'), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check('mergeFile merges disjoint edits cleanly and marks real conflicts', () => {
+  const base = 'line1\nline2\nline3\nline4\n';
+  // ours edits line1, theirs edits line4 → clean.
+  const clean = mergeFile(base, 'OURS\nline2\nline3\nline4\n', 'line1\nline2\nline3\nTHEIRS\n');
+  assert.equal(clean.clean, true);
+  assert.equal(clean.failed, false);
+  assert.ok(clean.content.includes('OURS'));
+  assert.ok(clean.content.includes('THEIRS'));
+  // both edit line1 → conflict markers.
+  const conflicted = mergeFile(
+    base,
+    'OURS\nline2\nline3\nline4\n',
+    'THEIRS\nline2\nline3\nline4\n',
+  );
+  assert.equal(conflicted.clean, false);
+  assert.equal(conflicted.failed, false);
+  assert.ok(conflicted.content.includes('<<<<<<<'));
+  // binary content → git cannot merge; failed=true and content is NOT usable.
+  const bin = '\u0000\u0001\u0002binary';
+  const failed = mergeFile(bin, `${bin}x`, `${bin}y`);
+  assert.equal(failed.failed, true);
+  assert.equal(failed.clean, false);
+  assert.equal(failed.content, '');
+});
+
+check('looksBinary detects NUL bytes and replacement chars', () => {
+  assert.equal(looksBinary('plain text\n'), false);
+  assert.equal(looksBinary('has\u0000nul'), true);
+  assert.equal(looksBinary('bad\ufffdutf8'), true);
+});
+
+// ─── Integration: safe-delete + three-way merge + --json ─────────────────────
+
+process.stdout.write('\nintegration: base-aware apply\n');
+
+const tmpB = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-upgrade-base-'));
+const upB = path.join(tmpB, 'upstream');
+const qaB = path.join(tmpB, 'qa');
+
+try {
+  // upstream v1
+  fs.mkdirSync(upB, { recursive: true });
+  git(upB, ['init', '-q', '-b', 'main']);
+  git(upB, ['config', 'user.email', 'm@t.local']);
+  git(upB, ['config', 'user.name', 'M']);
+  write(upB, 'package.json', '{"name":"qa-playwright-kit","version":"0.1.0"}');
+  write(upB, 'src/x.ts', 'l1\nl2\nl3\nl4\n'); // clean 3-way merge
+  write(upB, 'src/gone.ts', 'to be deleted upstream\n'); // safe-delete
+  write(upB, 'src/qakept.ts', 'kept by QA\n'); // delete vs QA edit → kept
+  write(upB, 'src/conflict.ts', 'base\n'); // same-region conflict
+  commitAll(upB, 'v1');
+
+  // QA repo = v1
+  fs.mkdirSync(qaB, { recursive: true });
+  git(qaB, ['init', '-q', '-b', 'main']);
+  git(qaB, ['config', 'user.email', 'q@t.local']);
+  git(qaB, ['config', 'user.name', 'Q']);
+  git(qaB, ['remote', 'add', 'origin', upB]);
+  git(qaB, ['fetch', '-q', 'origin', 'main']);
+  git(qaB, ['reset', '-q', '--hard', 'FETCH_HEAD']);
+  git(qaB, ['remote', 'remove', 'origin']);
+  const baseSha = git(qaB, ['rev-parse', 'HEAD']).stdout.trim();
+  // record the base (as a real upgrade would)
+  writeUpgradeState(qaB, {
+    schemaVersion: 1,
+    upstream: upB,
+    ref: 'main',
+    syncedCommit: baseSha,
+    syncedAt: new Date().toISOString(),
+  });
+
+  // QA edits x.ts region A, qakept.ts, and conflict.ts; leaves gone.ts alone.
+  write(qaB, 'src/x.ts', 'QA-A\nl2\nl3\nl4\n');
+  write(qaB, 'src/qakept.ts', 'QA owns this now\n');
+  write(qaB, 'src/conflict.ts', 'QA-SIDE\n');
+  commitAll(qaB, 'qa work');
+
+  // upstream v2: edit x.ts region B, delete gone.ts + qakept.ts, edit conflict.ts same line.
+  write(upB, 'src/x.ts', 'l1\nl2\nl3\nUP-B\n');
+  fs.rmSync(path.join(upB, 'src/gone.ts'));
+  fs.rmSync(path.join(upB, 'src/qakept.ts'));
+  write(upB, 'src/conflict.ts', 'UP-SIDE\n');
+  commitAll(upB, 'v2');
+
+  check('three-way merge: QA region A + upstream region B both survive, no conflict', () => {
+    const outcome = runUpgrade(qaB, { checkOnly: false, source: upB, ref: 'main' });
+    const merged = read(qaB, 'src/x.ts');
+    assert.ok(merged.includes('QA-A'), 'QA edit survives');
+    assert.ok(merged.includes('UP-B'), 'upstream edit survives');
+    assert.equal(outcome.nextAction, 'resolve-conflicts'); // conflict.ts conflicts
+  });
+
+  check('safe-delete removes an upstream-deleted file QA never touched', () => {
+    assert.equal(fs.existsSync(path.join(qaB, 'src/gone.ts')), false);
+    const staged = git(qaB, ['diff', '--cached', '--name-only']).stdout;
+    assert.ok(staged.includes('src/gone.ts'), 'deletion is staged');
+  });
+
+  check('kept: upstream-deleted file that QA modified is NOT deleted', () => {
+    assert.ok(fs.existsSync(path.join(qaB, 'src/qakept.ts')), 'QA-modified file kept');
+    assert.equal(read(qaB, 'src/qakept.ts'), 'QA owns this now\n');
+  });
+
+  check('three-way conflict: markers written, file NOT staged', () => {
+    const content = read(qaB, 'src/conflict.ts');
+    assert.ok(content.includes('<<<<<<<'), 'conflict markers present');
+    const staged = git(qaB, ['diff', '--cached', '--name-only']).stdout;
+    assert.ok(!staged.includes('src/conflict.ts'), 'conflicted file is not staged');
+  });
+
+  check('base is recorded and reused on the next run', () => {
+    const state = readUpgradeState(qaB);
+    assert.ok(state, 'state written');
+    assert.notEqual(state?.syncedCommit, baseSha, 'advanced to the new upstream head');
+    const outcome = runUpgrade(qaB, { checkOnly: true, source: upB, ref: 'main' });
+    assert.equal(outcome.base, state?.syncedCommit);
+  });
+
+  check('toJsonResult: one JSON object with the agent contract fields', () => {
+    const outcome = runUpgrade(qaB, { checkOnly: true, source: upB, ref: 'main' });
+    const json = toJsonResult(outcome);
+    const round = JSON.parse(JSON.stringify(json));
+    assert.ok(['ok', 'conflicts', 'blocked', 'up-to-date'].includes(round.status));
+    assert.ok(Array.isArray(round.updated));
+    assert.ok(Array.isArray(round.conflicts));
+    assert.equal(typeof round.nextAction, 'string');
+    assert.equal(typeof round.rollback, 'string');
+    assert.equal(JSON.stringify(round).includes('\n'), false, 'single line');
+  });
+} finally {
+  fs.rmSync(tmpB, { recursive: true, force: true });
+}
+
+// Binary guard: a file QA and upstream both change must NOT be truncated by
+// `git merge-file` (which prints nothing for binary input). Regression: the
+// first implementation wrote the empty stdout and wiped the file.
+const tmpBin = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-upgrade-bin-'));
+const upBin = path.join(tmpBin, 'upstream');
+const qaBin = path.join(tmpBin, 'qa');
+
+try {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01, 0x02, 0x00, 0xff]);
+  fs.mkdirSync(path.join(upBin, 'tests', 'data'), { recursive: true });
+  git(upBin, ['init', '-q', '-b', 'main']);
+  git(upBin, ['config', 'user.email', 'm@t.local']);
+  git(upBin, ['config', 'user.name', 'M']);
+  fs.writeFileSync(path.join(upBin, 'package.json'), '{"name":"x","version":"1.0.0"}');
+  fs.writeFileSync(path.join(upBin, 'tests/data/logo.png'), png);
+  commitAll(upBin, 'v1');
+
+  fs.mkdirSync(qaBin, { recursive: true });
+  git(qaBin, ['init', '-q', '-b', 'main']);
+  git(qaBin, ['config', 'user.email', 'q@t.local']);
+  git(qaBin, ['config', 'user.name', 'Q']);
+  git(qaBin, ['remote', 'add', 'origin', upBin]);
+  git(qaBin, ['fetch', '-q', 'origin', 'main']);
+  git(qaBin, ['reset', '-q', '--hard', 'FETCH_HEAD']);
+  git(qaBin, ['remote', 'remove', 'origin']);
+  const baseBin = git(qaBin, ['rev-parse', 'HEAD']).stdout.trim();
+  writeUpgradeState(qaBin, {
+    schemaVersion: 1,
+    upstream: upBin,
+    ref: 'main',
+    syncedCommit: baseBin,
+    syncedAt: new Date().toISOString(),
+  });
+
+  // QA edits the binary locally…
+  const qaPng = Buffer.concat([png, Buffer.from([0xaa])]);
+  fs.mkdirSync(path.join(qaBin, 'tests', 'data'), { recursive: true });
+  fs.writeFileSync(path.join(qaBin, 'tests/data/logo.png'), qaPng);
+  commitAll(qaBin, 'qa tweak png');
+  // …and upstream edits it too.
+  fs.writeFileSync(
+    path.join(upBin, 'tests/data/logo.png'),
+    Buffer.concat([png, Buffer.from([0xbb])]),
+  );
+  commitAll(upBin, 'v2 png');
+
+  check('binary file edited on both sides is NOT truncated (no empty write)', () => {
+    const outcome = runUpgrade(qaBin, { checkOnly: false, source: upBin, ref: 'main' });
+    const after = fs.readFileSync(path.join(qaBin, 'tests/data/logo.png'));
+    assert.ok(after.length > 0, 'file is not empty');
+    assert.ok(after.equals(qaPng), 'QA bytes preserved verbatim');
+    assert.ok(
+      outcome.conflicts.some((c) => c.file === 'tests/data/logo.png' && c.kind === 'binary'),
+      'reported as a binary conflict',
+    );
+    assert.ok(!git(qaBin, ['diff', '--cached', '--name-only']).stdout.includes('logo.png'));
+  });
+} finally {
+  fs.rmSync(tmpBin, { recursive: true, force: true });
+}
+
+check('--json is accepted by the arg parser', () => {
+  const opts = parseUpgradeArgs(['--json']);
+  assert.equal(opts?.json, true);
+  const plain = parseUpgradeArgs([]);
+  assert.equal(plain?.json, false);
 });
 
 process.stdout.write(`\n${passed} checks passed\n`);

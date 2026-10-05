@@ -6,6 +6,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### `npm run upgrade` diperkuat: base tersimpan, safe-delete, three-way merge, `--json` — 2026-10-05
+
+Upgrade sebelumnya **aman tapi buta**: memakai `git diff HEAD FETCH_HEAD` (dua-arah, tanpa *common ancestor*), tidak menerapkan penghapusan, dan tidak punya output machine-readable — sehingga agent (yang selalu menjalankannya untuk QA non-coder) harus menebak dari teks berwarna.
+
+- **Base upstream tersimpan (`.upgrade-state.json`).** Upgrade kini mencatat commit upstream terakhir yang disinkron (per-mesin, gitignored, di luar `FRAMEWORK_PATHS` sehingga tidak kena dirty-guard). Diff berubah dari "HEAD vs upstream" (ambigu) menjadi "upstream-lama vs upstream-baru" (pasti) — perubahan QA dibedakan dari perubahan upstream, bukan ditebak. Tanpa base (clone baru), perilaku = sebelumnya (fallback heuristik), jadi tidak ada regresi.
+- **Three-way merge untuk file yang diedit QA.** Bila QA mengubah file framework dan upstream juga mengubahnya, `git merge-file` menggabungkan keduanya: edit di region berbeda selamat berdua; konflik sesungguhnya ditulis bermarker dan **TIDAK di-stage**, masuk `conflicts[]` — agent/QA menyelesaikannya. Ini menghapus "ditimpa atau diblokir".
+- **Safe-delete.** File yang upstream buang kini ikut dihapus (`git rm`, staged) **hanya bila** QA tidak menyentuhnya; file yang dimodifikasi lokal DIPERTAHANKAN. Tanpa base, penghapusan tidak dilakukan (perilaku lama).
+- **`--json` (kontrak agent).** stdout = satu baris JSON (`status`, `from`/`to`, `base`, `updated`/`deleted`/`kept`/`preserved`/`conflicts`, `nextAction`, `rollback`); narasi manusia ke stderr (pola NDJSON yang sudah dipakai `workflow-run.ts`). Output npm anak (install/setup:check/mcp:build/auth:verify) ikut dirutekan ke stderr di mode ini. `nextAction` (`review-and-commit | resolve-conflicts | nothing | fix-environment`) memberi agent langkah berikutnya tanpa menebak.
+- **`AGENTS.md`** — protokol upgrade lewat chat agent: check `--json` → jelaskan ke QA → apply `--json` → bila konflik BERHENTI & bantu selesaikan (jangan commit otomatis) → laporkan `nextAction`/`rollback`.
+- **Verifikasi:** 27 check harness `framework-upgrade` (state round-trip, safe-delete, three-way clean+konflik, fallback tanpa base, JSON contract) hijau; 917 unit test hijau; `tsc --noEmit` & `biome lint` bersih. Probe manual: `upgrade --check --json` mengeluarkan tepat satu baris JSON di stdout.
+
+#### Penutupan gap (hardening lanjutan) — 2026-10-06
+
+Riset ulang (`git rerere`, git trailers, Copier/cruft) menemukan tiga hal yang perlu ditutup:
+
+- **Data-loss pada file biner (P0).** `git merge-file` mengembalikan status 255 dengan stdout **kosong** untuk konten biner — kode awal menulis `''` ke file, artinya `tests/data/images/sample.png` atau `.pdf` bisa terhapus jadi 0 byte bila QA dan upstream sama-sama mengubahnya. Kini ada guard `looksBinary()` (NUL byte / replacement char) + pengecekan `mergeFile().failed` (status di luar 0..127 atau stdout kosong). File biner tidak pernah di-merge — muncul sebagai konflik `kind: "binary"` dan **byte-nya utuh**. Digated test regresi (logo.png diedit dua sisi → tetap sama persis, tidak ter-stage).
+- **Provenance.** `UpgradeOutcome`/JSON kini membawa `syncedCommit` (SHA upstream yang baru disinkron), dan ringkasan mencetak perintah commit siap-pakai dengan trailer `Upstream-Sync: <sha>` — jadi `git log` menampilkan asal setiap sinkronisasi tanpa perlu konfigurasi trailer.
+- **`git rerere` — sengaja TIDAK dipakai**, dan alasannya didokumentasikan di header modul: rerere hanya terpicu oleh `git merge`/`rebase`, sedangkan upgrade memakai plumbing `git merge-file` langsung, sehingga tidak ada yang direkam otomatis. Konflik berulang diselesaikan sekali lalu di-commit; `rerere` hanya berguna bila workflow memakai merge sungguhan.
+
+**Verifikasi:** 29 check harness (bertambah: `looksBinary`, `mergeFile().failed`, guard biner end-to-end) hijau; 917 unit test hijau; `tsc --noEmit` & `biome` bersih.
+
 ### Skill hasil belajar Hermes tidak lagi terhapus oleh `npm run setup` — 2026-10-05
 
 Dilaporkan maintainer: skill yang sudah "ditraining" hilang total setelah setup — kembali ke nol.

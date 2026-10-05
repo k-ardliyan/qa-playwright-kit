@@ -43,6 +43,26 @@ export class FriendlyErrorInstance extends Error {
 // ─── Printers ─────────────────────────────────────────────────────────────────
 
 /**
+ * Where human-readable narration goes. Defaults to stdout (no behavior change
+ * for every existing CLI). A `--json` command calls {@link setHumanSink} with
+ * stderr once, so its stdout carries ONLY the machine-readable line.
+ */
+let humanSink: NodeJS.WritableStream = process.stdout;
+
+/** Redirect human narration (default: stderr for a `--json` run). */
+export function setHumanSink(stream: NodeJS.WritableStream): void {
+  humanSink = stream;
+}
+
+/**
+ * Write a raw human line to the human sink (no emoji/prefix). Use this instead
+ * of `process.stdout.write` for narration, so a `--json` run keeps stdout pure.
+ */
+export function humanWrite(msg: string): void {
+  humanSink.write(msg);
+}
+
+/**
  * GitHub Actions workflow command escaping (per actions/toolkit docs).
  * Strips %, \r, \n so data cannot inject fake annotations.
  */
@@ -68,7 +88,7 @@ function ghAnnotation(level: 'error' | 'warning' | 'notice', msg: string): void 
  * Print success message dengan emoji ✓ dan warna hijau (jika terminal support).
  */
 export function printOk(msg: string): void {
-  process.stdout.write(`\u001b[32m✓\u001b[0m ${msg}\n`);
+  humanSink.write(`\u001b[32m✓\u001b[0m ${msg}\n`);
 }
 
 /**
@@ -76,7 +96,7 @@ export function printOk(msg: string): void {
  * Di GitHub Actions juga memancarkan ::warning annotation.
  */
 export function printWarn(msg: string): void {
-  process.stdout.write(`\u001b[33m⚠\u001b[0m ${msg}\n`);
+  humanSink.write(`\u001b[33m⚠\u001b[0m ${msg}\n`);
   ghAnnotation('warning', msg);
 }
 
@@ -84,14 +104,14 @@ export function printWarn(msg: string): void {
  * Print info message dengan emoji ℹ dan warna biru.
  */
 export function printInfo(msg: string): void {
-  process.stdout.write(`\u001b[34mℹ\u001b[0m ${msg}\n`);
+  humanSink.write(`\u001b[34mℹ\u001b[0m ${msg}\n`);
 }
 
 /**
  * Print step header (untuk multi-step CLI seperti qa:run).
  */
 export function printStep(step: number, total: number, label: string): void {
-  process.stdout.write(`\n\u001b[1m[${step}/${total}] ${label}\u001b[0m\n`);
+  humanSink.write(`\n\u001b[1m[${step}/${total}] ${label}\u001b[0m\n`);
 }
 
 /**

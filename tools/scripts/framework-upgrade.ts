@@ -14,21 +14,35 @@
  *     discards local modifications and silently overwrites untracked files
  *     (both verified by probe), so a dirty worktree aborts the run.
  *
+ * Three-way merge (when a base is recorded in `.upgrade-state.json`):
+ *   - QA edits are merged, not clobbered (`git merge-file`); real conflicts are
+ *     left with markers and NOT staged. Binary files (image/PDF) are never
+ *     line-merged — `git merge-file` prints nothing for them, so writing its
+ *     output would truncate the file; they surface as a `binary` conflict and
+ *     stay byte-intact.
+ *   - `git rerere` does NOT apply here: it is triggered by `git merge`/`rebase`,
+ *     while this uses the plumbing `git merge-file` directly, so nothing is
+ *     auto-recorded. Repeated conflicts are instead resolved once and kept by
+ *     committing; `git rerere` only helps if a workflow uses real merges.
+ *
  * Usage:
  *   npm run upgrade              # apply framework-zone changes from upstream
  *   npm run upgrade:check        # preview only — touches nothing
+ *   npm run upgrade --json       # one JSON line on stdout (agent contract)
  *
  * @module scripts/framework-upgrade
  */
 
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type StdioOptions } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { EXIT, type ExitCode } from './exit-codes';
-import { printOk, printWarn, printInfo, printStep } from './format-error';
+import { printOk, printWarn, printInfo, printStep, setHumanSink, humanWrite } from './format-error';
 import { npmCommand } from '../../src/setup/spawn-bin';
 import { syncAgentSkillsAndMcp } from '../../src/setup/agent-sync';
+import { readUpgradeState, writeUpgradeState, type UpgradeState } from './upgrade-state';
 
 /** Default upstream. Override with --source <url|path> (private repo / local clone). */
 export const DEFAULT_SOURCE = 'https://github.com/k-ardliyan/qa-playwright-kit.git';
@@ -347,6 +361,37 @@ function git(repoRoot: string, args: string[]): GitResult {
   return { status: res.status ?? 1, stdout: res.stdout ?? '', stderr: res.stderr ?? '' };
 }
 
+/** True when `sha` resolves to a commit in this repo (base is still usable). */
+export function commitExists(repoRoot: string, sha: string): boolean {
+  return git(repoRoot, ['cat-file', '-e', `${sha}^{commit}`]).status === 0;
+}
+
+/** Blob content of `file` at `rev` (null when the path does not exist there). */
+function blobAt(repoRoot: string, rev: string, file: string): string | null {
+  const res = git(repoRoot, ['show', `${rev}:${file}`]);
+  return res.status === 0 ? res.stdout : null;
+}
+
+/**
+ * Normalize line endings for content comparison and merging.
+ *
+ * Git stores LF, but a Windows worktree with `core.autocrlf` checks out CRLF —
+ * so a byte compare would report EVERY file as "QA-modified" and make every
+ * three-way merge conflict. Compare on LF only.
+ */
+function normalizeEol(text: string): string {
+  return text.replace(/\r\n/g, '\n');
+}
+
+/**
+ * The base commit to diff against: the recorded upstream sync when it still
+ * resolves here, else HEAD (the pre-existing behavior — no base recorded).
+ */
+export function resolveBase(repoRoot: string, state: UpgradeState | null): string | null {
+  if (state && commitExists(repoRoot, state.syncedCommit)) return state.syncedCommit;
+  return null;
+}
+
 /**
  * Run an npm script and stream its output.
  *
@@ -368,20 +413,34 @@ export function resolveNpmCli(execPath: string = process.execPath): string | nul
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
+/**
+ * When true, npm child output is routed to stderr so stdout stays reserved for
+ * the single JSON line (see the NDJSON contract in main()).
+ */
+let jsonMode = false;
+
+/** Enable `--json` output routing for the rest of the process. */
+export function setJsonMode(on: boolean): void {
+  jsonMode = on;
+}
+
 function runNpm(repoRoot: string, args: string[], timeoutMs = 600_000): boolean {
   printInfo(`Menjalankan: npm ${args.join(' ')} (mohon tunggu)...`);
+  // In JSON mode the child's stdout must NOT pollute our stdout line, so route
+  // it to stderr alongside its stderr.
+  const stdio: StdioOptions = jsonMode ? ['inherit', process.stderr, 'inherit'] : 'inherit';
   const cli = resolveNpmCli();
   const res = cli
     ? spawnSync(process.execPath, [cli, ...args], {
         cwd: repoRoot,
         shell: false,
-        stdio: 'inherit',
+        stdio,
         timeout: timeoutMs,
       })
     : spawnSync(npmCommand(), args, {
         cwd: repoRoot,
         shell: process.platform === 'win32',
-        stdio: 'inherit',
+        stdio,
         timeout: timeoutMs,
       });
 
@@ -400,6 +459,8 @@ export interface UpgradeOptions {
   checkOnly: boolean;
   source: string;
   ref: string;
+  /** Emit one JSON line on stdout (agent contract); human logs go to stderr. */
+  json?: boolean;
 }
 
 export function parseUpgradeArgs(argv: string[]): UpgradeOptions | null {
@@ -416,6 +477,7 @@ export function parseUpgradeArgs(argv: string[]): UpgradeOptions | null {
     checkOnly: parsed.values.check ?? false,
     source: parsed.values.source ?? DEFAULT_SOURCE,
     ref: parsed.values.ref ?? DEFAULT_REF,
+    json: parsed.values.json ?? false,
   };
 }
 
@@ -426,6 +488,7 @@ function parseUpgradeCliArgs(argv: string[]) {
       check: { type: 'boolean', default: false },
       source: { type: 'string' },
       ref: { type: 'string' },
+      json: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
     strict: true,
@@ -441,6 +504,7 @@ Usage:
 
 Options:
   --check              Preview saja: tampilkan versi + file yang berubah, tanpa menulis apa pun
+  --json               Output satu baris JSON di stdout (untuk agent); log manusia ke stderr
   --source <url|path>  Sumber framework (default: ${DEFAULT_SOURCE})
   --ref <ref>          Branch/tag sumber (default: ${DEFAULT_REF})
   --help, -h           Tampilkan bantuan ini
@@ -453,24 +517,53 @@ Aman secara struktur: hanya file framework yang disentuh, hasilnya masuk STAGED
 
 // ─── Apply (staged, never committed) ─────────────────────────────────────────
 
+export interface ApplyConflict {
+  file: string;
+  /** `content` = both sides edited the same lines; `add-add` = no usable base;
+   *  `binary` = not line-mergeable (image/PDF) — left byte-intact. */
+  kind: 'content' | 'add-add' | 'binary';
+}
+
 export interface ApplyResult {
   applied: string[];
   preserved: string[];
+  /** Files removed because upstream deleted them and QA never touched them. */
+  deleted: string[];
+  /** Upstream-deleted files left alone because QA modified them. */
+  kept: string[];
+  /** Files left with conflict markers — never staged; QA/agent resolves. */
+  conflicts: ApplyConflict[];
 }
 
 /**
- * Apply a framework-zone diff to the worktree via `git checkout FETCH_HEAD -- <file>`.
- * Changes land in the INDEX (staged) — rollback is `git restore --staged --worktree .`.
+ * Apply a framework-zone diff to the worktree. Changes land in the INDEX
+ * (staged) — rollback is `git restore --staged --worktree .`.
+ *
+ * Three cases per file:
+ * - QA never touched it → `git checkout FETCH_HEAD -- <file>` (plain overwrite).
+ * - QA edited it and a base exists → three-way merge (`git merge-file`): clean
+ *   results are written+staged, conflicts are left with markers and NOT staged.
+ * - Upstream deleted it → `git rm` only when QA never touched it; a
+ *   QA-modified file is KEPT (never deleted) and reported.
+ *
  * `src/support/auth.setup.ts` is skipped when it carries a QA customization
  * marker; otherwise it is backed up to `.bak` before being replaced.
- *
- * Deletions are NOT applied: `git rm` would also delete QA files that live in
- * a framework directory but were never upstream-owned. They are reported instead
- * (see runUpgrade) so the maintainer can prune them deliberately.
  */
-export function applyZoneDiff(repoRoot: string, zone: ZoneDiff): ApplyResult {
+export function applyZoneDiff(
+  repoRoot: string,
+  zone: ZoneDiff,
+  opts: { base: string | null; dryRun?: boolean } = { base: null },
+): ApplyResult {
+  const dryRun = opts.dryRun === true;
   const preserved: string[] = [];
+  const deleted: string[] = [];
+  const kept: string[] = [];
+  const conflicts: ApplyConflict[] = [];
+  /** Plain overwrites — resolved by `git checkout FETCH_HEAD --`. */
   const toApply: string[] = [];
+  /** Files already written+staged (three-way merge) — must NOT be re-checked-out. */
+  const merged: string[] = [];
+
   for (const file of zone.updated) {
     const abs = path.join(repoRoot, file);
     if (file === GENERATED_AUTH_SETUP && fs.existsSync(abs)) {
@@ -478,18 +571,137 @@ export function applyZoneDiff(repoRoot: string, zone: ZoneDiff): ApplyResult {
         preserved.push(file);
         continue;
       }
-      fs.copyFileSync(abs, `${abs}.bak`);
-      printInfo(`Backup ${file} → ${file}.bak`);
+      if (!dryRun) {
+        fs.copyFileSync(abs, `${abs}.bak`);
+        printInfo(`Backup ${file} → ${file}.bak`);
+      }
     }
+
+    // Three-way merge only when a base exists AND QA changed the file since it.
+    const baseContent = opts.base ? blobAt(repoRoot, opts.base, file) : null;
+    const ours = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : null;
+    const qaChanged =
+      baseContent !== null && ours !== null && normalizeEol(ours) !== normalizeEol(baseContent);
+
+    if (qaChanged) {
+      const theirs = blobAt(repoRoot, 'FETCH_HEAD', file);
+      if (theirs === null) {
+        // Upstream dropped the path but the zone says "updated" — treat as conflict.
+        conflicts.push({ file, kind: 'add-add' });
+        continue;
+      }
+      // Binary files (images, PDFs) cannot be line-merged: never hand them to
+      // git merge-file, whose empty output would truncate the file. Report a
+      // conflict and leave the bytes untouched.
+      if (looksBinary(ours) || looksBinary(baseContent) || looksBinary(theirs)) {
+        conflicts.push({ file, kind: 'binary' });
+        continue;
+      }
+      const result = mergeFile(normalizeEol(baseContent), normalizeEol(ours), normalizeEol(theirs));
+      if (result.failed) {
+        // git could not merge (e.g. unsupported content) — do NOT write `content`.
+        conflicts.push({ file, kind: 'content' });
+        continue;
+      }
+      if (result.clean) {
+        if (!dryRun) {
+          fs.writeFileSync(abs, result.content, 'utf-8');
+          git(repoRoot, ['add', '--', file]);
+        }
+        merged.push(file);
+      } else {
+        if (!dryRun) fs.writeFileSync(abs, result.content, 'utf-8');
+        conflicts.push({ file, kind: 'content' });
+      }
+      continue;
+    }
+
     toApply.push(file);
   }
-  if (toApply.length > 0) {
+
+  if (!dryRun && toApply.length > 0) {
     const checkout = git(repoRoot, ['checkout', 'FETCH_HEAD', '--', ...toApply]);
     if (checkout.status !== 0) {
       throw new UpgradeError(`Gagal menerapkan perubahan:\n${checkout.stderr.trim()}`);
     }
   }
-  return { applied: toApply, preserved };
+
+  // Deletions: only files upstream removed AND QA never touched. A QA-modified
+  // path is kept — `git rm` would destroy local work.
+  //
+  // Requires a base: without one we cannot tell an upstream-owned file from a QA
+  // file that merely lives in a framework dir, so we fall back to the old
+  // behavior (report only, never delete).
+  for (const file of zone.deleted) {
+    if (!opts.base) {
+      kept.push(file);
+      continue;
+    }
+    const abs = path.join(repoRoot, file);
+    const baseContent = blobAt(repoRoot, opts.base, file);
+    const ours = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : null;
+    const qaChanged =
+      baseContent !== null && ours !== null && normalizeEol(ours) !== normalizeEol(baseContent);
+    if (qaChanged) {
+      kept.push(file);
+      continue;
+    }
+    if (dryRun) {
+      deleted.push(file);
+      continue;
+    }
+    const rm = git(repoRoot, ['rm', '-q', '--', file]);
+    if (rm.status === 0) {
+      deleted.push(file);
+    } else {
+      kept.push(file);
+    }
+  }
+
+  return { applied: [...toApply, ...merged], preserved, deleted, kept, conflicts };
+}
+
+/**
+ * Three-way merge of one file via `git merge-file -p <ours> <base> <theirs>`.
+ *
+ * `-p` writes to stdout, so the worktree file is only touched by the caller.
+ * Exit code is the conflict count (0 = clean) — see git-merge-file(1).
+ *
+ * `failed` is set when git itself could not merge (status < 0 or > 127), which
+ * happens for binary content: git refuses and prints nothing. The caller MUST
+ * NOT write `content` in that case — an empty stdout would truncate the file.
+ * Binary files therefore surface as a conflict and are left byte-intact.
+ */
+export function mergeFile(
+  base: string,
+  ours: string,
+  theirs: string,
+): { clean: boolean; content: string; failed: boolean } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-merge-'));
+  try {
+    const basePath = path.join(dir, 'base');
+    const oursPath = path.join(dir, 'ours');
+    const theirsPath = path.join(dir, 'theirs');
+    fs.writeFileSync(basePath, base, 'utf-8');
+    fs.writeFileSync(oursPath, ours, 'utf-8');
+    fs.writeFileSync(theirsPath, theirs, 'utf-8');
+    const res = spawnSync('git', ['merge-file', '-p', oursPath, basePath, theirsPath], {
+      encoding: 'utf-8',
+      timeout: 60_000,
+    });
+    const status = res.status ?? 255;
+    // 0 = clean; 1..127 = that many conflicts; anything else = git could not
+    // merge (binary/unsupported) and stdout is unusable.
+    const failed = status < 0 || status > 127 || (status !== 0 && (res.stdout ?? '') === '');
+    return { clean: status === 0, content: res.stdout ?? '', failed };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** True when `text` looks like binary content (NUL byte or invalid UTF-8). */
+export function looksBinary(text: string): boolean {
+  return text.includes('\u0000') || text.includes('\ufffd');
 }
 
 // ─── Main flow ───────────────────────────────────────────────────────────────
@@ -502,6 +714,18 @@ export interface UpgradeOutcome {
   preserved: string[];
   /** Local commits that would be reverted — non-empty means do not proceed. */
   riskyFiles: string[];
+  /** Upstream-deleted files that were removed (QA never touched them). */
+  deleted: string[];
+  /** Upstream-deleted files left alone because QA modified them. */
+  kept: string[];
+  /** Files left with conflict markers, awaiting QA/agent resolution. */
+  conflicts: ApplyConflict[];
+  /** Upstream base commit used for the diff (null = fell back to HEAD). */
+  base: string | null;
+  /** Commit SHA of the upstream version just synced (for provenance). */
+  syncedCommit: string | null;
+  /** One-word next step for the driving agent. */
+  nextAction: 'nothing' | 'review-and-commit' | 'resolve-conflicts' | 'fix-environment';
   fromVersion: string | null;
   toVersion: string | null;
 }
@@ -516,6 +740,12 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
     updated: [],
     preserved: [],
     riskyFiles: [],
+    deleted: [],
+    kept: [],
+    conflicts: [],
+    base: null,
+    syncedCommit: null,
+    nextAction: 'nothing',
     fromVersion: null,
     toVersion: null,
   };
@@ -556,11 +786,16 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
     );
   }
 
-  // 4. Diff the framework zone.
+  // 4. Diff the framework zone. The base is the recorded upstream sync when
+  // available (accurate "QA changed this" vs "upstream changed this"), else HEAD.
+  const state = readUpgradeState(repoRoot);
+  const base = resolveBase(repoRoot, state);
+  outcome.base = base;
+  const diffBase = base ?? 'HEAD';
   const diffOutput = git(repoRoot, [
     'diff',
     '--name-status',
-    'HEAD',
+    diffBase,
     'FETCH_HEAD',
     '--',
     ...FRAMEWORK_PATHS,
@@ -569,7 +804,7 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
     throw new UpgradeError(
       [
         'Gagal membandingkan versi lokal dengan upstream.',
-        diffOutput.stderr.trim() || `HEAD..FETCH_HEAD tidak bisa di-diff.`,
+        diffOutput.stderr.trim() || `${diffBase}..FETCH_HEAD tidak bisa di-diff.`,
       ].join('\n'),
     );
   }
@@ -578,56 +813,77 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
   outcome.fromVersion = packageVersion(git(repoRoot, ['show', 'HEAD:package.json']).stdout);
   outcome.toVersion = packageVersion(git(repoRoot, ['show', 'FETCH_HEAD:package.json']).stdout);
 
-  if (zone.updated.length === 0) {
+  if (zone.updated.length === 0 && zone.deleted.length === 0) {
     printOk('Sudah versi terbaru — tidak ada file framework yang berubah.');
-    if (zone.deleted.length > 0) {
-      printWarn(
-        `${zone.deleted.length} file tidak lagi ada di upstream (tidak dihapus otomatis): ${zone.deleted.join(', ')}`,
-      );
-    }
+    outcome.nextAction = 'nothing';
     return outcome;
   }
 
   // 4b. Local framework work that this overwrite would silently revert.
-  const risky = findRiskyLocalFrameworkCommits(repoRoot, zone.updated);
-  outcome.riskyFiles = risky.riskyFiles;
-  if (risky.riskyFiles.length > 0) {
-    const detail = [
-      `${risky.commits.length} commit lokal mengubah file framework yang akan di-update:`,
-      ...risky.commits.slice(0, 5).map((c) => `  ${c}`),
-      `  file: ${risky.riskyFiles.slice(0, 10).join(', ')}`,
-      'Update akan mengembalikan file itu ke versi upstream dan perubahan lokal hilang.',
-      'Push dulu (bila layak masuk upstream), atau pindahkan perubahan ke luar zona framework.',
-      `Kustomisasi permanen pada ${GENERATED_AUTH_SETUP}? Tambahkan // ${PRESERVE_MARKER} di baris atas file itu — update melewatinya otomatis.`,
-    ];
-    if (options.checkOnly) {
-      printWarn(detail.join('\n'));
-      outcome.exitCode = EXIT.FIXABLE;
-    } else {
-      throw new UpgradeError(detail.join('\n'));
+  // Only a fallback: with a recorded base, `applyZoneDiff` three-way merges
+  // QA edits instead of clobbering them, so there is nothing to block on.
+  if (base === null) {
+    const risky = findRiskyLocalFrameworkCommits(repoRoot, zone.updated);
+    outcome.riskyFiles = risky.riskyFiles;
+    if (risky.riskyFiles.length > 0) {
+      const detail = [
+        `${risky.commits.length} commit lokal mengubah file framework yang akan di-update:`,
+        ...risky.commits.slice(0, 5).map((c) => `  ${c}`),
+        `  file: ${risky.riskyFiles.slice(0, 10).join(', ')}`,
+        'Update akan mengembalikan file itu ke versi upstream dan perubahan lokal hilang.',
+        'Push dulu (bila layak masuk upstream), atau pindahkan perubahan ke luar zona framework.',
+        `Kustomisasi permanen pada ${GENERATED_AUTH_SETUP}? Tambahkan // ${PRESERVE_MARKER} di baris atas file itu — update melewatinya otomatis.`,
+      ];
+      if (options.checkOnly) {
+        printWarn(detail.join('\n'));
+        outcome.exitCode = EXIT.FIXABLE;
+        outcome.nextAction = 'fix-environment';
+      } else {
+        throw new UpgradeError(detail.join('\n'));
+      }
     }
   }
 
-  // 5. Preview.
+  // 5. Preview. A dry-run of applyZoneDiff yields the exact plan (incl. conflicts
+  // and safe-deletes) without touching the worktree.
+  const plan = applyZoneDiff(repoRoot, zone, { base, dryRun: true });
   printStep(2, 5, 'Ringkasan perubahan');
   printInfo(
     `Versi framework: ${outcome.fromVersion ?? '(tidak terbaca)'} → ${outcome.toVersion ?? '(tidak terbaca)'}`,
+  );
+  printInfo(
+    base
+      ? `Base: ${base.slice(0, 12)} (sinkron terakhir)`
+      : 'Base: HEAD (belum ada catatan sinkron)',
   );
   const changelog = firstChangelogSection(
     git(repoRoot, ['show', 'FETCH_HEAD:CHANGELOG.md']).stdout,
   );
   if (changelog) printInfo(`Perubahan terbaru: ${changelog.replace(/^#+\s*/, '')}`);
-  for (const file of zone.updated) process.stdout.write(`  M ${file}\n`);
-  if (zone.deleted.length > 0) {
-    printWarn(`${zone.deleted.length} file tidak lagi ada di upstream — TIDAK dihapus otomatis:`);
-    for (const file of zone.deleted) process.stdout.write(`  ? ${file}\n`);
-    printInfo('Bila itu file framework yang memang dibuang: hapus manual. File QA Anda aman.');
+  for (const file of plan.applied) humanWrite(`  M ${file}\n`);
+  for (const file of plan.deleted) humanWrite(`  D ${file}\n`);
+  for (const c of plan.conflicts) {
+    printWarn(`Konflik (${c.kind}): ${c.file} — akan dibiarkan bermarker untuk diselesaikan.`);
+  }
+  if (plan.kept.length > 0) {
+    printWarn(
+      `${plan.kept.length} file dihapus upstream tetapi DIPERTAHANKAN lokal (dimodifikasi, atau tanpa base):`,
+    );
+    for (const file of plan.kept) humanWrite(`  ! ${file}\n`);
   }
   if (zone.outside.length > 0) {
     printInfo(`${zone.outside.length} file di luar zona framework tidak disentuh (milik QA).`);
   }
 
   if (options.checkOnly) {
+    outcome.conflicts = plan.conflicts;
+    outcome.deleted = plan.deleted;
+    outcome.kept = plan.kept;
+    outcome.preserved = plan.preserved;
+    // A risky-check block already set fix-environment; do not overwrite it.
+    if (outcome.nextAction !== 'fix-environment') {
+      outcome.nextAction = plan.conflicts.length > 0 ? 'resolve-conflicts' : 'review-and-commit';
+    }
     printOk(
       'Mode --check: tidak ada file yang diubah. Jalankan `npm run upgrade` untuk menerapkan.',
     );
@@ -636,11 +892,19 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
 
   // 6. Apply — staged, never committed.
   printStep(3, 5, 'Terapkan perubahan (masuk staged, bukan commit)');
-  const applyResult = applyZoneDiff(repoRoot, zone);
+  const applyResult = applyZoneDiff(repoRoot, zone, { base });
   outcome.preserved = applyResult.preserved;
+  outcome.deleted = applyResult.deleted;
+  outcome.kept = applyResult.kept;
+  outcome.conflicts = applyResult.conflicts;
   for (const file of applyResult.preserved) {
     printWarn(
       `${file} punya kustomisasi QA (// ${PRESERVE_MARKER} atau // ${PRESERVE_MARKER_LEGACY}) — TIDAK ditimpa. Periksa manual bila upstream mengubahnya.`,
+    );
+  }
+  for (const c of applyResult.conflicts) {
+    printWarn(
+      `KONFLIK pada ${c.file} — dibiarkan bermarker dan TIDAK di-stage. Selesaikan lalu \`git add\`.`,
     );
   }
 
@@ -689,30 +953,146 @@ export function runUpgrade(repoRoot: string, options: UpgradeOptions): UpgradeOu
   }
 
   // 10. Summary.
-  process.stdout.write('\n');
+  humanWrite('\n');
   printOk(
     `Upgrade selesai: ${outcome.fromVersion ?? '?'} → ${outcome.toVersion ?? '?'} (${applyResult.applied.length} file).`,
   );
+  if (outcome.deleted.length > 0) {
+    printInfo(`${outcome.deleted.length} file framework yang dibuang upstream ikut dihapus.`);
+  }
+  if (outcome.kept.length > 0) {
+    printWarn(`Dipertahankan (dimodifikasi lokal / tanpa base): ${outcome.kept.join(', ')}`);
+  }
   if (outcome.preserved.length > 0) {
     printWarn(`Dilewati (kustom QA): ${outcome.preserved.join(', ')}`);
   }
-  printInfo('Hasil update masih STAGED. Periksa dengan: git diff --cached');
-  printInfo('Setuju → commit.  Batal → rollback: git restore --staged --worktree .');
+  if (outcome.conflicts.length > 0) {
+    outcome.nextAction = 'resolve-conflicts';
+    printWarn(
+      `${outcome.conflicts.length} file KONFLIK (belum di-stage): ${outcome.conflicts
+        .map((c) => `${c.file} [${c.kind}]`)
+        .join(', ')}`,
+    );
+    printInfo('Selesaikan marker, lalu `git add <file>`. Batal: git restore --staged --worktree .');
+  } else {
+    outcome.nextAction = 'review-and-commit';
+    printInfo('Hasil update masih STAGED. Periksa dengan: git diff --cached');
+    // Provenance: recommend a trailer so `git log` shows which upstream commit
+    // this sync came from. Git only reads custom trailers reliably when the key
+    // is configured; --trailer passes it explicitly, so no config is needed.
+    printInfo(
+      `Commit dengan jejak upstream:\n    git commit -m "chore: sync framework" --trailer "Upstream-Sync: ${remoteHead.slice(0, 12)}"`,
+    );
+    printInfo('Batal → rollback: git restore --staged --worktree .');
+  }
   printInfo('Restart IDE/agent agar MCP server memuat build baru.');
+
+  // Record the synced base so the NEXT upgrade can tell QA edits from upstream.
+  outcome.syncedCommit = remoteHead;
+  try {
+    writeUpgradeState(repoRoot, {
+      schemaVersion: 1,
+      upstream: options.source,
+      ref: options.ref,
+      syncedCommit: remoteHead,
+      syncedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    printWarn(
+      `Gagal menyimpan .upgrade-state.json: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
   return outcome;
 }
 
 // ─── CLI entry ───────────────────────────────────────────────────────────────
 
+/** Machine-readable result emitted as the single stdout line in `--json` mode. */
+export interface UpgradeJsonResult {
+  status: 'ok' | 'conflicts' | 'blocked' | 'up-to-date' | 'error';
+  from: string | null;
+  to: string | null;
+  base: string | null;
+  /** Upstream commit just synced — provenance for the follow-up commit. */
+  syncedCommit: string | null;
+  updated: string[];
+  deleted: string[];
+  kept: string[];
+  preserved: string[];
+  conflicts: ApplyConflict[];
+  applied: number;
+  exitCode: ExitCode;
+  nextAction: UpgradeOutcome['nextAction'];
+  rollback: string;
+  error?: string;
+}
+
+/** Map an outcome (or an error) to the JSON contract the driving agent reads. */
+export function toJsonResult(outcome: UpgradeOutcome | null, error?: string): UpgradeJsonResult {
+  if (!outcome) {
+    return {
+      status: 'error',
+      from: null,
+      to: null,
+      base: null,
+      syncedCommit: null,
+      updated: [],
+      deleted: [],
+      kept: [],
+      preserved: [],
+      conflicts: [],
+      applied: 0,
+      exitCode: EXIT.FIXABLE,
+      nextAction: 'fix-environment',
+      rollback: 'git restore --staged --worktree .',
+      error: error ?? 'unknown error',
+    };
+  }
+  const status: UpgradeJsonResult['status'] =
+    outcome.conflicts.length > 0
+      ? 'conflicts'
+      : outcome.exitCode !== EXIT.OK
+        ? 'blocked'
+        : outcome.updated.length === 0 && outcome.deleted.length === 0
+          ? 'up-to-date'
+          : 'ok';
+  return {
+    status,
+    from: outcome.fromVersion,
+    to: outcome.toVersion,
+    base: outcome.base,
+    syncedCommit: outcome.syncedCommit,
+    updated: outcome.updated,
+    deleted: outcome.deleted,
+    kept: outcome.kept,
+    preserved: outcome.preserved,
+    conflicts: outcome.conflicts,
+    applied: outcome.updated.length,
+    exitCode: outcome.exitCode,
+    nextAction: outcome.nextAction,
+    rollback: 'git restore --staged --worktree .',
+  };
+}
+
 async function main(): Promise<void> {
   const repoRoot = process.cwd();
+  const json = process.argv.slice(2).includes('--json');
+  if (json) {
+    // Human narration to stderr; stdout is reserved for the single JSON line.
+    setHumanSink(process.stderr);
+    setJsonMode(true);
+  }
 
   let options: UpgradeOptions | null;
   try {
     options = parseUpgradeArgs(process.argv.slice(2));
   } catch (err) {
-    printWarn(err instanceof Error ? err.message : String(err));
-    printUpgradeHelp();
+    const msg = err instanceof Error ? err.message : String(err);
+    if (json) process.stdout.write(`${JSON.stringify(toJsonResult(null, msg))}\n`);
+    else {
+      printWarn(msg);
+      printUpgradeHelp();
+    }
     process.exit(EXIT.USAGE);
   }
   if (options === null) {
@@ -722,10 +1102,12 @@ async function main(): Promise<void> {
 
   try {
     const outcome = runUpgrade(repoRoot, options);
+    if (json) process.stdout.write(`${JSON.stringify(toJsonResult(outcome))}\n`);
     process.exit(outcome.exitCode);
   } catch (err) {
     if (err instanceof UpgradeError) {
-      printWarn(err.message);
+      if (json) process.stdout.write(`${JSON.stringify(toJsonResult(null, err.message))}\n`);
+      else printWarn(err.message);
       process.exit(EXIT.FIXABLE);
     }
     throw err;

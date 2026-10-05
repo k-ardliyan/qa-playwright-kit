@@ -124,5 +124,9 @@ src/utils/*.d.ts
 .wizard-state.json
 .latest-run
 
+# Upgrade base — records where THIS machine last synced upstream (per-machine,
+# like .wizard-state.json). Never committed; never a dirty-guard target.
+.upgrade-state.json
+
 # Per-project login requirement (written by npm run setup from AUTH_CHALLENGE_MODE)
 requirements/login.md
