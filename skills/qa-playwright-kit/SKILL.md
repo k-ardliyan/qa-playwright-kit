@@ -101,30 +101,31 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 
 ## Quick Reference
 
-| Need                                                        | Reference                                                                                               |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| "What still needs work?" — coverage map across requirements | `qa-playwright-kit:list_requirement_status`                                                             |
-| Orient / resume after an interrupted run                    | `qa-playwright-kit:pipeline_status`                                                                     |
-| Which MCP tool for which task (full map)                    | [mcp-tools-for-qa.md](references/mcp-tools-for-qa.md)                                                   |
-| Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                                   |
-| Derive many precise scenarios from a snapshot (anti-slop)   | [scenario-design.md](references/scenario-design.md)                                                     |
-| First-time setup or setup error                             | [first-run-checklist.md](references/first-run-checklist.md)                                             |
-| Requirement format                                          | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md)             |
-| Validate format                                             | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`        |
-| Scenario types and capability tags                          | [scenario-tags.md](references/scenario-tags.md)                                                         |
-| Auth / multi-role testing                                   | [auth-and-roles.md](references/auth-and-roles.md)                                                       |
-| Multi-tenant login (company code, tenant link)              | [auth-and-roles.md](references/auth-and-roles.md) → Recipe 4; `requirements/auth/login-multi-tenant.md` |
-| Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md)                                       |
-| Per-test notes (QA + AI)                                    | [report-column-contract.md](references/report-column-contract.md)                                       |
-| AI insight format, taxonomy & guardrails (record_ai_note)   | [ai-insight-format.md](references/ai-insight-format.md)                                                 |
-| Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                         |
-| Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                                |
-| Resolving `ERR_BLOCKED_BY_CLIENT` & Browser MCP checklist   | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                        |
-| Theme/print emulation & token-efficient search (MCP 0.0.83) | [media-emulation-and-recording.md](references/patterns/media-emulation-and-recording.md)                |
-| Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                            |
-| SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                                |
-| Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                                     |
-| QA vs maintainer boundary                                   | [qa-vs-maintainer.md](references/qa-vs-maintainer.md)                                                   |
+| Need                                                        | Reference                                                                                                                                                    |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| "What still needs work?" — coverage map across requirements | `qa-playwright-kit:list_requirement_status`                                                                                                                  |
+| Orient / resume after an interrupted run                    | `qa-playwright-kit:pipeline_status`                                                                                                                          |
+| Which MCP tool for which task (full map)                    | [mcp-tools-for-qa.md](references/mcp-tools-for-qa.md)                                                                                                        |
+| Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                                                                                        |
+| Derive many precise scenarios from a snapshot (anti-slop)   | [scenario-design.md](references/scenario-design.md)                                                                                                          |
+| First-time setup or setup error                             | [first-run-checklist.md](references/first-run-checklist.md)                                                                                                  |
+| Requirement format                                          | `requirements/_TEMPLATE.md` + [requirement-language.md](references/requirement-language.md)                                                                  |
+| Validate format                                             | `terminal(command="npx tsx tools/validators/validate-requirement.ts requirements/<feature>.md")`                                                             |
+| Scenario types and capability tags                          | [scenario-tags.md](references/scenario-tags.md)                                                                                                              |
+| Auth / multi-role testing                                   | [auth-and-roles.md](references/auth-and-roles.md)                                                                                                            |
+| Multi-tenant login (company code, tenant link)              | [auth-and-roles.md](references/auth-and-roles.md) → Recipe 4; `requirements/auth/login-multi-tenant.md`                                                      |
+| Dashboard columns (Test Step, Input Data, Expected, Actual) | [report-column-contract.md](references/report-column-contract.md)                                                                                            |
+| Per-test notes (QA + AI)                                    | [report-column-contract.md](references/report-column-contract.md)                                                                                            |
+| AI insight format, taxonomy & guardrails (record_ai_note)   | [ai-insight-format.md](references/ai-insight-format.md)                                                                                                      |
+| Generated spec language and `test.step` rules               | [generator-step-titles.md](references/generator-step-titles.md)                                                                                              |
+| Anti-flaky async waiting & polling patterns                 | [async-waiting.md](references/patterns/async-waiting.md)                                                                                                     |
+| Resolving `ERR_BLOCKED_BY_CLIENT` & Browser MCP checklist   | [blocked-by-client.md](references/patterns/blocked-by-client.md)                                                                                             |
+| Theme/print emulation & token-efficient search (MCP 0.0.83) | [media-emulation-and-recording.md](references/patterns/media-emulation-and-recording.md)                                                                     |
+| Complex UI widgets (Upload, iframe, clock mocking)          | [complex-widgets.md](references/patterns/complex-widgets.md)                                                                                                 |
+| SSR hydration & modal popover patterns                      | [ssr-hydration.md](references/patterns/ssr-hydration.md)                                                                                                     |
+| Post-pipeline: reading dashboard and QA decisions           | [post-pipeline-decisions.md](references/post-pipeline-decisions.md)                                                                                          |
+| Framework upgrade protocol (agent-first)                    | [AGENTS.md](../../AGENTS.md) § "Update / upgrade framework" — never commit WIP to unblock; engine snapshots dirty files; `--commit` auto-commits clean syncs |
+| QA vs maintainer boundary                                   | [qa-vs-maintainer.md](references/qa-vs-maintainer.md)                                                                                                        |
 
 ## Procedure (01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate)
 

@@ -398,6 +398,20 @@ Hermes bisa akses semua file di repo ini termasuk log, env, dan config.
 
 ---
 
+## 🛟 Recovery — kerjaan hilang? Cek ini sebelum panik
+
+| Situasi                                                     | Pulihkan                                                                                                                                                                         |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hasil upgrade masih staged dan ingin dibatalkan             | `git restore --staged --worktree .`                                                                                                                                              |
+| File framework tertimpa upgrade padahal berisi editan lokal | Ambil dari snapshot pra-apply: `git checkout <sha-snapshot> -- <file>` — daftar snapshot: `git for-each-ref refs/qa-kit/upgrade-snapshots/` (diprint juga saat upgrade berjalan) |
+| Butuh keadaan file sebelum commit tertentu                  | `git reflog` → temukan sha → `git checkout <sha> -- <file>`                                                                                                                      |
+| File belum pernah di-commit lalu terhapus                   | Git tidak menyimpan yang belum di-commit — `git fsck --lost-found` hanya menolong bila pernah di-stage. Pelajaran: commit kecil dan sering                                       |
+| Kerjaan QA (requirements/specs/tests) sudah ter-commit      | Aman — upgrade tidak pernah menyentuh file QA. Versi lama: `git checkout <sha-lama> -- requirements/ specs/ tests/`                                                              |
+
+> **Polis asuransi terbaik:** commit kecil-sering + push rutin. Konten yang belum pernah jadi commit/stash tidak bisa dipulihkan git bila hilang.
+
+---
+
 ## 📞 Escalation ke Maintainer
 
 **Lapor ke maintainer** hanya jika:

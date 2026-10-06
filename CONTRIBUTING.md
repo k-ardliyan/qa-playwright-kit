@@ -36,6 +36,13 @@ tercatat, hasil staged tanpa commit). Preview dulu dengan
 lalu `git add` — jangan auto-commit. Protokol lengkap untuk chat agent ada di
 [`AGENTS.md`](AGENTS.md) → "Update / upgrade framework".
 
+Dua jaminan penting: **WIP QA (requirements, specs, tests) tidak perlu
+di-commit untuk bisa upgrade** — dirty worktree tidak pernah memblokir — dan
+upgrade selalu merekam **snapshot keamanan** file zona yang sedang dirty
+(`refs/qa-kit/upgrade-snapshots/*`) sebelum menyentuh apa pun. `npm run upgrade
+--commit` membuat commit provenance otomatis HANYA saat hasil bersih (tanpa
+konflik); selama upgrade berjalan, hook pre-commit menolak commit lain.
+
 ## Alur kontribusi
 
 1. Buat branch dari `main` dengan prefix yang jelas:

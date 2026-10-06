@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Upgrade engine v2: universal merge, committed base, safety snapshot, `--commit`, commit-lock — 2026-10-06
+
+Tindak lanjut riset perilaku agent saat upgrade (2026-10-06): agent tidak boleh perlu commit WIP QA untuk bisa upgrade, dan kerjaan QA ratusan skenario harus mustahil hilang di sekitar proses upgrade. Rasional lengkap ada di docstring `tools/scripts/framework-upgrade.ts`, `upgrade-base.ts`, `upgrade-snapshot.ts`, dan `upgrade-commit-guard.ts`.
+
+- **Universal three-way merge.** Semua file kini di-merge via `git merge-file` dengan base = recorded base ?? HEAD — tidak ada lagi jalur plain-overwrite untuk konten lokal, tidak ada lagi dirty-guard yang memblokir, dan tidak ada lagi hard-block "push dulu" (`findRiskyLocalFrameworkCommits` kini advisory-only). Dirty worktree **tidak pernah memblokir**: edit QA yang belum di-commit ikut di-merge; file untracked yang bertabrakan file upstream baru menjadi konflik `add-add` (konten utuh bermarker); file QA-added di dalam zona tidak pernah safe-deleted (pembeda: riwayat upstream).
+- **Committed base pointer (`.upgrade-base.json`).** Base sync kini COMMITTED di repo (pola Copier `.copier-answers.yml` / cruft `.cruft.json`) — setiap clone mulai akurat, tidak ada lagi mode buta per-mesin. Precedensi: base file → legacy `.upgrade-state.json` (migrasi) → HEAD.
+- **Safety snapshot non-destruktif.** Sebelum mutasi apa pun, upgrade merekam konten terkini semua file zona yang dirty (tracked+untracked) via temp-index plumbing (`read-tree`/`add`/`write-tree`/`commit-tree`) ke ref `refs/qa-kit/upgrade-snapshots/<ts>-<sha7>` — tidak menyentuh worktree/index/branch, GC-safe, diprune sisakan 5. Pulihkan: `git checkout <sha-snapshot> -- <file>`; field `snapshot` masuk kontrak JSON.
+- **`--commit` (auto-commit saat bersih).** Setelah apply BERSIH (nol konflik), tool membuat commit provenance (`Upstream-Sync: <sha12>` + base pointer ikut staged) — hasil upgrade tidak lagi menggantung staged. Konflik apapun = tidak pernah commit. Field `commit` masuk kontrak JSON.
+- **Commit-lock mekanis.** Apply mode mengunci `artifacts/.upgrade-lock.json` (pid-liveness; basi = auto-clear) dan `.husky/pre-commit` menolak commit lain selama lock hidup — kecuali commit milik tool sendiri (env `QA_KIT_UPGRADE_COMMIT=1`). Prinsip Progent/GuardAgent: kebijakan dieksekusi deterministik, bukan dinasihati.
+- **Verifikasi:** harness `framework-upgrade` 29 → **38 checks** hijau (base precedensi, universal merge dirty/untracked, snapshot restore+prune, `--commit` bersih vs konflik, commit-guard deny/allow/stale, lock lifecycle); `tsc --noEmit` + `biome lint` bersih; probe `npm run upgrade:check -- --json` satu baris JSON dengan field baru. Script baru `npm run test:upgrade` (masuk `quality:check-rules`).
+
 ### Audit sinkronisasi docs: jalur upgrade lama & kalimat kontradiktif dibersihkan — 2026-10-06
 
 Audit seluruh `docs/`, skill pack, dan `.github/agents/` terhadap engine terkini menemukan dua dokumen yang masih memandu QA ke jalur upgrade manual yang sudah tidak berlaku — persis cara yang dilarang protokol `npm run upgrade` — plus beberapa kalimat rancu. Semua diperbaiki:
