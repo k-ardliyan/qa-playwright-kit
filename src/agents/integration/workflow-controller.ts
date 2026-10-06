@@ -74,6 +74,7 @@ export class WorkflowController {
   private state: PipelineState;
   private repoRoot: string;
   private adapters: WorkflowAdapters;
+  private readonly onStageCompleted?: WorkflowControllerConfig['onStageCompleted'];
 
   constructor(
     config: WorkflowControllerConfig,
@@ -81,6 +82,7 @@ export class WorkflowController {
     initialState?: PipelineState,
   ) {
     this.adapters = adapters;
+    this.onStageCompleted = config.onStageCompleted;
     const repoRoot = config.repoRoot ?? process.cwd();
     this.repoRoot = repoRoot;
     const runId = config.runId || initialState?.runId || randomUUID();
@@ -131,17 +133,23 @@ export class WorkflowController {
 
     const explore = await runExploreStage(this.stageContext(), input);
     if (explore !== 'continue') return explore;
+    await this.onStageCompleted?.('explore');
 
     const model = await runModelStage(this.stageContext(), input);
     if (model !== 'continue') return model;
+    await this.onStageCompleted?.('model');
 
     const challenge = await runChallengeStage(this.stageContext(), input);
     if (challenge !== 'continue') return challenge;
+    await this.onStageCompleted?.('challenge');
 
     const generate = await runGenerateStage(this.stageContext(), input);
     if (generate !== 'continue') return generate;
+    await this.onStageCompleted?.('generate');
 
-    return runValidateStage(this.stageContext(), input);
+    const validate = await runValidateStage(this.stageContext(), input);
+    await this.onStageCompleted?.('validate');
+    return validate;
   }
 
   /**
@@ -149,18 +157,24 @@ export class WorkflowController {
    */
   async runStage(stage: WorkflowStage, input: WorkflowStartInput): Promise<WorkflowResponse> {
     const ctx = this.stageContext();
-    switch (stage) {
-      case 'explore':
-        return this.expectResponse(stage, await runExploreStage(ctx, input));
-      case 'model':
-        return this.expectResponse(stage, await runModelStage(ctx, input));
-      case 'challenge':
-        return this.expectResponse(stage, await runChallengeStage(ctx, input));
-      case 'generate':
-        return this.expectResponse(stage, await runGenerateStage(ctx, input));
-      case 'validate':
-        return runValidateStage(ctx, input);
-    }
+    const execute = async (): Promise<WorkflowResponse> => {
+      switch (stage) {
+        case 'explore':
+          return this.expectResponse(stage, await runExploreStage(ctx, input));
+        case 'model':
+          return this.expectResponse(stage, await runModelStage(ctx, input));
+        case 'challenge':
+          return this.expectResponse(stage, await runChallengeStage(ctx, input));
+        case 'generate':
+          return this.expectResponse(stage, await runGenerateStage(ctx, input));
+        case 'validate':
+          return runValidateStage(ctx, input);
+      }
+    };
+    const response = await execute();
+    const status = this.state.workflow?.stages[stage]?.status;
+    if (status === 'passed' || status === 'skipped') await this.onStageCompleted?.(stage);
+    return response;
   }
 
   /** Build the stage context closed over this controller's state + helpers. */

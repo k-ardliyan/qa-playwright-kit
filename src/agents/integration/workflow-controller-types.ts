@@ -156,4 +156,12 @@ export interface WorkflowControllerConfig {
   runId?: string;
   /** Workspace root for resolving requirement/plan paths. Defaults to cwd. */
   repoRoot?: string;
+  /**
+   * Optional checkpoint hook, fired after each stage completes successfully
+   * ('continue' in run(), passed/skipped status in runStage()). The production
+   * driver uses it to commit QA-zone outputs when the run is started with
+   * `--auto-commit` / `QA_PIPELINE_AUTO_COMMIT=1`; the controller itself stays
+   * persistence-only — no git, no I/O side effects live here.
+   */
+  onStageCompleted?: (stage: WorkflowStage) => void | Promise<void>;
 }

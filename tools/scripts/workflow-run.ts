@@ -35,6 +35,8 @@ import {
 } from '../../src/agents/integration/playwright-counters';
 import { loadState, type PipelineState } from '../../src/agents/integration/state';
 import { resolveAllowedPath } from '../mcp/src/utils/safety';
+import type { WorkflowStage } from '../../src/agents/integration/types';
+import { commitPipelineCheckpoint, shouldAutoCommit } from './pipeline-checkpoint';
 
 /* eslint-disable @typescript-eslint/require-await */
 
@@ -195,6 +197,7 @@ interface WorkflowRunArgs {
   runId: string | null;
   resume: boolean;
   roleFilter: string[];
+  autoCommit: boolean;
   help: boolean;
 }
 
@@ -209,6 +212,11 @@ Options:
   --run-id <uuid>  Explicit run identity. Fresh runs print their runId; pass it
                    back with --resume to continue after a process exit.
   --resume         Continue the persisted run (requires --run-id).
+  --auto-commit    Commit QA-zone outputs (requirements/, specs/, tests/) after
+                   each successful stage — durability checkpoints. Opt-in: also
+                   enabled by env QA_PIPELINE_AUTO_COMMIT=1. Never touches
+                   framework zones; conflicts with the upgrade lock are impossible
+                   (separate tools).
   -h, --help       Show this message
 
 Exit codes: 0 = success, 1 = blocked/failed, 2 = usage error.
@@ -223,11 +231,13 @@ function parseArgs(argv: string[]): WorkflowRunArgs {
     runId: null,
     resume: false,
     roleFilter: [],
+    autoCommit: false,
     help: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--automatic') args.automatic = true;
+    else if (arg === '--auto-commit') args.autoCommit = true;
     else if (arg === '--stage') {
       const value = argv[++i];
       if (!value || !['explore', 'model', 'challenge', 'generate', 'validate'].includes(value)) {
@@ -339,12 +349,31 @@ async function main(): Promise<number> {
   }
 
   const adapters = createMcpAdapters({ tools: TOOLS, repoRoot });
-  const controller = new WorkflowController(
+  const autoCommit = shouldAutoCommit(process.env, { autoCommit: args.autoCommit });
+  if (autoCommit) {
+    process.stderr.write(
+      '☑ Auto-commit checkpoint AKTIF — outputs QA di-commit tiap fase selesai.\n',
+    );
+  }
+  // Explicit annotation: the callback closes over `controller`, so the
+  // inference cycle must be broken here (TS7022).
+  const controller: WorkflowController = new WorkflowController(
     {
       orchestrationMode: args.automatic ? 'automatic' : 'manual',
       requirementPath: args.requirementPath,
       runId: args.runId ?? undefined,
       repoRoot,
+      ...(autoCommit
+        ? {
+            onStageCompleted: (stage: WorkflowStage): void => {
+              commitPipelineCheckpoint(repoRoot, {
+                stage,
+                runId: controller.getState().runId,
+                requirementPath: args.requirementPath ?? undefined,
+              });
+            },
+          }
+        : {}),
     },
     adapters,
     initialState,
