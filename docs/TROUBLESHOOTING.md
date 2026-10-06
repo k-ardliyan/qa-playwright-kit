@@ -412,6 +412,19 @@ Hermes bisa akses semua file di repo ini termasuk log, env, dan config.
 
 ---
 
+## 🔁 Sudah kejadian `git pull` upstream manual — cek ini
+
+`git pull` upstream manual dilarang protokol karena memotong snapshot, staged review, dan commit-lock engine. Kalau sudah terlanjur, biasanya **tidak ada yang rusak** — settle dengan ini:
+
+1. `git status` — kerjaan QA masih ada? Commit aset QA-mu dulu sebagai commit tersendiri.
+2. `grep syncedCommit .upgrade-base.json` — nilainya harus **base terbaru** (≥ commit upstream yang sudah kamu miliki). Kalau nilainya **mundur** (versi basi upstream yang menang saat resolve konflik): jangan edit manual — jalankan `npm run upgrade:check --json` lalu `npm run upgrade --json --commit`; engine menaikkan base sendiri dan perubahan lama yang ter-re-apply hanyalah no-op.
+3. `git stash list` — pastikan kosong (tidak ada checkpoint yang nyangkut dari proses pull).
+4. Ke depan: update framework **hanya** lewat `npm run upgrade --json --commit`. Pasang deny perintah destruktif di klien agent-mu: [AGENT-GIT-SAFETY.md](AGENT-GIT-SAFETY.md).
+
+> **Jangan** pakai `git reset --hard ORIG_HEAD` untuk "membatalkan" pull selama ada file QA yang belum di-commit — itu menghabiskannya.
+
+---
+
 ## 📞 Escalation ke Maintainer
 
 **Lapor ke maintainer** hanya jika:

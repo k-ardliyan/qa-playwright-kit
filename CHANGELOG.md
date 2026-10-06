@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Robustness hardening: Windows CI, pipeline checkpoints, conflict gate, agent git safety — 2026-10-06
+
+Empat gap yang tersisa dari audit upgrade engine v2, ditutup satu per satu:
+
+- **Windows CI lane (G1).** Quality Gate dapat job `windows-lane` (windows-latest): format:check → typecheck → validate:architecture → harness upgrade penuh. Insiden `package-lock.json` membuktikan bug kelas "beda OS" lolos lane Linux — kini perilaku Windows diuji CI juga (kit ini pengguna utamanya di Windows).
+- **Pipeline checkpoint opt-in (G3).** `npm run qa:workflow --auto-commit` / env `QA_PIPELINE_AUTO_COMMIT=1`: outputs QA (`requirements/`, `specs/`, `tests/` minus `tests/demo`) di-commit otomatis tiap fase selesai (`chore(pipeline): <stage> checkpoint` + trailer `Pipeline-Run: <runId>`) — menutup pola "20+ aset menggantung staged berjam-jam". Default OFF; zona framework tak pernah tersentuh; `WorkflowController` mendapat hook `onStageCompleted` (tetap persistence-only). porcelain yang melipat direktori untracked diekspansi per-file via `git ls-files -o --exclude-standard` supaya exclude `tests/demo` benar-benar bekerja.
+- **Conflict-marker gate (G4).** `npm run validate:conflict-markers` + `check-conflict-markers --staged` di pre-commit: marker `<<<<<<<`/`>>>>>>>` line-anchored tidak pernah lolos ke commit; `=======` hanya dicurigai dekat `<<<<<<<` (hindari false positive setext-underline). Scan index-content sehingga mid-upgrade state (marker unstaged) tidak memicu hook.
+- **Agent git safety (G2).** `docs/AGENT-GIT-SAFETY.md` + `config/agent-hooks/deny-destructive-git.cjs` + contoh settings: deny mekanis di tingkat klien agent untuk `reset --hard`/`clean -f`/`checkout -- .`/`--no-verify` — perintah yang tidak punya hook git. Fail-open pada error skrip, fail-closed pada pola dikenali.
+- **Base pointer tetap milik pemilik repo.** `.upgrade-base.json` diperbarui oleh `npm run upgrade` (agent-first) dan ikut commit bersama hasil sync — **tanpa bot/commit otomatis ke main**; riwayat repo selalu berisi commit manusia saja.
+- **Verifikasi:** harness standalone baru (`test:pipeline-checkpoint` 5 checks, `validate:conflict-markers` scan 691 file bersih) + `test:upgrade` 38 checks — semua masuk `quality:check-rules`; `format:check`/`lint`/`tsc` bersih; windows-lane diverifikasi via run CI nyata.
+
 ### Upgrade engine v2: universal merge, committed base, safety snapshot, `--commit`, commit-lock — 2026-10-06
 
 Tindak lanjut riset perilaku agent saat upgrade (2026-10-06): agent tidak boleh perlu commit WIP QA untuk bisa upgrade, dan kerjaan QA ratusan skenario harus mustahil hilang di sekitar proses upgrade. Rasional lengkap ada di docstring `tools/scripts/framework-upgrade.ts`, `upgrade-base.ts`, `upgrade-snapshot.ts`, dan `upgrade-commit-guard.ts`.

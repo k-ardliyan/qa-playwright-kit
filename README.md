@@ -363,6 +363,7 @@ Multi-role auth + OTP/CAPTCHA → [AUTH-CONTEXT-CONVENTION.md](docs/AUTH-CONTEXT
 | Command cheat sheet                | [docs/CHEATSHEET.md](docs/CHEATSHEET.md)                           |
 | Troubleshooting                    | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                 |
 | Alur upgrade framework (flowchart) | [docs/UPGRADE-FLOW.md](docs/UPGRADE-FLOW.md)                       |
+| Agent git safety (deny destruktif) | [docs/AGENT-GIT-SAFETY.md](docs/AGENT-GIT-SAFETY.md)               |
 | Arsitektur & Folder Map            | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                       |
 | Domain glossary & roles            | [docs/CONTEXT.md](docs/CONTEXT.md)                                 |
 | Riwayat perubahan                  | [CHANGELOG.md](CHANGELOG.md)                                       |

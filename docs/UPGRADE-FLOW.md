@@ -113,16 +113,37 @@ flowchart LR
 
 ## 5. Jaminan keamanan — peta cepat
 
-| Yang dijamin                                  | Mekanisme                                                    | Dipin oleh                  |
-| --------------------------------------------- | ------------------------------------------------------------ | --------------------------- |
-| WIP QA tidak perlu di-commit untuk upgrade    | Universal merge; dirty worktree tidak pernah memblokir       | harness `framework-upgrade` |
-| Konten lokal tidak hilang diam-diam           | Merge tiga-arah + snapshot pra-apply + advisory commit lokal | `npm run test:upgrade`      |
-| File QA di dalam zona tidak ikut terhapus     | Tiebreaker riwayat upstream (`upstreamHistoryHasFile`)       | harness                     |
-| Hasil sync tidak menggantung staged           | `--commit` otomatis saat bersih (konflik tidak pernah)       | harness                     |
-| Tidak ada commit liar di tengah upgrade       | Lock + pre-commit guard (fail-open bila guard error)         | harness                     |
-| Base akurat di setiap clone/laptop            | `.upgrade-base.json` committed (pola Copier/cruft)           | harness                     |
-| Marker `// CUSTOM_AUTH_FLOW` selalu dihormati | `shouldPreserveGeneratedFile` — line-anchored                | harness                     |
+| Yang dijamin                                  | Mekanisme                                                    | Dipin oleh                          |
+| --------------------------------------------- | ------------------------------------------------------------ | ----------------------------------- |
+| WIP QA tidak perlu di-commit untuk upgrade    | Universal merge; dirty worktree tidak pernah memblokir       | harness `framework-upgrade`         |
+| Konten lokal tidak hilang diam-diam           | Merge tiga-arah + snapshot pra-apply + advisory commit lokal | `npm run test:upgrade`              |
+| File QA di dalam zona tidak ikut terhapus     | Tiebreaker riwayat upstream (`upstreamHistoryHasFile`)       | harness                             |
+| Hasil sync tidak menggantung staged           | `--commit` otomatis saat bersih (konflik tidak pernah)       | harness                             |
+| Tidak ada commit liar di tengah upgrade       | Lock + pre-commit guard (fail-open bila guard error)         | harness                             |
+| Marker konflik tidak lolos ke commit          | `check-conflict-markers --staged` di pre-commit + CI         | `npm run validate:conflict-markers` |
+| Kerjaan QA per fase tidak menggantung staged  | Pipeline checkpoint opt-in (`QA_PIPELINE_AUTO_COMMIT=1`)     | harness `pipeline-checkpoint`       |
+| Perilaku beda OS terdeteksi (bukan lolos)     | Job `windows-lane` di Quality Gate (harness upgrade penuh)   | CI                                  |
+| Base akurat di setiap clone/laptop            | `.upgrade-base.json` committed (pola Copier/cruft)           | harness                             |
+| Marker `// CUSTOM_AUTH_FLOW` selalu dihormati | `shouldPreserveGeneratedFile` — line-anchored                | harness                             |
 
-Semua jaminan di atas dipin `npm run test:upgrade` (38 checks, bagian dari
-`quality:check-rules`) — perubahan masa depan yang merusaknya membuat gate
-merah dulu, bukan QA yang kena.
+Semua jaminan di atas dipin dua harness standalone (`npm run test:upgrade`,
+`test:pipeline-checkpoint` — bagian dari `quality:check-rules`) — perubahan masa
+depan yang merusaknya membuat gate merah dulu, bukan QA yang kena.
+
+### Catatan migrasi & batasan yang disengaja
+
+- **Fork lama (engine v1):** upgrade bootstrap pertama masih memakai perilaku
+  v1 — dirty file zona memblokir sekali ("commit atau kembalikan dulu"). Setelah
+  sync itu, engine v2 aktif dan dirty tidak pernah memblokir lagi.
+- **Staleness base pointer minimal 1 commit itu inheren** — sebuah commit tidak
+  bisa memuat SHA dirinya sendiri. `.upgrade-base.json` diperbarui oleh
+  `npm run upgrade` (agent-first) dan ikut commit bersama hasil sync; **tidak
+  ada bot/commit otomatis ke main** — seluruh riwayat repo berisi commit manusia
+  saja, dan pointer yang tertinggal maksimal satu commit tidak berdampak
+  (diff zona `base..FETCH_HEAD` tetap benar untuk clone mana pun).
+- **Fork yang di-pull upstream manual** akan rutin konflik di `.upgrade-base.json`
+  (versi fork lebih baru vs versi upstream) — resolusinya simpan versi fork
+  (paling baru). Fork patuh protokol tidak pernah kena.
+- **Commit-guard & deny-hook fail-open** bila skripnya sendiri error — pertahanan
+  terhadap kecelakaan, bukan niat jahat. Lapisan klien agent:
+  [AGENT-GIT-SAFETY.md](AGENT-GIT-SAFETY.md).

@@ -277,6 +277,7 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 | Auth per role                | [docs/AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md) |
 | Kredensial & multi-role      | [docs/CREDENTIALS.md](CREDENTIALS.md)                         |
 | Alur upgrade (flowchart)     | [docs/UPGRADE-FLOW.md](UPGRADE-FLOW.md)                       |
+| Agent git safety             | [docs/AGENT-GIT-SAFETY.md](AGENT-GIT-SAFETY.md)               |
 
 ---
 
