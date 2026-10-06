@@ -3,6 +3,11 @@
 # upgrade tool's own --commit passes via the QA_KIT_UPGRADE_COMMIT env marker.
 npx tsx tools/scripts/upgrade-commit-guard.ts || exit 1
 
+# Guard: unresolved merge markers must never be committed. Scans staged content
+# only — files the upgrade engine legitimately left conflicted-and-unstaged do
+# not trip this.
+npx tsx tools/validators/check-conflict-markers.ts --staged || exit 1
+
 # Windows caps a command line at ~32k chars, so a large staged set makes
 # lint-staged pass every file to biome at once and the spawn fails with
 # "The command line is too long". Chunking keeps the hook working at any size.
