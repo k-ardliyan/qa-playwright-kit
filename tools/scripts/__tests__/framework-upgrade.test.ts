@@ -108,6 +108,24 @@ function makeQaClone(upstreamPath: string, qaPath: string): void {
   git(qaPath, ['fetch', '-q', 'origin', 'main']);
   git(qaPath, ['reset', '-q', '--hard', 'FETCH_HEAD']);
   git(qaPath, ['remote', 'remove', 'origin']);
+  // The engine's dependency step runs `npm install` inside the QA repo. On
+  // Linux CI that SUCCEEDS and creates untracked npm artifacts; on some dev
+  // machines it fails fast (EALLOWSCRIPTS) and creates nothing. Ignore them so
+  // worktree-cleanliness assertions and snapshots are OS-deterministic.
+  write(qaPath, '.gitignore', 'node_modules/\npackage-lock.json\n');
+}
+
+/**
+ * Worktree must be clean apart from npm's own side effects. The QA repos
+ * gitignore `package-lock.json` / `node_modules` (see makeQaClone); this
+ * filter is the second belt so an unknown npm artifact can never flip the
+ * assertion on one OS but not another.
+ */
+function assertWorktreeCleanApartFromNpm(cwd: string): void {
+  const dirt = parsePorcelain(git(cwd, ['status', '--porcelain']).stdout)
+    .filter((e) => e.file !== 'package-lock.json' && !e.file.startsWith('node_modules'))
+    .map((e) => `${e.status} ${e.file}`);
+  assert.deepEqual(dirt, [], 'worktree clean apart from npm side effects');
 }
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
@@ -448,7 +466,7 @@ try {
 
   // QA owns a spec (tracked, upstream never has it) + a local env-like gitignored file.
   write(qa, 'tests/mine.spec.ts', 'export const mine = "qa-owned";\n');
-  write(qa, '.gitignore', 'config/environments/*.env\n');
+  write(qa, '.gitignore', 'config/environments/*.env\nnode_modules/\npackage-lock.json\n');
   write(qa, 'config/environments/local.env', 'SECRET=qa-local\n');
   commitAll(qa, 'qa spec');
 
@@ -489,7 +507,7 @@ try {
     assert.equal(preview.snapshot, null, '--check never snapshots');
 
     assert.equal(read(qa, 'src/x.ts'), 'export const x = "v1";\n');
-    assert.equal(git(qa, ['status', '--porcelain']).stdout.trim(), '');
+    assertWorktreeCleanApartFromNpm(qa);
     assert.equal(listSnapshotRefs(qa).length, beforeRefs, '--check creates no snapshot refs');
   });
 
@@ -533,7 +551,10 @@ try {
         result.kept.includes('.gitignore'),
         'QA-added file inside the zone is never safe-deleted',
       );
-      assert.equal(read(qa, '.gitignore'), 'config/environments/*.env\n');
+      assert.equal(
+        read(qa, '.gitignore'),
+        'config/environments/*.env\nnode_modules/\npackage-lock.json\n',
+      );
 
       // QA-owned + gitignored files untouched.
       assert.equal(read(qa, 'tests/mine.spec.ts'), 'export const mine = "qa-owned";\n');

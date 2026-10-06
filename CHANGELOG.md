@@ -16,6 +16,7 @@ Tindak lanjut riset perilaku agent saat upgrade (2026-10-06): agent tidak boleh 
 - **`--commit` (auto-commit saat bersih).** Setelah apply BERSIH (nol konflik), tool membuat commit provenance (`Upstream-Sync: <sha12>` + base pointer ikut staged) — hasil upgrade tidak lagi menggantung staged. Konflik apapun = tidak pernah commit. Field `commit` masuk kontrak JSON.
 - **Commit-lock mekanis.** Apply mode mengunci `artifacts/.upgrade-lock.json` (pid-liveness; basi = auto-clear) dan `.husky/pre-commit` menolak commit lain selama lock hidup — kecuali commit milik tool sendiri (env `QA_KIT_UPGRADE_COMMIT=1`). Prinsip Progent/GuardAgent: kebijakan dieksekusi deterministik, bukan dinasihati.
 - **Verifikasi:** harness `framework-upgrade` 29 → **38 checks** hijau (base precedensi, universal merge dirty/untracked, snapshot restore+prune, `--commit` bersih vs konflik, commit-guard deny/allow/stale, lock lifecycle); `tsc --noEmit` + `biome lint` bersih; probe `npm run upgrade:check -- --json` satu baris JSON dengan field baru. Script baru `npm run test:upgrade` (masuk `quality:check-rules`).
+- **Perbaikan CI:** artefak sampingan `npm install` di repo harness (`package-lock.json` / `node_modules` — tercipta di Linux CI karena npm-nya berhasil, tidak di mesin yang npm-nya gagal cepat) kini di-gitignore di semua repo QA harness, dan asersi kebersihan worktree toleran terhadap noise npm — harness determinis lintas OS.
 
 ### Audit sinkronisasi docs: jalur upgrade lama & kalimat kontradiktif dibersihkan — 2026-10-06
 
