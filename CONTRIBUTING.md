@@ -42,6 +42,7 @@ upgrade selalu merekam **snapshot keamanan** file zona yang sedang dirty
 (`refs/qa-kit/upgrade-snapshots/*`) sebelum menyentuh apa pun. `npm run upgrade
 --commit` membuat commit provenance otomatis HANYA saat hasil bersih (tanpa
 konflik); selama upgrade berjalan, hook pre-commit menolak commit lain.
+Flowchart lengkap alur engine + protokol: [UPGRADE-FLOW.md](docs/UPGRADE-FLOW.md).
 
 ## Alur kontribusi
 

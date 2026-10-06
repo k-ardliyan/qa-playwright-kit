@@ -276,6 +276,7 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 | Panduan `@manual`            | [docs/MANUAL-SCENARIOS.md](MANUAL-SCENARIOS.md)               |
 | Auth per role                | [docs/AUTH-CONTEXT-CONVENTION.md](AUTH-CONTEXT-CONVENTION.md) |
 | Kredensial & multi-role      | [docs/CREDENTIALS.md](CREDENTIALS.md)                         |
+| Alur upgrade (flowchart)     | [docs/UPGRADE-FLOW.md](UPGRADE-FLOW.md)                       |
 
 ---
 
