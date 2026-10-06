@@ -1,3 +1,8 @@
+# Guard: while `npm run upgrade` holds its lock, no commit may proceed — the
+# worktree is mid-merge and committing would freeze a half-applied state. The
+# upgrade tool's own --commit passes via the QA_KIT_UPGRADE_COMMIT env marker.
+npx tsx tools/scripts/upgrade-commit-guard.ts || exit 1
+
 # Windows caps a command line at ~32k chars, so a large staged set makes
 # lint-staged pass every file to biome at once and the spawn fails with
 # "The command line is too long". Chunking keeps the hook working at any size.
