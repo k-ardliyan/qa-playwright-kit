@@ -53,6 +53,48 @@ jobs:
           echo "Checks: format:check → lint → typecheck → xss:scan" >> "$GITHUB_STEP_SUMMARY"
           echo "Lane ini gagal hanya jika ada check nyata yang merah." >> "$GITHUB_STEP_SUMMARY"
 
+  windows-lane:
+    # Pengguna utama kit ini ada di Windows; incident package-lock.json (2026-10-06)
+    # membuktikan bug kelas "beda OS" bisa lolos lane Linux. Lane minimal ini
+    # menjalankan harness upgrade (paling OS-sensitif) + typecheck di Windows.
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Force LF checkout (belt — .gitattributes sudah eol=lf)
+        run: git config --global core.autocrlf false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Architecture validators
+        run: npm run validate:architecture
+
+      - name: Upgrade harness (OS-sensitive)
+        run: npm run test:upgrade
+
+      - name: Windows lane summary
+        if: always()
+        run: |
+          "## Quality Gate — windows lane (run #$env:GITHUB_RUN_NUMBER)" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "Checks: format:check → typecheck → validate:architecture → test:upgrade" >> $env:GITHUB_STEP_SUMMARY
+          "Lane Windows: harness upgrade dijalankan penuh (npm install nyata di repo temp, snapshot, --commit, commit-lock)." >> $env:GITHUB_STEP_SUMMARY
+
   full-lane:
     runs-on: ubuntu-latest
     timeout-minutes: 30
