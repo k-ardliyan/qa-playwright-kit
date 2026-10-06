@@ -403,7 +403,7 @@ Hermes bisa akses semua file di repo ini termasuk log, env, dan config.
 **Lapor ke maintainer** hanya jika:
 
 - Wizard masih crash setelah fix #1-#10
-- Bug muncul setelah update framework (`git pull upstream main`)
+- Bug muncul setelah `npm run upgrade` (sertakan output `npm run upgrade:check --json`)
 - Ingin tambah fitur baru ke wizard
 
 Sertakan:

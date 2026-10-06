@@ -73,9 +73,9 @@ Capability tags (opsional, digabung di judul SC):
 
 Upload **bukan** `@manual`. PDF **teks** = `@file-content`; PDF **layout** visual = `@manual`. Lihat [MANUAL-SCENARIOS.md](MANUAL-SCENARIOS.md). Live network payload/response = `@network-assert` (bukan `@manual`, bukan overload `@network` mock).
 
-Jika tidak diberi tag tipe, skenario dianggap `(@success)` secara default.
+Jika tidak diberi tag tipe, skenario berstatus `general` — diperlakukan sebagai alur sukses biasa dengan role credential `user`.
 
-> Catatan: parser requirement (`parse-requirement-scenarios.ts`) mengembalikan `scenarioType: 'general'` untuk skenario tanpa tag tipe — bukan `'success'`. `general` diperlakukan sebagai alur sukses biasa dengan role credential `user`.
+> Catatan: parser requirement (`parse-requirement-scenarios.ts`) mengembalikan `scenarioType: 'general'` untuk skenario tanpa tag tipe — bukan `'success'`.
 
 ---
 
@@ -215,7 +215,7 @@ FORMAT YANG HARUS DIIKUTI:
 | `access_expectation_missing`   | Tambah `Access expectation` jika `Role scope` sudah diisi        |
 | `failure_scenario_recommended` | Tambah skenario `(@failure)` jika ada kata error/gagal/ditolak   |
 
-Detail: [GUIDE — troubleshooting validate_requirement](GUIDE.md#troubleshooting-validate-requirement)
+Detail: [GUIDE — troubleshooting validate_requirement](GUIDE.md#troubleshooting-validate_requirement)
 
 ---
 

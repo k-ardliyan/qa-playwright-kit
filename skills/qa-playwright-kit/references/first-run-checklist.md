@@ -24,7 +24,7 @@ npm install
 npm run setup        # interactive wizard
 ```
 
-The wizard **generates** a clean `config/environments/{APP_ENV}.env` (only active keys, no placeholder comments — `{APP_ENV}.env.example` stays the commented documentation), encrypts secret keys (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`), writes `requirements/login.md`, offers Chromium install if missing, and prints a Hermes prompt. What the wizard does **not** do: encrypt URLs/flags/identifiers, or run `auth:setup`.
+The wizard **generates** a clean `config/environments/{APP_ENV}.env` (only active keys, no placeholder comments — `{APP_ENV}.env.example` stays the commented documentation), encrypts secret keys (`*_PASSWORD` / `*_SECRET` / `*_TOKEN`), writes `requirements/login.md`, offers Chromium install if missing, and prints a Hermes prompt. It also **writes the active-env pin** `config/environments/.active-env` (for `local` / `dev` / `staging`; `production` is never pinned automatically) and, when a Hermes install is detected, registers the repo's skill pack via `hermes skills trust <repo>`. What the wizard does **not** do: encrypt URLs/flags/identifiers, or run `auth:setup`.
 
 ---
 

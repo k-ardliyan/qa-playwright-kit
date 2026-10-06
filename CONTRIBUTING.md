@@ -27,6 +27,15 @@ npm run setup      # wizard: env, role, dan prompt Hermes
 `npm run setup` menulis `config/environments/{APP_ENV}.env` dan mengenkripsi
 secret key lewat dotenvx. File env tidak pernah di-commit.
 
+### Sinkron dengan upstream (fork QA)
+
+Bagi fork yang menarik update zona framework dari upstream: jangan `git pull` /
+`git stash` manual — pakai `npm run upgrade` (three-way merge terhadap base
+tercatat, hasil staged tanpa commit). Preview dulu dengan
+`npm run upgrade:check --json`; bila muncul konflik, resolve tiap file bermarker
+lalu `git add` — jangan auto-commit. Protokol lengkap untuk chat agent ada di
+[`AGENTS.md`](AGENTS.md) → "Update / upgrade framework".
+
 ## Alur kontribusi
 
 1. Buat branch dari `main` dengan prefix yang jelas:

@@ -29,7 +29,7 @@ Skenario yang ditandai `(@manual)` di judul `### SC-XX: ...` berarti tidak bisa 
 | `(@access-restriction)` | Role tidak berhak, akses ditolak            | Test yang assert penolakan akses |
 | `(@manual)`             | Tidak bisa diotomasi                        | `test.skip` dengan alasan        |
 
-Jika tidak diberi tag, skenario dianggap `(@success)` secara default.
+Jika tidak diberi tag tipe, skenario berstatus `general` — diperlakukan sebagai alur sukses biasa dengan role credential `user`.
 
 > Catatan: parser requirement mengembalikan `scenarioType: 'general'` untuk skenario tanpa tag tipe — bukan `'success'` (lihat `parse-requirement-scenarios.ts`).
 

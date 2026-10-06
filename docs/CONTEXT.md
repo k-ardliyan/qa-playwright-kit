@@ -41,7 +41,7 @@
 - **Generator verification** — How the Generator confirms selectors before writing code: CLI attach (preferred) or MCP browser tools (fallback).
 - **Framework Scope** — Generic, multi-project. The QA Playwright Kit is a reusable toolkit that works across different web applications. Application-specific code (auth flows, POMs, env configs) lives in each project's instance (fork).
 - **Reference Adapter** — Not bundled. Forks can define their own adapter via `PLAYWRIGHT_ADAPTER_*` envs.
-- **Deployment Model** — Template Fork. This repository acts as a core template. Each QA project forks or duplicates this repository into its own separate Git repository to maintain absolute isolation of tests, credentials, and custom page objects. Upstream updates (core logic, prompts, MCP config) are pulled and merged manually from the core template repository registered as a Git `upstream` remote.
+- **Deployment Model** — Template Fork. This repository acts as a core template. Each QA project forks or duplicates this repository into its own separate Git repository to maintain absolute isolation of tests, credentials, and custom page objects. Upstream updates (core logic, prompts, MCP config) are pulled by **`npm run upgrade`** — never by manual `git pull` / `git stash`: the tool fetches upstream itself, three-way-merges QA edits against the recorded base (`.upgrade-state.json`), stages the result without committing, and blocks on conflicts for QA/agent resolution. Full protocol (including the `--json` agent contract) lives in [`AGENTS.md`](../AGENTS.md) → "Update / upgrade framework".
 
 ## Configuration & Security
 

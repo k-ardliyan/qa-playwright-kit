@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Audit sinkronisasi docs: jalur upgrade lama & kalimat kontradiktif dibersihkan — 2026-10-06
+
+Audit seluruh `docs/`, skill pack, dan `.github/agents/` terhadap engine terkini menemukan dua dokumen yang masih memandu QA ke jalur upgrade manual yang sudah tidak berlaku — persis cara yang dilarang protokol `npm run upgrade` — plus beberapa kalimat rancu. Semua diperbaiki:
+
+- **`docs/CONTEXT.md` (Deployment Model)** — "upstream updates pulled and merged manually via Git `upstream` remote" diganti model sekarang: `npm run upgrade` (three-way merge atas base `.upgrade-state.json`, hasil staged, konflik memblokir, tanpa `git pull`/`git stash` manual).
+- **`docs/TROUBLESHOOTING.md` (eskalasi maintainer)** — "`git pull upstream main`" diganti `npm run upgrade` (+ sertakan output `upgrade:check --json`).
+- **`docs/CHEATSHEET.md`** — baris `upgrade` kini menyertakan protokol conflicts (berhenti → resolve file bermarker → `git add`, jangan auto-commit) dan `upgrade:check` menyebut kontrak `--json` untuk agent.
+- **`docs/MANUAL-SCENARIOS.md` & `docs/WRITING-REQUIREMENTS.md`** — headline "skenario tanpa tag dianggap `(@success)`" yang dikontradiksi catatan parse-nya sendiri dirapikan: statusnya `general`, diperlakukan sebagai alur sukses biasa dengan role `user`.
+- **`docs/WRITING-REQUIREMENTS.md`** — anchor `GUIDE.md#troubleshooting-validate_requirement` diperbaiki (underscore, bukan hyphen).
+- **`.github/agents/planner.agent.md`** — baris tabel "Seed and auth context" yang merender rusak (3 klaim dalam satu row) dipecah jadi bullet list.
+- **`skills/qa-playwright-kit/references/first-run-checklist.md`** (+ mirror `.agents/skills/`) — wizard kini menjelaskan dua efek samping baru: pin `.active-env` (local/dev/staging, production tidak otomatis) dan auto `hermes skills trust <repo>`.
+- **`skills/.../patterns/media-emulation-and-recording.md`** (+ mirror) — angka tool browser MCP 72 vs 48 direkonsiliasi: jumlah terekspos bergantung set `--caps` per intent profile, angka beda antar-probe bukan kegagalan.
+- **`CONTRIBUTING.md`** — subbagian baru "Sinkron dengan upstream (fork QA)": pakai `npm run upgrade`, bukan `git pull` manual.
+
 ### `npm run upgrade` diperkuat: base tersimpan, safe-delete, three-way merge, `--json` — 2026-10-05
 
 Upgrade sebelumnya **aman tapi buta**: memakai `git diff HEAD FETCH_HEAD` (dua-arah, tanpa *common ancestor*), tidak menerapkan penghapusan, dan tidak punya output machine-readable — sehingga agent (yang selalu menjalankannya untuk QA non-coder) harus menebak dari teks berwarna.

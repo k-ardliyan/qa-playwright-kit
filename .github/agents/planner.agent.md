@@ -83,7 +83,9 @@ For public sites without authentication, prefer **`discover_pages`** over manual
 
 ## Seed and auth context
 
-| Template core (`npm test`) | `tests/seed.spec.ts` — generic `page.goto(BASE_URL)`, unauthenticated | Root [`playwright.config.ts`](../../playwright.config.ts): project `setup` → `tests/auth.setup.ts` + `chromium` `dependencies: ['setup']`. Default storage is empty; authenticated specs use `test.use({ storageState: authStatePath('<role>') })` or `.auth/{APP_ENV}/<role>.json` | [`tests/fixtures.ts`](../../tests/fixtures.ts) re-exports public framework fixtures |
+- **Template core (`npm test`):** `tests/seed.spec.ts` — generic `page.goto(BASE_URL)`, unauthenticated.
+- **Root [`playwright.config.ts`](../../playwright.config.ts):** project `setup` → `tests/auth.setup.ts` + `chromium` `dependencies: ['setup']`. Default storage is empty; authenticated specs use `test.use({ storageState: authStatePath('<role>') })` or `.auth/{APP_ENV}/<role>.json`.
+- **[`tests/fixtures.ts`](../../tests/fixtures.ts):** re-exports public framework fixtures.
 
 - Auth state files per role: `.auth/{APP_ENV}/<role>.json` (e.g. `.auth/local/finance.json`). Prefer `authStatePath('finance')` from `@/public/auth` or `./fixtures`.
 - **Canonical generated tests** land flat in `tests/<name>-<role>.spec.ts` (one file per role) or `tests/<name>.spec.ts` (general mode), importing from `./fixtures`.

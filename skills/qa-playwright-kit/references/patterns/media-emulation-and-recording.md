@@ -45,4 +45,4 @@ The result is **raw material**, not a ready spec: no `test.step()`, `setTestMeta
 
 `browser_reload`, `browser_check`, `browser_uncheck`, `browser_keydown`, `browser_keyup`, `browser_press_sequentially`, `browser_navigate_forward`, `browser_console_clear`, `browser_network_clear`, `browser_webmcp_list` exist in the server bundle but are **`skillOnly`** — never exposed over MCP. Calling them returns `unknown tool`. Use `browser_navigate` to reload, `browser_press_key` for Enter, and `browser_tabs` for cross-tab navigation.
 
-> Verified: `tools/list` probe per `--caps` set against `@playwright/mcp` 0.0.83 (72 tools exposed — same as 0.0.82).
+> Verified: `tools/list` probe per `--caps` set against `@playwright/mcp` 0.0.83 (72 tools exposed with the full capability set — same as 0.0.82). The exposed count varies with the `--caps` set the launcher passes per intent profile — other probes (e.g. `hermes mcp test playwright`) report 48, which is expected, not a failure.
