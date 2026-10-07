@@ -26,8 +26,10 @@ export function renderStatusBadge(status: string, reason?: string): string {
     },
   };
   const entry = map[status] ?? {
-    cls: 'status-pill--skipped',
-    label: status || 'Unknown',
+    // Twin of the TSX StatusBadge: unknown statuses render toneless and labeled
+    // honestly, never borrowing the skipped chrome.
+    cls: '',
+    label: status && status !== 'unknown' ? `Tidak diketahui (${status})` : 'Tidak diketahui',
   };
   // A per-scenario annotation reason overrides the static hint, so the tooltip
   // answers "kenapa belum jalan" instead of repeating the generic definition.

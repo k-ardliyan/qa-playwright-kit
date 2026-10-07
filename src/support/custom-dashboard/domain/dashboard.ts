@@ -6,6 +6,9 @@
 
 import type { ReportHistoryEntry } from '../../../agents/reporter/report-history';
 import type { QaDecision } from '../../../agents/reporter/report-archive';
+import type { NotImplementedCategoryEntry } from './not-implemented-categories';
+
+export type { NotImplementedCategoryEntry };
 
 export interface TrendPoint {
   runId: string;
@@ -86,6 +89,8 @@ export interface DashboardOverviewData {
   aiRunInsights: AiRunInsight[];
   /** Failure-source mix across latest + recent archived unhealthy cases. */
   failureSourceMix: FailureSourceMixEntry[];
+  /** "Kenapa belum jalan" — not-implemented rows grouped by reason category. */
+  notImplementedByCategory: NotImplementedCategoryEntry[];
   /** Per-module pass rate across latest + recent archived runs. */
   moduleHealth: ModuleHealthEntry[];
   /** Tests that needed a retry in the latest run. */

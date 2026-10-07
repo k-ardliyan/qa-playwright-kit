@@ -15,6 +15,7 @@ import type {
   TrendPoint,
 } from './dashboard';
 import { deriveDisplayName, deriveTestSeriesId } from './run';
+import { computeNotImplementedByCategory } from './not-implemented-categories';
 
 /** Statuses counted as "unhealthy" for triage and source-mix aggregation. */
 export const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);
@@ -297,6 +298,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   // - Module health folds the latest run's test cases together with the
   //   archived runs' summaryByModule aggregates.
   const failureSourceMix = computeFailureSourceMix(latestTestCases);
+  const notImplementedByCategory = computeNotImplementedByCategory(latestTestCases);
 
   const moduleMap = new Map<string, { total: number; failed: number }>();
   const addModule = (module: string, total: number, failed: number): void => {
@@ -307,10 +309,12 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
   };
   for (const tc of latestTestCases) {
     // Only tests that actually ran belong in a pass-rate denominator. A skip
-    // (@manual — not applicable) and a not-implemented scenario (unbuilt) both
-    // inflate the rate if counted as "not failed", so neither is included.
+    // (@manual — not applicable), a not-implemented scenario (unbuilt), and an
+    // unknown status (unclassified) all inflate the rate if counted as "not
+    // failed", so none is included.
     if (typeof tc.status !== 'string' || tc.status === 'skipped') continue;
     if (tc.status === 'not-implemented') continue;
+    if (tc.status === 'unknown') continue;
     const module = (
       typeof tc.module === 'string' && tc.module && tc.module !== '-'
         ? tc.module
@@ -361,6 +365,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     recurringFailures,
     aiRunInsights: buildAiRunInsights(summary, options.testNotes),
     failureSourceMix,
+    notImplementedByCategory,
     moduleHealth,
     flakyTests,
   };

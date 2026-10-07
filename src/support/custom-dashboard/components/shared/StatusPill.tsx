@@ -30,7 +30,11 @@ export function StatusPill({ status, showIcon = false, hint }: StatusPillProps) 
           ? 'status-pill--passed'
           : '';
 
-  const label = isNotImplemented ? 'Belum dibangun' : normalized;
+  const label = isNotImplemented
+    ? 'Belum dibangun'
+    : normalized === 'unknown'
+      ? 'Tidak diketahui'
+      : normalized;
   const staticHint = isNotImplemented
     ? 'Direncanakan tapi belum dibuat — utang kerja, bukan skip. Bukan kegagalan.'
     : isSkipped

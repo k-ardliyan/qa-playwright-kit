@@ -62,8 +62,10 @@ export function StatusBadge({ status, reason }: { status: string; reason?: strin
     },
   };
   const entry = map[status] ?? {
-    cls: 'status-pill--skipped',
-    label: status || 'Unknown',
+    // Unknown statuses must not borrow the skipped chrome (that claims "not
+    // applicable") — they render toneless and labeled honestly.
+    cls: '',
+    label: status && status !== 'unknown' ? `Tidak diketahui (${status})` : 'Tidak diketahui',
   };
   // Per-scenario annotation reason ("Butuh payroll berjalan sampai status
   // Dibayar") overrides the static hint so the tooltip answers "kenapa".

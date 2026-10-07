@@ -11,6 +11,7 @@ import { FlakyTestsPanel } from './FlakyTestsPanel';
 import { AiInsightsPanel } from './AiInsightsPanel';
 import { FailureSourceMixPanel } from './FailureSourceMixPanel';
 import { ModuleHealthPanel } from './ModuleHealthPanel';
+import { NotImplementedPanel } from './NotImplementedPanel';
 import { SaveRunModal } from '../history/SaveRunModal';
 import { ConfirmDeleteModal } from '../history/ConfirmDeleteModal';
 import { buildHistoryJs } from '../../build-history-view';
@@ -82,6 +83,9 @@ export function DashboardPage({ overview, serveMode = true }: DashboardPageProps
                 asks, so the list lives here rather than only in the detail. */}
             <FlakyTestsPanel flakyTests={overview.flakyTests} />
             <ModuleHealthPanel modules={overview.moduleHealth} />
+            {/* Unbuilt work sits between health (what ran) and failures (what
+                broke): it is actionable coverage debt, not a failure. */}
+            <NotImplementedPanel entries={overview.notImplementedByCategory} />
             <FailureSourceMixPanel
               mix={overview.failureSourceMix}
               totalFailures={overview.metrics.recentFailuresCount}

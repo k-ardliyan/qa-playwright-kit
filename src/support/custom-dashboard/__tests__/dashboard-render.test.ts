@@ -183,4 +183,28 @@ test.describe('Custom Dashboard Render Baseline', () => {
     expect(html).toContain('Run Belum Lengkap');
     expect(html).not.toContain('Run Healthy');
   });
+
+  test('an unknown status renders honestly, never as the grey skipped chrome', () => {
+    // A row whose status is unrecognized (old/hand-edited summary rehydrated in
+    // serve mode) must not claim "Skipped" — it says "Tidak diketahui" and
+    // carries no tone class.
+    const unknownSummary = {
+      ...allPassedSummary,
+      total: 1,
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+    } as typeof allPassedSummary;
+    const unknownTests = [
+      {
+        ...allPassedTests[0]!,
+        status: 'weird' as never,
+        testId: 'SC-UNKNOWN',
+        title: 'Unclassified row',
+      },
+    ];
+    const html = buildDashboardHtml('local', unknownSummary, unknownTests);
+    expect(html).toContain('Tidak diketahui');
+    expect(html).not.toContain('status-pill--full status-pill--skipped');
+  });
 });

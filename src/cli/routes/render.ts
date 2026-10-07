@@ -96,9 +96,11 @@ export function normalizeTestCases(
       module: (t['module'] as string) || '',
       feature: (t['feature'] as string) || '',
       filePath: (t['filePath'] as string) || '',
-      // Fix #6: status fallback 'skipped' jika nilai undefined/unknown.
+      // An unknown/missing status must NOT borrow the grey "Skipped" chrome —
+      // that reads as "not applicable", which is a claim we cannot make. The
+      // badge layer renders 'unknown' toneless and labeled honestly.
       status: ((t['status'] as string) ||
-        'skipped') as import('../../support/custom-dashboard/types').CollectedTestData['status'],
+        'unknown') as import('../../support/custom-dashboard/types').CollectedTestData['status'],
       priority:
         (t['priority'] as import('../../support/custom-dashboard/types').Priority) || 'medium',
       duration: (t['duration'] as number) || 0,

@@ -7,6 +7,10 @@ import { ComparePage } from '../../support/custom-dashboard/pages/compare';
 import { ReportDetailPage } from '../../support/custom-dashboard/pages/report-detail';
 import type { ReportHistoryEntry } from '../../agents/reporter/report-history';
 import type { TestSummary } from '../../support/custom-dashboard/types';
+import {
+  allPassedSummary,
+  notImplementedSummary,
+} from '../../support/custom-dashboard/__tests__/fixtures';
 
 const mockHistory: ReportHistoryEntry[] = [
   {
@@ -462,6 +466,32 @@ test.describe('Modern Reporting Subsystem', () => {
     expect(html).toContain('mix-bar');
     expect(html).toContain('Module health');
     expect(html).toContain('module-health-row');
+  });
+
+  test('NotImplementedPanel renders why-not rows and hides on clean runs', () => {
+    // Not-implemented fixture activates the panel: grouped by reason category
+    // with a next action per category.
+    const unbuiltOverview = buildDashboardOverview({
+      latestSummary: notImplementedSummary as unknown as Record<string, unknown>,
+      latestRunArchived: false,
+      history: [],
+    });
+    const unbuiltHtml = String(DashboardPage({ overview: unbuiltOverview, serveMode: true }));
+    expect(unbuiltHtml).toContain('Kenapa belum jalan');
+    expect(unbuiltHtml).toContain('why-not-row');
+    expect(unbuiltHtml).toContain('Halaman belum dieksplorasi');
+    expect(unbuiltHtml).toContain('Butuh rantai data');
+    expect(unbuiltHtml).toContain('Tanpa alasan');
+
+    // A clean run must not grow an empty panel at all.
+    const cleanOverview = buildDashboardOverview({
+      latestSummary: allPassedSummary as unknown as Record<string, unknown>,
+      latestRunArchived: false,
+      history: [],
+    });
+    const cleanHtml = String(DashboardPage({ overview: cleanOverview, serveMode: true }));
+    // The stylesheet embeds the class NAME — assert on the rendered ELEMENT.
+    expect(cleanHtml).not.toContain('class="panel why-not-panel"');
   });
 
   test('ReportDetailPage renders the triage strip with suggested decisions', () => {

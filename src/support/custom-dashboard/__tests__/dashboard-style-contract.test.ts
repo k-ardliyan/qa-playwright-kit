@@ -3,6 +3,8 @@ import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { buildDashboardHtml } from '../build-dashboard-html';
 import { getDashboardStyles, STYLE_FILES } from '../renderer/render-assets';
+import { DashboardPage } from '../pages/dashboard/DashboardPage';
+import { buildDashboardOverview } from '../domain/dashboard-overview';
 import {
   allPassedSummary,
   allPassedTests,
@@ -195,6 +197,36 @@ test.describe('Custom Dashboard Style Contract', () => {
         }
       }
     }
+  });
+
+  test('overview page classes are contracted too (Kenapa belum jalan panel included)', () => {
+    // The Missing Style Detector above only renders the REPORT page — the
+    // overview (DashboardPage) has its own panels, so it gets its own pass.
+    // The not-implemented fixture activates the why-not panel on purpose.
+    const css = getDashboardStyles();
+    const definedClasses = extractCssClassSelectors(css);
+    const overview = buildDashboardOverview({
+      latestSummary: notImplementedSummary as unknown as Record<string, unknown>,
+      history: [],
+    });
+    const html = String(DashboardPage({ overview, serveMode: false }));
+
+    const renderedClasses = extractClassNames(html);
+    for (const cls of renderedClasses) {
+      if (cls.startsWith('icon-')) continue;
+      if (cls.startsWith('test-file-test-outcome-')) continue;
+      if (cls === 'test-file-test' || cls === 'test-file-details-row') continue;
+      if (cls === 'flex-1') continue;
+      // Pure JS/anchor hook — never styled, and that is fine.
+      if (cls === 'dashboard-overview-page') continue;
+      // Legacy marker classes shipped without CSS (styled via .panel alone).
+      if (cls === 'health-panel' || cls === 'flaky-panel') continue;
+      expect(definedClasses.has(cls), `Overview class "${cls}" is missing from CSS!`).toBe(true);
+    }
+
+    // The panel must actually render with its data — not silently null.
+    expect(html).toContain('why-not-panel');
+    expect(html).toContain('Kenapa belum jalan');
   });
 
   // Regression guard: the chip stack must be a CHILD element, not the <td>
