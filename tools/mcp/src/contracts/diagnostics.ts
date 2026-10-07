@@ -48,6 +48,12 @@ export type DiagnosticCode =
   | 'PLAN_EVIDENCE_MISSING'
   | 'PLAN_EVIDENCE_EMPTY'
   | 'PLAN_EVIDENCE_UNVERIFIED'
+  // Blocking severity: the two cases where a plan must NOT reach Generate.
+  // MAJORITY_GAP = most automated scenarios have no evidence (wholesale
+  // guessing); UNAVAILABLE = the plan claims catalog evidence that is not on
+  // disk. Both are "the plan asserts proof it does not have".
+  | 'PLAN_EVIDENCE_MAJORITY_GAP'
+  | 'PLAN_EVIDENCE_UNAVAILABLE'
   | 'PLAN_NOT_IMPLEMENTED_NO_GAP'
   | 'PLAN_LOCATOR_INTENT_MISSING'
   | 'PLAN_SEED_UNPROVISIONED'

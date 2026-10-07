@@ -52,6 +52,9 @@ export interface PlanValidationSummary {
   /** Scenario `seed:` refs unknown to config/qa-kit.seeds.json (checked only
    *  when a registry exists AND Metadata declares a Seed). */
   seedUnknownCount?: number;
+  /** Strict majority of automated scenarios lack catalog evidence — the plan is
+   *  blocked (`PLAN_EVIDENCE_MAJORITY_GAP`), not merely warned. */
+  majorityEvidenceGap?: boolean;
 }
 
 export type ValidatePlanOutput = McpResult<PlanValidationSummary | undefined>;
@@ -274,10 +277,19 @@ export function validateTestPlan(
   //    because a catalog captured without a session is not usable evidence.
   //    Every read is fail-safe: an unreadable/foreign file is skipped, never a
   //    crash and never a guessed warning.
+  //
+  //    A DECLARED-but-MISSING catalog is a different animal from a merely
+  //    undesirable one: the plan asserts proof it does not have. That is the
+  //    exact shape of the archived `tes-qa` plan (Catalog Evidence row pointing
+  //    at a selector-catalog/ directory that does not exist, backing 37
+  //    automated scenarios). It is an ERROR — but only when automated scenarios
+  //    actually lean on it; a stale row in an all-manual plan stays a warning.
+  const missingCatalogPages = new Set<string>();
   for (const cat of plan.catalogEvidence ?? []) {
     if (!cat.catalogPath) continue;
     const abs = path.resolve(mcpWorkspace.rootDir, cat.catalogPath);
     if (!fs.existsSync(abs)) {
+      missingCatalogPages.add(cat.page);
       diagnostics.push(
         createDiagnostic(
           'NOT_FOUND',
@@ -389,6 +401,57 @@ export function validateTestPlan(
     }
   }
 
+  // 6.1 Blocking evidence gate. The per-scenario warnings above are deliberately
+  //     soft so a plan with a FEW unexplored scenarios still validates (real
+  //     backlog, not a fake green). But a plan where MOST automated scenarios
+  //     have no evidence is not a plan with gaps — it is wholesale guessing, and
+  //     letting it through is what produced the archived `tes-qa` run: 37/37
+  //     automated scenarios with no catalog, which the Challenge gate then
+  //     auto-approved in automatic mode and the Generator filled with
+  //     `test.skip('UI belum dieksplorasi')`. Evidence per Barr et al., "The
+  //     Oracle Problem" (IEEE TSE 2014) and CodeHalu (AAAI 2025): unverified
+  //     output is not evidence. Threshold is a strict majority (>50%) over
+  //     automated scenarios, and needs at least 2 of them so a brand-new
+  //     single-scenario plan is never blocked for merely being small.
+  const automatedScenarios = plan.scenarios.filter((sc) => sc.executionMode === 'automated');
+  const EVIDENCE_MAJORITY_MIN_SCENARIOS = 2;
+  const EVIDENCE_MAJORITY_THRESHOLD = 0.5;
+  if (
+    automatedScenarios.length >= EVIDENCE_MAJORITY_MIN_SCENARIOS &&
+    evidenceGapIds.size / automatedScenarios.length > EVIDENCE_MAJORITY_THRESHOLD
+  ) {
+    const pct = Math.round((evidenceGapIds.size / automatedScenarios.length) * 100);
+    diagnostics.push(
+      createDiagnostic(
+        'PLAN_EVIDENCE_MAJORITY_GAP',
+        'error',
+        `${evidenceGapIds.size} of ${automatedScenarios.length} automated scenario(s) (${pct}%) have no usable catalog evidence — the plan is mostly unverified. Explore the page(s) with snapshot_page/discover_pages and fill each scenario's Page + Locator Intent, or move the unbuilt scenarios to Coverage Gaps / mark them @not-implemented.${availableHint}`,
+      ),
+    );
+  }
+
+  // 6.2 Catalog evidence declared but absent on disk, while automated scenarios
+  //     lean on it: the plan asserts proof it does not have. Blocking.
+  if (missingCatalogPages.size > 0) {
+    const dependentPages = new Set(
+      automatedScenarios.map((sc) => sc.page?.trim()).filter((p): p is string => Boolean(p)),
+    );
+    const usedMissing = [...missingCatalogPages].filter((p) => dependentPages.has(p));
+    if (usedMissing.length > 0) {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_EVIDENCE_UNAVAILABLE',
+          'error',
+          `Catalog Evidence is declared for page(s) ${usedMissing
+            .map((p) => `"${p}"`)
+            .join(
+              ', ',
+            )} but the file is not on disk, and automated scenarios depend on it. Re-run snapshot_page for ${usedMissing.length > 1 ? 'these pages' : 'this page'} (or remove the stale Catalog Evidence row and the scenarios that lean on it).`,
+        ),
+      );
+    }
+  }
+
   // 6.5 Seed cross-check: a plan whose Metadata declares no Seed while its
   //     scenarios depend on `seed:` refs has no provisioning story — those
   //     preconditions cannot be met at run time, so the Generator either skips
@@ -493,6 +556,9 @@ export function validateTestPlan(
     locatorIntentGapsCount: locatorIntentGapIds.size,
     seedUnprovisionedCount,
     seedUnknownCount,
+    majorityEvidenceGap:
+      automatedScenarios.length >= EVIDENCE_MAJORITY_MIN_SCENARIOS &&
+      evidenceGapIds.size / automatedScenarios.length > EVIDENCE_MAJORITY_THRESHOLD,
   };
 
   if (!valid) {

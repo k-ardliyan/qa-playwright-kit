@@ -522,20 +522,21 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
       schemaVersion: TEST_PLAN_SCHEMA_V1,
       sourceRequirementPath: 'requirements/auth/login.md',
       sourceRequirementHash: 'hash-req-123',
-      catalogEvidence: [],
+      catalogEvidence: [{ page: 'login-form' }],
       scenarios: [
         {
           scenarioId: 'SC-01',
           covers: ['AC-01'],
           actor: 'finance',
           authContext: '.auth/local/finance.json',
+          page: 'login-form',
           executionMode: 'automated',
           dataSetup: [],
           actions: ['Fill login'],
           assertions: [
             { description: 'Assumed notification badge appears', provenance: 'planner-assumption' },
           ],
-          locatorIntent: [],
+          locatorIntent: ['getByRole("button", { name: "Login" })'],
           networkExpectations: [],
           artifactExpectations: [],
           cleanup: [],
@@ -546,11 +547,12 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
           covers: ['AC-02'],
           actor: 'finance',
           authContext: '.auth/local/finance.json',
+          page: 'login-form',
           executionMode: 'automated',
           dataSetup: [],
           actions: ['Logout'],
           assertions: [{ description: 'Logout done', provenance: 'requirement' }],
-          locatorIntent: [],
+          locatorIntent: ['getByRole("button", { name: "Logout" })'],
           networkExpectations: [],
           artifactExpectations: [],
           cleanup: [],
@@ -987,5 +989,179 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
     expect((withRegistry.diagnostics ?? []).some((d) => d.code === 'PLAN_SEED_UNKNOWN')).toBe(
       false,
     );
+  });
+
+  /**
+   * Synthetic reproduction of the archived `tes-qa` plan shape: many automated
+   * scenarios, no Page, catalog declared but not on disk. The per-scenario
+   * warnings are not enough — a plan that is MOSTLY unverified must be blocked,
+   * or the Challenge gate auto-approves it in automatic mode and the Generator
+   * fills the spec with `test.skip('UI belum dieksplorasi')`.
+   */
+  const automatedScenario = (id: string, ac: string, page?: string) => ({
+    scenarioId: id,
+    covers: [ac],
+    ...(page ? { page } : {}),
+    executionMode: 'automated' as const,
+    dataSetup: [],
+    actions: ['Do the thing'],
+    assertions: [{ description: 'x', provenance: 'requirement' as const }],
+    locatorIntent: [] as string[],
+    networkExpectations: [],
+    artifactExpectations: [],
+    cleanup: [],
+    unknowns: [],
+  });
+
+  test('blocks a plan whose automated scenarios are mostly without evidence', () => {
+    // 4 automated, 3 with no Page at all — the majority-gap shape.
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        automatedScenario('SC-01', 'AC-01', 'login-form'),
+        automatedScenario('SC-02', 'AC-02'),
+        automatedScenario('SC-03', 'AC-02'),
+        automatedScenario('SC-04', 'AC-02'),
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    expect(result.data?.valid).toBe(false);
+    expect(result.status).toBe('error');
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_EVIDENCE_MAJORITY_GAP');
+    expect(result.data?.majorityEvidenceGap).toBe(true);
+    // The soft per-scenario warning is still there — the new code is additive.
+    expect(codes).toContain('PLAN_EVIDENCE_MISSING');
+  });
+
+  test('keeps a plan with only a minority of unevidenced scenarios valid', () => {
+    // 4 automated, 1 without Page = 25% — real backlog, NOT wholesale guessing.
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        automatedScenario('SC-01', 'AC-01', 'login-form'),
+        automatedScenario('SC-02', 'AC-01', 'login-form'),
+        automatedScenario('SC-03', 'AC-02', 'login-form'),
+        automatedScenario('SC-04', 'AC-02'),
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    expect(result.data?.valid).toBe(true);
+    expect(result.data?.majorityEvidenceGap).toBe(false);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_EVIDENCE_MISSING');
+    expect(codes).not.toContain('PLAN_EVIDENCE_MAJORITY_GAP');
+  });
+
+  test('does not block a single-scenario plan for merely being small', () => {
+    // 1 automated, 0 evidenced = 100%, but below the >= 2 scenario floor.
+    // AC-02 must still be covered to isolate the majority rule from the
+    // unrelated PLAN_AC_UNCOVERED error.
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [],
+      scenarios: [{ ...automatedScenario('SC-01', 'AC-01') }],
+      coverageGaps: [
+        { scenarioId: 'SC-02', acceptanceCriterionId: 'AC-02', reason: 'Not planned yet' },
+      ],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).not.toContain('PLAN_EVIDENCE_MAJORITY_GAP');
+    expect(result.data?.majorityEvidenceGap).toBe(false);
+    expect(result.data?.valid).toBe(true);
+  });
+
+  test('exactly half unevidenced is not a majority', () => {
+    // 4 automated, 2 without Page = exactly 50% — threshold is STRICT (>50%).
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        automatedScenario('SC-01', 'AC-01', 'login-form'),
+        automatedScenario('SC-02', 'AC-01', 'login-form'),
+        automatedScenario('SC-03', 'AC-02'),
+        automatedScenario('SC-04', 'AC-02'),
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    expect(result.data?.majorityEvidenceGap).toBe(false);
+    expect(result.data?.valid).toBe(true);
+  });
+
+  test('blocks a plan whose declared catalog evidence is missing from disk', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [
+        {
+          page: 'login-form',
+          catalogPath: 'artifacts/selector-catalog/definitely-absent-probe/login-form.json',
+        },
+      ],
+      scenarios: [
+        automatedScenario('SC-01', 'AC-01', 'login-form'),
+        automatedScenario('SC-02', 'AC-02', 'login-form'),
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_EVIDENCE_UNAVAILABLE');
+    expect(codes).toContain('NOT_FOUND');
+    expect(result.data?.valid).toBe(false);
+    expect(result.status).toBe('error');
+  });
+
+  test('a missing catalog row nobody depends on stays a warning', () => {
+    // Manual scenario only: the stale row is untidy, not a false claim.
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [
+        {
+          page: 'login-form',
+          catalogPath: 'artifacts/selector-catalog/definitely-absent-probe/manual.json',
+        },
+      ],
+      scenarios: [
+        {
+          ...automatedScenario('SC-01', 'AC-01'),
+          executionMode: 'manual' as const,
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('NOT_FOUND');
+    expect(codes).not.toContain('PLAN_EVIDENCE_UNAVAILABLE');
   });
 });
