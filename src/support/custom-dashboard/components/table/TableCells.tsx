@@ -191,13 +191,25 @@ export function StepsCell({ steps }: { steps?: Array<{ title: string; subtitle?:
   return (
     <div class="steps-flat">
       {visible.map((s, i) => (
+        // The number and the step text are ONE text node inside a grid cell, not
+        // two flex children. As separate flex items the text could not fit
+        // beside the number and wrapped to line 2, leaving "1." orphaned on its
+        // own line — no CSS property keeps a marker with its text across
+        // browsers (text-wrap:avoid-short-last-line is unimplemented,
+        // hanging-punctuation does not apply to markers). A grid gutter pins the
+        // marker and lets the body wrap underneath it, indented.
         <div class="steps-flat__item">
-          <span class="steps-flat__n">{i + 1}.</span> <span safe>{s.title}</span>
-          {s.subtitle ? (
-            <span class="step-subtitle-badge" safe>
-              {s.subtitle}
-            </span>
-          ) : null}
+          <span class="steps-flat__n" aria-hidden="true">
+            {i + 1}.
+          </span>
+          <span class="steps-flat__txt">
+            <span safe>{s.title}</span>
+            {s.subtitle ? (
+              <span class="step-subtitle-badge" safe>
+                {s.subtitle}
+              </span>
+            ) : null}
+          </span>
         </div>
       ))}
     </div>

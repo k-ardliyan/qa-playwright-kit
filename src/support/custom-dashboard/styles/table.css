@@ -446,6 +446,12 @@ html[data-sticky-left="off"] .col-sticky-0 {
 
 .qa-report-table {
   table-layout: auto;
+  /* A floor keeps the text columns from being crushed into 6-line ribbons on a
+     wide screen: with `auto` layout and only max-width caps, the browser
+     distributed a 1640px table into ~192px columns. 88rem lets description /
+     steps / input / expected / actual sit near a comfortable measure (~45-70
+     characters per line, Butterick/Baymard) before the wrapper scrolls. */
+  min-width: 88rem;
 }
 
 .qa-report-table caption {
@@ -461,41 +467,45 @@ html[data-sticky-left="off"] .col-sticky-0 {
 .qa-report-table th[data-col="module"],
 .qa-report-table td[data-col="module"] {
   min-width: 6.5rem;
+  /* Capped so a nowrap chip truncates instead of widening the column to fit a
+     long slug (the old `nowrap` bug). */
+  max-width: 11rem;
 }
 
 .qa-report-table th[data-col="feature"],
 .qa-report-table td[data-col="feature"] {
   min-width: 6.5rem;
+  max-width: 11rem;
 }
 
 .qa-report-table th[data-col="description"],
 .qa-report-table td[data-col="description"] {
-  min-width: 12rem;
-  max-width: 18rem;
+  min-width: 14rem;
+  max-width: 22rem;
 }
 
 .qa-report-table th[data-col="steps"],
 .qa-report-table td[data-col="steps"] {
-  min-width: 12rem;
-  max-width: 18rem;
+  min-width: 15rem;
+  max-width: 24rem;
 }
 
 .qa-report-table th[data-col="input"],
 .qa-report-table td[data-col="input"] {
-  min-width: 12rem;
-  max-width: 18rem;
+  min-width: 13rem;
+  max-width: 20rem;
 }
 
 .qa-report-table th[data-col="expected"],
 .qa-report-table td[data-col="expected"] {
-  min-width: 12rem;
-  max-width: 19rem;
+  min-width: 14rem;
+  max-width: 22rem;
 }
 
 .qa-report-table th[data-col="actual"],
 .qa-report-table td[data-col="actual"] {
-  min-width: 12rem;
-  max-width: 19rem;
+  min-width: 14rem;
+  max-width: 22rem;
 }
 
 .qa-report-table th[data-col="status"],
@@ -659,6 +669,10 @@ html[data-sticky-left="off"] .col-sticky-0 {
   color: var(--secondary-foreground);
   font-family: var(--mono);
   font-size: var(--text-2xs);
+  /* A chip carries an identifier (module/feature slug), so it reads as one
+     token: truncate with an ellipsis rather than wrapping a slug across three
+     lines. The full value stays reachable via the title attribute. */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -683,15 +697,21 @@ html[data-sticky-left="off"] .col-sticky-0 {
 }
 
 .steps-flat__item {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+  /* Two-column grid: a fixed marker gutter + a wrapping body. As a flex row
+     with `flex-wrap: wrap`, the text child dropped to line 2 whenever it could
+     not fit beside the number, orphaning "1." on its own line. The grid keeps
+     the marker in its track and wraps the body below it, indented — the
+     structural fix, since no text-wrap/hanging-punctuation property keeps a
+     list marker attached to its text in every browser. */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-1);
+  align-items: start;
   color: var(--foreground);
   min-width: 0;
 }
 
-.steps-flat__item > span:not(.steps-flat__n):not(.step-subtitle-badge) {
+.steps-flat__txt {
   min-width: 0;
   overflow-wrap: break-word;
 }
@@ -699,14 +719,14 @@ html[data-sticky-left="off"] .col-sticky-0 {
 .steps-flat__n {
   font-family: var(--mono);
   color: var(--muted-foreground);
-  flex: 0 0 auto;
+  /* Sits in its own grid track now, so it needs no flex sizing — but keep it
+     from wrapping if a future step count reaches double digits. */
+  white-space: nowrap;
 }
 
 .step-subtitle-badge {
-  /* A short label stays on one line, but the badge also carries long content
-     such as a target URL; `nowrap` used to widen the whole TEST STEP column to
-     fit one unbreakable token. Wrap, and let break-word split only the token
-     that cannot fit. */
+  /* Follows the step text inline; wraps under it when the text is long. */
+  margin-left: var(--space-1);
   min-width: 0;
   white-space: normal;
   overflow-wrap: break-word;

@@ -90,7 +90,7 @@ export function TestRow({ test, rowKey, runId }: TestRowProps) {
             anonymous cell whose border-bottom spans only the content box —
             producing a short stray rule under the last chip. */}
         <div class="tbl-chip-stack">
-          <span class="module-chip" safe>
+          <span class="module-chip" title={test.module || 'GENERAL'} safe>
             {test.module || 'GENERAL'}
           </span>
           <span class="scope-tag" data-scope-label={scope}>
@@ -99,7 +99,7 @@ export function TestRow({ test, rowKey, runId }: TestRowProps) {
         </div>
       </td>
       <td class="tbl-feature" data-col="feature">
-        <span class="feature-chip" safe>
+        <span class="feature-chip" title={test.feature || 'general'} safe>
           {test.feature || 'general'}
         </span>
       </td>

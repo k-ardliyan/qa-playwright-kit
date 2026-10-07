@@ -298,4 +298,58 @@ test.describe('Custom Dashboard Style Contract', () => {
       expect(pill).not.toContain('icon-square-pen');
     }
   });
+
+  // Regression guard: the step number and its text were separate flex children,
+  // so the text dropped to line 2 whenever it could not fit beside the number,
+  // orphaning "1." on its own line (the "habis nomor langsung ke enter" report).
+  // No CSS property keeps a list marker with its text across browsers, so the
+  // fix is structural: one grid item per step, marker in its own track.
+  test('a step keeps its number attached — grid item, not two flex children', () => {
+    const css = getDashboardStyles();
+    expect(css).toMatch(
+      /\.steps-flat__item\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)/,
+    );
+    // The marker must not be a wrapping flex child any more. Strip comments
+    // first: the rule's own doc-comment mentions "flex-wrap", which would
+    // otherwise trip a content assertion on prose.
+    const cssNoComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const itemBlock = cssNoComments.match(/\.steps-flat__item\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(itemBlock).not.toContain('flex-wrap');
+    expect(itemBlock).not.toContain('display: flex');
+
+    const html = buildDashboardHtml('local', failureSummary, failureTests);
+    // Each step is ONE grid item holding the marker + the text body. The marker
+    // sits in its own track (CSS above), so the body wraps under it instead of
+    // pushing the number onto a line of its own.
+    const items = html.match(/class="steps-flat__item"[\s\S]*?<\/div>/g) ?? [];
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item).toContain('class="steps-flat__n"');
+      expect(item).toContain('class="steps-flat__txt"');
+      // The text body must be its own element (wraps under the marker), and the
+      // subtitle badge must live INSIDE it — never as a third grid child that
+      // would take a track of its own.
+      const body = item.match(/class="steps-flat__txt"[\s\S]*$/) ?? [''];
+      expect(body[0]).toContain(item.includes('step-subtitle-badge') ? 'step-subtitle-badge' : '');
+    }
+  });
+
+  // Regression guard: the live-page Copy/TSV export omitted MODULE and FEATURE,
+  // so it silently dropped two columns the on-screen table and the server-side
+  // export both show. The client ORDER must match the 13-column contract.
+  test('the client export covers the same columns as the on-screen table', () => {
+    const { buildDashboardHtml: build } = require('../build-dashboard-html') as {
+      buildDashboardHtml: typeof import('../build-dashboard-html').buildDashboardHtml;
+    };
+    const html = build('local', failureSummary, failureTests);
+    const order = html.match(/var ORDER = MODE === 'role-aware'[\s\S]*?\];/);
+    expect(order?.[0]).toBeTruthy();
+    expect(order?.[0]).toContain("'module'");
+    expect(order?.[0]).toContain("'feature'");
+    // And the value readers exist for them, or the columns would export blank.
+    expect(html).toContain("key === 'module'");
+    expect(html).toContain("key === 'feature'");
+    expect(html).toContain("module: 'MODULE'");
+    expect(html).toContain("feature: 'FEATURE'");
+  });
 });

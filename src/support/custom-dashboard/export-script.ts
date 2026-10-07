@@ -249,9 +249,13 @@ export function buildExportScript(
        */
       function visibleColumnKeys() {
         var LOCKED = { testId: true, status: true };
+        // Mirrors the on-screen 13-column table and the server-side
+        // export-helpers.ts header set. It previously omitted module/feature,
+        // so Copy/TSV from the live page silently dropped two columns the
+        // server export kept.
         var ORDER = MODE === 'role-aware'
-          ? ['role','testId','description','steps','input','expected','actual','status','priority','source','notes','aiNotes']
-          : ['testId','description','steps','input','expected','actual','status','priority','source','notes','aiNotes'];
+          ? ['role','testId','module','feature','description','steps','input','expected','actual','status','priority','source','notes','aiNotes']
+          : ['testId','module','feature','description','steps','input','expected','actual','status','priority','source','notes','aiNotes'];
         var state = null;
 
         // 1) Prefer live checkboxes in column picker
@@ -303,6 +307,8 @@ export function buildExportScript(
         var map = {
           role: 'ROLE',
           testId: 'TEST ID',
+          module: 'MODULE',
+          feature: 'FEATURE',
           description: 'DESCRIPTION',
           steps: 'TEST STEP',
           input: 'INPUT DATA',
@@ -320,6 +326,8 @@ export function buildExportScript(
       function cellValue(r, key) {
         if (key === 'role') return r.role || '';
         if (key === 'testId') return r.testId;
+        if (key === 'module') return r.module || '-';
+        if (key === 'feature') return r.feature || '-';
         if (key === 'description') return r.title;
         if (key === 'steps') return formatSteps(r.steps);
         if (key === 'input') return formatInput(r.inputData);
@@ -336,6 +344,8 @@ export function buildExportScript(
       function cellHtmlValue(r, key) {
         if (key === 'role') return confEsc((r.role || '').toUpperCase());
         if (key === 'testId') return '<code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700;color:#a87648;">' + confEsc(r.testId || '-') + '</code>';
+        if (key === 'module') return confEsc(r.module || '-');
+        if (key === 'feature') return confEsc(r.feature || '-');
         if (key === 'description') return confMultiline(r.title || '-');
         if (key === 'steps') return confMultiline(formatSteps(r.steps));
         if (key === 'input') return confMultiline(formatInput(r.inputData));
