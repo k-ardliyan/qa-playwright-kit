@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import { getToolEntry, TOOL_REGISTRY } from '../../../tools/mcp/src/tools/registry';
 import argumentInventory from '../../../tools/mcp/src/__tests__/fixtures/tool-argument-inventory.json';
 import { pipelineStatus, deriveWorkflowStage } from '../../../tools/mcp/src/tools/pipeline-status';
+import { computeSourceHash } from '../../../tools/mcp/src/contracts';
 import { traceRequirement } from '../../../tools/mcp/src/tools/trace-requirement';
 import { resolveFileInspectPath } from '../../../tools/mcp/src/tools/_internal/file-inspect-path';
 import {
@@ -303,6 +304,9 @@ test.describe('pipeline_status tool', () => {
       // The fixme split must reach pipeline_status — it is what lets the agent
       // answer "kok banyak skipped?" without conflating manual with unbuilt.
       expect(out.lastRun!.notImplemented).toBe(2);
+      // Doctrine identity travels with the tool so the agent can compare a
+      // spec's // doctrine: header against the current engine version.
+      expect(out.doctrine?.version).toMatch(/^doctrine\//);
       expect(out.message).toContain('Resume from phase: generate');
     } finally {
       if (prevReport === undefined) delete process.env['QA_REPORT_DIR'];
@@ -369,5 +373,86 @@ test.describe('hardened write paths', () => {
   test('file inspection paths use the shared workspace safety resolver', () => {
     expect(resolveFileInspectPath('../package.json').ok).toBe(false);
     expect(resolveFileInspectPath('tests/data/../package.json').ok).toBe(false);
+  });
+
+  test('update_requirement rejects paths outside requirements/ before touching anything', () => {
+    const entry = getToolEntry('update_requirement');
+    expect(entry).toBeDefined();
+    const out = entry!.handler({
+      requirementPath: 'src/support/evil.md',
+      content: '# REQ-EVIL: x',
+    }) as { status: string; error?: { code: string } };
+    expect(out.status).toBe('error');
+    expect(out.error?.code).toBe('PATH_NOT_ALLOWED');
+  });
+
+  test('update_requirement writes with backup, hash provenance, and re-compile', () => {
+    const target = path.join('requirements', 'zz-update-req-test.md');
+    const abs = path.resolve(target);
+    const bakAbs = `${abs}.bak`;
+    const original =
+      '# REQ-UPD-TEST: Update Test\n\n## Metadata\n\n| Field | Nilai |\n| ----- | ----- |\n| Module | auth |\n| Feature | update-test |\n\n## Kriteria Penerimaan\n\n| ID | Kriteria |\n| --- | --- |\n| AC-01 | Halaman tampil |\n\n### SC-01: Akses\n\n| Field | Nilai |\n| --- | --- |\n| Test ID | TC-UPD-001 |\n| Covers | `AC-01` |\n| Langkah | Buka halaman |\n| Hasil yang Diharapkan | Halaman tampil |\n';
+    const revised = original.replace(
+      '| AC-01 | Halaman tampil |',
+      '| AC-01 | Halaman tampil dengan judul yang benar |',
+    );
+    fs.writeFileSync(abs, original, 'utf-8');
+    try {
+      const entry = getToolEntry('update_requirement');
+      expect(entry).toBeDefined();
+      const out = entry!.handler({
+        requirementPath: 'requirements/zz-update-req-test.md',
+        content: revised,
+        previousHash: computeSourceHash(original),
+        reason: 'AC-01 terlalu longgar',
+      }) as {
+        status: string;
+        previousHash?: string;
+        newHash?: string;
+        backupPath?: string;
+        diagnostics?: Array<{ severity: string }>;
+        message: string;
+      };
+
+      expect(out.status).toBe('success');
+      // Hash provenance: previous == what the plan was pinned to, new == content now on disk.
+      expect(out.previousHash).toBe(computeSourceHash(original));
+      expect(out.newHash).toBe(computeSourceHash(revised));
+      expect(out.newHash).not.toBe(out.previousHash);
+      // Backup exists and holds the previous content.
+      expect(out.backupPath).toContain('.bak');
+      expect(fs.readFileSync(bakAbs, 'utf-8')).toBe(original);
+      // Eager re-compile: clean diagnostics for the revised content.
+      expect(out.diagnostics?.every((d) => d.severity !== 'error')).toBe(true);
+      expect(out.message).toContain('recompile the plan');
+    } finally {
+      fs.rmSync(abs, { force: true });
+      fs.rmSync(bakAbs, { force: true });
+    }
+  });
+
+  test('update_requirement rejects a stale previousHash (lost-update guard)', () => {
+    const target = path.join('requirements', 'zz-update-req-test.md');
+    const abs = path.resolve(target);
+    const bakAbs = `${abs}.bak`;
+    const current = '# REQ-UPD-TEST: Update Test\n\nisi\n';
+    fs.writeFileSync(abs, current, 'utf-8');
+    try {
+      const entry = getToolEntry('update_requirement');
+      const out = entry!.handler({
+        requirementPath: 'requirements/zz-update-req-test.md',
+        content: '# REQ-UPD-TEST: berbeda',
+        previousHash: computeSourceHash('konten lama yang sudah tidak ada di disk'),
+      }) as { status: string; error?: { code: string }; message: string };
+      expect(out.status).toBe('error');
+      expect(out.error?.code).toBe('INVALID_INPUT');
+      expect(out.message).toContain('Lost-update guard');
+      // The file on disk must be untouched.
+      expect(fs.readFileSync(abs, 'utf-8')).toBe(current);
+      expect(fs.existsSync(bakAbs)).toBe(false);
+    } finally {
+      fs.rmSync(abs, { force: true });
+      fs.rmSync(bakAbs, { force: true });
+    }
   });
 });

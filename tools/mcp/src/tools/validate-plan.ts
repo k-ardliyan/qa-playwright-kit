@@ -11,9 +11,22 @@ import {
   type McpResult,
   failureResult,
 } from '../contracts';
+import { DOCTRINE_VERSION } from '../contracts/versions';
 import { compileRequirementFromText } from './compile-requirement';
 import { compileTestPlanFromText } from './compile-test-plan';
 import { containsEphemeralReference } from '../utils/ephemeral-guard';
+import {
+  extractSeedRefs,
+  knownSeedNames,
+  loadSeedRegistry,
+  type SeedRegistryFile,
+} from '../utils/seed-registry';
+
+export interface ValidatePlanOptions {
+  /** Injected seed registry (unit tests) — `undefined` = load from the real
+   *  `config/qa-kit.seeds.json`; `null` = explicitly none (checks stay silent). */
+  seedRegistry?: SeedRegistryFile | null;
+}
 
 export interface ValidatePlanArgs {
   testPlan?: TestPlanContractV1 | unknown;
@@ -36,6 +49,9 @@ export interface PlanValidationSummary {
   locatorIntentGapsCount?: number;
   /** Scenarios depending on `seed:` refs while plan Metadata declares no Seed. */
   seedUnprovisionedCount?: number;
+  /** Scenario `seed:` refs unknown to config/qa-kit.seeds.json (checked only
+   *  when a registry exists AND Metadata declares a Seed). */
+  seedUnknownCount?: number;
 }
 
 export type ValidatePlanOutput = McpResult<PlanValidationSummary | undefined>;
@@ -43,6 +59,7 @@ export type ValidatePlanOutput = McpResult<PlanValidationSummary | undefined>;
 export function validateTestPlan(
   plan: TestPlanContractV1,
   requirement?: RequirementContractV1,
+  options?: ValidatePlanOptions,
 ): ValidatePlanOutput {
   const diagnostics: Diagnostic[] = [...(plan.diagnostics ?? [])];
 
@@ -68,6 +85,21 @@ export function validateTestPlan(
         ),
       );
     }
+  }
+
+  // 2.5 Doctrine stamp: a plan STAMPED with an older doctrine predates the
+  //     current planner/generator rules — flag it so the agent recompiles
+  //     instead of trusting stale semantics. An ABSENT stamp means a pre-stamp
+  //     plan: tolerated here, because its spec is already flagged by the
+  //     missing-`// doctrine:` warning on the spec side. Warning only.
+  if (plan.doctrine !== undefined && plan.doctrine !== DOCTRINE_VERSION) {
+    diagnostics.push(
+      createDiagnostic(
+        'PLAN_DOCTRINE_STALE',
+        'warning',
+        `Plan doctrine stamp is "${plan.doctrine}" but the current doctrine is "${DOCTRINE_VERSION}" — this plan predates current planner/generator rules. Recompile the plan (compile_test_plan) to restamp it.`,
+      ),
+    );
   }
 
   const plannedScenariosMap = new Map(plan.scenarios.map((s) => [s.scenarioId, s]));
@@ -300,6 +332,16 @@ export function validateTestPlan(
   const evidenceGapIds = new Set<string>();
   const locatorIntentGapIds = new Set<string>();
   let seedUnprovisionedCount = 0;
+  let seedUnknownCount = 0;
+  // Registry resolution: injected (unit tests) wins; otherwise load the real
+  // per-project config/qa-kit.seeds.json. Missing/invalid → null (checks silent).
+  const loadedSeedRegistry = loadSeedRegistry();
+  const seedRegistry: SeedRegistryFile | null =
+    options?.seedRegistry !== undefined
+      ? options.seedRegistry
+      : loadedSeedRegistry.ok
+        ? loadedSeedRegistry.registry
+        : null;
   // Naming the pages that DO exist makes the message actionable: the agent can
   // correct the row instead of guessing a name a second time.
   const availablePages = [...catalogPages].sort();
@@ -375,6 +417,42 @@ export function validateTestPlan(
     }
   }
 
+  // 6.6 Seed registry cross-check — only when a registry EXISTS and Metadata
+  //     declares a Seed: every seed:<name> ref in Data Setup must match a
+  //     declared producer. Silent when no registry (existing workspaces get no
+  //     new noise; PLAN_SEED_UNPROVISIONED above covers the Metadata-none case).
+  if (seedDeclared && seedRegistry) {
+    const known = new Set(knownSeedNames(seedRegistry));
+    const unknownRefs = new Set<string>();
+    for (const sc of plan.scenarios) {
+      for (const ref of extractSeedRefs(sc.dataSetup.join('\n'))) {
+        if (!known.has(ref)) unknownRefs.add(ref);
+      }
+    }
+    if (unknownRefs.size > 0) {
+      const unknownList = [...unknownRefs]
+        .slice(0, 5)
+        .map((r) => `seed:${r}`)
+        .join(', ');
+      const more = unknownRefs.size > 5 ? ` +${unknownRefs.size - 5} more` : '';
+      const knownHint =
+        known.size > 0
+          ? ` Declared: ${[...known]
+              .slice(0, 5)
+              .map((r) => `seed:${r}`)
+              .join(', ')}${known.size > 5 ? ' …' : ''}.`
+          : ' The registry declares no seeds yet.';
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_SEED_UNKNOWN',
+          'warning',
+          `Scenario Data Setup references seed(s) with no declared producer: ${unknownList}${more}.${knownHint} Add the producer to config/qa-kit.seeds.json (see list_seeds), or move the scenario to Coverage Gaps.`,
+        ),
+      );
+      seedUnknownCount = unknownRefs.size;
+    }
+  }
+
   // 7. `not-implemented` scenarios must state WHY in coverage gaps — the status
   //    means "planned, not built yet", and an unexplained one is a silent drop.
   for (const sc of plan.scenarios) {
@@ -414,6 +492,7 @@ export function validateTestPlan(
     evidenceGapsCount: evidenceGapIds.size,
     locatorIntentGapsCount: locatorIntentGapIds.size,
     seedUnprovisionedCount,
+    seedUnknownCount,
   };
 
   if (!valid) {
@@ -513,5 +592,8 @@ export function validatePlan(args: ValidatePlanArgs | undefined): ValidatePlanOu
     }
   }
 
-  return validateTestPlan(plan, requirement);
+  const seedRegistry = loadSeedRegistry();
+  return validateTestPlan(plan, requirement, {
+    seedRegistry: seedRegistry.ok ? seedRegistry.registry : null,
+  });
 }

@@ -148,6 +148,8 @@ List every tool explicitly by server:
   - `snapshot_page` (capture ARIA + selector catalog with session auth to `artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}`)
   - `discover_pages` (BFS auto-crawl with role session auth, writes per-page catalog + `page-map.json`)
   - `synthesize_requirement` (synthesize compliant requirement markdown from semantic selector-catalog)
+  - `update_requirement` (revise an existing requirement — whole-file replace with hash lock, `.bak` backup, eager re-compile; the REVISE REQUIREMENT path)
+  - `list_seeds` (declared seed producers from `config/qa-kit.seeds.json`; missing registry returns guidance)
   - `list_test_fixtures` (fixture-first upload paths under `tests/data/`)
   - `inspect_file` (envelope: kind/size/magic under `tests/data/` or `artifacts/test-results/`)
   - `extract_pdf_text` (raw PDF text only — match scenario tokens; no domain field schema)
@@ -185,7 +187,7 @@ List every tool explicitly by server:
 1. Run `health_check`; require a non-production `APP_ENV`, a target whose origin matches configured `BASE_URL`, and a ready role session. If the role session is missing, expired, or bound to another company, stop and have QA run `npm run auth:setup` (`auth:setup:headed` for OTP/CAPTCHA). Never transfer Browser Use/profile cookies, call `browser_set_storage_state`, or inject storage state.
 2. Call `snapshot_page` (or `discover_pages` when QA explicitly asks to map linked pages) with `url`, `featureName`, and `role` (using `.auth/{APP_ENV}/{role}.json` session). Reject a result that reports auth/session/tenant warnings — an unauthenticated catalog is not role evidence.
 3. Deep discovery extracts semantic structures (Tables, KPI Cards, Tabs, Form Inputs, Modals, Uploads, Sub-routes with `:id` deduplication).
-4. Derive the scenario set with [`skills/qa-playwright-kit/references/scenario-design.md`](skills/qa-playwright-kit/references/scenario-design.md) — QA-stated titles/steps/results verbatim, plus technique-derived scenarios (equivalence partition / boundary / decision table / state transition) and relation scenarios when the snapshot links another menu, after a dedupe pass. Call `synthesize_requirement` with `entryUrl`, `role`, and the top-ranked `userScenarios` (tool cap 20 per call); append the overflow as full `### SC-XX` blocks in the same file, then validate. Do not invent business assertions from observed UI labels. An existing requirement path is never overwritten.
+4. Derive the scenario set with [`skills/qa-playwright-kit/references/scenario-design.md`](skills/qa-playwright-kit/references/scenario-design.md) — QA-stated titles/steps/results verbatim, plus technique-derived scenarios (equivalence partition / boundary / decision table / state transition) and relation scenarios when the snapshot links another menu, after a dedupe pass. Call `synthesize_requirement` with `entryUrl`, `role`, and the top-ranked `userScenarios` (tool cap 20 per call); append the overflow as full `### SC-XX` blocks in the same file, then validate. Do not invent business assertions from observed UI labels. `synthesize_requirement` never overwrites an existing path — to REVISE an existing requirement (post-report REVISE REQUIREMENT), use `update_requirement` (hash lock + `.bak` + re-compile), not a free-hand edit.
 5. Validate generated requirement with `validate_requirement`.
 6. Present active scenarios and backlog recommendations to QA for confirmation before Plan stage.
 

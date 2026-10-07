@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "seeds": [
+    {
+      "name": "invoice.pending",
+      "producer": "api POST /api/invoices { status: 'pending' } via (@hybrid) apiSeed — cleanup: apiCleanup /api/invoices/:id",
+      "fixture": "tests/data/network/contracts/demo/submit-success.json",
+      "notes": "CONTOH — copy file ini ke config/qa-kit.seeds.json lalu sesuaikan. Setiap ref seed:<entity>.<state> di Input Data / Data Setup skenario harus punya entri di sini; ref tanpa entri di-warning validate_plan (PLAN_SEED_UNKNOWN)."
+    }
+  ]
+}

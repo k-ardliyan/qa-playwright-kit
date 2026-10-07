@@ -15,7 +15,7 @@ import { readTextFile } from '../utils/file-reader';
 import { safeJsonParse } from '../utils/json-parser';
 import { probeAuthRoles, type AuthRoleStatus } from '../utils/auth-probe';
 import { roleCredentialKeys } from '../utils/role-credentials';
-import { computeSourceHash } from '../contracts';
+import { computeSourceHash, DOCTRINE_VERSION } from '../contracts';
 import { ensurePendingRun } from '../utils/run-context';
 
 interface AppEnvResolution {
@@ -112,6 +112,9 @@ export interface PipelineStatusOutput {
   /** Pending pipeline run id (run-YYYYMMDD-HHmmss-SSS) when a run is active —
    *  pass this as `runId` to note tools so pre-run notes bind to this run. */
   pipelineRunId?: string;
+  /** Agent-doctrine version of THIS engine — lets the agent compare against a
+   *  spec's `// doctrine:` header and tell QA "artefak lama, regenerate". */
+  doctrine: { version: string };
   state?: {
     runId: string;
     status: string;
@@ -295,6 +298,7 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
       message:
         (authWarnings.length > 0 ? `${authWarnings.join(' ')} ` : '') +
         'No pipeline state found. Start a fresh run: Plan phase for your requirement (see AGENTS.md pipeline).',
+      doctrine: { version: DOCTRINE_VERSION },
       lastRun: null,
       environment,
     };
@@ -474,6 +478,7 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
       nextSteps.length > 0
         ? `Pipeline ${state.status} (${stageLabel}). ${nextSteps.join(' ')}`
         : `Pipeline ${state.status} (${stageLabel}).`,
+    doctrine: { version: DOCTRINE_VERSION },
     state,
     lastRun,
     environment,

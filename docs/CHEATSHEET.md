@@ -164,6 +164,12 @@ npm run validate:requirement
 npm run qa:run
 ```
 
+**Revisi requirement pasca-report (REVISE REQUIREMENT):** pakai tool `update_requirement` (qa-playwright-kit) — `requirementPath`, `content` (markdown utuh), opsional `previousHash` (kunci anti lost-update) + `reason`. Otomatis: backup `.bak`, re-compile, dan kembalikan `previousHash`/`newHash` — plan lama harus direkompilasi (`validate_plan` menjaganya via `PLAN_STALE_REQUIREMENT`). Jangan edit requirement manual.
+
+**Seed (`seed:<entity>.<state>`):** deklarasikan produser di `config/qa-kit.seeds.json` (salin dari `config/qa-kit.seeds.example.json`); lihat daftarnya dengan tool `list_seeds`. Bila registry ada, `validate_plan` mem-warning `PLAN_SEED_UNKNOWN` untuk ref seed tanpa produser.
+
+**Versi doktrin:** spec menyimpan header `// doctrine: doctrine/v1` dan plan Metadata `| Doctrine | doctrine/v1 |`. `validate_generated_tests` mem-warning bila header hilang (spec lama) atau berbeda dari versi engine saat ini; `pipeline_status` mengembalikan `doctrine.version`. Naikkan `DOCTRINE_VERSION` (`src/contracts/versions.ts`) tiap kali aturan agent berubah material, lalu regenerate.
+
 ---
 
 ## POM Workflow (Path B — opsional)

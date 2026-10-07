@@ -104,6 +104,19 @@ test.describe('Test Plan compiler (TestPlanContractV1)', () => {
     expect(errors).toHaveLength(0);
   });
 
+  test('stamps the current doctrine by default and honors an explicit Metadata row', () => {
+    const stamped = compileTestPlanFromText(GOOD_PLAN, 'specs/login-valid.plan.md');
+    expect(stamped.data?.doctrine).toBe('doctrine/v1');
+
+    // readLabel is order-independent, so a Metadata row appended before the
+    // next section still binds to the plan.
+    const explicit = compileTestPlanFromText(
+      GOOD_PLAN.replace('## Scenarios', '| Doctrine | doctrine/v9 |\n\n## Scenarios'),
+      'specs/login-valid.plan.md',
+    );
+    expect(explicit.data?.doctrine).toBe('doctrine/v9');
+  });
+
   test('rejects ephemeral browser references with PLAN_EPHEMERAL_REF diagnostic', () => {
     const result = compileTestPlanFromText(BAD_PLAN, 'specs/bad.plan.md');
 

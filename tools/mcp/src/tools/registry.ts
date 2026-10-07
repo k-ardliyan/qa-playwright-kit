@@ -23,6 +23,8 @@ import { generatePageObject } from './generate-page-object';
 import { inspectFile } from './inspect-file';
 import { extractPdfTextTool } from './extract-pdf-text';
 import { listTestFixtures } from './list-test-fixtures';
+import { listSeeds } from './list-seeds';
+import { updateRequirement } from './update-requirement';
 import { listRequirementStatus } from './list-requirement-status';
 import { compileRequirement } from './compile-requirement';
 import { compileTestPlan } from './compile-test-plan';
@@ -986,6 +988,51 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     readOnly: true,
     profiles: ['generator', 'author', 'debug', 'all'],
     handler: (args) => listTestFixtures(args),
+  },
+  {
+    name: 'list_seeds',
+    description:
+      'List the project seed registry (config/qa-kit.seeds.json): every declared seed:<entity>.<state> and its producer. Missing registry returns guidance, not an error.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+    stability: 'stable',
+    readOnly: true,
+    profiles: ['planner', 'generator', 'author', 'all'],
+    handler: () => listSeeds(),
+  },
+  {
+    name: 'update_requirement',
+    description:
+      'Revise an existing requirement file (whole-file replacement) with an optimistic hash lock, an automatic .bak backup, and an eager re-compile so diagnostics surface immediately. This is the sanctioned REVISE REQUIREMENT path after a report.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        requirementPath: {
+          type: 'string',
+          description: 'Repo-relative requirement path (requirements/<feature>.md). Must exist.',
+        },
+        content: {
+          type: 'string',
+          description: 'The FULL new requirement markdown — whole-file replacement, not a patch.',
+        },
+        previousHash: {
+          type: 'string',
+          description:
+            'Optional lost-update guard: the sourceHash you read before editing; rejected when it no longer matches the file on disk.',
+        },
+        reason: {
+          type: 'string',
+          description: 'Why the requirement is being revised (echoed in the message).',
+        },
+      },
+      required: ['requirementPath', 'content'],
+    },
+    stability: 'stable',
+    readOnly: false,
+    profiles: ['planner', 'author', 'all'],
+    handler: (args) => updateRequirement(args),
   },
 ];
 

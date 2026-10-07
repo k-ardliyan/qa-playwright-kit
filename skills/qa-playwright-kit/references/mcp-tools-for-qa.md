@@ -1,6 +1,6 @@
 # MCP Tools for QA — Which Tool, When
 
-The `qa-playwright-kit` MCP server exposes 25 tools. You do not need to remember
+The `qa-playwright-kit` MCP server exposes 27 tools. You do not need to remember
 them: this map answers "which one do I need?" for the tasks QA actually does.
 All tools are called as `qa-playwright-kit:<tool_name>`.
 
@@ -59,6 +59,24 @@ action, so never guess it:
   column of the dashboard.
 - `archive_report` — saves a run as a milestone with your QA decision. APPROVE
   requires a complete, verified Analyze sub-phase; other decisions always archive.
+
+## Revising a requirement (REVISE REQUIREMENT path)
+
+When a report decides **REVISE REQUIREMENT**, change the requirement with
+`update_requirement` — not a free-hand edit. It writes the whole new markdown
+with an optimistic `previousHash` lock (rejects a lost update), keeps a `.bak`
+backup, and re-compiles immediately so diagnostics surface before the next
+pipeline stage. The response carries `previousHash`/`newHash`; the plan must be
+recompiled against the new hash (`validate_plan` guards it with
+`PLAN_STALE_REQUIREMENT`). `synthesize_requirement` only CREATES new files and
+refuses to overwrite — that is why the revision path has its own tool.
+
+## Seeds (`seed:<entity>.<state>`)
+
+- `list_seeds` — the project's declared seed producers from
+  `config/qa-kit.seeds.json` (copy `config/qa-kit.seeds.example.json`). A missing
+  registry returns guidance, not an error. When a registry exists, `validate_plan`
+  warns `PLAN_SEED_UNKNOWN` for any `seed:` ref without a declared producer.
 
 ## Not for daily QA
 

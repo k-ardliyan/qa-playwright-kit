@@ -78,6 +78,7 @@ const HEALTHY_SPEC = [
   '// spec: specs/login-test-plan.md',
   '// seed: tests/seed.spec.ts',
   '// req: requirements/auth/login.md',
+  '// doctrine: doctrine/v1',
   "import { test, expect } from '@/fixtures/base.fixture';",
   "import { setTestMetadata } from '@/support/test-metadata';",
   '',

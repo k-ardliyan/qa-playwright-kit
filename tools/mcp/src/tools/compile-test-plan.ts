@@ -12,6 +12,7 @@ import {
   type Diagnostic,
   createDiagnostic,
   computeSourceHash,
+  DOCTRINE_VERSION,
   type McpResult,
   failureResult,
 } from '../contracts';
@@ -117,6 +118,13 @@ export function compileTestPlanFromText(
   if (seedRaw) {
     seed = seedRaw;
   }
+
+  // Doctrine stamp: which agent-instruction version produced this plan. When
+  // the Metadata row is absent, stamp the CURRENT version — the plan is being
+  // compiled by this engine right now. An explicit row that drifts from the
+  // current doctrine is what validate_plan's PLAN_DOCTRINE_STALE flags.
+  const doctrineRaw = readLabel(text, 'Doctrine');
+  const doctrine = doctrineRaw ?? DOCTRINE_VERSION;
 
   // Resolve source requirement hash if path exists but hash was omitted
   if (sourceRequirementPath && !sourceRequirementHash) {
@@ -341,6 +349,7 @@ export function compileTestPlanFromText(
     planPath,
     planHash,
     seed,
+    doctrine,
     module: module || undefined,
     feature: feature || undefined,
     catalogEvidence,

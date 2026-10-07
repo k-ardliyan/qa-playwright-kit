@@ -24,9 +24,9 @@ const WRITE_TOOLS = TOOL_REGISTRY.filter((t) => t.readOnly === false).map((t) =>
 const READ_TOOLS = TOOL_REGISTRY.filter((t) => t.readOnly !== false).map((t) => t.name);
 
 test.describe('MCP tool surface — contract smoke', () => {
-  test('registry exposes the canonical 25-tool surface', () => {
-    expect(TOOL_REGISTRY.length).toBe(25);
-    expect(new Set(TOOL_REGISTRY.map((t) => t.name)).size).toBe(25);
+  test('registry exposes the canonical 27-tool surface', () => {
+    expect(TOOL_REGISTRY.length).toBe(27);
+    expect(new Set(TOOL_REGISTRY.map((t) => t.name)).size).toBe(27);
   });
 
   test('every read-only tool answers without throwing', async () => {

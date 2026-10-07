@@ -833,4 +833,159 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
     expect(codes).not.toContain('PLAN_SEED_UNPROVISIONED');
     expect(result.data?.seedUnprovisionedCount).toBe(0);
   });
+
+  test('flags a plan explicitly stamped with an older doctrine', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      doctrine: 'doctrine/v0',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          page: 'login-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button")'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          page: 'login-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button")'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_DOCTRINE_STALE');
+  });
+
+  test('flags seed refs unknown to an existing seed registry', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/hris/payroll.md',
+      sourceRequirementHash: 'hash-req-123',
+      seed: 'tests/data/payroll-seeds.json',
+      catalogEvidence: [{ page: 'payroll-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-04',
+          covers: ['AC-01'],
+          page: 'payroll-form',
+          executionMode: 'automated',
+          dataSetup: ['Input: `namaPayroll: seed:payroll.draft`'],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button", { name: "Proses" })'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-05',
+          covers: ['AC-02'],
+          page: 'payroll-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button", { name: "Simpan" })'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    // Registry declares invoice.pending only — payroll.draft is unknown.
+    const result = validateTestPlan(plan, sampleRequirement, {
+      seedRegistry: { schemaVersion: 1, seeds: [{ name: 'invoice.pending' }] },
+    });
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_SEED_UNKNOWN');
+    expect(result.data?.seedUnknownCount).toBe(1);
+    const unknown = (result.diagnostics ?? []).find((d) => d.code === 'PLAN_SEED_UNKNOWN');
+    expect(unknown?.message).toContain('seed:payroll.draft');
+    expect(unknown?.message).toContain('seed:invoice.pending');
+  });
+
+  test('stays silent about seed refs when the registry is absent or ref is declared', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/hris/payroll.md',
+      sourceRequirementHash: 'hash-req-123',
+      seed: 'tests/data/payroll-seeds.json',
+      catalogEvidence: [{ page: 'payroll-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-04',
+          covers: ['AC-01'],
+          page: 'payroll-form',
+          executionMode: 'automated',
+          dataSetup: ['Input: `namaPayroll: seed:invoice.pending`'],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button", { name: "Proses" })'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-05',
+          covers: ['AC-02'],
+          page: 'payroll-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button", { name: "Simpan" })'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    // No registry (null) — the unknown-seed check stays silent for legacy workspaces.
+    const withoutRegistry = validateTestPlan(plan, sampleRequirement, { seedRegistry: null });
+    expect((withoutRegistry.diagnostics ?? []).some((d) => d.code === 'PLAN_SEED_UNKNOWN')).toBe(
+      false,
+    );
+
+    // Declared registry containing the referenced seed — silent too.
+    const withRegistry = validateTestPlan(plan, sampleRequirement, {
+      seedRegistry: { schemaVersion: 1, seeds: [{ name: 'invoice.pending' }] },
+    });
+    expect((withRegistry.diagnostics ?? []).some((d) => d.code === 'PLAN_SEED_UNKNOWN')).toBe(
+      false,
+    );
+  });
 });

@@ -184,6 +184,7 @@ Every spec file generated **must** begin with these lines before the first `impo
 // req: requirements/<feature>.md
 // spec: specs/<feature>-test-plan.md
 // seed: tests/seed.spec.ts
+// doctrine: doctrine/v1
 // generated-at: <ISO8601 timestamp>
 ```
 
@@ -192,8 +193,9 @@ Rules:
 - `// req:` — path to the source requirement file. Closes the traceability loop back to requirements.
 - `// spec:` — path to the test plan under `specs/`. Already enforced by `validate_generated_tests`.
 - `// seed:` — always `tests/seed.spec.ts`. Already enforced by `validate_generated_tests`.
+- `// doctrine:` — the agent-doctrine version that generated this file. Copy it verbatim from the plan's Metadata `| Doctrine |` row (or `pipeline_status → doctrine.version`). `validate_generated_tests` warns when the line is missing (pre-stamp spec) or drifts from the current doctrine — both mean the spec predates current rules and should be regenerated.
 - `// generated-at:` — ISO 8601 timestamp of when the file was first written. Write-once; do not update on subsequent heals.
-- All four lines must appear before any `import` statement.
+- All five lines must appear before any `import` statement.
 
 Example complete header:
 
@@ -201,6 +203,7 @@ Example complete header:
 // req: requirements/auth/login.md
 // spec: specs/login-test-plan.md
 // seed: tests/seed.spec.ts
+// doctrine: doctrine/v1
 // generated-at: 2026-07-23T14:30:22Z
 
 import { test, expect } from './fixtures';

@@ -30,7 +30,7 @@ The snapshot is **evidence, not a scenario list**. Scenarios come from **evidenc
 
 Test data is the most common scaling bottleneck — plan it together with the scenarios, not after them:
 
-- **Seed factory, not hand-made rows:** every `seed:` ref in Input Data must have a clear producer (API seed `(@hybrid)`, DB fixture, or a documented UI path). No producer → the scenario goes to Coverage Gap, not into the suite.
+- **Seed factory, not hand-made rows:** every `seed:` ref in Input Data must have a clear producer (API seed `(@hybrid)`, DB fixture, or a documented UI path). No producer → the scenario goes to Coverage Gap, not into the suite. Declare producers in `config/qa-kit.seeds.json` (copy `config/qa-kit.seeds.example.json`); `list_seeds` lists them and `validate_plan` warns `PLAN_SEED_UNKNOWN` for any `seed:` ref with no declared producer (when a registry exists).
 - **Unique per run:** names/identifiers the scenario creates carry a unique suffix (timestamp/random) — shared environments collide on static values. `literal:` is for read-only lookups only.
 - **Reset/cleanup:** scenarios that create data state their cleanup (`apiCleanup` for `(@hybrid)`; otherwise write "residual data acceptable" in Prekondisi). Never rely on another test's cleanup.
 - **Account isolation:** one role account is never shared across QA members; scenarios that mutate the account follow the serialization rule (anti-slop #5).

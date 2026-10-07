@@ -70,6 +70,11 @@ export interface TestPlanContractV1 {
   planPath?: string;
   planHash?: string;
   seed?: string;
+  /** Agent-doctrine version that produced this plan (`doctrine/v1`); absent on
+   *  plans compiled before the stamp existed. Compared against DOCTRINE_VERSION
+   *  by validate_plan (PLAN_DOCTRINE_STALE) — a stale plan predates the current
+   *  generator rules and should be recompiled. */
+  doctrine?: string;
 
   module?: string;
   feature?: string;

@@ -159,5 +159,13 @@
       "roleFilter",
       "timeoutMs"
     ]
+  },
+  {
+    "name": "list_seeds",
+    "reads": []
+  },
+  {
+    "name": "update_requirement",
+    "reads": ["requirementPath", "content", "previousHash", "reason"]
   }
 ]

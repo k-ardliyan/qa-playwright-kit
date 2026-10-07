@@ -46,6 +46,8 @@ export type DiagnosticCode =
   | 'PLAN_NOT_IMPLEMENTED_NO_GAP'
   | 'PLAN_LOCATOR_INTENT_MISSING'
   | 'PLAN_SEED_UNPROVISIONED'
+  | 'PLAN_SEED_UNKNOWN'
+  | 'PLAN_DOCTRINE_STALE'
 
   // Staleness, State & Traceability diagnostics
   | 'SPEC_STALE'

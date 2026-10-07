@@ -11,6 +11,7 @@ import {
   validatePerTestAssertions,
   validateSkipDoctrine,
   validateDuplicateTestBodies,
+  validateTraceabilityRule,
   extractAuthRolesFromSpec,
   looksLikeClonedRoleName,
 } from '../../../tools/mcp/src/tools/validate-generated-tests';
@@ -714,5 +715,43 @@ test.describe('validate-generated-tests duplicate-body rule', () => {
       "test('b', async ({ page }) => { await page.goto('/'); });",
     ].join('\n');
     expect(validateDuplicateTestBodies(src, 'x', SPEC)).toEqual([]);
+  });
+});
+
+test.describe('validate-generated-tests doctrine stamp rule', () => {
+  const HEADER = [
+    '// spec: specs/x-test-plan.md',
+    '// seed: tests/seed.spec.ts',
+    '// req: requirements/x.md',
+  ].join('\n');
+
+  test('warns when the // doctrine: header is missing (pre-stamp spec)', () => {
+    const violations = validateTraceabilityRule(HEADER, 'x', 'tests/x.spec.ts');
+    const doctrine = violations.find((v) => v.ruleName.startsWith('Doctrine rule'));
+    expect(doctrine).toBeDefined();
+    expect(doctrine?.severity).toBe('warning');
+    expect(doctrine?.ruleName).toContain('predates the doctrine stamp');
+  });
+
+  test('warns on doctrine drift (older stamp)', () => {
+    const violations = validateTraceabilityRule(
+      `${HEADER}\n// doctrine: doctrine/v0`,
+      'x',
+      'tests/x.spec.ts',
+    );
+    const doctrine = violations.find((v) => v.ruleName.startsWith('Doctrine rule'));
+    expect(doctrine).toBeDefined();
+    expect(doctrine?.severity).toBe('warning');
+    expect(doctrine?.ruleName).toContain('doctrine/v0');
+    expect(doctrine?.ruleName).toContain('doctrine/v1');
+  });
+
+  test('stays silent when the stamp matches the current doctrine', () => {
+    const violations = validateTraceabilityRule(
+      `${HEADER}\n// doctrine: doctrine/v1`,
+      'x',
+      'tests/x.spec.ts',
+    );
+    expect(violations.find((v) => v.ruleName.startsWith('Doctrine rule'))).toBeUndefined();
   });
 });

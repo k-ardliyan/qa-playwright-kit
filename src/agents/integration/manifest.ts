@@ -210,6 +210,18 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     description:
       'List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker).',
   },
+  list_seeds: {
+    server: 'qa-playwright-kit',
+    name: 'list_seeds',
+    description:
+      'List the project seed registry (config/qa-kit.seeds.json): every declared seed:<entity>.<state> and its producer. Missing registry returns guidance, not an error.',
+  },
+  update_requirement: {
+    server: 'qa-playwright-kit',
+    name: 'update_requirement',
+    description:
+      'Revise an existing requirement file (whole-file replacement) with an optimistic hash lock, an automatic .bak backup, and an eager re-compile so diagnostics surface immediately. This is the sanctioned REVISE REQUIREMENT path after a report.',
+  },
   inspect_file: {
     server: 'qa-playwright-kit',
     name: 'inspect_file',
@@ -291,6 +303,8 @@ const PHASE_DEFINITIONS: Record<
       'discover_pages',
       'snapshot_page',
       'synthesize_requirement',
+      'list_seeds',
+      'update_requirement',
     ],
   },
   generate: {

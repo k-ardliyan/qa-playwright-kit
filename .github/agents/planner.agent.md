@@ -118,6 +118,7 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 - **Mode:** general (single-role) | role-aware (multi-role)
 - **Roles in Scope:** <active role name, e.g. "admin", or comma-separated list e.g. "finance, super-admin">
 - **Seed:** none | <seed producer, e.g. `tests/data/<feature>.json`> — declare it when ANY scenario depends on `seed:` refs; `none` + seed refs is flagged by validate_plan
+- **Doctrine:** doctrine/v1 — copy the current engine doctrine (pipeline_status → doctrine.version); validate_plan flags PLAN_DOCTRINE_STALE when it drifts
 - **Generated At:** <YYYY-MM-DD HH:mm:ss>
 - **Seed Test:** `tests/seed.spec.ts`
 

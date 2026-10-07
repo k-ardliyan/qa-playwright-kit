@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getRepoRoot, resolveAllowedPath } from '../utils/safety';
+import { DOCTRINE_VERSION } from '../contracts/versions';
 import {
   getAdapterFixtureImport,
   getPlaywrightTestRoot,
@@ -121,7 +122,7 @@ function validatePresenceRule(
   return { filePath, lineNumber: 1, ruleName };
 }
 
-function validateTraceabilityRule(
+export function validateTraceabilityRule(
   content: string,
   filePath: string,
   relativePath: string,
@@ -157,6 +158,28 @@ function validateTraceabilityRule(
       lineNumber: 1,
       ruleName:
         'Traceability rule: missing // req: <requirements/feature.md> — add to close provenance loop',
+      severity: 'warning',
+    });
+  }
+
+  // Warning: // doctrine: stamps WHICH agent-instruction version generated this
+  // spec. Absent = pre-stamp spec (older engine — regenerate to stamp); present
+  // but ≠ current DOCTRINE_VERSION = doctrine drift (rules changed since).
+  // Warnings, not errors: old specs must stay usable, just visible as stale.
+  const doctrineMatch = /\/\/\s*doctrine:\s*(\S+)/m.exec(content);
+  if (!doctrineMatch) {
+    violations.push({
+      filePath,
+      lineNumber: 1,
+      ruleName:
+        'Doctrine rule: missing // doctrine: <version> header — this spec predates the doctrine stamp and may not follow current generator rules; regenerate to stamp it',
+      severity: 'warning',
+    });
+  } else if (doctrineMatch[1] !== DOCTRINE_VERSION) {
+    violations.push({
+      filePath,
+      lineNumber: getLineNumberFromIndex(content, doctrineMatch.index),
+      ruleName: `Doctrine rule: spec was generated under "${doctrineMatch[1]}" but the current doctrine is "${DOCTRINE_VERSION}" — generator rules have changed; re-run the generator (or recompile the plan) to restamp`,
       severity: 'warning',
     });
   }

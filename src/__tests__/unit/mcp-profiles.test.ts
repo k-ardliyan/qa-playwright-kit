@@ -31,6 +31,7 @@ test.describe('Custom MCP Profiles & Runtime Enforcement (CF-101 - CF-105)', () 
     expect(names).toContain('trace_requirement');
     expect(names).toContain('snapshot_page');
     expect(names).toContain('discover_pages');
+    expect(names).toContain('list_seeds');
 
     // Planner should not see execution/reporter-exclusive tools
     expect(names).not.toContain('archive_report');
@@ -45,6 +46,7 @@ test.describe('Custom MCP Profiles & Runtime Enforcement (CF-101 - CF-105)', () 
     expect(names).toContain('compile_test_plan');
     expect(names).toContain('validate_generated_tests');
     expect(names).toContain('list_test_fixtures');
+    expect(names).toContain('list_seeds');
     expect(names).toContain('inspect_file');
 
     expect(names).not.toContain('archive_report');

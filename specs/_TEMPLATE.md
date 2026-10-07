@@ -24,6 +24,7 @@
 | Module                  | `[nama-modul]`               |
 | Feature                 | `[nama-fitur]`               |
 | Seed                    | `seed:[entity].[state]`      |
+| Doctrine                | `doctrine/v1`                |
 
 ## Catalog Evidence
 

@@ -173,5 +173,19 @@
     "stability": "stable",
     "profiles": ["generator", "author", "debug", "all"],
     "readOnly": true
+  },
+  {
+    "name": "list_seeds",
+    "description": "List the project seed registry (config/qa-kit.seeds.json): every declared seed:<entity>.<state> and its producer. Missing registry returns guidance, not an error.",
+    "stability": "stable",
+    "profiles": ["planner", "generator", "author", "all"],
+    "readOnly": true
+  },
+  {
+    "name": "update_requirement",
+    "description": "Revise an existing requirement file (whole-file replacement) with an optimistic hash lock, an automatic .bak backup, and an eager re-compile so diagnostics surface immediately. This is the sanctioned REVISE REQUIREMENT path after a report.",
+    "stability": "stable",
+    "profiles": ["planner", "author", "all"],
+    "readOnly": false
   }
 ]
