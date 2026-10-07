@@ -18,18 +18,19 @@
 
 ## Metadata
 
-| Field        | Nilai                    |
-| ------------ | ------------------------ |
-| Tags         | `#smoke #regression #ui` |
-| Prioritas    | `high`                   |
-| Auth state   | `unauthenticated`        |
-| Halaman awal | `/login`                 |
-| Module       | `invoice`                |
-| Feature      | `approve-invoice`        |
-| Role scope   | `super-admin, finance`   |
-| Default role | `finance`                |
-| Risk level   | `high`                   |
-| Data scope   | `seed:invoice.pending`   |
+| Field             | Nilai                    |
+| ----------------- | ------------------------ |
+| Tags              | `#smoke #regression #ui` |
+| Prioritas         | `high`                   |
+| Auth state        | `unauthenticated`        |
+| Halaman awal      | `/login`                 |
+| Module            | `invoice`                |
+| Feature           | `approve-invoice`        |
+| Role scope        | `super-admin, finance`   |
+| Default role      | `finance`                |
+| Risk level        | `high`                   |
+| Data scope        | `seed:invoice.pending`   |
+| Environment scope | `staging`                |
 
 **Keterangan field Metadata:**
 

@@ -236,6 +236,13 @@ Populate plan **Capabilities** from title tags and metadata `#network #network-a
 
 **Rule 0 — Evidence before automation (Explore completion definition).** A scenario may be planned as `automated` **only** when its page has been captured. Concretely: Explore is complete for a feature when **every page referenced by a scenario has an entry in `## Catalog Evidence` whose file exists, has `elementCount > 0`, and carries no auth/session warning**. This turns "belum dieksplorasi" from an open-ended excuse into a checkable worklist.
 
+> **Two blockers `validate_plan` will refuse the plan over** (not warnings — the plan is invalid, Challenge stops, Generate never runs):
+>
+> - `PLAN_EVIDENCE_MAJORITY_GAP` — **more than half** of your `automated` scenarios have no catalog evidence (needs ≥2 automated scenarios; exactly 50% is tolerated). A plan that is mostly unverified is guessing, not planning.
+> - `PLAN_EVIDENCE_UNAVAILABLE` — you listed a `## Catalog Evidence` row but its file is not on disk, and automated scenarios lean on it. Never write a Catalog Evidence row for a page you did not actually snapshot.
+>
+> If most of your scenarios are not ready, that is not a reason to force them to `automated` — mark them `@not-implemented` and record each in `Coverage Gap`. Plan the small, evidenced set well; let the rest be honest debt.
+
 **The `Page` value is an exact string, not a description.** It is the catalog page name — the `<page>.json` filename stem, identical to the `pageName` field inside that JSON. Write the bare slug:
 
 | Correct           | Wrong                                             |

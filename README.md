@@ -6,9 +6,9 @@
 
 **QA menulis *apa* yang harus dites. Framework mengerjakan *bagaimana*nya.**
 
-Markdown requirement → test plan → Playwright test → AI-heal → dashboard triage.
+Markdown requirement → test plan → Playwright test → triage dashboard
 
-Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MCP tools · quality-gated CI
+Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 27 MCP tools · quality-gated CI
 
 [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
@@ -46,19 +46,19 @@ Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 25 MC
 
 ## Yang kamu dapatkan
 
-|                       | Fitur                                                   | Apa artinya                                                                                                   |
-| --------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Evidence-driven**   | Explore → Model → Challenge → Generate → Validate       | AI amati app, uji asumsi, baru buat test                                                                      |
-| **Requirement-first** | QA tulis Markdown, AI generate test                     | Tidak perlu tahu Playwright API untuk menulis test                                                            |
-| **5-Phase Engine**    | Plan → Generate → Execute → Heal → Report(Analyze)      | Satu perintah, hasil lengkap dengan AI-heal                                                                   |
-| **Self-healing**      | Test gagal → AI diagnosis → fix → rerun                 | AI healer memperbaiki lewat MCP (`get_test_failures`, `record_ai_note`); routing kegagalan di-enforce runtime |
-| **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                                                                           |
-| **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi                                                                       |
-| **25 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                                                                            |
-| **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                                                                            |
-| **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                                                                                |
-| **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                                                                              |
-| **Encrypted creds**   | dotenvx after setup — secret keys only (`*_PASSWORD`)   | URL/flag tetap plaintext; env file gitignored                                                                 |
+|                       | Fitur                                                   | Apa artinya                                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Evidence-driven**   | Explore → Model → Challenge → Generate → Validate       | AI amati app, uji asumsi, baru buat test                                                                                                                                           |
+| **Requirement-first** | QA tulis Markdown, AI generate test                     | Tidak perlu tahu Playwright API untuk menulis test                                                                                                                                 |
+| **5-Phase Engine**    | Plan → Generate → Execute → Heal → Report(Analyze)      | Satu perintah, hasil lengkap dengan analisa AI                                                                                                                                     |
+| **Self-healing**      | Test gagal → AI diagnosis → fix spec → rerun            | AI (Healer) memperbaiki lewat MCP (`get_test_failures`, `record_ai_note`); routing + cap re-entry di-enforce runtime (bukan auto-magic: perbaikan tetap ditulis agent di `tests/`) |
+| **Dashboard triage**  | Tabel + accordion, filter by role/module                | Tidak perlu scroll 500 bar terminal                                                                                                                                                |
+| **Multi-role auth**   | Role-based storage + OTP/CAPTCHA assist                 | Admin, user, finance — semua terotomasi                                                                                                                                            |
+| **27 MCP tools**      | Validate, compile, snapshot, POM, notes, health check   | Terintegrasi penuh dengan AI agent                                                                                                                                                 |
+| **Multi-environment** | local/staging/production via `APP_ENV`                  | Switch environment tanpa ubah kode                                                                                                                                                 |
+| **Capability tags**   | `@upload` `@download` `@file-content` `@network-assert` | Test canggih tanpa boilerplate                                                                                                                                                     |
+| **Quality gates**     | format/lint/typecheck/unit/property/file-content        | Tidak ada yang lolos tanpa diuji                                                                                                                                                   |
+| **Encrypted creds**   | dotenvx after setup — secret keys only (`*_PASSWORD`)   | URL/flag tetap plaintext; env file gitignored                                                                                                                                      |
 
 ---
 

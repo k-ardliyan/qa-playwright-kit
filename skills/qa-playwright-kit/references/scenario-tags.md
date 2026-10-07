@@ -30,6 +30,13 @@ These two are **plan-level** (they force `Execution Mode`, see `specs/_TEMPLATE.
 
 A scenario whose page has **no selector-catalog evidence** may not be planned `automated` at all: it belongs in **Coverage Gaps** (`validate_plan` reports `PLAN_EVIDENCE_MISSING`). That is the mechanism that keeps "belum dieksplorasi" from becoming a silent skip.
 
+The gate has teeth when the problem is systemic, not incidental: `validate_plan` raises a **blocking** error — the plan is invalid and Generate never runs — for
+
+- `PLAN_EVIDENCE_MAJORITY_GAP`: **more than half** the `automated` scenarios have no catalog evidence (≥2 automated scenarios; exactly 50% is tolerated),
+- `PLAN_EVIDENCE_UNAVAILABLE`: a `## Catalog Evidence` row points at a file that is **not on disk**, while automated scenarios depend on it.
+
+A plan that is mostly unverified is guessing. Mark the unready scenarios `@not-implemented` and record them in Coverage Gaps; do not force them to `automated`.
+
 ---
 
 ## `(@manual)` — only for these situations

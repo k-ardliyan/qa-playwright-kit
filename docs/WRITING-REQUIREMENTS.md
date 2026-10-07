@@ -39,7 +39,7 @@ Derive the scenario set first — see [`skills/qa-playwright-kit/references/scen
 - [ ] Setiap item di `## Kriteria Penerimaan` memiliki ID eksplisit: `- **AC-01:** [Deskripsi]`
 - [ ] Setiap skenario memiliki `- **Test ID:** \`TC-MODUL-NNN\``
 - [ ] Setiap skenario memiliki `- **Covers:** \`AC-01\`, \`AC-02\``
-- [ ] Skenario multi-role memiliki `- **Role:** \`role-name\`` (parser requirement membaca `Role:`, bukan `Actor:`)
+- [ ] Skenario multi-role memiliki `- **Role:** \`role-name\`` (label kanonik `Role:`; `Actor:` diterima sebagai alias di blok skenario, tapi `Role:` yang direkomendasikan)
 - [ ] Input Data menggunakan format provenance eksplisit (`seed:...`, `credential:...`, `fixture:...`, `literal:...`)
 - [ ] Hasil bersifat observable (URL, teks, status badge — bukan "berjalan baik")
 - [ ] Skenario non-otomatis ditandai `(@manual)` di judul dengan alasan di Hasil yang Diharapkan
@@ -141,11 +141,13 @@ Katalog siap pakai: [`requirements/auth/login-multi-tenant.md`](../requirements/
 
 ## Format label (parser)
 
-| Indonesia         | Alias Inggris (opsional)                                |
-| ----------------- | ------------------------------------------------------- |
-| `**Langkah:**`    | `**Steps:**`, `**Step:**`                               |
-| `**Hasil:**`      | `**Expected Result:**`, `**Expected:**`, `**Outcome:**` |
-| `**Prekondisi:**` | `**Precondition:**`, `**Given:**`                       |
+| Indonesia                    | Alias Inggris (opsional)               |
+| ---------------------------- | -------------------------------------- |
+| `**Langkah:**`               | `**Steps:**`                           |
+| `**Hasil yang Diharapkan:**` | `**Expected Result:**`, `**Outcome:**` |
+| `**Prekondisi:**`            | `**Precondition:**`, `**Given:**`      |
+
+> Label di atas adalah set yang **benar-benar dibaca parser** (`requirement-parsers.ts`). Bentuk pendek `**Hasil:**` / `**Expected:**` **tidak** dikenali — tulis lengkap. Nama file `requirements/_TEMPLATE.md` memakai bentuk tabel (`| Hasil yang Diharapkan | ... |`); bentuk bullet (label lalu item di bawahnya) juga diterima.
 
 ---
 

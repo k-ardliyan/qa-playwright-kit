@@ -182,8 +182,8 @@ Pipeline mengikuti alur metodologi QA di [AGENTS.md](../AGENTS.md):
 2. **Model (02. Model — SHARED MODEL):** `health_check` → validasi & kompilasi requirement (`compile_requirement` / `validate:requirement`) → Planner menyusun alur pengujian di `specs/*-test-plan.md`.
 3. **Challenge (03. Challenge — THE GATE):** Uji asumsi skenario via `validate_plan` (zero blocking errors) sebelum lanjut ke otomasi.
 4. **Generate (04. Generate — FOURTH, NOT FIRST):** Generator membuat `tests/*.spec.ts` (satu file per role jika role-aware) → validasi struktur via `validate_generated_tests`.
-5. **Validate (05. Validate — EARNED TRUST):** `run_tests` (playwright-test) → Healer jika ada kegagalan → Reporter Analyze wajib (`analysis: { completed, ... }`) → evaluasi hasil di dashboard → QA decision → `archive_report`.
-   - **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Kegagalan diarahkan ke tahap terkecil yang sesuai (UI unknown → Explore; requirement ambigu → Model; asumsi/assertion lemah → Challenge; bug test → Generate/Heal; bug produk → FILE BUG; env/auth → FIX ENVIRONMENT).
+5. **Validate (05. Validate — EARNED TRUST):** `run_tests` (playwright-test) → klasifikasi & perbaikan kegagalan → Reporter Analyze wajib (`analysis: { completed, ... }`) → evaluasi hasil di dashboard → QA decision → `archive_report`.
+   - **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Kegagalan diarahkan ke target terkecil yang sesuai (UI unknown → `explore`; requirement ambigu → `model`; asumsi/assertion lemah → `challenge`; bug test → `generate`; bug produk → `file-bug`; env/auth → `fix-environment`). Ini **target routing**, bukan stage — tidak ada stage "heal" yang dijalankan mesin; yang ada adalah re-entry (maks 3 pass per target) + keputusan terminal.
 
 `Reporter(Analyze)` wajib menulis `analysis: { completed, runInsightsRecorded, passedScenariosReviewed, skippedForInsufficientEvidence }` dan catatan terstruktur berbasis bukti. Insight untuk skenario gagal maupun lulus (UI/UX, perbandingan flow, atau data) hanya boleh dicatat jika bukti mendukungnya; catatan bukan persetujuan UX otomatis.
 
@@ -317,7 +317,7 @@ Generate Playwright tests dari specs/nama-fitur-test-plan.md:
 Heal kegagalan tes:
 
 1. get_test_failures (qa-playwright-kit) dari JSON hasil run aktif.
-2. Klasifikasikan failure source: app | test | requirement | env | ai_generation.
+2. Klasifikasikan failure source: app | test | requirement | env | ai_generation | unknown.
 3. Perbaiki file spec yang gagal di tests/ (gunakan tracePath/screenshotPath jika ada).
 4. validate_generated_tests (qa-playwright-kit).
 5. run_tests (playwright-test) hanya untuk file yang diperbaiki.

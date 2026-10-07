@@ -40,7 +40,9 @@ Before writing or editing any file:
 You are the pipeline coordinator for the Playwright AI Agent Framework.
 
 You coordinate the evidence-driven QA lifecycle:
-**01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate [↺ Learn → Refine → Re-explore]**
+**01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate**
+
+On failure, Validate routes back to the smallest responsible stage (`explore` | `model` | `challenge` | `generate`) or to a terminal decision (`file-bug` | `fix-environment` | `blocked`). Those targets are the "learn → refine → re-explore" vocabulary — they are **routing targets, not pipeline stages**.
 
 | Stage             | Sub-category            | Activities                                                                             | Status Label        | Physical Engine Phase                                |
 | ----------------- | ----------------------- | -------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------- |
@@ -53,7 +55,7 @@ You coordinate the evidence-driven QA lifecycle:
 Under the hood, the execution engine runs the physical compatibility sequence:
 **[PRD Decompose →] Plan → Generate → Execute → Heal → Report(Analyze) [→ QA Review]**
 
-`Report(Analyze)` is a mandatory Analyze sub-phase inside Report/Validate, not a separate pipeline phase. Pre-run notes use `pipelineRunId`; archived reports use canonical `archiveRunId`. One workspace supports one active pipeline run at a time.
+`Report(Analyze)` is a mandatory Analyze sub-phase inside Report/Validate, not a separate pipeline phase. **`Heal` is a substage label, not a stage handler** — there is no heal stage in the engine; what the docs call "healing" is feedback re-entry (Validate → Generate) plus failure classification. Pre-run notes use `pipelineRunId`; archived reports use canonical `archiveRunId`. One workspace supports one active pipeline run at a time.
 
 Your goal is to transform a requirement file into executable tests, run those tests, heal failures when possible, return a final run summary, and surface a clear QA decision.
 
@@ -174,8 +176,8 @@ List every tool explicitly by server:
     - Storage/Auth: `browser_storage_state`, `browser_set_storage_state` (+ cookie/localstorage tools)
   - **Profile → `--caps`:** each intent profile passes its full capability set (`author` → `core,testing,storage,config`; `debug` → `+network,devtools`). The installed CLI honors every capability name; only `vision`/`pdf`/`devtools` are *advertised* in `--help`.
   - **Constraints:** `browser_run_code_unsafe` is an escape hatch only; MCP element `ref`s are ephemeral and must NEVER be persisted as test selectors. Tools that exist in the server bundle but are NOT exposed over MCP (`browser_reload`, `browser_check`, `browser_keydown`, `browser_navigate_forward`, `browser_console_clear`, `browser_network_clear`, `browser_webmcp_list`) must never be referenced — calling them returns "unknown tool".
-- **playwright-cli** (shell skill — Generator live verification, preferred when available)
-  - `npx playwright test --debug=cli` + `playwright-cli attach tw-XXXX`
+- **playwright-cli** (shell skill — Generator live verification, preferred when available; NOT bundled, so invoke via `npx` and skip it when unavailable)
+  - `npx playwright test --debug=cli` + `npx playwright-cli attach tw-XXXX`
 
 ## Execution Pipeline
 
@@ -269,18 +271,18 @@ Applies when the run hits auth failures — classification `auth`, `failureSourc
 ### Phase 4: Heal
 
 - Call `get_test_failures` on **qa-playwright-kit** to retrieve structured failure data.
-- Rank failures by fix likelihood from the payload itself: known error patterns first, shared fixtures prioritized, healability order respected (auth → `fix-environment`, never healed — see feedback router in `src/agents/integration/feedback-router.ts`; max 3 loops enforced at ENTRY in `stages/validate.ts` — a 4th pass returns `LOOP_LIMIT_REACHED` blocked instead of re-running).
+- Rank failures by fix likelihood from the payload itself: known error patterns first, shared fixtures prioritized, healability order respected (auth → `fix-environment`, never healed — see feedback router in `src/agents/integration/feedback-router.ts`; the re-entry cap is enforced at ENTRY in `stages/validate.ts` — a pass beyond the cap returns `LOOP_LIMIT_REACHED` blocked instead of re-running).
 - Use `tracePath` and `screenshotPath` from failure payload when present.
 - **Before healing any `locator` failure:** check the trace/screenshot final URL. If the page is the login page (session died mid-run), reclassify as `auth` and apply the Auth Recovery Protocol above instead of patching locators.
 - For each prioritized failure: lookup known pattern → apply or diagnose → fix → store outcome.
-- Classify failures that cannot be healed with a `failureSource`: `app | test | requirement | env | ai_generation`.
-- **AI notes (per heal cycle):** for every healed fix and every cannot-fix failure, call `record_ai_note` with a concise Indonesian explanation (root cause + suggested action) keyed by `scenarioId`/`testId` (plus `role` when role-aware). `failureSource` stays the machine-readable classification; the AI note is the human-readable narrative.
+- Classify failures that cannot be healed with a `failureSource`: `app | test | requirement | env | ai_generation | unknown` (`unknown` = insufficient evidence to classify — do not guess).
+- **AI notes (per re-entry pass, per failure):** for every healed fix and every cannot-fix failure, call `record_ai_note` with a concise Indonesian explanation (root cause + suggested action) keyed by `scenarioId`/`testId` (plus `role` when role-aware). `failureSource` stays the machine-readable classification; the AI note is the human-readable narrative.
 - Re-run `validate_generated_tests`, then `run_tests` for affected files.
-- Max **3 heal cycles** per file. After 3 cycles with the same root error, classify as `cannotFix`. Re-entry is narrowed: once a Validate pass fails, the next Validate runs only the previously failed titles (`failedOnly` → `--grep`), never the full suite again.
+- **Max 3 re-entry passes per `loopTarget`** (not per file) — `generate`, `model`, `explore`, etc. each carry their own counter, incremented on every feedback routing event; the counter counts re-entry passes, not "heal cycles". A 4th pass for the same target is blocked with `LOOP_LIMIT_REACHED`. Re-entry is narrowed: once a Validate pass fails, the next Validate runs only the previously failed titles (`failedOnly` → `--grep`), never the full suite again.
 
 ### Phase 5: Report & Traceability
 
-> **Analyze sub-phase (WAJIB — bagian dari Report phase):** alurnya `Execute → Heal → Report(Analyze)` — Analyze adalah sub-phase runtime di dalam Report, bukan phase pipeline terpisah. Reporter **wajib** memanggil `record_ai_note` minimal satu kali dengan `scope: "run"` (ringkasan pola lintas skenario), plus insight per skenario saat buktinya cukup (trace/screenshot/step/console) — untuk skenario gagal MAUPUN yang lulus (UI/UX, flow A vs B, tips data). Jika bukti tidak cukup, **jangan mengarang insight** — lewati skenario tersebut atau pakai `confidence: low` + `status: inferred`. Format kanonik: `skills/qa-playwright-kit/references/ai-insight-format.md`. Proof-of-analysis diverifikasi: `archive_report` **menolak APPROVE** bila `analysis.completed !== true`, dan mencocokkan `runInsightsRecorded` dengan jumlah run insight di sidecar arsip.
+> **Analyze sub-phase (WAJIB — bagian dari Report phase):** alurnya `Execute → Heal → Report(Analyze)` — Analyze adalah sub-phase runtime di dalam Report, bukan phase pipeline terpisah. Reporter **wajib** memanggil `record_ai_note` minimal satu kali dengan `scope: "run"` **dan `source: "reporter"`** (ringkasan pola lintas skenario), plus insight per skenario saat buktinya cukup (trace/screenshot/step/console) — untuk skenario gagal MAUPUN yang lulus (UI/UX, flow A vs B, tips data). `source` default-nya `analyzer`, jadi harus ditulis eksplisit: `archive_report` menolak APPROVE bila tidak ada run insight dengan `source: "reporter"` di sidecar. Jika bukti tidak cukup, **jangan mengarang insight** — lewati skenario tersebut atau pakai `confidence: low` + `status: inferred`. Format kanonik: `skills/qa-playwright-kit/references/ai-insight-format.md`. Proof-of-analysis diverifikasi: `archive_report` **menolak APPROVE** bila `analysis.completed !== true`, dan mencocokkan `runInsightsRecorded` dengan jumlah run insight di sidecar arsip.
 
 - Delegate to Reporter agent (`.github/agents/reporter.agent.md`).
 - Pass pipeline context: `runId`, `startedAt`, `requirementPath`, `scenarios`, `rolesInScope`, `healingResults`.
@@ -312,14 +314,16 @@ Applies when the run hits auth failures — classification `auth`, `failureSourc
 
 After Report is produced, one of these decisions must be taken. See `AGENTS.md` exit-criteria and triage guide.
 
-| Decision                  | Condition                                    | Follow-up action                                    |
-| ------------------------- | -------------------------------------------- | --------------------------------------------------- |
-| ✅ **APPROVE**            | All scenarios pass, no unresolved failures   | Call `archive_report`, mark as baseline             |
-| 🐛 **FILE BUG**           | `failureSource: 'app'`                       | Create defect ticket, keep test as regression guard |
-| 📝 **REVISE REQUIREMENT** | `failureSource: 'requirement'`               | Update requirement → plan → generate → rerun        |
-| 🔧 **FIX TEST/GENERATOR** | `failureSource: 'test'` or `'ai_generation'` | Fix test code or generator input, rerun             |
-| 🔧 **FIX ENVIRONMENT**    | `failureSource: 'env'`                       | Fix auth/env/seed, rerun from Execute phase         |
-| 🚫 **MARK BLOCKED**       | Cannot resolve now                           | Archive trace/screenshot, document blocker          |
+| Decision (`qaDecision`)                          | Condition                                    | Follow-up action                                    |
+| ------------------------------------------------ | -------------------------------------------- | --------------------------------------------------- |
+| ✅ **APPROVE**                                   | All scenarios pass, no unresolved failures   | Call `archive_report`, mark as baseline             |
+| 🐛 **FILE BUG** (`FILE_BUG`)                     | `failureSource: 'app'`                       | Create defect ticket, keep test as regression guard |
+| 📝 **REVISE REQUIREMENT** (`REVISE_REQUIREMENT`) | `failureSource: 'requirement'`               | Update requirement → plan → generate → rerun        |
+| 🔧 **FIX TEST/GENERATOR** (`FIX_TEST`)           | `failureSource: 'test'` or `'ai_generation'` | Fix test code or generator input, rerun             |
+| 🔧 **FIX ENVIRONMENT** (`FIX_ENV`)               | `failureSource: 'env'`                       | Fix auth/env/seed, rerun from Execute phase         |
+| 🚫 **MARK BLOCKED** (`MARK_BLOCKED`)             | Cannot resolve now                           | Archive trace/screenshot, document blocker          |
+
+The value in parentheses is the exact `qaDecision` string to pass to `archive_report` — any other value is rejected.
 
 ---
 
@@ -398,7 +402,7 @@ For each stage (`planner`, `generator`, `healer`, `reporter`):
       "scenarioId": "SC-XX",
       "stage": "planner | generator | healer",
       "errorMessage": "...",
-      "failureSource": "app | test | requirement | env | ai_generation",
+      "failureSource": "app | test | requirement | env | ai_generation | unknown",
       "tracePath": "artifacts/test-results/.../trace.zip",
       "screenshotPath": "artifacts/test-results/.../screenshot.png"
     }

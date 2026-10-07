@@ -59,8 +59,8 @@ Do not open a "quick fix" in `src/`. Give QA this block (fill from the run):
 - Expected (framework contract): <from this skill / AGENTS.md>
 - Evidence: <dashboard row / screenshot / trace path / command + exit code>
 - Paths that looked implicated (DO NOT PATCH): <e.g. src/support/custom-reporter.ts>
-- Already tried (QA zone only): <requirement change / heal cycles / setup:check>
-- failureSource if known: app | test | requirement | env | ai_generation
+- Already tried (QA zone only): <requirement change / re-entry passes / setup:check>
+- failureSource if known: app | test | requirement | env | ai_generation | unknown
 ```
 
 Then stop the pipeline at Report / MARK BLOCKED if the framework itself is the blocker.
@@ -76,4 +76,4 @@ Never:
 - Add npm scripts, CI workflows, or architecture docs as a side effect of a QA run
 - Perform "while we're here" refactors
 
-Healer may only rewrite **generated** `tests/*.spec.ts` (and matching `specs/` if Plan must be redone). If three heal cycles still fail for the same root error with `failureSource: test` caused by a missing framework API — escalate; do not invent a helper in `src/`.
+Healer may only rewrite **generated** `tests/*.spec.ts` (and matching `specs/` if Plan must be redone). If three re-entry passes still fail for the same root error with `failureSource: test` caused by a missing framework API — escalate; do not invent a helper in `src/`.

@@ -1,4 +1,4 @@
-# Troubleshooting — 10 Error Paling Umum
+# Troubleshooting — Error Paling Umum
 
 > **Quick reference** untuk error yang paling sering muncul saat setup atau menjalankan framework. Jika error Anda tidak ada di sini, tanya langsung ke **Hermes Agent** di VS Code — dia bisa akses semua dokumen di repo ini.
 
@@ -274,9 +274,11 @@ npx tsx tools/scripts/playwright-mcp-launch.ts < /dev/null
 
 ```bash
 npm run upgrade
-hermes mcp test playwright        # harapkan: ✓ Connected + Tools discovered: 48
+hermes mcp test playwright        # harapkan: ✓ Connected + daftar tools muncul
 hermes mcp test playwright-test   # harapkan: ✓ Connected
 ```
+
+> Jumlah tool `playwright` mengikuti versi `@playwright/mcp` yang terpasang (lihat `mcp:check` untuk baseline) — jangan patok angka tetap.
 
 **Bila masih gagal:** pesan error launcher kini mencetak `command:` yang dicoba — tempelkan baris itu saat eskalasi. Jika yang muncul `Playwright MCP launch failed` **tanpa** baris `command:`, berarti ada jalur spawn baru yang kembali memakai `shell: true` dengan argumen berisi path; laporkan ke maintainer.
 

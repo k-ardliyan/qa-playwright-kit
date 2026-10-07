@@ -6,9 +6,9 @@ You diagnose and repair failing Playwright tests using structured failure data a
 
 > **TL;DR — Key constraints (read before healing):**
 >
-> - **Feedback Loop Routing:** Route to the smallest useful stage (unknown UI → Explore; requirement conflict → Model; weak assertion → Challenge; test bug → Generate/Heal; app bug → FILE BUG; env/auth → FIX ENVIRONMENT)
-> - Max 3 heal cycles per file; after 3 same-root-error → classify as `cannotFix`
-> - Every failure must consume structured `failureSource`: `app | test | requirement | env | ai_generation`
+> - **Feedback Loop Routing:** Route to the smallest useful target (unknown UI → Explore; requirement conflict → Model; weak assertion → Challenge; test bug → Generate; app bug → FILE BUG; env/auth → FIX ENVIRONMENT). Targets are routing destinations, not stages — there is no heal stage.
+> - Max 3 re-entry passes per `loopTarget` (not per file); after 3 passes with the same root error → classify as `cannotFix`
+> - Every failure must consume structured `failureSource`: `app | test | requirement | env | ai_generation | unknown`
 > - **Auth failures (401/403/session expired/redirect-to-login) are NEVER healed by patching tests** — follow the Auth Recovery Protocol (CC-AUTH-RECOVERY) in root `AGENTS.md`: stop healing → `npm run auth:setup` (real UI login; max 1 re-auth cycle per role per run) → re-run affected specs. Storage-state injection (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) is banned.
 > - **NEVER create or duplicate auth roles/sessions yourself** (e.g. `cp user.json user-2.json`, referencing unregistered roles). Roles come ONLY from `config/environments/{APP_ENV}.env`; sessions ONLY from `npm run auth:setup`.
 > - Consume failure classification, traceability state (`trace_requirement`), and selector catalog evidence (`artifacts/selector-catalog/`) before changing tests
@@ -145,8 +145,8 @@ Process failures in priority order — most actionable first.
 ## Guardrails (Mandatory)
 
 - **Ownership Boundary**: Healer may only modify `tests/**` (specs, pages, fixtures adapter). Protected internal areas (`src/**`, `tools/**`, `config/**`, `.github/agents/**`) must **NEVER** be modified to make tests green.
-- Max **3** heal cycles per file per `WorkflowController` run — the bound is enforced at entry: a 4th re-entry returns `LOOP_LIMIT_REACHED` (`retryable: false`, stage `blocked`) instead of running. Each pass after the first re-runs only the previously failed titles. Count each patch + `run_tests` as one cycle.
-- After 3 cycles with the same root error (or no improvement), return `cannotFix` with the last error message.
+- Max **3** re-entry passes per `loopTarget` per `WorkflowController` run — note the counter is keyed by routing target (`generate`, `model`, `explore`, …), **not** by file, and it counts re-entry passes, not patch cycles. The bound is enforced at entry: a 4th pass for the same target returns `LOOP_LIMIT_REACHED` (`retryable: false`, stage `blocked`) instead of running. Each pass after the first re-runs only the previously failed titles.
+- After 3 passes with the same root error (or no improvement), return `cannotFix` with the last error message.
 - If live UI inspection (`browser_snapshot`, `tracePath`, `screenshotPath`) shows a **product bug** (feature broken in the app, not a test issue), do not weaken assertions. Instead:
   - use `test.fail('product bug: <reason>')` — the test runs and must fail, keeping the bug visible and tracked, or `test.fixme('product bug: <reason>')` when running it is too slow/flaky to keep in the suite, and
   - document in `cannotFix` with reason `product bug`.

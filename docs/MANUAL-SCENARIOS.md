@@ -61,10 +61,11 @@ Tandai `(@manual)` kalau skenario membutuhkan salah satu dari ini:
 | OTP / SMS verification | Login dengan SMS OTP                | Butuh akses ke HP asli                     |
 | Email verification     | Konfirmasi signup via email link    | Butuh inbox asli                           |
 | Payment gateway        | Charge kartu kredit                 | Butuh kartu test spesifik + 3DS callback   |
-| Biometric              | Login sidik jari / Face ID          | Tidak bisa disimulasi di CI                |
+| Biometric / hardware   | Face ID, scan barcode, print struk  | Tidak bisa disimulasi di CI                |
 | PDF **layout** visual  | Cek spasi, alignment, tipografi PDF | Butuh verifikasi mata manusia              |
-| Hardware interaction   | Scan barcode, print struk           | Tidak ada di environment CI                |
 | Real-world timing      | Tunggu 24 jam untuk expiry test     | Tidak feasible di CI                       |
+
+Tujuh situasi ini adalah **daftar tertutup** — sama persis dengan `skills/qa-playwright-kit/references/scenario-tags.md` dan `requirements/_TEMPLATE.md`. "Belum dieksplorasi", "belum ada data", dan "dependency belum siap" **bukan** alasan `@manual` — itu `@not-implemented` (Coverage Gap).
 
 ---
 
@@ -127,7 +128,7 @@ Kalau ragu, tanya maintainer framework dulu sebelum tandai `(@manual)`.
 
 ```
 
-Validator akan memberi warning jika `@manual` tidak punya alasan di bagian Hasil.
+`validate_requirement` memberi **warning** (`manual_reason`) bila bagian Hasil skenario `@manual` terlalu pendek (< 20 karakter) — heuristik "kayaknya tidak ada alasan". Untuk audit yang sesungguhnya, pakai `npm run manual:check` yang mencocokkan kata kunci alasan (mis. "captcha", "otp", "manual") dan menandai yang `(tidak ada alasan di Hasil)`.
 
 ---
 

@@ -237,13 +237,16 @@ interface CollectedTestCase {
 
 Untuk classify failure, lihat failure source di pesan error test (`result.errors`) — heuristic: app/test/env/requirement.
 
-| Kondisi Actual Result                                   | Decision                  | Action                                                 |
-| ------------------------------------------------------- | ------------------------- | ------------------------------------------------------ |
-| Error dari app (500, validation error, crash)           | 🐛 **FILE BUG**           | Buat defect ticket, keep test sebagai regression guard |
-| Error dari test code (selector broken, assertion salah) | 🔧 **FIX TEST**           | Fix test code atau generator input, rerun              |
-| Expected result tidak match requirement                 | 📝 **REVISE REQUIREMENT** | Update requirement, replan, regenerate                 |
-| Auth/env issue (token expired, seed data missing)       | 🔧 **FIX ENVIRONMENT**    | Fix auth/env/seed, rerun dari Execute phase            |
-| Blocker eksternal (API down, staging broken)            | 🚫 **MARK BLOCKED**       | Archive trace, document blocker                        |
+| Kondisi Actual Result                                   | Decision                                         | Action                                                 |
+| ------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------ |
+| Semua lolos, tidak ada failure tersisa                  | ✅ **APPROVE** (`APPROVE`)                       | `archive_report`, jadikan baseline                     |
+| Error dari app (500, validation error, crash)           | 🐛 **FILE BUG** (`FILE_BUG`)                     | Buat defect ticket, keep test sebagai regression guard |
+| Error dari test code (selector broken, assertion salah) | 🔧 **FIX TEST** (`FIX_TEST`)                     | Fix test code atau generator input, rerun              |
+| Expected result tidak match requirement                 | 📝 **REVISE REQUIREMENT** (`REVISE_REQUIREMENT`) | Update requirement, replan, regenerate                 |
+| Auth/env issue (token expired, seed data missing)       | 🔧 **FIX ENVIRONMENT** (`FIX_ENV`)               | Fix auth/env/seed, rerun dari Execute phase            |
+| Blocker eksternal (API down, staging broken)            | 🚫 **MARK BLOCKED** (`MARK_BLOCKED`)             | Archive trace, document blocker                        |
+
+> **Nilai wire = yang di dalam tanda kurung.** Saat merekam keputusan ke `archive_report({ qaDecision })`, pakai nilai persis itu (`APPROVE`, `FILE_BUG`, `FIX_TEST`, `REVISE_REQUIREMENT`, `FIX_ENV`, `MARK_BLOCKED`) — label dengan spasi ("FIX TEST", "FIX ENVIRONMENT") hanya untuk tampilan. Nilai di luar daftar ini ditolak.
 
 ### Scenario 4: Role-Aware Test — Review Per Role
 
@@ -300,7 +303,7 @@ Halaman overview (`/`) menampilkan panel **AI Run Insights** — pola lintas ske
 - **Dashboard:** tombol **✎** di cell NOTES membuka **dialog Catatan QA**. Serve mode (`npm run dashboard`) → tersimpan otomatis via API (+ SSE `notes-updated` untuk auto-refresh). Mode file:// statis → dialog menyalin perintah CLI untuk dijalankan di terminal.
 - **API dashboard:** `GET`/`POST /api/notes/latest` (alias `/api/runs/latest/notes`) dan `GET`/`POST /api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`). POST body `{scenarioId | testId, role?, qaNotes}` — `qaNotes` string ≤4000 char, string kosong = hapus catatan.
 - **CLI:** `npm run note:set -- --scenario=SC-03 [--role=finance] [--test-id=TC-X] --note="teks"` (`--note=""` untuk hapus; `--run=run-…` untuk run terarsip) dan `npm run note:list [--run=run-…]`.
-- **MCP tools** (`record_ai_note` & `set_test_note`, bagian dari 25 tool total): `record_ai_note` {`message` **atau** field terstruktur (`kind`, `observation`, `evidence`, `impact`, `recommendation`, `nextAction`, `priority`, `confidence`, `status`), `scope?: test|run`, `scenarioId?`, `testId?`, `role?`, `source?: healer|generator|reporter|analyzer`, `runId?`} — additive (catatan AI lama dipertahankan); `set_test_note` {`note` wajib (string kosong menghapus), `scenarioId?`, `testId?`, `role?`, `runId?`}. Tanpa `runId` → latest run; dengan `runId` → run terarsip.
+- **MCP tools** (`record_ai_note` & `set_test_note`, bagian dari 27 tool total): `record_ai_note` {`message` **atau** field terstruktur (`kind`, `observation`, `evidence`, `impact`, `recommendation`, `nextAction`, `priority`, `confidence`, `status`), `scope?: test|run`, `scenarioId?`, `testId?`, `role?`, `source?: healer|generator|reporter|analyzer`, `runId?`} — additive (catatan AI lama dipertahankan); `set_test_note` {`note` wajib (string kosong menghapus), `scenarioId?`, `testId?`, `role?`, `runId?`}. Tanpa `runId` → latest run; dengan `runId` → run terarsip.
 - **Detail views:** accordion TestDetail, detail run terarsip, dan expandable row di daftar arsip menampilkan section **"Catatan"** (Catatan QA + Catatan AI).
 
 ---
@@ -493,7 +496,7 @@ Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard
 - ✅ Kolom NOTES berisi **CATATAN QA** editable — tombol ✎ membuka dialog Catatan QA: serve mode (`npm run dashboard`) tersimpan via API; mode file:// salin perintah CLI
 - ✅ Sidecar `artifacts/reports/test-notes.json` (schema `qa.test-notes/v1`, key `<scenarioId>::<role>`) — ikut disalin ke `archive/<runId>/` saat run di-save lalu sidecar latest di-reset; run baru mulai bersih, catatan run terarsip permanen & tetap bisa diedit
 - ✅ API GET/POST `/api/notes/latest` (alias `/api/runs/latest/notes`) & `/api/archive/<runId>/notes` (alias `/api/runs/<runId>/notes`) + SSE event `notes-updated`
-- ✅ MCP tools `record_ai_note` & `set_test_note` (bagian dari 25 tool total); CLI `npm run note:set` / `npm run note:list`
+- ✅ MCP tools `record_ai_note` & `set_test_note` (bagian dari 27 tool total); CLI `npm run note:set` / `npm run note:list`
 - ✅ Export TSV/CSV/Confluence menambah kolom AI NOTES (setelah NOTES); catatan QA di kolom NOTES dengan prefix `QA:` — tetap respect row filter + Filter columns
 - ✅ Detail views (accordion TestDetail, detail run terarsip, expandable row arsip) menampilkan section "Catatan" (QA + AI)
 

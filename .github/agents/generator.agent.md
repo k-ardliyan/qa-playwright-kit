@@ -66,6 +66,18 @@ Also read metadata from the source requirement via `compile_requirement` (or `no
 
 **FORBIDDEN — never emit `test.skip(true, '<belum dieksplorasi>')` or any skip whose reason is "not explored / not generated yet".** A scenario you cannot implement is *unfinished work*, not an irrelevant test. Emitting it as `test.skip` hides 100+ unfinished scenarios behind a neutral status and makes the run look "degraded" instead of "unbuilt". Such a scenario belongs in **Coverage Gaps**, and if a placeholder is required in the spec, it must be `test.fixme` — never `test.skip`. The `@manual` skip is the ONLY legitimate `test.skip` the Generator produces.
 
+**The `test.fixme` reason must name ONE fixed category** (so the dashboard can group it — `not-implemented-categories.ts`), not free prose:
+
+| Category phrase              | Use when                                                          |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `halaman-belum-dieksplorasi` | The page/stepper/dialog was never captured in the catalog         |
+| `butuh-seed`                 | A required seed/data producer is undeclared or missing            |
+| `butuh-sesi`                 | Needs a role session, expiry, or logout the run cannot produce    |
+| `butuh-rantai-data`          | Needs an upstream flow to reach a status (e.g. payroll → Dibayar) |
+| `alasan-lain`                | Genuinely none of the above — explain in one sentence             |
+
+**Some plans never reach you: the Planner gate now blocks them.** `validate_plan` emits two blocking (error) diagnostics for a plan that asserts proof it does not have — `PLAN_EVIDENCE_MAJORITY_GAP` (more than half the automated scenarios have no catalog evidence) and `PLAN_EVIDENCE_UNAVAILABLE` (Catalog Evidence declared but the file is not on disk). Both make the plan invalid and stop Challenge, so Generate never runs. If you are asked to generate from such a plan, stop and report it — the fix is Explore (`snapshot_page`/`discover_pages`), not guessing locators.
+
 ## MCP Dependencies
 
 | Server              | Tool                       | Purpose                                                                                                                                                 |

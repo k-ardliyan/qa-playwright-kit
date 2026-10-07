@@ -116,7 +116,7 @@ Setelah setup selesai, Anda **tidak wajib mengetik file Markdown secara manual**
 
 ## Kualitas Kode (Lint & Format)
 
-> Toolchain hybrid: **Biome** = formatter + core linter; **ESLint** khusus aturan spec Playwright — hanya `tests/**/*.spec.ts` / `examples/**/*.spec.ts` via `eslint.playwright.config.mjs`.
+> Toolchain hybrid: **Biome** = formatter + core linter; **ESLint** khusus aturan spec Playwright — hanya `tests/**/*.spec.ts` via `eslint.playwright.config.mjs`.
 >
 > Catatan: Biome **tidak** mendukung format Markdown (file `.md` di-ignored, plugin Biome pun lint-only), makanya markdown ditangani script kustom `tools/scripts/format-markdown.ts` — align tabel, normalisasi heading/list, spasi baris kosong, dengan hard-break dua spasi tetap dipreservasi. File `.md` yang di-stage otomatis diformat lint-staged (pre-commit).
 
@@ -202,7 +202,7 @@ generate_page_object (qa-playwright-kit) — featureName, pageName
 
 > `browser_emulate_media` hanya mengubah preferensi CSS — kalau tema disimpan di `localStorage`/profil user, set state aplikasinya dulu. Hasil rekaman **bukan** spec siap pakai (tanpa `test.step`/`setTestMetadata`). Detail: `skills/qa-playwright-kit/references/patterns/media-emulation-and-recording.md`.
 >
-> Tool bundle yang **tidak** diekspos MCP (jangan dipanggil): `browser_reload`, `browser_check`, `browser_keydown`, `browser_navigate_forward`, `browser_console_clear`, `browser_network_clear`.
+> Tool bundle yang **tidak** diekspos MCP (jangan dipanggil): `browser_reload`, `browser_check`, `browser_keydown`, `browser_navigate_forward`, `browser_console_clear`, `browser_network_clear`, `browser_webmcp_list`.
 
 ---
 
@@ -263,16 +263,18 @@ Setelah tool MCP baru / `npm run mcp:build` → **restart server `qa-playwright-
 
 ## Keputusan Setelah Report
 
-| Kondisi                                                 | Keputusan                             |
-| ------------------------------------------------------- | ------------------------------------- |
-| Semua pass + Analyze complete/verified + evidence match | ✅ APPROVE — archive sebagai baseline |
-| Failure: app salah                                      | 🐛 FILE BUG — buat defect ticket      |
-| Failure: requirement kabur                              | 📝 REVISE REQUIREMENT                 |
-| Failure: test/AI salah                                  | 🔧 FIX TEST/GENERATOR                 |
-| Failure: auth/env/data                                  | 🔧 FIX ENVIRONMENT                    |
-| Tidak bisa diselesaikan                                 | 🚫 MARK BLOCKED                       |
+| Kondisi                                                 | Keputusan                                    |
+| ------------------------------------------------------- | -------------------------------------------- |
+| Semua pass + Analyze complete/verified + evidence match | ✅ APPROVE — archive sebagai baseline        |
+| Failure: app salah                                      | 🐛 FILE BUG (`FILE_BUG`)                     |
+| Failure: requirement kabur                              | 📝 REVISE REQUIREMENT (`REVISE_REQUIREMENT`) |
+| Failure: test/AI salah                                  | 🔧 FIX TEST (`FIX_TEST`)                     |
+| Failure: auth/env/data                                  | 🔧 FIX ENVIRONMENT (`FIX_ENV`)               |
+| Tidak bisa diselesaikan                                 | 🚫 MARK BLOCKED (`MARK_BLOCKED`)             |
 
-> **Catatan per test di dashboard:** QA bisa menulis catatan lewat tombol **✎ di kolom NOTES** (membuka dialog Catatan QA di `npm run dashboard`; mode file:// menyalin perintah CLI `npm run note:set`) dan membaca analisa AI di kolom **AI NOTES** (tag `Jenis:`, analisa otomatis untuk gagal **dan** passed — flaky, false-green, durasi lambat — plus narasi agent terstruktur: saran UI/UX, perbandingan flow, tips data). Panel **AI Run Insights** di halaman overview merangkum pola lintas skenario. Agent pipeline mengisi catatan AI via MCP tool `record_ai_note` (dipanggil saat Heal/Report; `scope: "run"` untuk insight lintas skenario); `set_test_note` untuk set/hapus catatan QA.
+> Nilai dalam tanda kurung adalah string `qaDecision` yang diterima `archive_report` — label berspasi hanya untuk tampilan.
+
+> **Catatan per test di dashboard:** QA bisa menulis catatan lewat tombol **✎ di kolom NOTES** (membuka dialog Catatan QA di `npm run dashboard`; mode file:// menyalin perintah CLI `npm run note:set`) dan membaca analisa AI di kolom **AI NOTES** (tag `Jenis:`, analisa otomatis untuk gagal **dan** passed — flaky, false-green, durasi lambat — plus narasi agent terstruktur: saran UI/UX, perbandingan flow, tips data). Panel **AI Run Insights** di halaman overview merangkum pola lintas skenario. Agent pipeline mengisi catatan AI via MCP tool `record_ai_note` (dipanggil saat Report; untuk run insight wajib `scope: "run"` **dan** `source: "reporter"` agar APPROVE lolos gate); `set_test_note` untuk set/hapus catatan QA.
 
 ---
 
