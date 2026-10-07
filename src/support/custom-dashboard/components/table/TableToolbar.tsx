@@ -212,6 +212,7 @@ export function TableToolbar({
               <option value="">All statuses</option>
               <option value="failed">Failed / unhealthy</option>
               <option value="passed">Passed</option>
+              <option value="not-implemented">Belum dibangun</option>
               <option value="skipped">Skipped</option>
             </select>
 

@@ -15,7 +15,7 @@ You convert a Planner scenario table into Playwright TypeScript test files, exec
 > - Canonical output is flat: one spec file per role at `tests/<feature>-<role>.spec.ts` (or `tests/<feature>.spec.ts` for general mode)
 > - Call `setTestMetadata(test, ...)` as first statement in every test body
 > - Use `.visible()` instead of `:visible` CSS pseudo-class (e.g. `page.locator('button').visible().click()`)
-> - Blocked scenario → `test.skip(true, '<reason>')`, NEVER delete
+> - Blocked / not-implemented scenario → `test.fixme('<title>', ...)`, NEVER delete. `test.skip` is reserved for `@manual` only
 
 ## Golden Examples
 
@@ -53,7 +53,18 @@ Also read per-scenario fields:
 
 Also read metadata from the source requirement via `compile_requirement` (or `normalize_requirements`) when available.
 
-**Challenge Gate Compliance:** Generator must only generate executable code from plans that pass the Planner's Challenge stage (`validate_plan` has zero blocking errors). If a scenario is marked `@blocked` or listed in Coverage Gaps with unresolved dependencies, generate as `test.skip(true, '<reason>')` and record a generator note via `record_ai_note`. Do not silently guess implementation details for unverified assumptions.
+**Challenge Gate Compliance:** Generator must only generate executable code from plans that pass the Planner's Challenge stage (`validate_plan` has zero blocking errors). Do not silently guess implementation details for unverified assumptions.
+
+**Scenario status → output (this mapping is exhaustive — no other form is allowed):**
+
+| Scenario state                                                  | Generator output                                      | Why                                                          |
+| --------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| Runnable now (page has catalog evidence)                        | Full test with real `expect(...)` assertions          | The work is done                                             |
+| `(@manual)` — not applicable to automation                      | `test.skip(true, 'Manual: <reason>')`                 | Playwright: skip = irrelevant, never runs                    |
+| `not-implemented` / no catalog evidence / unresolved dependency | `test.fixme('<title>', ...)` + skeleton comment block | Playwright: fixme = would run but isn't ready — tracked work |
+| Known live product bug                                          | `test.fail(...)`                                      | Runs and must fail — the bug stays visible                   |
+
+**FORBIDDEN — never emit `test.skip(true, '<belum dieksplorasi>')` or any skip whose reason is "not explored / not generated yet".** A scenario you cannot implement is *unfinished work*, not an irrelevant test. Emitting it as `test.skip` hides 100+ unfinished scenarios behind a neutral status and makes the run look "degraded" instead of "unbuilt". Such a scenario belongs in **Coverage Gaps**, and if a placeholder is required in the spec, it must be `test.fixme` — never `test.skip`. The `@manual` skip is the ONLY legitimate `test.skip` the Generator produces.
 
 ## MCP Dependencies
 
@@ -67,7 +78,7 @@ Also read metadata from the source requirement via `compile_requirement` (or `no
 | `qa-playwright-kit` | `inspect_file`             | Inspect test fixture envelope details                                                                                                                   |
 | `qa-playwright-kit` | `record_ai_note`           | Record provenance-checked, structured generation insights (skeleton/blocked/data gaps) into the notes sidecar; supports pending `pipelineRunId` binding |
 
-**Generation insights (`record_ai_note`, source: `generator`):** this dependency is mandatory for generation gaps. When a scenario is generated as a skeleton or blocked with `test.skip`, or generation requires assumptions the requirement did not specify, call `record_ai_note` with `source: "generator"`, `scope: "test"`, and key it by `scenarioId` (plus `testId`/`role` when available). Write a concise Indonesian note explaining why the skeleton/block exists, what assumption or data gap was used, and what must be added before implementation. Use canonical structured fields from `skills/qa-playwright-kit/references/ai-insight-format.md`: `kind: "coverage"` for skipped/skeleton scenarios, `kind: "data"` for seed/data assumptions, plus `observation`, `evidence`, `impact`, `recommendation`, `priority`, `confidence`, `nextAction`, and `status`. Notes without an explicit `runId` bind to the pending `pipelineRunId` while one pipeline is active; do not overlap pipelines. Provenance and canonical `kind`/scope values are validated by the tool.
+**Generation insights (`record_ai_note`, source: `generator`):** this dependency is mandatory for generation gaps. When a scenario is generated as a skeleton (blocked or not-implemented, emitted as `test.fixme`), or generation requires assumptions the requirement did not specify, call `record_ai_note` with `source: "generator"`, `scope: "test"`, and key it by `scenarioId` (plus `testId`/`role` when available). Write a concise Indonesian note explaining why the skeleton/fixme exists, what assumption or data gap was used, and what must be added before implementation. Use canonical structured fields from `skills/qa-playwright-kit/references/ai-insight-format.md`: `kind: "coverage"` for not-implemented/skeleton scenarios, `kind: "data"` for seed/data assumptions, plus `observation`, `evidence`, `impact`, `recommendation`, `priority`, `confidence`, `nextAction`, and `status`. Notes without an explicit `runId` bind to the pending `pipelineRunId` while one pipeline is active; do not overlap pipelines. Provenance and canonical `kind`/scope values are validated by the tool.
 
 ### POM Decision (Before Generating Spec)
 
@@ -132,20 +143,22 @@ Before committing generated test code:
 
 ## Special Scenario Type Flags
 
-| Flag in Test Plan / Requirement | Generator Action                                                                                                                                      |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `(@manual)`                     | **DO NOT** generate executable browser code. Generate `test.skip(true, 'Scenario is marked @manual — <reason>')`. Add tag `@manual` to test title.    |
-| `(@access-restriction)`         | Assert the page redirects to login, shows 403, or hides the restricted UI. Verify error message appears.                                              |
-| `(@failure)`                    | Assert validation error, toast notification, or form boundary is visible and readable.                                                                |
-| `(@success)`                    | Assert final success state (URL, success alert, new record in table).                                                                                 |
-| `(@network)`                    | Use `mockJson()` / `mockServerError()` / `mockAbort()` from `@/support/pw` before triggering the request. Assert UI displays the expected mock state. |
-| `(@network-assert)`             | Use `waitAndAssertApi()` or `waitForApi()` + `assertNetworkMatch()` / `assertNetworkContract()` from `@/support/pw` after triggering action.          |
-| `(@aria)`                       | Assert DOM matches ARIA snapshot with `expectAriaMatchesCatalog()` or `toMatchAriaSnapshot()`.                                                        |
-| `(@visual)`                     | Assert screenshot baseline with `expectVisual(page, 'name')` or `expectPageVisual()`.                                                                 |
-| `(@download)`                   | Download files and verify envelope with `downloadAndSave()` from `@/support/pw`.                                                                      |
-| `(@upload)`                     | Upload files with `uploadFixture()` or `uploadImageAndVerify()` from `@/support/pw`.                                                                  |
-| `(@file-content)`               | Assert text/headers in PDF/Excel fixtures with `assertPdfContains()` or `assertExcelHeaders()` from `@/support/pw`.                                   |
-| `metadata.pomFixtures`          | Import and use the named POM class(es) from `tests/pages/<name>.ts`                                                                                   |
+| Flag in Test Plan / Requirement | Generator Action                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `(@manual)`                     | **DO NOT** generate executable browser code. Generate `test.skip(true, 'Scenario is marked @manual — <reason>')`. Add tag `@manual` to test title. `@manual` is reserved for the seven truly non-automatable situations (CAPTCHA, physical OTP, real inbox, live payment, biometric/hardware, PDF visual layout, real-world timing) — see `scenario-tags.md`. Anything else is NOT manual. |
+| `(@not-implemented)`            | The page was never explored or a dependency is unresolved. Generate `test.fixme('<title>', ...)` with a `// SKELETON` block naming what is missing (catalog page, seed, auth). NEVER `test.skip`. Record the reason via `record_ai_note` (`kind: 'coverage'`).                                                                                                                             |
+| `(@blocked)`                    | A real, evidenced blocker (page 500s, role lacks access, external system down). Generate `test.fixme('<title>', ...)` and record the blocker evidence via `record_ai_note`. NEVER `test.skip` — blocked is unfinished, not irrelevant.                                                                                                                                                     |
+| `(@access-restriction)`         | Assert the page redirects to login, shows 403, or hides the restricted UI. Verify error message appears.                                                                                                                                                                                                                                                                                   |
+| `(@failure)`                    | Assert validation error, toast notification, or form boundary is visible and readable.                                                                                                                                                                                                                                                                                                     |
+| `(@success)`                    | Assert final success state (URL, success alert, new record in table).                                                                                                                                                                                                                                                                                                                      |
+| `(@network)`                    | Use `mockJson()` / `mockServerError()` / `mockAbort()` from `@/support/pw` before triggering the request. Assert UI displays the expected mock state.                                                                                                                                                                                                                                      |
+| `(@network-assert)`             | Use `waitAndAssertApi()` or `waitForApi()` + `assertNetworkMatch()` / `assertNetworkContract()` from `@/support/pw` after triggering action.                                                                                                                                                                                                                                               |
+| `(@aria)`                       | Assert DOM matches ARIA snapshot with `expectAriaMatchesCatalog()` or `toMatchAriaSnapshot()`.                                                                                                                                                                                                                                                                                             |
+| `(@visual)`                     | Assert screenshot baseline with `expectVisual(page, 'name')` or `expectPageVisual()`.                                                                                                                                                                                                                                                                                                      |
+| `(@download)`                   | Download files and verify envelope with `downloadAndSave()` from `@/support/pw`.                                                                                                                                                                                                                                                                                                           |
+| `(@upload)`                     | Upload files with `uploadFixture()` or `uploadImageAndVerify()` from `@/support/pw`.                                                                                                                                                                                                                                                                                                       |
+| `(@file-content)`               | Assert text/headers in PDF/Excel fixtures with `assertPdfContains()` or `assertExcelHeaders()` from `@/support/pw`.                                                                                                                                                                                                                                                                        |
+| `metadata.pomFixtures`          | Import and use the named POM class(es) from `tests/pages/<name>.ts`                                                                                                                                                                                                                                                                                                                        |
 
 ## File Naming Convention
 
@@ -272,13 +285,16 @@ test('TC-LOGIN-001: Login berhasil dengan kredensial valid', async ({ page }, te
 6. `inputData` opsional — isi jika kolom `Input Data` di test plan tidak kosong/`-`.
 7. `affectedLayer` opsional — isi jika kolom `Layer` di test plan tidak kosong/`-`.
 8. `captureActualResult()` dipanggil **setelah assertion terakhir berhasil** — satu kali per test.
-9. Untuk `test.skip` (manual/skeleton): tetap panggil `setTestMetadata()`, skip `captureActualResult()`.
+9. Untuk `test.skip`/`test.fixme` (manual/skeleton): tetap panggil `setTestMetadata()`, skip `captureActualResult()`.
 10. Jika test gagal sebelum `captureActualResult()` terpanggil, reporter otomatis pakai error message sebagai actual result.
+11. **Prasyarat runtime tidak tersedia?** Jangan pernah menutup test dengan early-return + `captureActualResult()` saja — pola itu lulus diam-diam (false green). Gunakan `test.fixme(<kondisi>, 'Prasyarat: <alasan>')` untuk gap data/prasyarat (tampil "Belum dibangun" + alasan di laporan), atau `test.skip(<kondisi>, '<alasan>')` hanya bila konfigurasinya memang tidak berlaku. Test runnable tanpa satu `expect()` pun ditolak `validate_generated_tests`.
 
 ### Skeleton pattern (tetap wajib annotation block)
 
+A skeleton is **unfinished work**, so it uses `test.fixme` — never `test.skip`. `test.skip` would report the scenario as "not applicable", which is exactly the false signal this pattern exists to avoid.
+
 ```typescript
-test.skip('TC-XXX-001: SC-XX: <scenario> — SKELETON: <reason>', async ({ page }, testInfo) => {
+test.fixme('TC-XXX-001: SC-XX: <scenario>', async ({ page }, testInfo) => {
   setTestMetadata({
     testId: 'TC-XXX-001',
     scenarioId: 'SC-XX',
@@ -295,7 +311,7 @@ When a scenario cannot be generated fully (unclear steps, missing selector catal
 Skeleton format:
 
 ```typescript
-test.skip('SC-XX: <scenario name> — SKELETON: <reason>', async ({ page }) => {
+test.fixme('SC-XX: <scenario name>', async ({ page }) => {
   // SKELETON — not yet implemented
   // Reason: <why this scenario couldn't be generated fully>
   // Required before implementing:
@@ -323,7 +339,7 @@ Mark skeletons with `// SKELETON` so they're easy to find and complete later.
 9. **Locator Priority**: `getByRole` → `getByLabel` → `getByText` → `getByTestId` → CSS last resort.
 10. **Linter & Typecheck Compliance**: Generated test files MUST pass `npx biome check <specPath>`, `npx eslint --config eslint.playwright.config.mjs <specPath>`, and `npx tsc --noEmit` cleanly without errors or warnings.
 11. For role-specific files, always include `test.use({ storageState: authStatePath('<role>') })` or `.auth/${process.env.APP_ENV||'local'}/<role>.json` at the describe level.
-12. Use `test.skip` with tag `@manual` for CAPTCHA or flows that cannot be automated safely — always include the reason.
+12. Use `test.skip` **only** with tag `@manual` for CAPTCHA or flows that genuinely cannot be automated — always include the reason. Use `test.fixme` for blocked/not-implemented work. Every generated spec must contain at least one real `expect(...)`; `validate_generated_tests` rejects a spec with none (a skipped/fixme-only spec is exempt). For a runtime precondition that may be absent mid-run (data not seeded yet), use the conditional form `test.fixme(<condition>, 'Prasyarat: <alasan>')` — NEVER an early `return` with only `captureActualResult(...)` and no `expect(...)`: that pattern reads as a pass while proving nothing, and a permanent `test.skip(true, ...)` outside `@manual` is rejected outright.
 13. **No inline login (session provisioning ban):** NEVER generate login form flows (fill identity + password + submit) inside specs to obtain a session. Sessions come only from `test.use({ storageState: authStatePath('<role>') })` provisioned by the setup project. Exception: the requirement IS a login scenario (`authState: unauthenticated` / `@auth` feature) — the login steps are the test subject, not provisioning. Never hand-inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`) either.
 14. **No invented/duplicated roles (env is the source of truth):** every role passed to `authStatePath('<role>')` must be registered in `config/environments/{APP_ENV}.env` (`<ROLE>_PASSWORD` + identity). NEVER duplicate or rename session files (e.g. `cp user.json user-2.json`) to fake a role — `validate_generated_tests` fails specs referencing unregistered roles. Need another account? `npm run env:edit` → add role → `npm run auth:setup`.
 15. **Shared-account scenarios must be serialized:** the repo runs `fullyParallel: true`, so tests inside one file run concurrently. A scenario that mutates shared account state (logout, change password/profile, revoke session) MUST NOT race its siblings — wrap the group with `test.describe.configure({ mode: 'serial' })`, or gate the whole file on a named lock: `test.describe.configure({ lock: '<role>-account' })` (Playwright ≥1.63). Serialize only the group that mutates; leave the rest parallel. Do NOT add a global `workers: 1`.

@@ -29,6 +29,13 @@ export interface PlanValidationSummary {
   uncoveredAcs: number;
   assumptionsCount: number;
   coverageGapsCount: number;
+  /** Automated scenarios with no matching Catalog Evidence page (soft gaps). */
+  evidenceGapsCount?: number;
+  /** Automated scenarios WITH catalog evidence but an empty Locator Intent —
+   * the catalog gives locators, the plan just never says which to drive. */
+  locatorIntentGapsCount?: number;
+  /** Scenarios depending on `seed:` refs while plan Metadata declares no Seed. */
+  seedUnprovisionedCount?: number;
 }
 
 export type ValidatePlanOutput = McpResult<PlanValidationSummary | undefined>;
@@ -230,19 +237,157 @@ export function validateTestPlan(
     }
   }
 
-  // 5. Check Catalog Evidence freshness
+  // 5. Check Catalog Evidence freshness AND quality. Rule 0 promises the Planner
+  //    that a captured page has elements and no auth warning; this enforces it,
+  //    because a catalog captured without a session is not usable evidence.
+  //    Every read is fail-safe: an unreadable/foreign file is skipped, never a
+  //    crash and never a guessed warning.
   for (const cat of plan.catalogEvidence ?? []) {
-    if (cat.catalogPath) {
-      const abs = path.resolve(mcpWorkspace.rootDir, cat.catalogPath);
-      if (!fs.existsSync(abs)) {
+    if (!cat.catalogPath) continue;
+    const abs = path.resolve(mcpWorkspace.rootDir, cat.catalogPath);
+    if (!fs.existsSync(abs)) {
+      diagnostics.push(
+        createDiagnostic(
+          'NOT_FOUND',
+          'warning',
+          `Catalog evidence file not found at "${cat.catalogPath}".`,
+        ),
+      );
+      continue;
+    }
+    try {
+      const raw = JSON.parse(fs.readFileSync(abs, 'utf-8')) as {
+        elementCount?: number;
+        warnings?: unknown;
+      };
+      if (typeof raw.elementCount === 'number' && raw.elementCount === 0) {
         diagnostics.push(
           createDiagnostic(
-            'NOT_FOUND',
+            'PLAN_EVIDENCE_EMPTY',
             'warning',
-            `Catalog evidence file not found at "${cat.catalogPath}".`,
+            `Catalog for page "${cat.page}" has 0 interactive elements — the snapshot captured nothing usable. Re-run snapshot_page for this page.`,
           ),
         );
       }
+      if (Array.isArray(raw.warnings) && raw.warnings.length > 0) {
+        diagnostics.push(
+          createDiagnostic(
+            'PLAN_EVIDENCE_UNVERIFIED',
+            'warning',
+            `Catalog for page "${cat.page}" was captured with warnings (${raw.warnings
+              .map((w) => String(w))
+              .join(
+                '; ',
+              )}) — the evidence is not verified. Re-login and re-snapshot before planning against it.`,
+          ),
+        );
+      }
+    } catch {
+      // Unreadable or non-catalog JSON: not our call to judge — skip silently.
+    }
+  }
+
+  // 6. Scenario → page evidence gate. An `automated` scenario must name a page
+  //    that has a captured Catalog Evidence entry; without one the Generator has
+  //    no locators to build from and the scenario ships as a silent
+  //    `test.skip(true, 'not explored')` — unfinished work masquerading as
+  //    "not applicable". Soft by design: the scenario is counted as an evidence
+  //    gap (warning, not error), so the plan still validates and QA sees the
+  //    real backlog instead of a fake green.
+  const catalogPages = new Set(
+    (plan.catalogEvidence ?? []).map((c) => c.page).filter((p): p is string => Boolean(p)),
+  );
+  const evidenceGapIds = new Set<string>();
+  const locatorIntentGapIds = new Set<string>();
+  let seedUnprovisionedCount = 0;
+  // Naming the pages that DO exist makes the message actionable: the agent can
+  // correct the row instead of guessing a name a second time.
+  const availablePages = [...catalogPages].sort();
+  const availableHint =
+    availablePages.length > 0
+      ? ` Available pages: ${availablePages.join(', ')}.`
+      : ' No pages are catalogued for this feature yet — snapshot the page first.';
+  for (const sc of plan.scenarios) {
+    if (sc.executionMode !== 'automated') continue;
+    const page = sc.page?.trim();
+    if (!page) {
+      evidenceGapIds.add(sc.scenarioId);
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_EVIDENCE_MISSING',
+          'warning',
+          `Scenario ${sc.scenarioId} is automated but names no catalog page. Add a "Page" row matching a Catalog Evidence entry, or record it as a coverage gap.${availableHint}`,
+          { scenarioId: sc.scenarioId },
+        ),
+      );
+    } else if (!catalogPages.has(page)) {
+      evidenceGapIds.add(sc.scenarioId);
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_EVIDENCE_MISSING',
+          'warning',
+          `Scenario ${sc.scenarioId} references page "${page}", which has no Catalog Evidence entry. Snapshot the page first, or record the scenario as a coverage gap.${availableHint}`,
+          { scenarioId: sc.scenarioId },
+        ),
+      );
+    } else if (sc.locatorIntent.length === 0) {
+      // Page evidence exists but the plan never says which elements to drive —
+      // the tes-qa failure shape: one shallow catalog page "covered" 37
+      // automated scenarios with `Locator Intent | none`, and the Generator
+      // guessed (then skipped what it could not guess).
+      locatorIntentGapIds.add(sc.scenarioId);
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_LOCATOR_INTENT_MISSING',
+          'warning',
+          `Scenario ${sc.scenarioId} is automated against page "${page}" but has no Locator Intent. Draft locator intent from the selector catalog, or mark the scenario @not-implemented — an empty intent makes the Generator guess, and guesses ship as silent skips.`,
+          { scenarioId: sc.scenarioId },
+        ),
+      );
+    }
+  }
+
+  // 6.5 Seed cross-check: a plan whose Metadata declares no Seed while its
+  //     scenarios depend on `seed:` refs has no provisioning story — those
+  //     preconditions cannot be met at run time, so the Generator either skips
+  //     or silently passes. Soft warning; the fix is declaring the producer in
+  //     Metadata or moving the scenarios to Coverage Gaps.
+  const seedDeclared =
+    typeof plan.seed === 'string' &&
+    plan.seed.trim() !== '' &&
+    !/^(-|none|n\/a|tidak ada)$/i.test(plan.seed.trim());
+  if (!seedDeclared) {
+    const seedPattern = /\bseed:\s*[a-z][\w.-]*/i;
+    const seedScenarioIds = plan.scenarios
+      .filter((sc) => sc.dataSetup.some((d) => seedPattern.test(d)))
+      .map((sc) => sc.scenarioId);
+    if (seedScenarioIds.length > 0) {
+      const examples = seedScenarioIds.slice(0, 3).join(', ');
+      const more = seedScenarioIds.length > 3 ? ` +${seedScenarioIds.length - 3} more` : '';
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_SEED_UNPROVISIONED',
+          'warning',
+          `Plan Metadata declares no Seed, but ${seedScenarioIds.length} scenario(s) depend on seed: refs (${examples}${more}). Declare the seed producer in Metadata, or move those scenarios to Coverage Gaps — an unprovisioned seed ships as a skipped/silent-pass run.`,
+        ),
+      );
+      seedUnprovisionedCount = seedScenarioIds.length;
+    }
+  }
+
+  // 7. `not-implemented` scenarios must state WHY in coverage gaps — the status
+  //    means "planned, not built yet", and an unexplained one is a silent drop.
+  for (const sc of plan.scenarios) {
+    if (sc.executionMode !== 'not-implemented') continue;
+    if (!gapScenarioIds.has(sc.scenarioId)) {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_NOT_IMPLEMENTED_NO_GAP',
+          'warning',
+          `Scenario ${sc.scenarioId} is marked not-implemented but has no coverage gap entry. Record the reason (missing page, seed, dependency) in Coverage Gaps.`,
+          { scenarioId: sc.scenarioId },
+        ),
+      );
     }
   }
 
@@ -250,13 +395,25 @@ export function validateTestPlan(
   const warningCount = diagnostics.filter((d) => d.severity === 'warning').length;
   const valid = errorCount === 0;
 
+  // A scenario that is BOTH recorded as a coverage gap AND missing evidence is
+  // one gap, not two — the Planner already documented it. Count the union by
+  // scenario id, plus any gap that carries no scenario id at all. Summing the
+  // two collections double-counted those, and that inflated number feeds the
+  // Challenge gate (a plan would report more gaps than it actually has).
+  const gapIdsWithoutScenario = plan.coverageGaps.filter((g) => !g.scenarioId).length;
+  const effectiveGapCount =
+    new Set([...gapScenarioIds, ...evidenceGapIds]).size + gapIdsWithoutScenario;
+
   const summary: PlanValidationSummary = {
     valid,
     plannedScenarios: plan.scenarios.length,
     coveredAcs: coveredAcsCount,
     uncoveredAcs: uncoveredAcsCount,
     assumptionsCount,
-    coverageGapsCount: plan.coverageGaps.length,
+    coverageGapsCount: effectiveGapCount,
+    evidenceGapsCount: evidenceGapIds.size,
+    locatorIntentGapsCount: locatorIntentGapIds.size,
+    seedUnprovisionedCount,
   };
 
   if (!valid) {

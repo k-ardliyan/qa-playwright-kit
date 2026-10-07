@@ -66,6 +66,8 @@ export interface LatestRunSummary {
   passed: number;
   failed: number;
   skipped: number;
+  /** Planned-but-unbuilt scenarios (test.fixme) — optional for older runs. */
+  notImplemented?: number;
   durationMs?: number;
   isArchived: boolean;
   qaDecision?: QaDecision | '';

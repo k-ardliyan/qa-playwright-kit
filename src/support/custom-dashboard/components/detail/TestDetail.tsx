@@ -26,7 +26,17 @@ function isUnhealthyStatus(status: string): boolean {
 }
 
 function StatusGlyph({ status }: { status: string }) {
-  const tone = isUnhealthyStatus(status) ? 'failed' : status === 'skipped' ? 'skipped' : 'passed';
+  // Unknown statuses must NOT fall through to `passed`: a `not-implemented`
+  // scenario rendered with the green passed glyph reads as a false green.
+  const tone = isUnhealthyStatus(status)
+    ? 'failed'
+    : status === 'skipped'
+      ? 'skipped'
+      : status === 'not-implemented'
+        ? 'not-implemented'
+        : status === 'passed'
+          ? 'passed'
+          : 'skipped';
   return (
     <span
       class={`test-file-test-status-icon test-file-test-status-icon--${tone}`}
@@ -56,6 +66,8 @@ function buildFailurePacket(testData: CollectedTestData): string {
     ``,
     `- Status: ${testData.status}`,
     `- Scenario: ${testData.scenarioId || '-'}`,
+    // Per-scenario "why" for skipped/not-implemented rows (fixme annotation).
+    ...(testData.notImplementedReason ? [`- Alasan: ${testData.notImplementedReason}`] : []),
     sourceLine,
     `- Retry: ${testData.retry ?? 0}`,
     `- Duration: ${formatDuration(testData.duration)}`,
@@ -180,6 +192,7 @@ export function TestDetail({ testData, index, runId, openTest }: TestDetailProps
     testData.actualResult,
     testData.errorMessage,
     testData.failureSource || '',
+    testData.notImplementedReason || '',
   ]
     .join(' ')
     .toLowerCase()
@@ -250,7 +263,7 @@ export function TestDetail({ testData, index, runId, openTest }: TestDetailProps
                 {fingerprint.fingerprintId}
               </span>
             ) : null}
-            <StatusPill status={status} />
+            <StatusPill status={status} hint={testData.notImplementedReason} />
           </span>
           <span class="test-card__duration" data-testid="test-duration" safe>
             {formatDuration(testData.duration)}
@@ -288,6 +301,14 @@ export function TestDetail({ testData, index, runId, openTest }: TestDetailProps
             <div class="meta-grid__item">
               <span class="meta-grid__label">Worker</span>
               <span class="meta-grid__value">#{testData.workerIndex}</span>
+            </div>
+          ) : null}
+          {testData.notImplementedReason ? (
+            <div class="meta-grid__item">
+              <span class="meta-grid__label">Alasan</span>
+              <span class="meta-grid__value" safe>
+                {testData.notImplementedReason}
+              </span>
             </div>
           ) : null}
           <div class="meta-grid__item">

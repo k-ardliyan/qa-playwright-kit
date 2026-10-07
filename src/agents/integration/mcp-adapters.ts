@@ -324,7 +324,14 @@ export function extractReportCoverageFromTrace(
   return { scenarios: rows, healedScenarios: healed && healed > 0 ? healed : 0 };
 }
 
-/** Trace execution status → report coverage status (report has no 'manual'). */
+/**
+ * Trace execution status → report coverage status.
+ *
+ * `manual` and `not-implemented` survive the mapping instead of collapsing into
+ * `not-generated`: "not applicable" and "not built yet" are different facts, and
+ * folding them together is what let 112 unbuilt scenarios read as a neutral
+ * outcome. Only truly unknown states fall through to `not-generated`.
+ */
 function coverageStatusFromExecution(status: string): BuildCoverageScenario['status'] {
   switch (status) {
     case 'passed':
@@ -335,6 +342,8 @@ function coverageStatusFromExecution(status: string): BuildCoverageScenario['sta
       return 'failed';
     case 'skipped':
       return 'skipped';
+    case 'not-implemented':
+      return 'not-implemented';
     default:
       // manual / blocked / not-generated / not-executed
       return 'not-generated';
@@ -839,6 +848,8 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
           const passed = typeof summary.passed === 'number' ? summary.passed : 0;
           const failed = typeof summary.failed === 'number' ? summary.failed : 0;
           const skipped = typeof summary.skipped === 'number' ? summary.skipped : 0;
+          const notImplemented =
+            typeof summary.notImplemented === 'number' ? summary.notImplemented : undefined;
           const unresolved: UnresolvedFailure[] = failureList.map((failure) => {
             const f = asRecord(failure);
             // Preserve the classified source from the failure payload when it
@@ -880,7 +891,7 @@ export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters 
             requirementPath: input.requirementPath,
             scenariosPlanned: plannedScenarios,
             testsGenerated: countTestDeclarations(root, input.generatedFiles),
-            testResults: { passing: passed, failing: failed, skipped },
+            testResults: { passing: passed, failing: failed, skipped, notImplemented },
             // Heal count comes from the trace graph — 0 while no heal pass
             // exists, never a placeholder that claims healing happened.
             healedCount: traceCoverage.healedScenarios,

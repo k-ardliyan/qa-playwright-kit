@@ -63,12 +63,33 @@ function insightList(summary: Record<string, unknown>): string {
 </section>`;
 }
 
+/** Indonesian status labels for the table cells — the KPI line already speaks
+ * QA language ("belum dibangun"); raw English enums in the rows did not. */
+const STATUS_LABELS: Record<string, string> = {
+  passed: 'Passed',
+  failed: 'Failed',
+  timedOut: 'Timed out',
+  interrupted: 'Interrupted',
+  skipped: 'Skipped',
+  'not-implemented': 'Belum dibangun',
+};
+
+function statusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
 export function buildPortableHtml(summary: Record<string, unknown>, reportDir: string): string {
   const cases = Array.isArray(summary.testCases) ? (summary.testCases as PortableCase[]) : [];
   const passed = cases.filter((c) => c.status === 'passed').length;
-  const failed = cases.filter((c) => c.status === 'failed' || c.status === 'timedOut').length;
+  // interrupted never finished running — count it with the failures, matching
+  // the markdown export and the dashboard KPI (they diverged before).
+  const failed = cases.filter(
+    (c) => c.status === 'failed' || c.status === 'timedOut' || c.status === 'interrupted',
+  ).length;
   const skipped = cases.filter((c) => c.status === 'skipped').length;
-  const passRate = cases.length > 0 ? Math.round((passed / cases.length) * 100) : 0;
+  const notImplemented = cases.filter((c) => c.status === 'not-implemented').length;
+  // Unified formula (docs/REPORT-GUIDE.md): only tests that ran are scored.
+  const passRate = passed + failed > 0 ? Math.round((passed / (passed + failed)) * 100) : 0;
 
   const runMeta = (summary.runMeta as Record<string, unknown> | undefined) ?? {};
   const metaBits: string[] = [];
@@ -94,13 +115,16 @@ export function buildPortableHtml(summary: Record<string, unknown>, reportDir: s
   if (totalMs > 0) metaBits.push(`Durasi: ${(totalMs / 1000).toFixed(1)}s`);
 
   // Failures first: a QA opening this export is looking for what broke, not
-  // for the passing majority. Stable inside each band.
+  // for the passing majority. Unfinished coverage sits next — it is actionable
+  // work — then skips, then passes. Stable inside each band.
   const rank = (status: string): number =>
     status === 'failed' || status === 'timedOut' || status === 'interrupted'
       ? 0
-      : status === 'skipped'
+      : status === 'not-implemented'
         ? 1
-        : 2;
+        : status === 'skipped'
+          ? 2
+          : 3;
   const ordered = [...cases].sort((a, b) => rank(a.status ?? '') - rank(b.status ?? ''));
 
   const rows = ordered
@@ -117,7 +141,7 @@ export function buildPortableHtml(summary: Record<string, unknown>, reportDir: s
       ].filter(Boolean);
       const eng = engBits.length > 0 ? `<div class="eng">${engBits.join(' · ')}</div>` : '';
       return `<tr>
-        <td>${escapeHtml(c.status ?? '')}</td>
+        <td>${escapeHtml(statusLabel(c.status ?? ''))}</td>
         <td>${escapeHtml(c.title ?? '')}${c.reqRef ? ` <code>${escapeHtml(c.reqRef)}</code>` : ''}${c.track === 'express' ? ' express' : ''}${eng}</td>
         <td>${escapeHtml(c.role ?? '')}</td>
         <td>${escapeHtml(c.expectedResult ?? '')}</td>
@@ -156,6 +180,7 @@ export function buildPortableHtml(summary: Record<string, unknown>, reportDir: s
   <span><strong>${passed}</strong> lulus</span>
   <span><strong>${failed}</strong> gagal</span>
   <span><strong>${skipped}</strong> dilewati</span>
+  ${notImplemented > 0 ? `<span><strong>${notImplemented}</strong> belum dibangun</span>` : ''}
   <span><strong>${cases.length}</strong> total</span>
 </div>
 <p class="meta">${escapeHtml(metaBits.join(' · '))}</p>

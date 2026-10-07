@@ -20,12 +20,16 @@ export function RoleHealthStrip({ summary, collectedTests }: RoleHealthStripProp
       </p>
       {summary.rolesInScope.map((role) => {
         const tests = testsList.filter((t) => (t.role || '') === role);
-        const total = tests.length;
         const passed = tests.filter((t) => t.status === 'passed').length;
-        const hasResults = total > 0;
-        const rate = hasResults ? Math.round((passed / total) * 100) : null;
+        // Only tests that actually ran are scored — a role whose scenarios are
+        // all skipped/unbuilt has no pass rate, not a 0% one.
+        const ran = tests.filter(
+          (t) => t.status !== 'skipped' && t.status !== 'not-implemented',
+        ).length;
+        const hasResults = ran > 0;
+        const rate = hasResults ? Math.round((passed / ran) * 100) : null;
         const tone = !hasResults ? 'neutral' : rate! >= 90 ? 'good' : rate! >= 70 ? 'warn' : 'bad';
-        const label = hasResults ? `${passed}/${total} tests, ${rate}% passed` : 'No results';
+        const label = hasResults ? `${passed}/${ran} tests, ${rate}% passed` : 'No results';
 
         return (
           <div class={`role-health__chip role-health__chip--${tone}`} title={role}>

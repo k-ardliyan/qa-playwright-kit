@@ -94,10 +94,15 @@ export interface AiNoteContext {
  */
 export function buildAutoAiNote(test: CollectedTestData, context?: AiNoteContext): string {
   const lines: string[] = [];
-  const unhealthy = test.status !== 'passed' && test.status !== 'skipped';
+  const unhealthy =
+    test.status !== 'passed' && test.status !== 'skipped' && test.status !== 'not-implemented';
 
   if (test.status === 'not-generated') {
     return 'Jenis: Coverage — Test belum digenerate — jalankan fase Generate untuk scenario ini.';
+  }
+
+  if (test.status === 'not-implemented') {
+    return 'Jenis: Coverage — Scenario direncanakan tapi belum dibangun (test.fixme) — lengkapi selector catalog/seed lalu implementasikan. Ini utang kerja, bukan skip.';
   }
 
   if (unhealthy) {
@@ -196,11 +201,18 @@ export function buildRunInsights(
   history?: RunHistoryContext,
 ): string[] {
   const insights: string[] = [];
+  // `not-implemented` is unfinished work, not a failure — it must not be
+  // triaged as unhealthy (nor folded into the skipped bucket below).
   const unhealthy = tests.filter(
-    (t) => t.status !== 'passed' && t.status !== 'skipped' && t.status !== 'not-generated',
+    (t) =>
+      t.status !== 'passed' &&
+      t.status !== 'skipped' &&
+      t.status !== 'not-implemented' &&
+      t.status !== 'not-generated',
   );
   const passed = tests.filter((t) => t.status === 'passed');
   const skipped = tests.filter((t) => t.status === 'skipped');
+  const notImplemented = tests.filter((t) => t.status === 'not-implemented');
 
   // 1. Cross-run trend: regressions and persistent failures
   if (history?.previousStatusByKey && Object.keys(history.previousStatusByKey).length > 0) {
@@ -305,10 +317,19 @@ export function buildRunInsights(
     );
   }
 
-  // 8. Skipped coverage
+  // 8. Unfinished coverage — distinct from skips. These are `test.fixme`
+  // placeholders: planned work that was never built. Reported separately so it
+  // reads as debt with an owner, not as "reduced coverage" from @manual cases.
+  if (notImplemented.length > 0) {
+    insights.push(
+      `Jenis: Coverage — ${notImplemented.length} scenario belum dibangun (test.fixme): ${capNames(notImplemented.map((t) => t.testId || t.title))} — ini utang kerja (halaman belum dieksplorasi / seed belum ada), bukan skip manual.`,
+    );
+  }
+
+  // 9. Skipped coverage (@manual — not applicable to automation)
   if (skipped.length > 0 && tests.length > 0 && skipped.length / tests.length >= 0.2) {
     insights.push(
-      `Jenis: Coverage — ${skipped.length} dari ${tests.length} scenario skipped — pastikan ini rencana, bukan coverage gap.`,
+      `Jenis: Coverage — ${skipped.length} dari ${tests.length} scenario skipped (@manual) — pastikan ini memang tidak bisa diotomasi, bukan coverage gap.`,
     );
   }
 
@@ -316,7 +337,10 @@ export function buildRunInsights(
 }
 
 function passRateOf(tests: CollectedTestData[]): number {
-  if (tests.length === 0) return 0;
   const passed = tests.filter((t) => t.status === 'passed').length;
-  return Math.round((passed / tests.length) * 100);
+  const failed = tests.filter(
+    (t) => t.status !== 'passed' && t.status !== 'skipped' && t.status !== 'not-implemented',
+  ).length;
+  // Unified formula (docs/REPORT-GUIDE.md): skipped/not-implemented never ran.
+  return passed + failed > 0 ? Math.round((passed / (passed + failed)) * 100) : 0;
 }

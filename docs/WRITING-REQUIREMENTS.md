@@ -59,6 +59,13 @@ Tambahkan tag di judul `### SC-XX:` untuk membedakan tipe:
 | `(@access-restriction)` | Role tidak berhak, akses ditolak               |
 | `(@manual)`             | Tidak bisa diotomasi (CAPTCHA, OTP, biometric) |
 
+Tag di bawah ini dipakai di **test plan** (bukan di requirement) untuk menandai pekerjaan yang belum selesai — keduanya jadi `test.fixme`, **bukan** `test.skip`:
+
+| Tag                | Artinya                                                       |
+| ------------------ | ------------------------------------------------------------- |
+| `@blocked`         | Bloker nyata & berbukti (halaman error, akses ditolak)        |
+| `@not-implemented` | Direncanakan tapi belum dibangun (halaman belum dieksplorasi) |
+
 Capability tags (opsional, digabung di judul SC):
 
 | Tag                     | Artinya                                                                    |

@@ -350,7 +350,7 @@ Analyze is a mandatory sub-phase of Report, not a separate pipeline phase. Befor
 ## Report Generation Rules
 
 1. Always produce both the JSON `PipelineReport` and the Markdown file.
-2. Map every planned scenario to a status in the coverage section — `passed`, `failed`, `healed`, `skipped`, or `blocked`.
+2. Map every planned scenario to a status in the coverage section — `passed`, `failed`, `healed`, `skipped`, `blocked`, or `not-implemented`. `skipped` is for `@manual` (not applicable) only; `not-implemented` marks planned-but-unbuilt work and must be reported as unfinished coverage, never folded into `skipped`.
 3. If `rolesInScope` is non-empty, populate `summaryByRole` — count results per role from test file names (`*-<role>.spec.ts`) or test tags (`@role-<role>`).
 4. Always populate `summaryByFeature` — group scenarios by the feature name in the requirement title.
 5. Classify every unresolved failure with a `failureSource` — use healer's `cannotFix` reason as the primary signal.

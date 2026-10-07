@@ -225,8 +225,9 @@ List every tool explicitly by server:
 - Planner drafts test plan and verifies it using `validate_plan`.
 - If `roleFilter` is set, instruct Planner to only generate scenarios for those roles.
 - Expect Planner output as a Markdown test plan with columns per scenario:
-  - `Scenario Name`, `Steps`, `Expected Result`, `Role`, `Auth Context`, `Type`
-- Planner must include a `Coverage Gap` section for scenarios that couldn't be planned.
+  - `Scenario Name`, `Steps`, `Expected Result`, `Role`, `Auth Context`, `Page`, `Type`
+- **Evidence gate (Rule 0):** a scenario may be planned `automated` only when its `Page` has an entry in the plan's `Catalog Evidence`. No catalog page → the scenario goes to `Coverage Gap`, never into the plan as runnable. Explore is complete for a feature when every referenced page is captured (`elementCount > 0`, no auth warning).
+- Planner must include a `Coverage Gap` section for scenarios that couldn't be planned — including every scenario whose page lacks catalog evidence.
 - When the requirement targets a public site, Planner MAY call `discover_pages` first to populate `artifacts/selector-catalog/<feature>/`.
 
 ### Phase 2: Generate
@@ -237,8 +238,8 @@ List every tool explicitly by server:
 - Canonical generated spec paths are flat: `tests/<feature>.spec.ts` or one file per role at `tests/<feature>-<role>.spec.ts`.
 - Nested `tests/<domain>/<feature>.spec.ts` files are compatibility-only for existing workspaces; use them only when `trace_requirement` can match the basename/role, with explicit `testId`/`scenarioId` metadata preferred.
 - Generator uses `test.use({ storageState: authStatePath('<role>') })` or `.auth/{APP_ENV}/<role>.json` for role-specific files.
-- For blocked/unclear scenarios: Generator produces skeleton with `test.skip`.
-- Call `validate_generated_tests` before execution to verify structural rules and ensure no ephemeral browser/CLI locators leaked.
+- For blocked/not-implemented scenarios: Generator produces a **skeleton with `test.fixme`** (NOT `test.skip`) and records the reason. `test.skip` is reserved for `@manual` (genuinely non-automatable). A scenario whose page has no selector-catalog evidence is not `automated` at all — Planner puts it in Coverage Gaps (`validate_plan` reports `PLAN_EVIDENCE_MISSING`).
+- Call `validate_generated_tests` before execution to verify structural rules, ensure no ephemeral browser/CLI locators leaked, and confirm the spec asserts something (a spec with zero `expect(...)` fails unless it is skip/fixme-only).
 - Generator uses **playwright-cli** (preferred) or **playwright** MCP for live verification per scenario.
 
 ### Phase 3: Execute
@@ -411,6 +412,10 @@ For each stage (`planner`, `generator`, `healer`, `reporter`):
 - `qaDecision` is null until QA review is completed.
 - `analysisVerdict` is one of `complete | incomplete | inconsistent | unverifiable | not-applicable`; `analysisVerified` is true only when the declaration and sidecar evidence match.
 - For pipeline runs, `APPROVE` is allowed only with `analysisVerdict: complete`, `analysisVerified: true`, exact sidecar evidence, a Reporter Analyze insight, and no unresolved failures. Missing/mismatched analysis rejects before archive write; other QA decisions archive with the verdict visible.
+
+### Explaining run results to QA in layman terms (canned answer)
+
+When QA asks "kok banyak skipped?" or misreads a run as broken, answer with the THREE buckets, never one number: (1) **skipped** = `@manual`, genuinely not automatable — nothing to do; (2) **not-implemented / "Belum dibangun"** = planned-but-unbuilt work (`test.fixme`) with a per-scenario reason (`notImplementedReason` in test-summary.json / get_test_summary) — it is pipeline debt, NOT an app bug, and the next action is Explore/seed then regenerate; (3) **failed** = what actually needs triage. Cite `notImplemented` from `pipeline_status`/`get_test_summary` (never report the not-implemented count as "skipped"), point to the blue "Belum dibangun" pills and the Alasan tooltip in the dashboard, and reference [docs/GUIDE.md](docs/GUIDE.md) "Status Test untuk QA Awam" for the full table.
 
 ---
 

@@ -1,6 +1,11 @@
 import type { TestResult } from '@playwright/test/reporter';
 
-export type ReportStatus = TestResult['status'] | 'healed' | 'not-generated';
+/**
+ * `not-implemented` is derived by the reporter from Playwright's `fixme`
+ * annotation: the test was planned but never built. It must not be conflated
+ * with `skipped`, which means "not applicable to automation" (`@manual`).
+ */
+export type ReportStatus = TestResult['status'] | 'healed' | 'not-implemented' | 'not-generated';
 
 export type TestScope = 'demo' | 'fixture' | 'unscoped';
 
@@ -19,6 +24,8 @@ export interface ResultBreakdown {
   passing: number;
   failing: number;
   skipped: number;
+  /** Planned-but-unbuilt scenarios (`test.fixme`). Distinct from `skipped`. */
+  notImplemented?: number;
 }
 
 /** Module breakdown keeps feature-level counts for existing consumers. */
@@ -121,6 +128,9 @@ export interface CollectedTestData {
   affectedLayer: AffectedLayer[];
   /** Present on unhealthy tests; optional on passed/skipped. */
   failureSource?: FailureSource;
+  /** Annotation reason for skipped/not-implemented rows ("Butuh payroll berjalan
+   *  sampai status Dibayar") — the per-scenario answer to "kenapa belum jalan". */
+  notImplementedReason?: string;
   /** QA free-text note for this row — merged from the test-notes sidecar. */
   qaNotes?: string;
   /** AI note for this row — agent narrative + deterministic auto analysis. */
@@ -161,6 +171,8 @@ export interface CollectedTestCase {
   attachmentCount: number;
   hasTrace: boolean;
   failureSource?: FailureSource;
+  /** Annotation reason for skipped/not-implemented rows — per-scenario "why". */
+  notImplementedReason?: string;
   /** QA free-text note for this row — merged from the test-notes sidecar. */
   qaNotes?: string;
   /** AI note for this row — agent narrative + deterministic auto analysis. */
@@ -208,6 +220,8 @@ export interface TestSummary {
   passed: number;
   failed: number;
   skipped: number;
+  /** Planned-but-unbuilt scenarios (`test.fixme`) — work, not "not applicable". */
+  notImplemented?: number;
   passRate: number;
   timestamp: string;
   // === Role-aware extensions ===

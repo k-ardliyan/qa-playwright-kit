@@ -179,9 +179,19 @@ export function buildTraceabilityMatrix(
     let failureSource: FailureRootCause | undefined;
     let errorMessage: string | undefined;
 
+    // `@blocked` / `@not-implemented` are not requirement *types* (ScenarioType
+    // has no such member) — the parser keeps them in `capabilities`. Reading
+    // them here is what makes the blocked/not-implemented branch reachable
+    // instead of the dead `sc.type === 'blocked'` comparison it replaced.
+    const capTags = (sc.capabilities ?? []).map((c) => c.toLowerCase());
+    const markedNotImplemented = capTags.some((c) => c.includes('not-implemented'));
+    const markedBlocked = capTags.some((c) => c.includes('blocked'));
+
     if (sc.type === 'manual') {
       status = 'manual';
-    } else if (sc.type === ('blocked' as string)) {
+    } else if (markedNotImplemented) {
+      status = 'not-implemented';
+    } else if (markedBlocked) {
       status = 'blocked';
     } else if (specFile) {
       const matchKey = `${specFile}::${sc.title}`;
@@ -222,9 +232,11 @@ export function buildTraceabilityMatrix(
           ? 'manual'
           : status === 'blocked'
             ? 'blocked'
-            : specFile
-              ? 'generated'
-              : 'not-generated',
+            : status === 'not-implemented'
+              ? 'not-implemented'
+              : specFile
+                ? 'generated'
+                : 'not-generated',
       execution:
         status === 'passed'
           ? 'passed'
@@ -307,6 +319,9 @@ export function buildTraceabilityMatrix(
   const skippedScenarios = scenarioNodes.filter((s) => s.executionStatus === 'skipped').length;
   const manualScenarios = scenarioNodes.filter((s) => s.executionStatus === 'manual').length;
   const blockedScenarios = scenarioNodes.filter((s) => s.executionStatus === 'blocked').length;
+  const notImplementedScenarios = scenarioNodes.filter(
+    (s) => s.executionStatus === 'not-implemented',
+  ).length;
 
   const matrixCoverageState: CoverageStateBreakdown = {
     design: 'planned',
@@ -351,6 +366,7 @@ export function buildTraceabilityMatrix(
       skippedScenarios,
       manualScenarios,
       blockedScenarios,
+      notImplementedScenarios,
     },
     coverageState: matrixCoverageState,
     diagnostics: diagnostics.length > 0 ? diagnostics : undefined,

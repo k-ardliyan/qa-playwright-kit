@@ -148,8 +148,11 @@ function deriveStatus(
   passRate: number,
   failed: number,
   skipped: number,
+  notImplemented: number,
 ): ReportHistoryEntry['status'] {
   if (failed > 0) return 'failed';
+  // Unfinished coverage outranks a manual skip: it is work, not a limitation.
+  if (notImplemented > 0) return 'partial';
   if (skipped > 0) return 'partial';
   if (passRate >= 100) return 'success';
   return 'partial';
@@ -165,6 +168,7 @@ function buildEntry(
   const passed = (summary.passed as number) ?? 0;
   const failed = (summary.failed as number) ?? 0;
   const skipped = (summary.skipped as number) ?? 0;
+  const notImplemented = (summary.notImplemented as number) ?? 0;
 
   const ranAt = metadata?.ranAt ?? (summary.timestamp as string) ?? '';
   const appEnv = metadata?.appEnv ?? 'local';
@@ -217,7 +221,7 @@ function buildEntry(
     failed,
     skipped,
     reportMode: (summary.reportMode as string) ?? metadata?.reportMode ?? 'general',
-    status: deriveStatus(passRate, failed, skipped),
+    status: deriveStatus(passRate, failed, skipped, notImplemented),
     durationMs: metadata?.durationMs,
     rolesInScope: summary.rolesInScope as string[] | undefined,
     summaryByRole: summary.summaryByRole as ReportHistoryEntry['summaryByRole'],

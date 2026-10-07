@@ -138,7 +138,12 @@ export function compileTestPlanFromText(
     }
   }
 
-  // Parse Catalog Evidence
+  // Parse Catalog Evidence. Two shapes must parse: the canonical template
+  // (specs/_TEMPLATE.md) writes a `| Page | Catalog |` table, while older plans
+  // use the bullet form. A bullet-only reader silently produced an EMPTY
+  // evidence list for template-shaped plans, which made the downstream evidence
+  // gate warn on every automated scenario — a false positive on the kit's own
+  // documented format.
   const catalogEvidence: CatalogEvidence[] = [];
   const catalogSectionMatch = text.match(
     /##+\s+(?:Catalog\s+Evidence|Selector\s+Catalog)([\s\S]*?)(?=##+|$)/i,
@@ -146,9 +151,25 @@ export function compileTestPlanFromText(
   if (catalogSectionMatch) {
     const catLines = catalogSectionMatch[1].split('\n');
     for (const l of catLines) {
-      const clean = l.replace(/^\s*[-*]\s+/, '').trim();
+      const trimmed = l.trim();
+      if (!trimmed) continue;
+
+      // Pattern B (table row): | `login-form` | `artifacts/selector-catalog/...` |
+      if (/^\|.*\|$/.test(trimmed)) {
+        const cells = splitRow(trimmed);
+        const page = (cells[0] ?? '').trim();
+        // Skip the header row and the `| --- | --- |` separator.
+        if (!page || /^(page|halaman)$/i.test(page) || /^[-:]+$/.test(page)) continue;
+        catalogEvidence.push({
+          page,
+          catalogPath: (cells[1] ?? '').trim() || undefined,
+        });
+        continue;
+      }
+
+      const clean = trimmed.replace(/^\s*[-*]\s+/, '').trim();
       if (!clean) continue;
-      // Pattern: - **Page:** `page-slug` | `artifacts/selector-catalog/...`
+      // Pattern A (bullet): - **Page:** `page-slug` | `artifacts/selector-catalog/...`
       const match = clean.match(/^\*\*Page:\*\*\s*`?([^`|\r\n]+)`?\s*(?:\|\s*`?([^`\r\n]+)`?)?/i);
       if (match) {
         catalogEvidence.push({
@@ -211,14 +232,20 @@ export function compileTestPlanFromText(
     let executionMode: PlanExecutionMode = 'automated';
 
     if (/@manual/i.test(heading)) executionMode = 'manual';
+    else if (/@not-implemented/i.test(heading)) executionMode = 'not-implemented';
     else if (/@blocked/i.test(heading)) executionMode = 'blocked';
 
     const testId = readLabel(block, 'Test ID') ?? undefined;
+    // Catalog page this scenario exercises; matched against Catalog Evidence so
+    // a scenario cannot claim `automated` without a captured page behind it.
+    const page = readLabel(block, 'Page') ?? undefined;
 
     const covers: string[] = [];
     const coversRaw = readLabel(block, 'Covers');
     if (coversRaw) {
-      const tokens = coversRaw.replace(/[`]/g, '').split(/[,;]/);
+      // Space- AND comma-separated — see requirement-parsers.ts (same cell
+      // convention; the comma-only split turned `AC-01` `AC-02` into one bogus id).
+      const tokens = coversRaw.replace(/[`]/g, '').split(/[,;\s]+/);
       for (const tok of tokens) {
         const ac = tok.trim().toUpperCase();
         if (ac) covers.push(ac);
@@ -234,7 +261,12 @@ export function compileTestPlanFromText(
     const modeRaw = readLabel(block, 'Execution Mode');
     if (modeRaw) {
       const raw = modeRaw.toLowerCase();
-      if (raw === 'manual' || raw === 'blocked' || raw === 'automated') {
+      if (
+        raw === 'manual' ||
+        raw === 'blocked' ||
+        raw === 'automated' ||
+        raw === 'not-implemented'
+      ) {
         executionMode = raw;
       }
     }
@@ -289,6 +321,7 @@ export function compileTestPlanFromText(
       covers,
       actor,
       authContext,
+      page,
       executionMode,
       dataSetup,
       actions,

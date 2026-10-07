@@ -378,6 +378,12 @@
   color: var(--warning);
 }
 
+/* Unbuilt work is information (blue), not a warning (amber) — same tone the
+   status pill and row rail use for not-implemented. */
+.metric-box--not-implemented .metric-box__num {
+  color: var(--info);
+}
+
 .metric-icon {
   display: block;
   flex: 0 0 auto;
@@ -393,6 +399,10 @@
 
 .metric-icon--skipped {
   color: var(--warning);
+}
+
+.metric-icon--not-implemented {
+  color: var(--info);
 }
 
 .latest-run-card__actions {

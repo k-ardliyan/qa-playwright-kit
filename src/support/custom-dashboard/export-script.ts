@@ -182,7 +182,7 @@ export function buildExportScript(
 
       function statusLabel(status) {
         var s = String(status || '').toLowerCase();
-        var icon = s === 'passed' ? '✓' : s === 'failed' || s === 'interrupted' ? '✗' : s === 'timedout' ? '⏱' : s === 'skipped' ? '⊘' : '?';
+        var icon = s === 'passed' ? '✓' : s === 'failed' || s === 'interrupted' ? '✗' : s === 'timedout' ? '⏱' : s === 'not-implemented' ? '⚒' : s === 'skipped' ? '⊘' : '?';
         return icon + ' ' + String(status || 'UNKNOWN').toUpperCase();
       }
 
@@ -222,6 +222,7 @@ export function buildExportScript(
         var label = statusLabel(status);
         if (s === 'failed' || s === 'timedout' || s === 'interrupted') return confPill(label, '#ffebe6', '#bf2600');
         if (s === 'passed') return confPill(label, '#e3fcef', '#006644');
+        if (s === 'not-implemented') return confPill(label, '#e9f2ff', '#0052cc');
         if (s === 'skipped') return confPill(label, '#fffae6', '#974f0c');
         return confPill(label, '#f4f5f7', '#6b778c');
       }
@@ -428,7 +429,7 @@ export function buildExportScript(
             var st = String(r.status || '').toLowerCase();
             var bg = (st === 'failed' || st === 'timedout' || st === 'interrupted')
               ? 'background:#ffebe6;'
-              : (st === 'skipped' ? 'background:#fffae6;' : '');
+              : (st === 'not-implemented' ? 'background:#e9f2ff;' : (st === 'skipped' ? 'background:#fffae6;' : ''));
             html += '<tr>';
             cols.forEach(function (k) {
               if (k === 'role') {

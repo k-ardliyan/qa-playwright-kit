@@ -57,7 +57,11 @@ import { mockJson, waitAndAssertApi } from '@/support/pw';
 - `Report(Analyze)` is a mandatory Analyze sub-phase inside Report; APPROVE is gated by `analysisVerdict=complete` and `analysisVerified=true`
 - Semantic workflow: `workflow_run` (MCP) / `npx tsx tools/scripts/workflow-run.ts <req>` drives Explore → Model → Challenge → Generate → Validate; the controller, not prompts, owns stage transitions (`canGenerate` blocks until Challenge passes)
 - One workspace supports one active pipeline run; `pipelineRunId` binds pre-run notes and `archiveRunId` identifies the canonical archive
-- Blocked scenario → `test.skip(true, '<reason>')`, NEVER delete
+- Scenario status is three-way, and the distinction is load-bearing:
+  - **`(@manual)`** — not applicable to automation (CAPTCHA, physical OTP, biometric…). Generator emits `test.skip(true, '<reason>')`. This is the ONLY legitimate `test.skip`.
+  - **`@blocked` / `@not-implemented`** — real blocker or not-built-yet. Generator emits `test.fixme(...)`; the scenario is recorded in Coverage Gaps. Never `test.skip`.
+  - **Known live product bug** — `test.fail(...)`: the test runs and must fail, keeping the defect visible.
+  - A scenario whose page has no selector-catalog evidence may NOT be planned as `automated`; it belongs in Coverage Gaps (`validate_plan` → `PLAN_EVIDENCE_MISSING`).
 
 ## Web Studio (non-coder entry point)
 

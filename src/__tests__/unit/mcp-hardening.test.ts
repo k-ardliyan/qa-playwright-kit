@@ -284,6 +284,7 @@ test.describe('pipeline_status tool', () => {
         passed: 3,
         failed: 1,
         skipped: 0,
+        notImplemented: 2,
         passRate: 75,
         timestamp: new Date().toISOString(),
       }),
@@ -299,6 +300,9 @@ test.describe('pipeline_status tool', () => {
       expect(out.state!.workflowStage).toBeUndefined(); // currentPhase was null
       expect(out.lastRun!.total).toBe(4);
       expect(out.lastRun!.failed).toBe(1);
+      // The fixme split must reach pipeline_status — it is what lets the agent
+      // answer "kok banyak skipped?" without conflating manual with unbuilt.
+      expect(out.lastRun!.notImplemented).toBe(2);
       expect(out.message).toContain('Resume from phase: generate');
     } finally {
       if (prevReport === undefined) delete process.env['QA_REPORT_DIR'];

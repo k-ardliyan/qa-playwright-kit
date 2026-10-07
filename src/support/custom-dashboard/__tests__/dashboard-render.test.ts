@@ -23,6 +23,8 @@ import {
   emptySummary,
   edgeCasesTests,
   edgeCasesSummary,
+  notImplementedTests,
+  notImplementedSummary,
 } from './fixtures';
 
 test.describe('Custom Dashboard Render Baseline', () => {
@@ -130,5 +132,55 @@ test.describe('Custom Dashboard Render Baseline', () => {
     const html = buildDashboardHtml('local', edgeCasesSummary, edgeCasesTests);
     expect(html).toContain('SC-SPECIAL-SYMBOLS');
     expect(html).toContain('🚀');
+  });
+
+  test('renders not-implemented distinctly from skipped', () => {
+    const html = buildDashboardHtml('local', notImplementedSummary, notImplementedTests);
+    // Its own badge class — never the grey skipped chrome.
+    expect(html).toContain('status-pill--not-implemented');
+    expect(html).toContain('Belum dibangun');
+    // The scenarios must actually appear: an earlier bucketing bug dropped any
+    // status that matched none of the known groups.
+    expect(html).toContain('SC-07');
+    expect(html).toContain('SC-08');
+  });
+
+  test('explains the two easily-confused statuses in the QA language', () => {
+    // Both statuses carry an Indonesian tooltip so a non-coder can tell them
+    // apart without reading the AI notes panel.
+    const notImpl = buildDashboardHtml('local', notImplementedSummary, notImplementedTests);
+    expect(notImpl).toContain('utang kerja, bukan skip');
+
+    const skipped = buildDashboardHtml('local', skippedSummary, skippedTests);
+    expect(skipped).toContain('Tidak berlaku untuk otomasi');
+  });
+
+  test('surfaces the per-scenario fixme reason, not just the generic tooltip', () => {
+    // The annotation reason ("Butuh payroll berjalan sampai status Dibayar…")
+    // is what answers QA's "kenapa belum jalan" — the static definition alone
+    // never could.
+    const html = buildDashboardHtml('local', notImplementedSummary, notImplementedTests);
+    expect(html).toContain(
+      'Butuh payroll berjalan sampai status Dibayar — prasyarat rantai payroll belum tersedia.',
+    );
+    // Detail view carries it as a labeled field, not only a hover title.
+    expect(html).toContain('Alasan');
+  });
+
+  test('the overview counts unbuilt work in its own metric box', () => {
+    const withUnbuilt = buildDashboardHtml('local', notImplementedSummary, notImplementedTests);
+    expect(withUnbuilt).toContain('metric-box--not-implemented');
+    expect(withUnbuilt).toContain('Belum dibangun');
+
+    const allPassed = buildDashboardHtml('local', allPassedSummary, allPassedTests);
+    // The stylesheet embeds the class NAME — assert on the rendered ELEMENT,
+    // not the substring, or the negative match trips on its own CSS rule.
+    expect(allPassed).not.toContain('class="metric-box metric-box--not-implemented"');
+  });
+
+  test('a run with only unbuilt scenarios is not reported healthy', () => {
+    const html = buildDashboardHtml('local', notImplementedSummary, notImplementedTests);
+    expect(html).toContain('Run Belum Lengkap');
+    expect(html).not.toContain('Run Healthy');
   });
 });

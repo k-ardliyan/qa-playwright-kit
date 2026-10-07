@@ -807,6 +807,8 @@ export function getLatestRunInfo(): {
   passed: number;
   failed: number;
   skipped: number;
+  /** Planned-but-unbuilt scenarios (test.fixme); absent on older markers. */
+  notImplemented?: number;
   passRate: number;
   reportMode: string;
 } | null {

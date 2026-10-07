@@ -4,6 +4,30 @@ Dokumen ini menjelaskan **4 lapisan report** yang dihasilkan framework setiap ka
 
 ---
 
+## Status Test — Definisi Kanonik
+
+Tiga status ini sering tertukar; perbedaannya disengaja dan bermakna:
+
+| Status            | Artinya                                                        | Sumber di spec                     |
+| ----------------- | -------------------------------------------------------------- | ---------------------------------- |
+| `passed`          | Test jalan dan lolos                                           | —                                  |
+| `failed`          | Test jalan dan gagal (termasuk `timedOut` / `interrupted`)     | —                                  |
+| `skipped`         | **Tidak berlaku untuk otomasi** (CAPTCHA, OTP fisik, dll)      | `test.skip` + tag `@manual`        |
+| `not-implemented` | **Direncanakan tapi belum dibangun** — utang kerja, bukan skip | `test.fixme` (Playwright: `fixme`) |
+| `not-generated`   | Scenario belum punya test sama sekali                          | —                                  |
+
+Playwright melaporkan `test.fixme` dengan status `skipped`; reporter membedakannya lewat **annotation `fixme`** yang tetap tersimpan. Itulah sebabnya dashboard bisa menampilkan "Not implemented" terpisah dari "Skipped" — jangan pernah menggabungkan keduanya.
+
+### Rumus Pass Rate (satu definisi)
+
+```
+passRate = passed / (passed + failed)
+```
+
+`skipped` dan `not-implemented` **tidak pernah masuk penyebut** — keduanya tidak dijalankan, jadi tidak bisa dinilai. Keduanya dilaporkan sebagai angka coverage terpisah (`skipped: N`, `notImplemented: N`). Rumus ini dipakai seragam di: reporter (`custom-reporter.ts`), dashboard overview, markdown report, portable HTML, AI notes, dan role health strip. Jangan menghitung pass rate dengan cara lain di tempat baru.
+
+---
+
 ## Ringkasan Report yang Dihasilkan
 
 Setiap test run menghasilkan **4 lapisan report**:
@@ -54,7 +78,7 @@ Playwright Test Run
 
 ### Hierarchy (atas → bawah)
 
-1. **Hero** — verdict (`Run Failed` / `Healthy` / `Degraded`), meta `APP_ENV` / duration / unhealthy count, stat bar Total/Passed/Failed/Skipped/Pass rate
+1. **Hero** — verdict (`Run Failed` / `Run Belum Lengkap` / `Run Incomplete` / `Degraded` / `Healthy`), meta `APP_ENV` / duration / unhealthy count, stat bar Total/Passed/Failed/Skipped/**Belum dibangun** (hanya bila ada `not-implemented`)/Pass rate
 2. **Command bar (global)** — search, status, priority, optional role, has-evidence
 3. **Incident alert** — queue active/clear + **export CTAs**
    - **Copy for Confluence** — rich HTML table (Atlassian palette) via clipboard `text/html`; plain fallback = Confluence wiki markup (`||header||` / `|cell|`)
@@ -89,7 +113,7 @@ Kolom tetap tidak pernah di-hide via media query — layar sempit memakai **hori
 
 #### **Accordion View**
 
-- Grouped Unhealthy → Passed → Skipped
+- Grouped Unhealthy → Belum dibangun (`not-implemented`) → Passed → Skipped
 - **Semua card collapse by default** (termasuk failed) — expand manual
 - Chip body: Errors / Test Steps (Filter steps) / Attachments
 - Unhealthy: **Copy failure packet** saja (**tanpa** Create JIRA)
@@ -124,7 +148,10 @@ interface TestSummary {
   passed: number;
   failed: number;
   skipped: number;
-  passRate: number; // 0–100 (rounded percent)
+  /** Skenario direncanakan tapi belum dibangun (`test.fixme`) — utang kerja,
+   *  bukan skip; tidak masuk penyebut pass rate. Opsional pada summary lama. */
+  notImplemented?: number;
+  passRate: number; // 0–100 (rounded percent) — passed / (passed + failed)
   timestamp: string; // ISO 8601
 
   // === Table View extensions ===
@@ -150,7 +177,7 @@ interface CollectedTestCase {
   title: string;
   /** Spec file asal baris ini (tests/<feature>.spec.ts) — dipakai badge scope + drill-down evidence di serve mode. */
   filePath?: string;
-  status: 'passed' | 'failed' | 'skipped' | string;
+  status: 'passed' | 'failed' | 'timedOut' | 'interrupted' | 'skipped' | 'not-implemented' | string; // fixme → 'not-implemented'
   duration: number; // ms
   scenarioId?: string;
   role?: string;
@@ -167,6 +194,9 @@ interface CollectedTestCase {
   hasTrace?: boolean;
   /** Unhealthy only (annotation wins over heuristic) */
   failureSource?: 'app' | 'test' | 'requirement' | 'env' | 'ai_generation' | 'unknown';
+  /** Alasan per skenario untuk skipped/not-implemented (description annotation
+   *  fixme/skip) — jawaban "kenapa belum jalan" di tooltip & detail. */
+  notImplementedReason?: string;
   /** Catatan QA free-text (sidecar test-notes.json — diedit via ✎ di dashboard, API, CLI, atau MCP). */
   qaNotes?: string;
   /** Catatan AI untuk QA/programmer — 2 lapis: auto-deterministik dari custom reporter + naratif agent (badge sumber). */
@@ -182,7 +212,7 @@ interface CollectedTestCase {
 
 1. Buka `artifacts/reports/custom-dashboard.html`
 2. Lihat **Run Health Panel** di bagian atas:
-   - Total tests, passed, failed, skipped
+   - Total tests, passed, failed, skipped, **belum dibangun** (bila ada)
    - Pass rate (hijau ≥90%, kuning 70-89%, merah <70%)
    - Duration
 3. Toggle ke **Table View**

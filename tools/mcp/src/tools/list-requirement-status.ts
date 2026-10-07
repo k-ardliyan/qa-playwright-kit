@@ -11,7 +11,7 @@ import { mcpWorkspace } from '../utils/workspace-paths';
 
 export interface CoverageStateBreakdown {
   design: 'planned' | 'unplanned';
-  automation: 'automated' | 'manual' | 'mixed' | 'unautomated';
+  automation: 'automated' | 'manual' | 'mixed' | 'unautomated' | 'not-implemented';
   execution: 'executed' | 'not-executed';
   verification: 'passed' | 'failed' | 'healed' | 'unverified';
 }
@@ -25,6 +25,8 @@ export interface RequirementStatusRow {
   testPaths: string[];
   hasTests: boolean;
   manualCount: number;
+  /** `test.fixme` placeholders across this requirement's specs (unbuilt work). */
+  placeholderCount: number;
   lastStatus: string | null;
   coverageState: CoverageStateBreakdown;
 }
@@ -159,6 +161,27 @@ function countManualScenarios(markdown: string): number {
   return matches?.length ?? 0;
 }
 
+/**
+ * Count `test.fixme(...)` placeholders across a requirement's spec files.
+ *
+ * A spec whose only tests are fixme placeholders is NOT implemented — it exists
+ * so the scenario is tracked, not because it runs. Without this count the
+ * coverage map reports such a requirement as `automated`, which is exactly the
+ * "unbuilt reads as done" signal the fixme convention exists to prevent.
+ */
+function countFixmePlaceholders(testPaths: string[]): number {
+  let total = 0;
+  for (const rel of testPaths) {
+    try {
+      const src = fs.readFileSync(path.join(mcpWorkspace.rootDir, rel), 'utf-8');
+      total += (src.match(/\btest\.fixme\s*[.(]/g) ?? []).length;
+    } catch {
+      // unreadable spec — treat as no placeholders rather than failing the map
+    }
+  }
+  return total;
+}
+
 function loadLastStatusByFile(): Map<string, string> {
   const map = new Map<string, string>();
   const canonicalPath = path.join(mcpWorkspace.reportsDir, 'test-summary.json');
@@ -237,11 +260,17 @@ export function listRequirementStatus(): ListRequirementStatusOutput {
     const module = resolveModuleFromRequirement(requirementPath);
     const feature = resolveFeatureFromRequirement(requirementPath);
     const hasTests = testPaths.length > 0;
+    const placeholderCount = countFixmePlaceholders(testPaths);
     const lastStatus = lastStatusForTests(testPaths, statusByFile);
 
     const design: 'planned' | 'unplanned' = hasPlan ? 'planned' : 'unplanned';
-    const automation: 'automated' | 'manual' | 'mixed' | 'unautomated' =
-      hasTests && manualCount > 0
+    // A spec full of `test.fixme` placeholders is not automation coverage: the
+    // scenarios are tracked but never built. Reporting them as `automated` is
+    // the false-green this vocabulary exists to prevent.
+    const allPlaceholders = hasTests && placeholderCount > 0 && lastStatus === 'skipped';
+    const automation: CoverageStateBreakdown['automation'] = allPlaceholders
+      ? 'not-implemented'
+      : hasTests && manualCount > 0
         ? 'mixed'
         : hasTests
           ? 'automated'
@@ -268,6 +297,7 @@ export function listRequirementStatus(): ListRequirementStatusOutput {
       testPaths,
       hasTests,
       manualCount,
+      placeholderCount,
       lastStatus,
       coverageState: {
         design,

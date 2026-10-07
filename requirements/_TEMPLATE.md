@@ -77,8 +77,10 @@
 > - `(@success)` — happy path, alur normal berhasil
 > - `(@failure)` — negative path, input salah, validasi gagal
 > - `(@access-restriction)` — role tidak berhak, akses ditolak
-> - `(@manual)` — tidak bisa diotomasi (CAPTCHA, SMS OTP fisik, biometric, dsb)
+> - `(@manual)` — tidak bisa diotomasi. **Daftar tertutup, hanya 7 situasi:** CAPTCHA/reCAPTCHA, OTP/SMS ke perangkat fisik, tautan verifikasi email nyata, payment gateway live, biometric/hardware (Face ID, scanner, printer struk), **layout visual** PDF, dan penantian waktu nyata (mis. cek kedaluwarsa 24 jam). Upload, download, cek konten PDF/Excel, dan assert API **bukan** `@manual` — pakai capability tag di bawah.
 > - Capability tags tambahan: `(@network)`, `(@network-assert)`, `(@hybrid)`, `(@download)`, `(@upload)`, `(@file-content)`.
+>
+> Skenario yang **belum bisa diotomasi karena halaman belum dieksplorasi atau dependensinya belum ada** bukan `(@manual)` — itu pekerjaan yang belum dikerjakan dan dicatat Planner di Coverage Gap plan, bukan di requirement.
 >
 > **Input Provenance (Penting):**
 > Gunakan prefix eksplisit untuk input data:

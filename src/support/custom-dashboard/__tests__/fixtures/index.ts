@@ -2,6 +2,7 @@ export * from './all-passed';
 export * from './failures';
 export * from './mixed-results';
 export * from './skipped';
+export * from './not-implemented';
 export * from './attachments';
 export * from './missing-attachments';
 export * from './long-content';

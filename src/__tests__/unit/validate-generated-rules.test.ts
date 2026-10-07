@@ -7,6 +7,10 @@ import {
   validateAuthRolesRegistered,
   validateAuthenticatedSpecsDeclareStorageState,
   validateNoVisiblePseudoClass,
+  validateRequiresAssertions,
+  validatePerTestAssertions,
+  validateSkipDoctrine,
+  validateDuplicateTestBodies,
   extractAuthRolesFromSpec,
   looksLikeClonedRoleName,
 } from '../../../tools/mcp/src/tools/validate-generated-tests';
@@ -404,5 +408,311 @@ test.describe('validate-generated-tests metadata identity rule', () => {
         'tests/demo/demo-x.spec.ts',
       ),
     ).toEqual([]);
+  });
+});
+
+test.describe('validate-generated-tests assertion rule', () => {
+  const SPEC = 'feature.spec.ts';
+
+  test('flags a spec that asserts nothing', () => {
+    const src = [
+      "import { test, expect } from '@/fixtures/base.fixture';",
+      "test.describe('x', () => {",
+      "  test('SC-01: does something', async ({ page }) => {",
+      "    await test.step('open page', async () => { await page.goto('/'); });",
+      '  });',
+      '});',
+    ].join('\n');
+    const violations = validateRequiresAssertions(src, 'x', SPEC);
+    expect(violations.length).toBe(1);
+    expect(violations[0].severity ?? 'error').toBe('error');
+    expect(violations[0].ruleName).toContain('no expect');
+  });
+
+  test('accepts a spec with expect(...)', () => {
+    const src = "await expect(page.getByRole('heading')).toBeVisible();";
+    expect(validateRequiresAssertions(src, 'x', SPEC)).toEqual([]);
+  });
+
+  test('accepts expect.soft(...) and expect.poll(...) as assertions', () => {
+    expect(validateRequiresAssertions('expect.soft(a).toBe(b);', 'x', SPEC)).toEqual([]);
+    expect(validateRequiresAssertions('await expect.poll(fn).toBe(true);', 'x', SPEC)).toEqual([]);
+  });
+
+  test('exempts a spec whose tests are all skipped or fixme', () => {
+    const skipped = "test.skip('SC-01: manual only', async () => {});";
+    const fixme = "test.fixme('SC-02: not built yet', async () => {});";
+    expect(validateRequiresAssertions(skipped, 'x', SPEC)).toEqual([]);
+    expect(validateRequiresAssertions(fixme, 'x', SPEC)).toEqual([]);
+  });
+
+  test('skips traceability-exempt files', () => {
+    expect(
+      validateRequiresAssertions(
+        "test.describe('x', () => { test('y', async () => {}); });",
+        'tests/demo/demo-x.spec.ts',
+        'tests/demo/demo-x.spec.ts',
+      ),
+    ).toEqual([]);
+  });
+
+  // --- Precision guards: both of these used to pass a spec that asserts nothing.
+
+  test('a commented-out expect is NOT an assertion', () => {
+    const line = [
+      "test('x', async ({ page }) => {",
+      '  // TODO: expect(page).toHaveURL(/x/)',
+      "  await page.goto('/');",
+      '});',
+    ].join('\n');
+    const block = [
+      "test('x', async ({ page }) => {",
+      '  /* expect(page).toHaveURL(/x/) */',
+      "  await page.goto('/');",
+      '});',
+    ].join('\n');
+    expect(validateRequiresAssertions(line, 'x', SPEC).length).toBe(1);
+    expect(validateRequiresAssertions(block, 'x', SPEC).length).toBe(1);
+  });
+
+  test('real tests riding along with one fixme placeholder are still checked', () => {
+    // The exemption must be "nothing runs", not "a skip appears somewhere".
+    const src = [
+      "test('a', async ({ page }) => { await page.goto('/'); });",
+      "test.fixme('b', async () => {});",
+    ].join('\n');
+    expect(validateRequiresAssertions(src, 'x', SPEC).length).toBe(1);
+  });
+
+  test('a URL scheme does not hide a real assertion on the same line', () => {
+    const src = [
+      "test('x', async ({ page }) => {",
+      "  await page.goto('https://example.com');",
+      '  await expect(page).toHaveURL(/example/);',
+      '});',
+    ].join('\n');
+    expect(validateRequiresAssertions(src, 'x', SPEC)).toEqual([]);
+  });
+});
+
+test.describe('validate-generated-tests per-test assertion rule', () => {
+  const meta = (id: string): string =>
+    `setTestMetadata({ testId: 'TC-${id}', scenarioId: 'SC-${id}', module: 'm', feature: 'f' });`;
+
+  // Guard-fail proof: this is the tes-qa shape — SC-01 asserts, SC-14 only
+  // captures. The old file-level rule passed this file because SC-01 asserted.
+  test('flags a capture-only test riding along with an asserted sibling', () => {
+    const src = [
+      "import { test, expect } from '@/fixtures/base.fixture';",
+      "import { setTestMetadata, captureActualResult } from '@/support/test-metadata';",
+      "test.describe('Proses', () => {",
+      "  test('SC-01: Akses Halaman', async ({ page }) => {",
+      `    ${meta('001')}`,
+      "    await expect(page.getByRole('heading', { name: 'Proses' })).toBeVisible();",
+      '  });',
+      '',
+      "  test('SC-14: Payroll Dibayar Tidak Dapat Dihapus', async ({ page }) => {",
+      `    ${meta('014')}`,
+      "    await test.step('Buka detail', async () => {",
+      "      await page.goto('/payroll');",
+      '    });',
+      "    captureActualResult('Tombol Hapus tidak tersedia.');",
+      '  });',
+      '});',
+    ].join('\n');
+    const violations = validatePerTestAssertions(src, 'x', SPEC);
+    expect(violations.length).toBe(1);
+    expect(violations[0].severity).toBe('error');
+    expect(violations[0].ruleName).toContain('per test');
+    expect(violations[0].ruleName).toContain('SC-14');
+    expect(violations[0].lineNumber).toBe(9);
+  });
+
+  test('accepts a file where every runnable test asserts', () => {
+    const src = [
+      "import { test, expect } from '@/fixtures/base.fixture';",
+      "test.describe('x', () => {",
+      "  test('a', async ({ page }) => {",
+      '    await expect(page).toHaveTitle(/app/);',
+      '  });',
+      "  test('b', async ({ page }) => {",
+      "    await expect(page.getByText('ok')).toBeVisible();",
+      '  });',
+      '});',
+    ].join('\n');
+    expect(validatePerTestAssertions(src, 'x', SPEC)).toEqual([]);
+  });
+
+  test('exempts tests that declare their own skip or fixme', () => {
+    const src = [
+      "import { test } from '@/fixtures/base.fixture';",
+      "test.fixme('SC-03: belum dibangun', async ({ page }) => {",
+      "  setTestMetadata({ testId: 'TC-003', scenarioId: 'SC-03' });",
+      '});',
+      "test('SC-05: prasyarat runtime', async ({ page }) => {",
+      "  test.skip(hasPaid, 'prasyarat tidak tersedia saat run ini');",
+      "  await page.goto('/payroll');",
+      '});',
+    ].join('\n');
+    expect(validatePerTestAssertions(src, 'x', SPEC)).toEqual([]);
+  });
+
+  test('skips traceability-exempt files', () => {
+    expect(
+      validatePerTestAssertions(
+        "test('y', async ({ page }) => { await page.goto('/'); });",
+        'tests/demo/demo-x.spec.ts',
+        'tests/demo/demo-x.spec.ts',
+      ),
+    ).toEqual([]);
+  });
+});
+
+test.describe('validate-generated-tests skip-doctrine rule', () => {
+  // Guard-fail proof: the exact tes-qa skip — permanent, non-manual, burying
+  // unfinished work in the grey bucket QA reads as "the app is broken".
+  test('flags a permanent test.skip(true) outside the @manual doctrine', () => {
+    const src = [
+      "import { test } from '@/fixtures/base.fixture';",
+      "test.describe('Payroll', () => {",
+      "  test('SC-03: Buka Payroll Draft', async ({ page }) => {",
+      "    test.skip(true, 'UI belum dieksplorasi — Explore lanjutan diperlukan');",
+      '  });',
+      '});',
+    ].join('\n');
+    const violations = validateSkipDoctrine(src, 'x', SPEC);
+    expect(violations.length).toBe(1);
+    expect(violations[0].severity).toBe('error');
+    expect(violations[0].ruleName).toContain('test.fixme');
+    expect(violations[0].lineNumber).toBe(4);
+  });
+
+  test('flags the declaration form test.skip(title, body) too', () => {
+    const src = "test.skip('SC-xx: legacy', async () => {});";
+    const violations = validateSkipDoctrine(src, 'x', SPEC);
+    expect(violations.length).toBe(1);
+    expect(violations[0].severity).toBe('error');
+  });
+
+  test('passes a permanent skip under a describe-level @manual tag', () => {
+    const src = [
+      "import { test } from '@/fixtures/base.fixture';",
+      "test.describe('CAPTCHA', { tag: ['@manual'] }, () => {",
+      "  test('SC-09: OTP Fisik', async ({ page }) => {",
+      "    test.skip(true, 'Butuh OTP fisik dari email nyata');",
+      '  });',
+      '});',
+    ].join('\n');
+    expect(validateSkipDoctrine(src, 'x', SPEC)).toEqual([]);
+  });
+
+  test('passes the canonical "Manual: <alasan>" reason without a tag', () => {
+    const src = [
+      "test('SC-09: OTP Fisik', async ({ page }) => {",
+      "  test.skip(true, 'Manual: butuh OTP fisik');",
+      '});',
+    ].join('\n');
+    expect(validateSkipDoctrine(src, 'x', SPEC)).toEqual([]);
+  });
+
+  test('warns (not errors) on a conditional runtime skip', () => {
+    const src = [
+      "test('SC-05', async ({ page }) => {",
+      "  test.skip(hasPaid, 'prasyarat tidak tersedia');",
+      '});',
+    ].join('\n');
+    const violations = validateSkipDoctrine(src, 'x', SPEC);
+    expect(violations.length).toBe(1);
+    expect(violations[0].severity).toBe('warning');
+    expect(violations[0].ruleName).toContain('test.fixme(condition');
+  });
+
+  test('ignores test.skip mentioned inside comments', () => {
+    const src = "// test.skip(true, 'contoh dokumentasi');\nconst x = 1;";
+    expect(validateSkipDoctrine(src, 'x', SPEC)).toEqual([]);
+  });
+});
+
+test.describe('validate-generated-tests duplicate-body rule', () => {
+  // Guard-fail proof: SC-08 "filter" copied SC-01's header checks verbatim and
+  // only swapped the capture prose — identical action skeletons, zero filter
+  // interaction, and it ran green.
+  const headerChecks = (capture: string): string[] => [
+    "    await test.step('Buka halaman', async () => {",
+    "      await page.goto('/hris/payroll-process');",
+    '    });',
+    "    await test.step('Verifikasi judul dan kolom', async () => {",
+    "      await expect(page.getByRole('heading', { name: 'Proses' })).toBeVisible();",
+    "      await expect(page.getByRole('button', { name: 'Filter' })).toBeVisible();",
+    '    });',
+    `    captureActualResult('${capture}');`,
+  ];
+
+  test('flags a test whose body is identical to a sibling except capture prose', () => {
+    const src = [
+      "import { test, expect } from '@/fixtures/base.fixture';",
+      "import { setTestMetadata, captureActualResult } from '@/support/test-metadata';",
+      "test.describe('Proses', () => {",
+      "  test('SC-01: Akses Halaman', async ({ page }) => {",
+      "    setTestMetadata({ testId: 'TC-001', scenarioId: 'SC-01' });",
+      ...headerChecks('Halaman tampil.'),
+      '  });',
+      '',
+      "  test('SC-08: Filter Daftar', async ({ page }) => {",
+      "    setTestMetadata({ testId: 'TC-008', scenarioId: 'SC-08' });",
+      ...headerChecks('Filter bekerja.'),
+      '  });',
+      '});',
+    ].join('\n');
+    const violations = validateDuplicateTestBodies(src, 'x', SPEC);
+    expect(violations.length).toBe(1);
+    expect(violations[0].severity).toBe('warning');
+    expect(violations[0].ruleName).toContain('SC-08');
+    expect(violations[0].ruleName).toContain('SC-01');
+  });
+
+  test('passes tests with genuinely different bodies', () => {
+    const src = [
+      "import { test, expect } from '@/fixtures/base.fixture';",
+      "test.describe('Proses', () => {",
+      "  test('SC-01: Akses', async ({ page }) => {",
+      "    await page.goto('/payroll');",
+      "    await expect(page.getByRole('heading')).toBeVisible();",
+      '  });',
+      "  test('SC-05: Bayar', async ({ page }) => {",
+      "    await page.goto('/payroll/detail');",
+      "    await page.getByRole('button', { name: 'Bayar' }).click();",
+      "    await expect(page.getByText('Terbayar')).toBeVisible();",
+      '  });',
+      '});',
+    ].join('\n');
+    expect(validateDuplicateTestBodies(src, 'x', SPEC)).toEqual([]);
+  });
+
+  test('exempts skip/fixme skeletons (intentionally near-identical)', () => {
+    const skeleton = (id: string): string[] => [
+      `  test('${id}: placeholder', async ({ page }) => {`,
+      "    setTestMetadata({ testId: 'TC-x', scenarioId: 'SC-x' });",
+      "    test.fixme(true, 'belum dibangun');",
+      '  });',
+    ];
+    const src = [
+      "import { test } from '@/fixtures/base.fixture';",
+      "import { setTestMetadata } from '@/support/test-metadata';",
+      "test.describe('x', () => {",
+      ...skeleton('SC-03'),
+      ...skeleton('SC-04'),
+      '});',
+    ].join('\n');
+    expect(validateDuplicateTestBodies(src, 'x', SPEC)).toEqual([]);
+  });
+
+  test('ignores trivially small bodies', () => {
+    const src = [
+      "import { test } from '@/fixtures/base.fixture';",
+      "test('a', async ({ page }) => { await page.goto('/'); });",
+      "test('b', async ({ page }) => { await page.goto('/'); });",
+    ].join('\n');
+    expect(validateDuplicateTestBodies(src, 'x', SPEC)).toEqual([]);
   });
 });

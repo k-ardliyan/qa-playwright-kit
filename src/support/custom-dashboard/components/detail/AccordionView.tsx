@@ -16,18 +16,21 @@ function isUnhealthyStatus(status: string): boolean {
   return UNHEALTHY_STATUSES.has(status);
 }
 
+type GroupKey = 'unhealthy' | 'not-implemented' | 'skipped' | 'passed';
+
 function buildStatusGroups(collectedTests: CollectedTestData[]): Array<{
-  key: 'unhealthy' | 'passed' | 'skipped';
+  key: GroupKey;
   title: string;
   copy: string;
   tests: CollectedTestData[];
 }> {
   const unhealthy = collectedTests.filter((testData) => isUnhealthyStatus(testData.status));
+  const notImplemented = collectedTests.filter((testData) => testData.status === 'not-implemented');
   const passed = collectedTests.filter((testData) => testData.status === 'passed');
   const skipped = collectedTests.filter((testData) => testData.status === 'skipped');
 
   const groups: Array<{
-    key: 'unhealthy' | 'passed' | 'skipped';
+    key: GroupKey;
     title: string;
     copy: string;
     tests: CollectedTestData[];
@@ -39,6 +42,12 @@ function buildStatusGroups(collectedTests: CollectedTestData[]): Array<{
       tests: unhealthy,
     },
     {
+      key: 'not-implemented',
+      title: 'Belum dibangun',
+      copy: 'Skenario direncanakan tapi belum dibuat — utang kerja, bukan skip.',
+      tests: notImplemented,
+    },
+    {
       key: 'passed',
       title: 'Passed tests',
       copy: 'Healthy executions kept quieter for audit-only review.',
@@ -47,11 +56,13 @@ function buildStatusGroups(collectedTests: CollectedTestData[]): Array<{
     {
       key: 'skipped',
       title: 'Skipped tests',
-      copy: 'Coverage gaps or intentionally deferred cases.',
+      copy: 'Not applicable to automation (@manual) — CAPTCHA, OTP, physical device.',
       tests: skipped,
     },
   ];
 
+  // Every status must land in exactly one group; an unmatched status would be
+  // dropped from the view entirely (the bug this bucketing exists to prevent).
   return groups.filter((group) => group.tests.length > 0);
 }
 
@@ -134,8 +145,9 @@ export function AccordionView({ collectedTests, runId, openTest }: AccordionView
         function statusRank(s) {
           s = String(s || '').toLowerCase();
           if (s === 'failed' || s === 'timedout' || s === 'interrupted') return 0;
-          if (s === 'skipped') return 1;
-          if (s === 'passed') return 2;
+          if (s === 'not-implemented') return 1;
+          if (s === 'skipped') return 2;
+          if (s === 'passed') return 3;
           return 99;
         }
         function priorityRank(p) {

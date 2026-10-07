@@ -70,6 +70,8 @@ const STATUS_ICON: Record<string, string> = {
   timedout: '⏱️',
   interrupted: '❌',
   skipped: '⊘',
+  // Same wrench-ish mark the dashboard uses: unfinished work, not a neutral skip.
+  'not-implemented': '⚒',
 };
 
 function statusCell(status: string): string {
@@ -108,8 +110,15 @@ export function buildMarkdownReport(summary: Record<string, unknown>): string {
     ).length,
   );
   const skipped = num('skipped', cases.filter((c) => c.status === 'skipped').length);
+  const notImplemented = cases.filter((c) => c.status === 'not-implemented').length;
   const total = num('total', cases.length);
-  const passRate = num('passRate', total > 0 ? Math.round((passed / total) * 100) : 0);
+  // Fallback mirrors the reporter's unified formula (docs/REPORT-GUIDE.md):
+  // skipped (@manual) and not-implemented (unbuilt) never ran, so they are
+  // coverage numbers, not part of the pass-rate denominator.
+  const passRate = num(
+    'passRate',
+    passed + failed > 0 ? Math.round((passed / (passed + failed)) * 100) : 0,
+  );
 
   const appEnv =
     (typeof runMeta.appEnv === 'string' && runMeta.appEnv) ||
@@ -137,7 +146,7 @@ export function buildMarkdownReport(summary: Record<string, unknown>): string {
   lines.push(`# QA Report — ${identity}`);
   lines.push('');
   lines.push(
-    `**Result:** ${passRate}% passed · ${passed} passed · ${failed} failed · ${skipped} skipped · ${total} total`,
+    `**Result:** ${passRate}% passed · ${passed} passed · ${failed} failed · ${skipped} skipped${notImplemented > 0 ? ` · ${notImplemented} not implemented` : ''} · ${total} total`,
   );
   lines.push('');
 

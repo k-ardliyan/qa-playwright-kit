@@ -22,6 +22,8 @@ import {
   mixedResultsTests,
   multiRoleSummary,
   multiRoleTests,
+  notImplementedSummary,
+  notImplementedTests,
   skippedSummary,
   skippedTests,
 } from './fixtures';
@@ -33,6 +35,7 @@ const FIXTURES = [
   { name: 'failures', summary: failureSummary, tests: failureTests },
   { name: 'mixed-results', summary: mixedResultsSummary, tests: mixedResultsTests },
   { name: 'skipped', summary: skippedSummary, tests: skippedTests },
+  { name: 'not-implemented', summary: notImplementedSummary, tests: notImplementedTests },
   { name: 'attachments', summary: attachmentsSummary, tests: attachmentsTests },
   {
     name: 'missing-attachments',
@@ -190,6 +193,28 @@ test.describe('Custom Dashboard Style Contract', () => {
             `Rendered class "${cls}" in fixture "${fixture.name}" is missing from CSS rules!`,
           ).toBe(true);
         }
+      }
+    }
+  });
+
+  // Regression guard: the chip stack must be a CHILD element, not the <td>
+  // itself. A `display: flex` on the <td> drops table-cell semantics; the
+  // browser then wraps it in an anonymous cell whose border-bottom spans only
+  // the content box, rendering a short stray rule under the last chip instead
+  // of the full row separator. That shipped once — this locks it out.
+  test('chip stacks live in a child element, never on the table cell', () => {
+    const css = getDashboardStyles();
+    // No rule may put a flex/grid display directly on the module/feature cell.
+    expect(css).not.toMatch(/\.tbl-(?:module|feature)\s*\{[^}]*display\s*:\s*(?:flex|grid)/);
+    // The stack class carries the layout instead.
+    expect(css).toMatch(/\.tbl-chip-stack\s*\{[^}]*display\s*:\s*flex/);
+
+    for (const fixture of FIXTURES) {
+      const html = buildDashboardHtml('local', fixture.summary, fixture.tests);
+      // Every rendered module cell wraps its chips in the stack div.
+      const moduleCells = html.match(/<td class="tbl-module"[^>]*>[\s\S]*?<\/td>/g) ?? [];
+      for (const cell of moduleCells) {
+        expect(cell).toContain('class="tbl-chip-stack"');
       }
     }
   });

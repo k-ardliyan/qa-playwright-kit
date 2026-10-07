@@ -216,6 +216,10 @@ generate_page_object (qa-playwright-kit) — featureName, pageName
 | `(@upload)`             | Upload fixture-first → `uploadFixture`                  |
 | `(@file-content)`       | PDF teks (needle skenario)                              |
 
+Tag **plan-level** untuk pekerjaan belum selesai (→ `test.fixme`, bukan `test.skip`): `@blocked` (bloker berbukti), `@not-implemented` (belum dibangun). `@manual` satu-satunya yang memakai `test.skip`.
+
+Validator gate terkait: `validate_generated_tests` menolak test runnable tanpa `expect()` (dicek **per test**, bukan per file), `test.skip(true, ...)` di luar doktrin `@manual`, dan test tanpa `setTestMetadata` sendiri; `validate_plan` mem-warning `PLAN_LOCATOR_INTENT_MISSING` (skenario automated tanpa Locator Intent) dan `PLAN_SEED_UNPROVISIONED` (Metadata `Seed | none` tapi skenario butuh `seed:`). `validate_requirement` mem-warning `markdown_hygiene` untuk sel tabel ber-backtick rusak.
+
 ---
 
 ## File fixtures (local-first)

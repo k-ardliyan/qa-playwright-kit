@@ -15,11 +15,15 @@ import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 
 /**
  * Coverage status for a single requirement scenario.
+ *
+ * `skipped` is reserved for `@manual` (not applicable to automation).
+ * `not-implemented` is planned-but-unbuilt work — it must stay distinct from
+ * `skipped`, or unfinished coverage reads as a neutral outcome.
  */
 export interface ScenarioCoverage {
   scenarioId: string;
   scenarioName: string;
-  status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-generated';
+  status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-implemented' | 'not-generated';
 }
 
 /**
@@ -51,6 +55,9 @@ export interface PipelineReport {
     testsFailing: number;
     testsHealed: number;
     testsSkipped: number;
+    /** Planned-but-unbuilt scenarios (test.fixme) — reported separately so the
+     *  pipeline summary never folds unfinished work into "skipped". */
+    testsNotImplemented?: number;
   };
   summaryByRole?: Record<string, { passing: number; failing: number; skipped: number }>;
   summaryByModule?: Record<
@@ -93,12 +100,14 @@ export interface BuildReportInput {
     passing: number;
     failing: number;
     skipped: number;
+    /** From test-summary.json's notImplemented bucket (fixme-promoted). */
+    notImplemented?: number;
   };
   healedCount: number;
   scenarios: Array<{
     id: string;
     name: string;
-    status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-generated';
+    status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-implemented' | 'not-generated';
   }>;
   unresolvedFailures?: UnresolvedFailure[];
   /** Analyze sub-phase proof (Execute → Heal → Analyze → Report). */
@@ -144,6 +153,7 @@ export function buildReport(input: BuildReportInput): PipelineReport {
       testsFailing: input.testResults.failing,
       testsHealed: input.healedCount,
       testsSkipped: input.testResults.skipped,
+      testsNotImplemented: input.testResults.notImplemented,
     },
     coverage,
     unresolvedFailures: input.unresolvedFailures || [],
@@ -213,6 +223,9 @@ export function writeReportMarkdown(report: PipelineReport): string {
   lines.push(`| Tests Failing | ${report.summary.testsFailing} |`);
   lines.push(`| Tests Healed | ${report.summary.testsHealed} |`);
   lines.push(`| Tests Skipped | ${report.summary.testsSkipped} |`);
+  if (report.summary.testsNotImplemented !== undefined) {
+    lines.push(`| Tests Not Implemented | ${report.summary.testsNotImplemented} |`);
+  }
   lines.push('');
 
   // Duration section

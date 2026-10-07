@@ -148,8 +148,9 @@ Process failures in priority order — most actionable first.
 - Max **3** heal cycles per file per `WorkflowController` run — the bound is enforced at entry: a 4th re-entry returns `LOOP_LIMIT_REACHED` (`retryable: false`, stage `blocked`) instead of running. Each pass after the first re-runs only the previously failed titles. Count each patch + `run_tests` as one cycle.
 - After 3 cycles with the same root error (or no improvement), return `cannotFix` with the last error message.
 - If live UI inspection (`browser_snapshot`, `tracePath`, `screenshotPath`) shows a **product bug** (feature broken in the app, not a test issue), do not weaken assertions. Instead:
-  - use `test.fixme(true, 'product bug: <reason>')` or `test.skip(true, 'product bug: <reason>')`, and
+  - use `test.fail('product bug: <reason>')` — the test runs and must fail, keeping the bug visible and tracked, or `test.fixme('product bug: <reason>')` when running it is too slow/flaky to keep in the suite, and
   - document in `cannotFix` with reason `product bug`.
+  - Never use `test.skip` for a product bug: `skip` means "not applicable", which hides a real defect. `test.skip` is reserved for `@manual` scenarios.
 - Never patch assertions to match incorrect app behavior.
 - **Record failed fix attempts** via `record_ai_note` (source: `healer`) so ineffective fixes are not repeated.
 

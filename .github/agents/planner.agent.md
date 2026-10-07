@@ -117,8 +117,17 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 - **Requirement:** `requirements/<feature-name>.md`
 - **Mode:** general (single-role) | role-aware (multi-role)
 - **Roles in Scope:** <active role name, e.g. "admin", or comma-separated list e.g. "finance, super-admin">
+- **Seed:** none | <seed producer, e.g. `tests/data/<feature>.json`> — declare it when ANY scenario depends on `seed:` refs; `none` + seed refs is flagged by validate_plan
 - **Generated At:** <YYYY-MM-DD HH:mm:ss>
 - **Seed Test:** `tests/seed.spec.ts`
+
+## Catalog Evidence
+
+| Page | Catalog File |
+| --- | --- |
+| <page-name> | `artifacts/selector-catalog/<feature>/<page>/` |
+
+Every `Page` referenced by an `automated` scenario MUST appear here (Rule 0 — snapshot_page / discover_pages produce these). A scenario whose page is absent goes to Coverage Gaps or `@not-implemented`, never into the plan as runnable.
 
 ## Summary
 
@@ -126,7 +135,7 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 
 ## Scenarios
 
-### SC-01: <scenario title> (@success | @failure | @access-restriction | @manual | @network | @network-assert | @hybrid | @aria | @visual | @download | @upload | @file-content)
+### SC-01: <scenario title> (@success | @failure | @access-restriction | @manual | @not-implemented | @blocked | @network | @network-assert | @hybrid | @aria | @visual | @download | @upload | @file-content)
 
 **Role:** <active role name, e.g. admin / user / finance — NEVER "general">
 **Auth Context:** `.auth/{APP_ENV}/<role>.json` | `unauthenticated` | `storageState: undefined`
@@ -134,37 +143,33 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 **Browser Intent:** `network: <boolean>, storage: <boolean>, vision: <boolean>, devtools: <boolean>, dialog: <boolean>, multiTab: <boolean>, fileUpload: <boolean>`
 **Capabilities:** <none | network | network-assert | hybrid | aria | visual | download | upload | file-content — derived from title tags / requirement Tags>
 
-| Scenario Name | Steps | Expected Result | Browser Intent | Capabilities         |
-| --- | --- | --- | --- | --- |
-| SC-01: ...    | ...   | ...             | storage: true  | network, soft-assert |
+For **every scenario** (single-role and role-aware alike), write the canonical field table — the same shape as `specs/_TEMPLATE.md`:
 
-For **single-role mode**, the table per scenario is:
+| Test ID | Covers | Actor | Auth Context | Page | Execution Mode | Data Setup | Actions | Assertions | Locator Intent | Network Expectations | Artifact Expectations | Cleanup | Unknowns |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-XXX-001 | AC-01 | admin | .auth/dev/admin.json | login-form | automated | prekondisi; Input: key: value | 1. ...; 2. ... | - [requirement] observable outcome | getByRole("button", { name: "Login" }) | none | screenshot on failure | none | none |
 
-| Test ID    | Scenario Name | Priority | Steps          | Input Data | Expected Result    | Layer |
-| --- | --- | --- | --- | --- | --- | --- |
-| TC-XXX-001 | SC-01: ...    | high     | 1. ...; 2. ... | key: value | observable outcome | FE    |
+For **role-aware mode**, group rows under `## Role: <role>` header and use the same columns.
 
-For **role-aware mode**, group rows under `## Role: <role>` header and use the same columns above.
+## Coverage Gaps
 
-### SC-02: <scenario title> (@failure)
-
-**Role:** <active role name>
-**Auth Context:** `.auth/{APP_ENV}/<role>.json` | `unauthenticated`
-**Seed:** `tests/seed.spec.ts`
-
-| Scenario Name | Steps | Expected Result |
+| Scenario | AC | Reason |
 | --- | --- | --- |
-| SC-02: ...    | ...   | ...             |
+| SC-XX | AC-XX | page not explored / seed unprovisioned / dependency not ready |
 ```
 
 ### Required columns
 
 - `Test ID` — TC-XXX-NNN from scenario metadata
-- `Scenario Name` — SC-XX id and title
+- `Covers` — AC ids this scenario verifies (space- or comma-separated)
+- `Scenario Name` — SC-XX id and title (in the `###` heading)
 - `Priority` — `high` / `medium` / `low` per scenario
-- `Steps` — numbered or semicolon-separated, explicit and executable
-- `Input Data` — key: value pairs, or `-` if none
-- `Expected Result` — observable and assertable
+- `Page` — catalog page name; MUST match a `## Catalog Evidence` row for `automated` scenarios (PLAN_EVIDENCE_MISSING otherwise)
+- `Execution Mode` — `automated` | `manual` | `blocked` | `not-implemented`
+- `Steps` (Actions) — numbered or semicolon-separated, explicit and executable
+- `Input Data` / `Data Setup` — key: value pairs, or `-` if none
+- `Expected Result` (Assertions) — observable and assertable
+- `Locator Intent` — the semantic locators the test will drive, from the selector catalog; `none` on an `automated` scenario is flagged (PLAN_LOCATOR_INTENT_MISSING) because it makes the Generator guess
 - `Role` — which role this scenario runs as (active role name from requirement/env, e.g. `admin`, `user`, `finance` — NEVER `"general"`)
 - `Auth Context` — exact storage state path (`.auth/{APP_ENV}/<role>.json`) or `unauthenticated`
 - `Layer` — affected layers: FE / BE / DB / API, or `-` if none
@@ -228,12 +233,31 @@ Populate plan **Capabilities** from title tags and metadata `#network #network-a
 
 ## Planning Rules
 
+**Rule 0 — Evidence before automation (Explore completion definition).** A scenario may be planned as `automated` **only** when its page has been captured. Concretely: Explore is complete for a feature when **every page referenced by a scenario has an entry in `## Catalog Evidence` whose file exists, has `elementCount > 0`, and carries no auth/session warning**. This turns "belum dieksplorasi" from an open-ended excuse into a checkable worklist.
+
+**The `Page` value is an exact string, not a description.** It is the catalog page name — the `<page>.json` filename stem, identical to the `pageName` field inside that JSON. Write the bare slug:
+
+| Correct           | Wrong                                             |
+| ----------------- | ------------------------------------------------- |
+| `login-form`      | `auth/login-form` (feature dir is not included)   |
+| `invoice-detail`  | `invoice-detail.json` (extension is not included) |
+| `payroll-process` | `Proses Penggajian` (title, not the page name)    |
+
+Source of truth for the names: `artifacts/selector-catalog/<featureName>/page-map.json` → each entry's `pageName` (written by `discover_pages`), or the `<page>.json` filename stem under `artifacts/selector-catalog/<featureName>/` (written by `snapshot_page`). Use the same string in the `## Catalog Evidence` table and in each scenario's `Page` row — they are matched literally.
+
+- Page has catalog evidence → plan `automated`, and fill the scenario's **`Page`** row with that catalog page name.
+- Page has **no** catalog evidence → the scenario goes to **Coverage Gaps** (reason: "page not explored"), **not** into the plan as `automated`. Never emit a runnable scenario whose page was never captured — it ships as a silent `test.skip` that hides unfinished work.
+- Blocker proven by evidence (page 500s, role denied, session cannot be minted) → mark `(@blocked)` and record the evidence in Coverage Gaps.
+- Dependency not yet built (seed producer missing, feature not shipped) → mark `(@not-implemented)` and record it in Coverage Gaps.
+
+`validate_plan` enforces this and reports the available page names in its message when a name does not match — read that list and correct the row rather than guessing again.
+
 1. Read and parse the requirement using `compile_requirement` (or `parse_requirement_scenarios`).
 2. If `Role scope` metadata exists, generate one scenario group per role.
 3. For each role in `Access expectation` that is restricted, generate an `(@access-restriction)` scenario.
-4. Mark CAPTCHA, OTP, biometric, or non-automatable flows as `(@manual)`.
-5. Populate `Coverage Gap` for any scenario that should exist but cannot be planned.
-6. Repeat the **Role**, **Auth Context**, and **Seed** fields under each scenario for Generator traceability.
+4. Mark CAPTCHA, OTP, biometric, or non-automatable flows as `(@manual)` — the list is closed (seven situations, see `scenario-tags.md`); nothing else qualifies.
+5. Populate `Coverage Gap` for any scenario that should exist but cannot be planned — including every scenario whose page lacks catalog evidence (Rule 0).
+6. Repeat the **Role**, **Auth Context**, **Page**, and **Seed** fields under each scenario for Generator traceability.
 7. Do not invent steps — if the requirement is unclear, put the scenario in Coverage Gap.
 8. When `Data scope` mentions API seed/endpoints, mark scenarios `(@hybrid)` and list the endpoint in Steps.
 9. When failure depends on HTTP status / offline, mark `(@network)` and name the URL glob (mock only).
@@ -254,7 +278,7 @@ Populate plan **Capabilities** from title tags and metadata `#network #network-a
 
 ## Coverage Gap
 
-> List scenarios that **should** exist based on the requirement but could not be planned because of missing information.
+> List scenarios that **should** exist based on the requirement but could not be planned because of missing information. Every scenario whose page has no catalog evidence (Rule 0) belongs here — that is the record of unfinished work, not a silent `test.skip`.
 
 | Gap                  | Reason                    | Suggested Action                    |
 | -------------------- | ------------------------- | ----------------------------------- |
@@ -266,7 +290,7 @@ If there are no gaps, write: `No coverage gaps identified.`
 
 ## Manual Notes
 
-> List scenarios marked `(@manual)` with the reason they cannot be automated.
+> List scenarios marked `(@manual)` with the reason they cannot be automated. `@manual` is a closed list — CAPTCHA, physical OTP, real inbox, live payment, biometric/hardware, PDF visual layout, real-world timing. Anything else belongs in Coverage Gaps as `@not-implemented`, not here.
 
 | Scenario   | Reason                                    |
 | ---------- | ----------------------------------------- |

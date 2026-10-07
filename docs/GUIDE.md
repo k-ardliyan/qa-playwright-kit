@@ -306,6 +306,8 @@ Generate Playwright tests dari specs/nama-fitur-test-plan.md:
 5. Scenario (@access-restriction): assert penolakan akses — redirect, error message, atau elemen tidak ada.
 6. Scenario (@failure): assert pesan error atau state validasi gagal.
 7. Scenario (@manual): test.skip(true, 'Manual: <alasan>').
+   Scenario (@blocked) / (@not-implemented): test.fixme('<judul>', ...) — JANGAN test.skip.
+   Bug produk yang diketahui: test.fail(...) (jalan dan harus gagal).
 8. validate_generated_tests (qa-playwright-kit).
 ```
 
@@ -466,6 +468,23 @@ CI mengabaikan pin (`CI=true`). Setelah `env:use`, restart MCP servers.
 - **Role auth file** → `.auth/{APP_ENV}/<role>.json` harus dibuat dulu via `npm run auth:setup`.
 - **Environment** → tiap QA pakai file `config/environments/{APP_ENV}.env` sendiri (BASE_URL + kredensial per env).
 - **Selector catalog** → di-cache per-hash. `snapshot_page` skip re-capture kalau UI tidak berubah — aman di-run berulang.
+
+---
+
+## Status Test untuk QA Awam
+
+Report memakai 4 status. Tiga di antaranya mudah tertukar — ini bedanya:
+
+| Status di report                             | Artinya                                                                                                                                          | Kamu harus...                                                                             |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **Passed / Failed**                          | Test benar-benar dijalankan.                                                                                                                     | Failed = bug atau asumsi salah → triage normal.                                           |
+| **Skipped** (abu-abu)                        | Skenario memang **tidak bisa diotomasi** (CAPTCHA, OTP fisik, biometric) — ditandai `@manual`.                                                   | Tidak ada yang perlu dikerjakan; jalankan manual bila perlu.                              |
+| **Belum dibangun** (biru, `not-implemented`) | Skenario **direncanakan tapi test-nya belum dibuat** (halaman belum dieksplorasi, seed belum ada, prasyarat belum siap) — ditandai `test.fixme`. | Ini **utang kerja pipeline**, bukan bug aplikasi. Lanjutkan Explore/seed lalu regenerate. |
+| **Not generated**                            | Skenario belum punya test sama sekali.                                                                                                           | Belum masuk plan.                                                                         |
+
+**Pass rate** hanya menghitung test yang benar-benar jalan: `passed / (passed + failed)`. Skipped dan Belum dibangun dilaporkan terpisah sebagai coverage — bukan bagian dari skor, dan bukan tanda aplikasi rusak.
+
+**Skrip jawaban "kok banyak skipped?"** (untuk agent): baca `get_test_summary` — pisahkan tiga angkanya: skipped (@manual) = memang tidak diotomasi; not-implemented (fixme) = utang kerja dengan alasannya per skenario (kolom tooltip "Alasan"); failed = yang benar-benar harus ditindak. Sampaikan hitungan per kategori + langkah lanjut per kategori — jangan pernah menyebut semuanya "skipped".
 
 ---
 

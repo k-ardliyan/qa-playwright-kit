@@ -30,6 +30,9 @@ export function statusIcon(status: string, size = STATUS_ICON_SIZE): Children {
       return <IconTimer size={size} />;
     case 'skipped':
       return <IconCircleSlash2 size={size} />;
+    case 'not-implemented':
+      // Wrench-ish mark: unfinished work, not a neutral "not applicable".
+      return <IconSquarePen size={size} />;
     case 'failed':
     case 'interrupted':
       return <IconCircleX size={size} />;
@@ -38,24 +41,40 @@ export function statusIcon(status: string, size = STATUS_ICON_SIZE): Children {
   }
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { cls: string; label: string }> = {
+export function StatusBadge({ status, reason }: { status: string; reason?: string }) {
+  // Labels are Indonesian to match the QA-facing AI notes that explain them —
+  // `not-implemented` and `skipped` are the two statuses a non-coder most easily
+  // confuses, so each carries a tooltip stating the difference outright.
+  const map: Record<string, { cls: string; label: string; hint?: string }> = {
     passed: { cls: 'status-pill--passed', label: 'Passed' },
     failed: { cls: 'status-pill--failed', label: 'Failed' },
     timedOut: { cls: 'status-pill--failed', label: 'Timed out' },
     interrupted: { cls: 'status-pill--failed', label: 'Interrupted' },
-    skipped: { cls: 'status-pill--skipped', label: 'Skipped' },
+    skipped: {
+      cls: 'status-pill--skipped',
+      label: 'Skipped',
+      hint: 'Tidak berlaku untuk otomasi (CAPTCHA, OTP fisik, biometric) — memang tidak dijalankan.',
+    },
+    'not-implemented': {
+      cls: 'status-pill--not-implemented',
+      label: 'Belum dibangun',
+      hint: 'Direncanakan tapi belum dibuat — utang kerja, bukan skip. Bukan kegagalan.',
+    },
   };
   const entry = map[status] ?? {
     cls: 'status-pill--skipped',
     label: status || 'Unknown',
   };
+  // Per-scenario annotation reason ("Butuh payroll berjalan sampai status
+  // Dibayar") overrides the static hint so the tooltip answers "kenapa".
+  const effectiveHint = reason?.trim() ? reason.trim() : entry.hint;
 
   return (
     <span
       class={`status-pill status-pill--full ${entry.cls}`}
       role="img"
       aria-label={`Status: ${entry.label}`}
+      title={effectiveHint}
     >
       <span class="status-pill__icon" aria-hidden="true">
         {statusIcon(status)}

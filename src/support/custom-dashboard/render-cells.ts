@@ -7,21 +7,35 @@ import { decisionHintFor, decisionHintTooltipFor, decisionHintBlurbFor } from '.
 // HTML rendering helpers used by build-table-view.ts and build-fragments.ts
 // ---------------------------------------------------------------------------
 
-export function renderStatusBadge(status: string): string {
-  const map: Record<string, { cls: string; label: string }> = {
+export function renderStatusBadge(status: string, reason?: string): string {
+  // Twin of the TSX StatusBadge — same labels and tooltips, never drift.
+  const map: Record<string, { cls: string; label: string; hint?: string }> = {
     passed: { cls: 'status-pill--passed', label: 'Passed' },
     failed: { cls: 'status-pill--failed', label: 'Failed' },
     timedOut: { cls: 'status-pill--failed', label: 'Timed out' },
     interrupted: { cls: 'status-pill--failed', label: 'Interrupted' },
-    skipped: { cls: 'status-pill--skipped', label: 'Skipped' },
+    skipped: {
+      cls: 'status-pill--skipped',
+      label: 'Skipped',
+      hint: 'Tidak berlaku untuk otomasi (CAPTCHA, OTP fisik, biometric) — memang tidak dijalankan.',
+    },
+    'not-implemented': {
+      cls: 'status-pill--not-implemented',
+      label: 'Belum dibangun',
+      hint: 'Direncanakan tapi belum dibuat — utang kerja, bukan skip. Bukan kegagalan.',
+    },
   };
   const entry = map[status] ?? {
     cls: 'status-pill--skipped',
     label: status || 'Unknown',
   };
+  // A per-scenario annotation reason overrides the static hint, so the tooltip
+  // answers "kenapa belum jalan" instead of repeating the generic definition.
+  const effectiveHint = reason?.trim() ? reason.trim() : entry.hint;
   // Same icon source as the TSX StatusBadge — no drift between the two paths.
   const icon = String(statusIcon(status));
-  return `<span class="status-pill status-pill--full ${entry.cls}" role="img" aria-label="Status: ${escapeHtml(entry.label)}"><span class="status-pill__icon" aria-hidden="true">${icon}</span> <span>${escapeHtml(entry.label)}</span></span>`;
+  const titleAttr = effectiveHint ? ` title="${escapeHtml(effectiveHint)}"` : '';
+  return `<span class="status-pill status-pill--full ${entry.cls}" role="img" aria-label="Status: ${escapeHtml(entry.label)}"${titleAttr}><span class="status-pill__icon" aria-hidden="true">${icon}</span> <span>${escapeHtml(entry.label)}</span></span>`;
 }
 
 export function renderPriorityBadge(priority: string): string {

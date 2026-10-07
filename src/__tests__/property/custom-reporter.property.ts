@@ -320,7 +320,8 @@ async function property10ReportModeDetection(): Promise<void> {
       summary.testCases?.every((testCase) => (testCase as { role: string }).role === 'user'),
     );
     assert.deepStrictEqual(summary.summaryByRole, {
-      user: { passing: 2, failing: 0, skipped: 1 },
+      // notImplemented bucket always exists (0 here — no fixme in this mix).
+      user: { passing: 2, failing: 0, skipped: 1, notImplemented: 0 },
     });
     assert.equal(
       (summary.summaryByRole as Record<string, unknown> | undefined)?.['GENERAL / UNSCOPED'],
@@ -453,7 +454,11 @@ async function property5ReporterOutputCompleteness(): Promise<void> {
         ];
 
         const total = cases.length;
-        const expectedPassRate = total > 0 ? Math.round((passedCount / total) * 100) : 0;
+        // Unified formula (docs/REPORT-GUIDE.md): only tests that ran are
+        // scored — passed / (passed + failed). The old passed/total here made
+        // this property disagree with the reporter whenever skips existed.
+        const ran = passedCount + failedCount;
+        const expectedPassRate = ran > 0 ? Math.round((passedCount / ran) * 100) : 0;
 
         const output = await runReporter(cases, 'false');
 

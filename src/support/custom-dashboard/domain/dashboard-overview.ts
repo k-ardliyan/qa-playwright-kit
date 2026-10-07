@@ -90,6 +90,8 @@ export interface BuildDashboardOptions {
     passed: number;
     failed: number;
     skipped: number;
+    /** Planned-but-unbuilt scenarios (test.fixme); absent on older markers. */
+    notImplemented?: number;
     passRate: number;
     reportMode: string;
     appEnv?: string;
@@ -130,6 +132,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     const passed = (summary?.passed as number) ?? info?.passed ?? 0;
     const failed = (summary?.failed as number) ?? info?.failed ?? 0;
     const skipped = (summary?.skipped as number) ?? info?.skipped ?? 0;
+    const notImplemented = (summary?.notImplemented as number | undefined) ?? info?.notImplemented;
     const durationMs =
       ((summary?.runMeta as Record<string, unknown> | undefined)?.totalDurationMs as number) ??
       info?.totalDurationMs;
@@ -167,6 +170,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
       passed,
       failed,
       skipped,
+      notImplemented,
       durationMs,
       isArchived,
       analysisVerdict:
@@ -302,7 +306,11 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
     moduleMap.set(module, cur);
   };
   for (const tc of latestTestCases) {
+    // Only tests that actually ran belong in a pass-rate denominator. A skip
+    // (@manual — not applicable) and a not-implemented scenario (unbuilt) both
+    // inflate the rate if counted as "not failed", so neither is included.
     if (typeof tc.status !== 'string' || tc.status === 'skipped') continue;
+    if (tc.status === 'not-implemented') continue;
     const module = (
       typeof tc.module === 'string' && tc.module && tc.module !== '-'
         ? tc.module
@@ -322,8 +330,10 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
       for (const f of Object.values(features)) {
         const passing = (f as { passing?: number }).passing ?? 0;
         const failing = (f as { failing?: number }).failing ?? 0;
-        const skipped = (f as { skipped?: number }).skipped ?? 0;
-        total += passing + failing + skipped;
+        // Skipped/not-implemented are deliberately excluded — they never ran,
+        // so they cannot be scored. Counting them here made the archived path
+        // disagree with the latest-run path for the same data.
+        total += passing + failing;
         failed += failing;
       }
       if (total > 0) addModule(module as string, total, failed);
@@ -334,6 +344,7 @@ export function buildDashboardOverview(options: BuildDashboardOptions): Dashboar
       module,
       total,
       failed,
+      // `failed` can never exceed `total` now that only ran-tests are counted.
       passRate: total === 0 ? 0 : Math.round(((total - failed) / total) * 100),
     }))
     .sort((a, b) => a.passRate - b.passRate || b.total - a.total);

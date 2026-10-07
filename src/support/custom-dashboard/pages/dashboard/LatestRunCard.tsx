@@ -8,6 +8,7 @@ import {
   IconArrowRight,
   IconLayoutDashboard,
   IconList,
+  IconSquarePen,
 } from '../../components/shared/icons';
 
 export interface LatestRunCardProps {
@@ -117,6 +118,18 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
           </span>
           <span class="metric-box__label">Skipped</span>
         </div>
+        {latestRun.notImplemented ? (
+          <div
+            class="metric-box metric-box--not-implemented"
+            title="Skenario direncanakan tapi belum dibangun (test.fixme) — utang kerja, bukan skip"
+          >
+            <span class="metric-box__num">
+              <IconSquarePen size={16} class="metric-icon metric-icon--not-implemented" />
+              <span>{latestRun.notImplemented}</span>
+            </span>
+            <span class="metric-box__label">Belum dibangun</span>
+          </div>
+        ) : null}
       </div>
 
       <div class="latest-run-card__actions">

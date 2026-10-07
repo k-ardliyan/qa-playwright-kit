@@ -129,6 +129,8 @@ export interface DetailScenario {
   priority?: string;
   duration?: number;
   failureSource?: string;
+  /** Per-scenario "why" (fixme/skip annotation) for the status tooltip. */
+  notImplementedReason?: string;
   errorMessage?: string;
   inputData?: Record<string, string>;
   expectedResult?: string;
@@ -230,10 +232,10 @@ export function buildDetailPage(options: {
       const mainRow = `
         <tr class="tbl-row tbl-row--${status}" data-idx="${idx}" ${isExpandable ? `onclick="toggleDetailRow(${idx})" tabindex="0" role="button" aria-label="Toggle details for ${escapeHtml(s.testId ?? s.title ?? 'test case')}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="cursor:pointer"` : ''}>
           <td class="tbl-test-id col-sticky-0" data-col="testId"><code>${escapeHtml(s.testId ?? '')}</code>${expandBtn}</td>
-          <td class="tbl-module" data-col="module"><span class="module-chip">${escapeHtml(s.module ?? 'general')}</span></td>
+          <td class="tbl-module" data-col="module"><div class="tbl-chip-stack"><span class="module-chip">${escapeHtml(s.module ?? 'general')}</span></div></td>
           <td class="tbl-feature" data-col="feature"><span class="feature-chip">${escapeHtml(s.feature ?? 'general')}</span></td>
           <td class="tbl-description" data-col="description"><span class="tbl-title">${escapeHtml(fullTitle)}</span>${s.reqRef ? ` <code class="req-ref">${escapeHtml(s.reqRef)}</code>` : ''}${s.track === 'express' ? ' <span class="track-chip">express</span>' : ''}</td>
-          <td class="tbl-status" data-col="status">${renderStatusBadge(status)}</td>
+          <td class="tbl-status" data-col="status">${renderStatusBadge(status, typeof s.notImplementedReason === 'string' ? s.notImplementedReason : undefined)}</td>
           <td class="tbl-priority" data-col="priority">${renderPriorityBadge(s.priority ?? 'medium')}</td>
           <td class="tbl-source" data-col="source">${renderFailureSourceCell({ status, failureSource: s.failureSource as FailureSource | undefined, errorMessage: s.errorMessage })}</td>
           <td class="tbl-notes" data-col="notes">${s.duration ? s.duration + 'ms' : '—'}${retry > 0 ? ` · retry ×${retry}` : ''}${trace ? ` · <a href="${escapeHtml(encodeEvidenceUrl(trace.relativePath, runId))}" target="_blank" rel="noopener">trace</a>` : ''}${screenshot ? ` · <a href="${escapeHtml(encodeEvidenceUrl(screenshot.relativePath, runId))}" target="_blank" rel="noopener">screenshot</a>` : ''}${s.qaNotes ? ` · <span class="qa-note">QA: ${escapeHtml(s.qaNotes)}</span>` : ''}</td>

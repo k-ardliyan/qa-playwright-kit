@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { TestSummary } from '../../types';
-import { formatDuration as formatDurationMs } from '../../shared';
+import { formatDuration as formatDurationMs, getVerdict } from '../../shared';
 import {
   IconCopy,
   IconLayers,
@@ -29,38 +29,6 @@ export interface HeroProps {
   runActions?: boolean;
   /** The latest run is already archived — Save is no longer offered. */
   isArchived?: boolean;
-}
-
-function getVerdict(summary?: TestSummary): {
-  label: string;
-  tone: 'healthy' | 'warning' | 'critical';
-  summaryLine: string;
-} {
-  const failed = summary?.failed ?? 0;
-  const skipped = summary?.skipped ?? 0;
-  const total = summary?.total ?? 0;
-
-  if (failed > 0) {
-    return {
-      label: 'Run failed',
-      tone: 'critical',
-      summaryLine: `${failed} unhealthy test${failed === 1 ? '' : 's'} need${failed === 1 ? 's' : ''} triage.`,
-    };
-  }
-
-  if (skipped > 0) {
-    return {
-      label: 'Run degraded',
-      tone: 'warning',
-      summaryLine: `${skipped} skipped test${skipped === 1 ? '' : 's'} reduced coverage.`,
-    };
-  }
-
-  return {
-    label: 'Run healthy',
-    tone: 'healthy',
-    summaryLine: total > 0 ? 'All executed tests passed.' : 'No tests were captured in this run.',
-  };
 }
 
 export function formatDisplayTime(raw: string): string {
@@ -127,7 +95,9 @@ export function Hero({ summary, runActions, isArchived }: HeroProps) {
                 ? 'Run Failed'
                 : verdict.label === 'Run healthy'
                   ? 'Run Healthy'
-                  : 'Run Degraded'}
+                  : verdict.label === 'Run incomplete'
+                    ? 'Run Belum Lengkap'
+                    : 'Run Degraded'}
             </h1>
             <p class="hero__subtitle" safe>
               {verdict.summaryLine}

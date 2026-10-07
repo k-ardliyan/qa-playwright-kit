@@ -164,6 +164,310 @@ function validateTraceabilityRule(
   return violations;
 }
 
+/**
+ * Assertion rule: a runnable spec must assert something.
+ *
+ * A spec with `test.describe` + `test.step` but no `expect(...)` runs green
+ * while proving nothing — the pseudo-tested-method risk (Vera-Pérez et al.,
+ * EMSE 2018) that this kit cites but did not previously enforce.
+ *
+ * Two precision guards, both learned from real false results:
+ * - Comments are stripped before scanning, so a `// TODO: expect(...)` note in
+ *   a skeleton does NOT count as an assertion.
+ * - The exemption is per-file-runnable, not "any skip anywhere": a spec whose
+ *   every declaration is `test.skip`/`test.fixme` is exempt (nothing runs), but
+ *   a spec with real tests plus one fixme placeholder is NOT.
+ */
+export function validateRequiresAssertions(
+  content: string,
+  filePath: string,
+  relativePath: string,
+): ValidationViolation[] {
+  if (isTraceabilityExempt(relativePath)) {
+    return [];
+  }
+  const code = stripCommentsForAssertionScan(content);
+
+  // expect(...) and its variants — expect.soft(...), expect.poll(...).
+  if (/\bexpect\s*[.(]/.test(code)) {
+    return [];
+  }
+
+  // Does anything in this file actually RUN? `test(`, `test.only(`, `test.fail(`
+  // and `test.slow(` execute; `test.skip(`/`test.fixme(` do not. A file where
+  // nothing runs has no assertion to make — but a file with even ONE runnable
+  // test must assert (the old rule exempted the whole file if any skip appeared
+  // anywhere, which let unasserted real tests ride along with a placeholder).
+  const runnableCount =
+    (code.match(/\btest\s*\(/g) ?? []).length +
+    (code.match(/\btest\.(?:only|fail|slow)\s*\(/g) ?? []).length;
+
+  // Whole-file skip: `test.describe.skip(...)` wrapping everything. Counted as
+  // non-runnable only when no plain/`.only` describe exists, so a file with a
+  // skipped group plus real groups is still checked. (Brace-accurate scoping
+  // would be more precise; this stays a regex validator on purpose.)
+  const hasPlainDescribe = /\btest\.describe(?:\.only)?\s*\(/.test(code);
+  const hasSkippedDescribe = /\btest\.describe\.(?:skip|fixme)\s*\(/.test(code);
+  const wholeFileSkipped = hasSkippedDescribe && !hasPlainDescribe;
+
+  if (runnableCount === 0 || wholeFileSkipped) {
+    return [];
+  }
+
+  return [
+    {
+      filePath,
+      lineNumber: 1,
+      ruleName:
+        'Assertion rule: spec has runnable tests but no expect(...) call — a test without assertions proves nothing (use test.fixme — never test.skip — for deliberately unbuilt scenarios)',
+    },
+  ];
+}
+
+/**
+ * Remove `//` line comments and `/* *\/` block comments so the assertion scan
+ * sees code, not prose.
+ *
+ * The line-comment pattern keeps the character before `//`, which protects the
+ * `https://` in a URL string: without that guard a line such as
+ * `page.goto('https://x'); await expect(page)...` would be truncated at the
+ * scheme and its real assertion lost — turning a passing spec into a false
+ * violation.
+ */
+function stripCommentsForAssertionScan(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/gm, '$1');
+}
+
+/**
+ * Windowed per-test analysis: slices the spec between consecutive runnable
+ * `test(` declarations, the same way `validateMetadataRule` slices between
+ * `setTestMetadata(` calls.
+ *
+ * This is a window approximation, not an AST (this validator stays regex-only
+ * on purpose): a window ends at the NEXT runnable declaration, so
+ * `test.beforeEach` hook bodies fall into the preceding window. Precise enough
+ * for "does this test assert / declare metadata / duplicate another test".
+ */
+interface RunnableTestWindow {
+  /** Index of the `test(` token in the original content. */
+  start: number;
+  /** Best-effort test title (may be empty for dynamic titles). */
+  title: string;
+  /** Window text: from this `test(` up to the next runnable `test(` (or EOF). */
+  text: string;
+}
+
+function enumerateRunnableTestWindows(content: string): RunnableTestWindow[] {
+  const anchor = /\btest(?:\.(?:only|fail|slow))?\s*\(/g;
+  const starts: number[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = anchor.exec(content)) !== null) {
+    starts.push(match.index);
+  }
+
+  const windows: RunnableTestWindow[] = [];
+  for (let i = 0; i < starts.length; i += 1) {
+    const start = starts[i]!;
+    const stop = i + 1 < starts.length ? starts[i + 1]! : content.length;
+    const text = content.slice(start, stop);
+    const titleMatch = /\btest(?:\.(?:only|fail|slow))?\s*\(\s*(['"`])(.*?)\1/.exec(text);
+    windows.push({ start, title: titleMatch?.[2] ?? '', text });
+  }
+  return windows;
+}
+
+/** True when `index` sits on (or after) a comment opener on its own line. */
+function isInsideComment(content: string, index: number): boolean {
+  const lineStart = content.lastIndexOf('\n', Math.max(0, index - 1)) + 1;
+  const prefix = content.slice(lineStart, index);
+  if (/^\s*(?:\/\/|\*|\/\*)/.test(prefix)) {
+    return true;
+  }
+  return prefix.includes('//') || prefix.includes('/*');
+}
+
+/**
+ * `@manual` is the ONLY legitimate home of a permanent `test.skip` (doctrine:
+ * references/scenario-tags.md). The marker may sit on the title line itself or
+ * in the describe-level tag block above the call; the canonical generator emits
+ * the reason "Manual: <alasan>", which is accepted as equivalent evidence.
+ */
+function hasManualMarkerNear(content: string, index: number): boolean {
+  const before = content.slice(Math.max(0, index - 2000), index);
+  const lines = before.split(/\r?\n/);
+  if (/@manual/.test(lines.slice(-11).join('\n'))) {
+    return true;
+  }
+  const ahead = content.slice(index, index + 240);
+  if (/@manual/.test(ahead)) {
+    return true;
+  }
+  return /['"`]\s*Manual\s*[:—-]/.test(ahead);
+}
+
+/**
+ * Per-test assertion rule (closes the per-file gap): a file-level expect can
+ * hide a sibling test that asserts nothing — a real spec shipped copy-pasted
+ * header checks in its filter/pagination scenarios and captureActualResult-only
+ * bodies elsewhere, and every one of them ran green. Each runnable test must
+ * carry its own expect; tests that declare skip/fixme are exempt (they may not
+ * run, and validateSkipDoctrine polices their policy separately).
+ */
+export function validatePerTestAssertions(
+  content: string,
+  filePath: string,
+  relativePath: string,
+): ValidationViolation[] {
+  if (isTraceabilityExempt(relativePath)) {
+    return [];
+  }
+  const violations: ValidationViolation[] = [];
+  for (const window of enumerateRunnableTestWindows(content)) {
+    const code = stripCommentsForAssertionScan(window.text);
+    if (/\btest\.(?:skip|fixme)\s*\(/.test(code)) {
+      continue;
+    }
+    if (/\bexpect\s*[.(]/.test(code)) {
+      continue;
+    }
+    violations.push({
+      filePath,
+      lineNumber: getLineNumberFromIndex(content, window.start),
+      ruleName: `Assertion rule (per test): "${window.title || 'untitled test'}" has a runnable body but no expect(...) — a test without assertions proves nothing; use test.fixme for deliberately unbuilt work, never a silent pass`,
+      severity: 'error',
+    });
+  }
+  return violations;
+}
+
+/** `test.skip(true, ...)`, `test.skip(false, ...)`, `test.skip()`, or the
+ * declaration form `test.skip('title', body)` — a skip that can never run. */
+const PERMANENT_SKIP_PATTERN = /\btest\.skip\s*\(\s*(?:true\b|false\b|['"`]|\))/;
+
+/**
+ * Skip-doctrine rule: Playwright reports `skip` and `fixme` with the same
+ * status, so `test.skip(true, 'UI belum dieksplorasi')` buries unfinished work
+ * in the grey "Skipped" bucket where non-coder QA reads it as "the app is
+ * broken". Permanent skips are reserved for @manual scenarios; everything
+ * unbuilt is `test.fixme` (surfaced as not-implemented). Conditional skips are
+ * not forbidden — they are visible and reason-carrying — but data/precondition
+ * gaps should prefer `test.fixme(condition, reason)`.
+ */
+export function validateSkipDoctrine(
+  content: string,
+  filePath: string,
+  relativePath: string,
+): ValidationViolation[] {
+  if (isTraceabilityExempt(relativePath)) {
+    return [];
+  }
+  const violations: ValidationViolation[] = [];
+  const skipPattern = /\btest\.skip\s*\(/g;
+  let match: RegExpExecArray | null;
+  while ((match = skipPattern.exec(content)) !== null) {
+    if (isInsideComment(content, match.index)) {
+      continue;
+    }
+    const isPermanent = PERMANENT_SKIP_PATTERN.test(content.slice(match.index, match.index + 40));
+    if (!isPermanent) {
+      violations.push({
+        filePath,
+        lineNumber: getLineNumberFromIndex(content, match.index),
+        ruleName:
+          'Skip doctrine rule: conditional test.skip(condition, ...) reports plain "Skipped" — for data/precondition gaps prefer test.fixme(condition, reason) so the run surfaces the scenario as not-implemented ("Belum dibangun"); reserve skip for genuinely non-applicable configurations',
+        severity: 'warning',
+      });
+      continue;
+    }
+    if (hasManualMarkerNear(content, match.index)) {
+      continue;
+    }
+    violations.push({
+      filePath,
+      lineNumber: getLineNumberFromIndex(content, match.index),
+      ruleName:
+        'Skip doctrine rule: permanent test.skip(true/…) is only legitimate for @manual scenarios (canonical reason "Manual: <alasan>") — unbuilt or unexplored work must use test.fixme so the report shows "Belum dibangun", not "Skipped"',
+      severity: 'error',
+    });
+  }
+  return violations;
+}
+
+/** Drop the declaration header (title + callback signature) so two copies of
+ * the same body under different titles still compare equal. */
+function stripDeclarationHeader(text: string): string {
+  const arrow = text.indexOf('=>');
+  if (arrow !== -1) {
+    return text.slice(arrow + 2);
+  }
+  const brace = text.indexOf('{');
+  return brace === -1 ? text : text.slice(brace);
+}
+
+function normalizeTestBodyForDuplicateScan(text: string): string {
+  const stripped = stripCommentsForAssertionScan(text);
+  // Metadata (IDs/roles differ per scenario by design), per-test timeouts, and
+  // captureActualResult narratives are stripped: two tests whose action
+  // skeletons are identical and differ only in capture prose ARE the
+  // copy-paste signature (a "filter" test that only re-checks table headers).
+  // Exact-match only — similarity scoring is deliberately deferred to keep
+  // false positives at zero.
+  const withoutMetadata = stripped.replace(
+    /\bsetTestMetadata\s*\((?:[^()]|\([^()]*\))*\)\s*;?/g,
+    ' ',
+  );
+  const withoutTimeout = withoutMetadata.replace(/\btest\.setTimeout\s*\(\s*\d+\s*\)\s*;?/g, ' ');
+  const withoutCapture = withoutTimeout.replace(
+    /\bcaptureActualResult\s*\((?:[^()]|\([^()]*\))*\)\s*;?/g,
+    ' ',
+  );
+  const normalized = withoutCapture.replace(/\s+/g, ' ').trim();
+  // Strip structural trailing closers: the LAST test's window additionally
+  // contains the describe-level `});` stack, which would otherwise make two
+  // identical bodies compare unequal. Trailing closers carry no behavior.
+  return normalized.replace(/[\s;)\]}]+$/, '');
+}
+
+/**
+ * Duplicate-body rule: copy-pasted assertion bodies are the quietest way a
+ * generated suite stops testing its own scenarios while staying green. Exact
+ * normalized equality is reported; skeleton tests (skip/fixme) are exempt
+ * because they are intentionally near-identical.
+ */
+export function validateDuplicateTestBodies(
+  content: string,
+  filePath: string,
+  relativePath: string,
+): ValidationViolation[] {
+  if (isTraceabilityExempt(relativePath)) {
+    return [];
+  }
+  const violations: ValidationViolation[] = [];
+  const seen = new Map<string, string>();
+  for (const window of enumerateRunnableTestWindows(content)) {
+    const code = stripCommentsForAssertionScan(window.text);
+    if (/\btest\.(?:skip|fixme)\s*\(/.test(code)) {
+      continue;
+    }
+    const body = normalizeTestBodyForDuplicateScan(stripDeclarationHeader(window.text));
+    if (body.length < 40) {
+      continue;
+    }
+    const firstOwner = seen.get(body);
+    if (firstOwner !== undefined) {
+      violations.push({
+        filePath,
+        lineNumber: getLineNumberFromIndex(content, window.start),
+        ruleName: `Duplicate body rule: test "${window.title || 'untitled'}" has a body identical to test "${firstOwner}" — assertions are likely copy-pasted; assert this scenario's own expected behavior`,
+        severity: 'warning',
+      });
+      continue;
+    }
+    seen.set(body, window.title || 'untitled');
+  }
+  return violations;
+}
+
 export function validateSpecFile(
   filePath: string,
   relativePath?: string,
@@ -199,6 +503,10 @@ export function validateSpecFile(
   }
 
   violations.push(...validateTraceabilityRule(content, filePath, rel));
+  violations.push(...validateRequiresAssertions(content, filePath, rel));
+  violations.push(...validatePerTestAssertions(content, filePath, rel));
+  violations.push(...validateSkipDoctrine(content, filePath, rel));
+  violations.push(...validateDuplicateTestBodies(content, filePath, rel));
   violations.push(...validateCapabilityPowerRules(content, filePath, rel));
   violations.push(...validateNoEphemeralRefs(content, filePath, rel));
   violations.push(...validateNoHardcodedWaits(content, filePath, rel));
@@ -242,7 +550,6 @@ export function validateMetadataRule(
         'Metadata rule: missing setTestMetadata({ testId, ... }) — add as the first statement inside each test() (or beforeEach) for reporting taxonomy',
       severity: 'warning',
     });
-    return violations;
   }
 
   for (let i = 0; i < callSites.length; i += 1) {
@@ -255,6 +562,29 @@ export function validateMetadataRule(
         ruleName:
           "Metadata rule: setTestMetadata(...) call without testId — its dashboard row(s) lose identity; add testId: 'TC-...'",
         severity: 'warning',
+      });
+    }
+  }
+
+  // Per-test completeness: a call inside ONE test does not give the OTHER tests
+  // an identity — a real spec shipped 9 metadata-less tests inside a file that
+  // had plenty of calls, and those rows silently lost their dashboard identity.
+  // A describe-level beforeEach call is the sanctioned alternative, so its
+  // presence downgrades this scan.
+  const code = stripCommentsForAssertionScan(content);
+  const hookIndex = code.search(/\btest\.beforeEach\s*\(/);
+  const hookProvidesMetadata =
+    hookIndex !== -1 && /\bsetTestMetadata\s*\(/.test(code.slice(hookIndex, hookIndex + 400));
+  if (!hookProvidesMetadata) {
+    for (const window of enumerateRunnableTestWindows(content)) {
+      if (/\bsetTestMetadata\s*\(/.test(window.text)) {
+        continue;
+      }
+      violations.push({
+        filePath,
+        lineNumber: getLineNumberFromIndex(content, window.start),
+        ruleName: `Metadata rule: test "${window.title || 'untitled'}" is missing setTestMetadata({ testId, scenarioId, module, feature }) — its dashboard row has no identity; add the call as the first statement inside each test() (or a describe-level beforeEach)`,
+        severity: 'error',
       });
     }
   }

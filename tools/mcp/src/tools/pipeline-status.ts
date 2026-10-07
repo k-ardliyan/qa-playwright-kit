@@ -149,6 +149,9 @@ export interface PipelineStatusOutput {
     passed: number;
     failed: number;
     skipped: number;
+    /** Planned-but-unbuilt scenarios (test.fixme) — surfaced so the agent can
+     *  tell QA "belum dibangun" apart from a manual skip. */
+    notImplemented?: number;
     passRate: number;
     timestamp: string;
   } | null;
@@ -370,6 +373,7 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
       passed?: unknown;
       failed?: unknown;
       skipped?: unknown;
+      notImplemented?: unknown;
       passRate?: unknown;
       timestamp?: unknown;
     }>(readTextFile(summaryPath));
@@ -387,6 +391,10 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
         passed: parsed.data.passed,
         failed: parsed.data.failed,
         skipped: parsed.data.skipped,
+        // Older summaries predate the fixme split — optional, never fabricated.
+        ...(typeof parsed.data.notImplemented === 'number'
+          ? { notImplemented: parsed.data.notImplemented }
+          : {}),
         passRate: parsed.data.passRate,
         timestamp: parsed.data.timestamp,
       };

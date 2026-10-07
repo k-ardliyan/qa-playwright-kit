@@ -63,13 +63,14 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
       schemaVersion: TEST_PLAN_SCHEMA_V1,
       sourceRequirementPath: 'requirements/auth/login.md',
       sourceRequirementHash: 'hash-req-123',
-      catalogEvidence: [],
+      catalogEvidence: [{ page: 'login-form' }],
       scenarios: [
         {
           scenarioId: 'SC-01',
           covers: ['AC-01'],
           actor: 'finance',
           authContext: '.auth/local/finance.json',
+          page: 'login-form',
           executionMode: 'automated',
           dataSetup: [],
           actions: ['Fill login form', 'Submit'],
@@ -85,6 +86,7 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
           covers: ['AC-02'],
           actor: 'finance',
           authContext: '.auth/local/finance.json',
+          page: 'login-form',
           executionMode: 'automated',
           dataSetup: [],
           actions: ['Click logout button'],
@@ -104,6 +106,285 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
     expect(result.status).toBe('success');
     expect(result.data?.valid).toBe(true);
     expect(result.data?.coveredAcs).toBe(2);
+  });
+
+  test('flags automated scenarios whose page has no catalog evidence', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          page: 'login-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          page: 'never-captured',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    // Soft gate: the plan still validates (warning, not error) so old plans keep working...
+    expect(result.data?.valid).toBe(true);
+    expect(result.status).toBe('warning');
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_EVIDENCE_MISSING');
+    // ...and the gap is counted, so QA sees the real backlog.
+    expect(result.data?.evidenceGapsCount).toBe(1);
+    expect(result.data?.coverageGapsCount).toBe(1);
+  });
+
+  test('flags an automated scenario that names no page at all', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes.filter((c) => c === 'PLAN_EVIDENCE_MISSING').length).toBe(2);
+  });
+
+  test('does not demand evidence for manual or not-implemented scenarios', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          executionMode: 'manual',
+          dataSetup: [],
+          actions: [],
+          assertions: [],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          executionMode: 'not-implemented',
+          dataSetup: [],
+          actions: [],
+          assertions: [],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [{ scenarioId: 'SC-02', reason: 'page not explored' }],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).not.toContain('PLAN_EVIDENCE_MISSING');
+    expect(result.status).toBe('success');
+  });
+
+  test('names the available pages so a wrong Page value is correctable', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }, { page: 'invoice-list' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          page: 'auth/login-form', // wrong shape: feature dir included
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          page: 'login-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const msg = (result.diagnostics ?? []).find((d) => d.code === 'PLAN_EVIDENCE_MISSING')?.message;
+    expect(msg).toBeTruthy();
+    // The actionable hint lists the pages that DO exist.
+    expect(msg).toContain('Available pages: invoice-list, login-form.');
+    // The correctly-named scenario is not flagged.
+    expect(
+      (result.diagnostics ?? []).filter((d) => d.code === 'PLAN_EVIDENCE_MISSING'),
+    ).toHaveLength(1);
+  });
+
+  test('counts a recorded gap that also lost its evidence exactly once', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          page: 'never-captured',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          page: 'login-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      // SC-01 is BOTH recorded as a gap AND missing evidence — one gap, not two.
+      coverageGaps: [{ scenarioId: 'SC-01', reason: 'page not explored' }],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    expect(result.data?.coverageGapsCount).toBe(1);
+    expect(result.data?.evidenceGapsCount).toBe(1);
+  });
+
+  test('flags a not-implemented scenario with no recorded reason', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          executionMode: 'not-implemented',
+          dataSetup: [],
+          actions: [],
+          assertions: [],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          executionMode: 'automated',
+          page: 'login-form',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_NOT_IMPLEMENTED_NO_GAP');
   });
 
   test('detects missing scenario and uncovered AC', () => {
@@ -401,5 +682,155 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
     expect(result.status).toBe('error');
     const codes = result.diagnostics.map((d) => d.code);
     expect(codes).toContain('PLAN_UNKNOWN_AC');
+  });
+
+  test('flags an automated scenario with catalog evidence but no Locator Intent', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          page: 'login-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: ['Fill login form'],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+        {
+          scenarioId: 'SC-02',
+          covers: ['AC-02'],
+          page: 'login-form',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: ['Click logout'],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button", { name: "Logout" })'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    // Soft gate: evidence exists, but `Locator Intent | none` makes the
+    // Generator guess — the tes-qa failure shape (one shallow page "covering"
+    // 37 automated scenarios).
+    expect(result.data?.valid).toBe(true);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_LOCATOR_INTENT_MISSING');
+    expect(result.data?.locatorIntentGapsCount).toBe(1);
+    // The evidence gate itself is satisfied — no double reporting.
+    expect(codes).not.toContain('PLAN_EVIDENCE_MISSING');
+  });
+
+  test('does not double-flag a scenario whose page already lacks evidence', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/auth/login.md',
+      sourceRequirementHash: 'hash-req-123',
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          page: 'never-captured',
+          executionMode: 'automated',
+          dataSetup: [],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: [],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_EVIDENCE_MISSING');
+    expect(codes).not.toContain('PLAN_LOCATOR_INTENT_MISSING');
+  });
+
+  test('flags scenarios depending on seed: refs while Metadata declares no Seed', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/hris/payroll.md',
+      sourceRequirementHash: 'hash-req-123',
+      seed: 'none',
+      catalogEvidence: [{ page: 'payroll-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-04',
+          covers: ['AC-05'],
+          page: 'payroll-form',
+          executionMode: 'automated',
+          dataSetup: ['Terdapat payroll Draft.', 'Input: `namaPayroll: seed:payroll.draft`'],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button", { name: "Proses" })'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).toContain('PLAN_SEED_UNPROVISIONED');
+    expect(result.data?.seedUnprovisionedCount).toBe(1);
+  });
+
+  test('passes when the plan declares its seed producer', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/hris/payroll.md',
+      sourceRequirementHash: 'hash-req-123',
+      seed: 'tests/data/payroll-seeds.json',
+      catalogEvidence: [{ page: 'payroll-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-04',
+          covers: ['AC-05'],
+          page: 'payroll-form',
+          executionMode: 'automated',
+          dataSetup: ['Input: `namaPayroll: seed:payroll.draft`'],
+          actions: [],
+          assertions: [{ description: 'x', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("button", { name: "Proses" })'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: [],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+
+    const result = validateTestPlan(plan, sampleRequirement);
+    const codes = (result.diagnostics ?? []).map((d) => d.code);
+    expect(codes).not.toContain('PLAN_SEED_UNPROVISIONED');
+    expect(result.data?.seedUnprovisionedCount).toBe(0);
   });
 });

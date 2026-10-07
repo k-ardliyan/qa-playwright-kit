@@ -111,6 +111,11 @@ export function normalizeTestCases(
       failureSource: t['failureSource'] as
         | import('../../support/custom-dashboard/types').FailureSource
         | undefined,
+      // Per-scenario "why" for skipped/not-implemented rows (fixme annotation).
+      notImplementedReason:
+        typeof t['notImplementedReason'] === 'string'
+          ? (t['notImplementedReason'] as string)
+          : undefined,
       // Per-test notes: baked aiNotes from the summary, sidecar overlay below
       qaNotes: typeof t['qaNotes'] === 'string' ? (t['qaNotes'] as string) : undefined,
       aiNotes: typeof t['aiNotes'] === 'string' ? (t['aiNotes'] as string) : undefined,
@@ -182,6 +187,8 @@ export function buildOrphanRunPage(latestRun: {
   passed: number;
   failed: number;
   skipped: number;
+  /** Planned-but-unbuilt scenarios (test.fixme); absent on older markers. */
+  notImplemented?: number;
   passRate: number;
   reportMode: string;
 }): string {
@@ -210,6 +217,7 @@ export function buildOrphanRunPage(latestRun: {
     <div><strong>Passed</strong><br>${latestRun.passed}</div>
     <div><strong>Failed</strong><br>${latestRun.failed}</div>
     <div><strong>Skipped</strong><br>${latestRun.skipped}</div>
+    ${latestRun.notImplemented ? `<div><strong>Belum dibangun</strong><br>${latestRun.notImplemented}</div>` : ''}
     <div><strong>Pass rate</strong><br>${latestRun.passRate}%</div>
     <div><strong>Mode</strong><br>${escapeHtml(latestRun.reportMode)}</div>
     <div><strong>Timestamp</strong><br>${escapeHtml(latestRun.timestamp)}</div>

@@ -150,4 +150,44 @@ test.describe('Test Plan compiler (TestPlanContractV1)', () => {
     expect(plan.coverageGaps[0].acceptanceCriterionId).toBe('AC-02');
     expect(plan.coverageGaps[0].reason).toContain('Third party payment');
   });
+
+  test('parses Catalog Evidence written as a table (the canonical template shape)', () => {
+    // specs/_TEMPLATE.md teaches this table form. A bullet-only reader returned
+    // an EMPTY evidence list for it, which made the downstream evidence gate
+    // warn on every automated scenario of a correctly-written plan.
+    const markdown = `# PLAN-TBL: Test Plan
+
+## Metadata
+- **Source requirement:** \`requirements/sample.md\`
+
+## Catalog Evidence
+
+| Page          | Catalog                                             |
+| ------------- | --------------------------------------------------- |
+| \`login-form\`  | \`artifacts/selector-catalog/auth/login-form.json\`   |
+| \`invoice-list\` | \`artifacts/selector-catalog/finance/invoice-list.json\` |
+
+## Scenarios
+### SC-01: Sample Scenario
+- **Test ID:** \`TC-001\`
+- **Covers:** \`AC-01\`
+- **Page:** \`login-form\`
+**Actions:**
+- Click button
+**Assertions:**
+- [requirement] Status is active
+`;
+
+    const result = compileTestPlanFromText(markdown, 'specs/sample-table.plan.md');
+    expect(result.status).toBe('success');
+    const plan = result.data!;
+
+    expect(plan.catalogEvidence).toHaveLength(2);
+    expect(plan.catalogEvidence.map((c) => c.page)).toEqual(['login-form', 'invoice-list']);
+    expect(plan.catalogEvidence[0].catalogPath).toBe(
+      'artifacts/selector-catalog/auth/login-form.json',
+    );
+    // The header row must NOT become an evidence entry.
+    expect(plan.catalogEvidence.some((c) => /^page$/i.test(c.page))).toBe(false);
+  });
 });

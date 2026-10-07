@@ -9,6 +9,7 @@ export type ExecutionStatus =
   | 'interrupted'
   | 'not-generated'
   | 'not-executed'
+  | 'not-implemented'
   | 'manual'
   | 'blocked';
 
@@ -23,6 +24,7 @@ export interface CoverageStateBreakdown {
     | 'unautomated'
     | 'generated'
     | 'not-generated'
+    | 'not-implemented'
     | 'blocked';
   execution: 'executed' | 'not-executed' | 'passed' | 'failed' | 'skipped' | 'timed-out';
   verification:
@@ -92,6 +94,8 @@ export interface TraceabilityContractV1 {
     skippedScenarios: number;
     manualScenarios: number;
     blockedScenarios: number;
+    /** Planned but never built — work, not "not applicable". */
+    notImplementedScenarios: number;
   };
 
   coverageState?: CoverageStateBreakdown;

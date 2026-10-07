@@ -359,6 +359,12 @@
   border-color: var(--destructive-border);
 }
 
+/* A role whose tests were all skipped/unbuilt has no pass rate to colour —
+   it is "No results", not a failing role. */
+.role-health__chip--neutral {
+  border-color: var(--border);
+}
+
 .role-health__rate {
   font-family: var(--mono);
   font-weight: 600;
@@ -660,6 +666,11 @@
   color: var(--warning);
 }
 
+/* Unfinished coverage — blue, so the group never reads as a warning or a pass. */
+.test-group--not-implemented .test-group__title {
+  color: var(--info);
+}
+
 .test-group--unhealthy .test-group__title {
   color: var(--destructive);
 }
@@ -745,6 +756,18 @@
 .test-file-test-status-icon--skipped {
   background: var(--warning-surface);
   color: var(--warning);
+}
+
+/* Unfinished coverage — blue, distinct from skipped amber and failed red. */
+.test-file-test-status-icon--not-implemented {
+  background: var(--info-surface);
+  color: var(--info);
+}
+
+/* Row-level verdict rail for an unbuilt scenario: same geometry as the other
+   outcome hooks, blue so it never reads as a pass or a failure. */
+.test-file-test-outcome-not-implemented {
+  border-left: 2px solid var(--info-border);
 }
 
 .test-card__index {

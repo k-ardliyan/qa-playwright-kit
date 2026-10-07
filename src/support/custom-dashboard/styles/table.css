@@ -460,12 +460,12 @@ html[data-sticky-left="off"] .col-sticky-0 {
 
 .qa-report-table th[data-col="module"],
 .qa-report-table td[data-col="module"] {
-  min-width: 7.5rem;
+  min-width: 6.5rem;
 }
 
 .qa-report-table th[data-col="feature"],
 .qa-report-table td[data-col="feature"] {
-  min-width: 7rem;
+  min-width: 6.5rem;
 }
 
 .qa-report-table th[data-col="description"],
@@ -476,13 +476,13 @@ html[data-sticky-left="off"] .col-sticky-0 {
 
 .qa-report-table th[data-col="steps"],
 .qa-report-table td[data-col="steps"] {
-  min-width: 13rem;
-  max-width: 20rem;
+  min-width: 12rem;
+  max-width: 18rem;
 }
 
 .qa-report-table th[data-col="input"],
 .qa-report-table td[data-col="input"] {
-  min-width: 11rem;
+  min-width: 12rem;
   max-width: 18rem;
 }
 
@@ -565,6 +565,11 @@ html[data-sticky-left="off"] .col-sticky-0 {
   box-shadow: inset 2px 0 0 var(--warning);
 }
 
+/* Unfinished coverage — blue rail, matching the pill and the detail glyph. */
+.tbl-row--not-implemented > td:first-child {
+  box-shadow: inset 2px 0 0 var(--info);
+}
+
 /* Verdict tint stays subtle — the rail and pill carry the signal. */
 .tbl-row--failed,
 .tbl-row--timedOut,
@@ -574,6 +579,10 @@ html[data-sticky-left="off"] .col-sticky-0 {
 
 .tbl-row--skipped {
   background: color-mix(in oklab, var(--warning-surface) 60%, transparent);
+}
+
+.tbl-row--not-implemented {
+  background: color-mix(in oklab, var(--info-surface) 60%, transparent);
 }
 
 .tbl-row--failed:hover,
@@ -593,7 +602,9 @@ html[data-sticky-left="off"] .col-sticky-0 {
 .tbl-test-id code {
   color: var(--foreground);
   font-weight: 500;
-  overflow-wrap: anywhere;
+  /* break-word (not anywhere): an id like TC-AUTH-SETUP-USER splits at its
+     hyphens; only a token longer than the column is cut mid-run. */
+  overflow-wrap: break-word;
 }
 
 .tbl-title,
@@ -601,12 +612,39 @@ html[data-sticky-left="off"] .col-sticky-0 {
   font-size: var(--text-xs);
   line-height: var(--leading-snug);
   color: var(--foreground);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
+/* Module / feature cells stack their chips instead of chaining them on one
+   unbreakable line: earlier `white-space: nowrap` made a two-chip cell reserve
+   more width than its content and forbade any wrap in a narrow scroll column.
+
+   The flex column lives on `.tbl-chip-stack` (a child div), never on the <td>:
+   a flex <td> loses table-cell semantics and the browser wraps it in an
+   anonymous cell, whose border-bottom then spans only the content box — a short
+   stray rule under the last chip instead of the row separator. */
 .tbl-module,
 .tbl-feature {
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.tbl-chip-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+/* A chip must not stretch to the column width, or the tag reads as a full-width
+   row instead of a chip. */
+.tbl-chip-stack > * {
+  max-width: 100%;
+}
+
+.tbl-module .module-chip,
+.tbl-module .scope-tag,
+.tbl-feature .feature-chip {
+  max-width: 100%;
 }
 
 .module-chip,
@@ -638,13 +676,24 @@ html[data-sticky-left="off"] .col-sticky-0 {
   gap: 0.125rem;
   font-size: var(--text-2xs);
   line-height: var(--leading-snug);
+  /* min-width:0 lets this flex child shrink; without it a long URL keeps the
+     cell at its content width and pushes the whole table wider. */
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .steps-flat__item {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: var(--space-1);
   color: var(--foreground);
+  min-width: 0;
+}
+
+.steps-flat__item > span:not(.steps-flat__n):not(.step-subtitle-badge) {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .steps-flat__n {
@@ -654,7 +703,13 @@ html[data-sticky-left="off"] .col-sticky-0 {
 }
 
 .step-subtitle-badge {
-  white-space: nowrap;
+  /* A short label stays on one line, but the badge also carries long content
+     such as a target URL; `nowrap` used to widen the whole TEST STEP column to
+     fit one unbreakable token. Wrap, and let break-word split only the token
+     that cannot fit. */
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 /* --- Input data ---------------------------------------------------------- */
@@ -668,7 +723,11 @@ html[data-sticky-left="off"] .col-sticky-0 {
 }
 
 .input-flat__pair {
-  overflow-wrap: anywhere;
+  /* break-word keeps `identifier:` / `credential:user.username` on their own
+     visual runs and only splits a token that cannot fit at all, instead of the
+     per-character `usernam` / `e` shredding that `anywhere` produced. */
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .key {
@@ -687,7 +746,7 @@ html[data-sticky-left="off"] .col-sticky-0 {
 .actual-result--failed {
   font-size: var(--text-xs);
   line-height: var(--leading-snug);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .actual-result--passed {
@@ -744,6 +803,15 @@ html[data-sticky-left="off"] .col-sticky-0 {
   border-color: var(--warning-border);
   background: var(--warning-surface);
   color: var(--warning);
+}
+
+/* Unfinished work reads as informational, not as a warning: a blue tone keeps
+   it visibly distinct from `skipped` (amber, "not applicable") and from
+   `failed` (red). */
+.status-pill--not-implemented {
+  border-color: var(--info-border);
+  background: var(--info-surface);
+  color: var(--info);
 }
 
 .priority-badge {
@@ -885,7 +953,8 @@ html[data-sticky-left="off"] .col-sticky-0 {
   font-size: var(--text-2xs);
   line-height: var(--leading-snug);
   color: var(--muted-foreground);
-  overflow-wrap: anywhere;
+  /* Prose wraps on word boundaries; only an unbreakable token is split. */
+  overflow-wrap: break-word;
 }
 
 .src-cell--empty,
@@ -957,7 +1026,7 @@ html[data-sticky-left="off"] .col-sticky-0 {
   font-size: var(--text-2xs);
   line-height: var(--leading-snug);
   color: var(--foreground);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* 24×24 pointer target (WCAG 2.2 SC 2.5.8) while the pencil glyph stays small. */
@@ -1094,7 +1163,7 @@ html[data-sticky-left="off"] .col-sticky-0 {
   font-size: var(--text-2xs);
   line-height: var(--leading-snug);
   color: var(--foreground);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .ai-note--auto {
@@ -1230,7 +1299,7 @@ html[data-sticky-left="off"] .col-sticky-0 {
   font-size: var(--text-2xs);
   line-height: var(--leading-snug);
   color: var(--destructive);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .detail-kv-grid {
@@ -1251,7 +1320,7 @@ html[data-sticky-left="off"] .col-sticky-0 {
 
 .detail-kv-val {
   color: var(--foreground);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .cell-expand {
@@ -1287,6 +1356,11 @@ html[data-sticky-left="off"] .col-sticky-0 {
    9. Per-column hooks
    ========================================================================== */
 
+/* Per-column hooks. `break-word` (not `anywhere`) is the default for every
+   content column: `anywhere` also lowers a cell's min-content width, letting
+   auto table layout shrink it until words split mid-character (the
+   `Naviga|te` / `usernam|e` shredding); `break-word` keeps words intact and
+   only splits a token that genuinely cannot fit. */
 .tbl-description,
 .tbl-steps,
 .tbl-input,
@@ -1297,7 +1371,7 @@ html[data-sticky-left="off"] .col-sticky-0 {
 .tbl-source,
 .tbl-notes,
 .tbl-ai-notes {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .tbl-status,

@@ -45,6 +45,7 @@ export function TestRow({ test, rowKey, runId }: TestRowProps) {
     test.actualResult,
     test.errorMessage,
     test.failureSource || '',
+    test.notImplementedReason || '',
     test.qaNotes || '',
     test.aiNotes || '',
   ]
@@ -84,12 +85,18 @@ export function TestRow({ test, rowKey, runId }: TestRowProps) {
         <code safe>{test.testId || '-'}</code>
       </td>
       <td class="tbl-module" data-col="module">
-        <span class="module-chip" safe>
-          {test.module || 'GENERAL'}
-        </span>
-        <span class="scope-tag" data-scope-label={scope}>
-          {scope}
-        </span>
+        {/* The flex column lives on a wrapper, NOT on the <td>: a flex <td>
+            loses table-cell semantics, and the browser then wraps it in an
+            anonymous cell whose border-bottom spans only the content box —
+            producing a short stray rule under the last chip. */}
+        <div class="tbl-chip-stack">
+          <span class="module-chip" safe>
+            {test.module || 'GENERAL'}
+          </span>
+          <span class="scope-tag" data-scope-label={scope}>
+            {scope}
+          </span>
+        </div>
       </td>
       <td class="tbl-feature" data-col="feature">
         <span class="feature-chip" safe>
@@ -112,7 +119,7 @@ export function TestRow({ test, rowKey, runId }: TestRowProps) {
         <ActualResultCell test={test} />
       </td>
       <td class="tbl-status" data-col="status">
-        <StatusBadge status={test.status} />
+        <StatusBadge status={test.status} reason={test.notImplementedReason} />
       </td>
       <td class="tbl-priority" data-col="priority">
         <PriorityBadgeCell priority={test.priority} />

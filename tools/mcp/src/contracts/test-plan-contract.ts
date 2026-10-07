@@ -17,7 +17,14 @@ export interface PlanAssertion {
   provenance: AssertionProvenance;
 }
 
-export type PlanExecutionMode = 'automated' | 'manual' | 'blocked';
+/**
+ * `automated` — runnable now; `manual` — not applicable to automation (CAPTCHA,
+ * physical device); `blocked` — a real, evidenced blocker; `not-implemented` —
+ * planned but not yet built (page never explored, no catalog evidence). The last
+ * one is WORK, not "skipped": the Generator emits `test.fixme`, never a silent
+ * `test.skip`.
+ */
+export type PlanExecutionMode = 'automated' | 'manual' | 'blocked' | 'not-implemented';
 
 export interface PlanScenarioV1 {
   scenarioId: string;
@@ -25,6 +32,9 @@ export interface PlanScenarioV1 {
   covers: string[];
   actor?: string;
   authContext?: string;
+
+  /** Catalog page this scenario exercises — must appear in `catalogEvidence`. */
+  page?: string;
 
   executionMode: PlanExecutionMode;
 

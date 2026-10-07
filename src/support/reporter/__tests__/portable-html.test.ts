@@ -47,15 +47,19 @@ const html = buildPortableHtml(
         track: 'express',
       },
       { title: 'Lewat', status: 'skipped', role: 'admin' },
+      { title: 'Belum dibangun', status: 'not-implemented', role: 'admin' },
     ],
   },
   dir,
 );
-assert.match(html, /50%<\/strong> lulus/);
+// Unified formula: 2 passed / (2 passed + 1 failed) = 67%. `skipped` and
+// `not-implemented` never ran, so they stay out of the denominator.
+assert.match(html, /67%<\/strong> lulus/);
 assert.match(html, /2<\/strong> lulus/);
 assert.match(html, /1<\/strong> gagal/);
 assert.match(html, /1<\/strong> dilewati/);
-assert.match(html, /4<\/strong> total/);
+assert.match(html, /1<\/strong> belum dibangun/);
+assert.match(html, /5<\/strong> total/);
 assert.match(html, /Environment: staging/);
 assert.match(html, /Requirement: requirements\/checkout\.md/);
 assert.match(html, /Durasi: 4\.3s/);
@@ -68,7 +72,7 @@ assert.doesNotMatch(html, /<script>alert/);
 assert.match(html, /id="eng"/);
 assert.match(html, /<pre class="eng">tombol hilang<\/pre>/);
 assert.match(html, /data:image\/png;base64,/);
-assert.equal((html.match(/<tbody>[\s\S]*<\/tbody>/)?.[0].match(/<tr>/g) ?? []).length, 4);
+assert.equal((html.match(/<tbody>[\s\S]*<\/tbody>/)?.[0].match(/<tr>/g) ?? []).length, 5);
 assert.equal((html.match(/<code>REQ-1<\/code>/g) ?? []).length, 1);
 assert.equal((html.match(/express/g) ?? []).length, 1);
 

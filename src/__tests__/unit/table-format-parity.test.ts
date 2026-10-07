@@ -261,5 +261,15 @@ test.describe('Dual-mode format parity (requirement + plan)', () => {
     expect(plan.coverageGaps.length).toBe(1);
     expect(plan.coverageGaps[0].scenarioId).toBe('SC-03');
     expect(plan.coverageGaps[0].acceptanceCriterionId).toBe('AC-04');
+
+    // Catalog Evidence table row -> one entry. This assertion was the missing
+    // one: the section is a TABLE in the canonical template, but the parser
+    // read bullets only, so template-shaped plans silently produced an empty
+    // evidence list and warned on every automated scenario.
+    expect(plan.catalogEvidence).toHaveLength(1);
+    expect(plan.catalogEvidence[0].page).toBe('invoice-detail');
+    expect(plan.catalogEvidence[0].catalogPath).toBe(
+      'artifacts/selector-catalog/finance/invoice.json',
+    );
   });
 });

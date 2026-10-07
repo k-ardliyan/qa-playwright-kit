@@ -4,7 +4,7 @@ Load when writing a new scenario and unsure which tag to use, or when deciding w
 
 ---
 
-## Four scenario type tags
+## Scenario type tags
 
 | Tag                     | Meaning                                       | Generator output                          |
 | ----------------------- | --------------------------------------------- | ----------------------------------------- |
@@ -17,7 +17,24 @@ Without a type tag the parser classifies the scenario as `general` (not `success
 
 ---
 
+## Work that is not "manual": `@blocked` and `@not-implemented`
+
+These two are **plan-level** (they force `Execution Mode`, see `specs/_TEMPLATE.md`). Neither is `@manual`, and neither becomes `test.skip`:
+
+| Tag                | Meaning                                                     | Generator output                        |
+| ------------------ | ----------------------------------------------------------- | --------------------------------------- |
+| `@blocked`         | Real, evidenced blocker (page 500s, role denied, ext. down) | `test.fixme(...)` + record the evidence |
+| `@not-implemented` | Planned but not built (page not explored, no seed)          | `test.fixme(...)` + Coverage Gap entry  |
+
+**Why not `test.skip`:** Playwright's own definition — *"marks the test as irrelevant"*. A blocked or unbuilt scenario is not irrelevant, it is **unfinished work**. Emitting it as `test.skip` hides it behind a neutral status and makes the run read "degraded" instead of "unbuilt". Use `test.fixme` (runs nowhere, tracked as debt) or `test.fail` (runs, must fail — for a known live bug).
+
+A scenario whose page has **no selector-catalog evidence** may not be planned `automated` at all: it belongs in **Coverage Gaps** (`validate_plan` reports `PLAN_EVIDENCE_MISSING`). That is the mechanism that keeps "belum dieksplorasi" from becoming a silent skip.
+
+---
+
 ## `(@manual)` — only for these situations
+
+The list is **closed**. Nothing outside it qualifies:
 
 | Situation                 | Example                                       |
 | ------------------------- | --------------------------------------------- |
@@ -28,6 +45,8 @@ Without a type tag the parser classifies the scenario as `general` (not `success
 | Biometric / hardware      | Face ID, barcode scan, receipt printing       |
 | PDF **visual layout**     | Check spacing, alignment, typography in a PDF |
 | Real-world timing         | Wait 24 hours for an expiry check             |
+
+"Not explored yet", "no test data", and "dependency not ready" are **not** on this list — they are `@not-implemented` (Coverage Gap).
 
 ---
 
@@ -87,6 +106,9 @@ Role not authorised to access a page?
 
 Not sure?
   → Ask the maintainer before marking (@manual)
+
+Page not explored / no test data / dependency missing?
+  → NOT (@manual). Record it as a Coverage Gap (`@not-implemented`).
 ```
 
 ---

@@ -35,6 +35,22 @@ Jika tidak diberi tag tipe, skenario berstatus `general` — diperlakukan sebaga
 
 ---
 
+## Yang BUKAN `(@manual)`: pekerjaan yang belum selesai
+
+Ini pembedaan yang paling sering salah dan paling mahal. `@manual` artinya **tidak berlaku untuk otomasi**. Pekerjaan yang belum dikerjakan bukan itu.
+
+| Keadaan                                                                      | Tag yang benar     | Output Generator  |
+| ---------------------------------------------------------------------------- | ------------------ | ----------------- |
+| Bloker nyata & berbukti (halaman 500, akses ditolak)                         | `@blocked`         | `test.fixme(...)` |
+| Direncanakan tapi belum dibangun (halaman belum di-snapshot, seed belum ada) | `@not-implemented` | `test.fixme(...)` |
+| Bug produk yang diketahui hidup                                              | —                  | `test.fail(...)`  |
+
+**Jangan pernah** menulis `test.skip(true, 'belum dieksplorasi')`. Playwright mendefinisikan `skip` sebagai *"test tidak relevan"* — bukan *"belum dikerjakan"*. Skenario belum-dikerjakan yang keluar sebagai `test.skip` akan menyembunyikan puluhan pekerjaan di balik status netral, dan membuat run terbaca "degraded" padahal sebenarnya "belum dibangun".
+
+Mekanismenya: skenario yang halamannya **tidak punya entri selector-catalog** tidak boleh di-plan sebagai `automated`. Planner menaruhnya di **Coverage Gaps**, dan `validate_plan` melaporkan `PLAN_EVIDENCE_MISSING`. Jadi "belum dieksplorasi" menjadi daftar kerja yang bisa diperiksa, bukan alasan.
+
+---
+
 ## Kapan Pakai `(@manual)`?
 
 Tandai `(@manual)` kalau skenario membutuhkan salah satu dari ini:

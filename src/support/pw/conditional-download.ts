@@ -1,8 +1,11 @@
 /**
  * Conditional download helpers — download templates only when preconditions are met.
  *
- * Common ERP pattern: download template only when master data exists,
- * or skip gracefully when the prerequisite is not satisfied.
+ * Common ERP pattern: download a template only when master data exists. A missing
+ * prerequisite is NOT "not applicable to automation" — it is unfinished work
+ * (the seed/environment is not ready), so the helper marks the test with
+ * `test.fixme` rather than `test.skip`. Playwright's `skip` means "irrelevant";
+ * using it here would hide a real data gap behind a neutral status.
  *
  * @module src/support/pw/conditional-download
  */
@@ -12,9 +15,11 @@ import { downloadAndSave } from './files';
 import { test } from '@playwright/test';
 
 export interface DownloadIfOptions {
-  /** Skip instead of returning null — annotates test with skip reason */
+  /** Mark the test `fixme` instead of returning null — annotates it with the reason. */
+  fixmeOnFalse?: boolean;
+  /** @deprecated Use `fixmeOnFalse`. Kept so existing specs keep working. */
   skipOnFalse?: boolean;
-  /** Skip reason annotation for test metadata */
+  /** Reason recorded on the fixme marker. */
   skipReason?: string;
   /** Custom download directory */
   dir?: string;
@@ -27,8 +32,9 @@ export interface DownloadResult {
 }
 
 /**
- * Download template only when a precondition is met.
- * Returns null (skipped) if condition is not met — test can branch.
+ * Download a file only when a precondition is met.
+ * Returns null when the condition is not met — the test can branch, or be
+ * marked `test.fixme` when `fixmeOnFalse` is set.
  *
  * @example
  * ```ts
@@ -36,9 +42,9 @@ export interface DownloadResult {
  *   page,
  *   async () => await masterDataExists(page),
  *   async () => page.click('button.download-template'),
- *   { skipOnFalse: true, skipReason: 'Master data not found' },
+ *   { fixmeOnFalse: true, skipReason: 'Master data not found' },
  * );
- * if (!result) return; // skipped
+ * if (!result) return; // precondition not met — test is marked fixme
  * ```
  */
 export async function downloadIf(
@@ -50,9 +56,10 @@ export async function downloadIf(
   const conditionMet = await condition();
 
   if (!conditionMet) {
-    if (options?.skipOnFalse) {
-      const reason = options.skipReason ?? 'Download condition not met — skipped';
-      test.skip(true, reason);
+    if (options?.fixmeOnFalse ?? options?.skipOnFalse) {
+      const reason =
+        options.skipReason ?? 'Download precondition not met — data/environment not ready';
+      test.fixme(true, reason);
     }
     return null;
   }
@@ -65,11 +72,12 @@ export async function downloadIf(
 }
 
 /**
- * Download template when master data exists (selector-based check).
- * Navigates to masterCheckUrl, verifies masterSelector is visible,
+ * Download a template when master data exists (selector-based check).
+ * Navigates to `masterCheckUrl`, verifies `masterSelector` is visible,
  * then triggers the download.
  *
- * Common ERP pattern: download employee template only when department master exists.
+ * Common ERP pattern: download the employee template only when the department
+ * master exists.
  *
  * @example
  * ```ts
@@ -85,13 +93,15 @@ export async function downloadTemplateWithMaster(
   options: {
     /** Navigate here to check master data exists */
     masterCheckUrl: string;
-    /** Selector that confirms master data is present (e.g. table row) */
+    /** Selector that confirms master data is present (e.g. a table row) */
     masterSelector: string;
     /** Trigger the download action */
     downloadTrigger: () => Promise<void>;
     /** Download directory */
     dir?: string;
-    /** Skip test if master not found (default: false) */
+    /** Mark the test fixme when master data is missing (default: false) */
+    fixmeOnMissing?: boolean;
+    /** @deprecated Use `fixmeOnMissing`. Kept so existing specs keep working. */
     skipOnMissing?: boolean;
   },
 ): Promise<DownloadResult | null> {
@@ -106,16 +116,16 @@ export async function downloadTemplateWithMaster(
     options.downloadTrigger,
     {
       dir: options.dir,
-      skipOnFalse: options.skipOnMissing,
+      fixmeOnFalse: options.fixmeOnMissing ?? options.skipOnMissing,
       skipReason: `Master data not found at ${options.masterCheckUrl} (selector: ${options.masterSelector})`,
     },
   );
 }
 
 /**
- * Download template when master data exists (API-based check).
- * Makes a request to masterApiUrl and uses masterApiCheck to verify
- * the response indicates master data is present.
+ * Download a template when master data exists (API-based check).
+ * Calls `masterApiUrl` and uses `masterApiCheck` to decide whether the
+ * response indicates master data is present.
  *
  * @example
  * ```ts
@@ -137,7 +147,9 @@ export async function downloadTemplateWithMasterApi(
     downloadTrigger: () => Promise<void>;
     /** Download directory */
     dir?: string;
-    /** Skip test if master not found (default: false) */
+    /** Mark the test fixme when master data is missing (default: false) */
+    fixmeOnMissing?: boolean;
+    /** @deprecated Use `fixmeOnMissing`. Kept so existing specs keep working. */
     skipOnMissing?: boolean;
   },
 ): Promise<DownloadResult | null> {
@@ -156,7 +168,7 @@ export async function downloadTemplateWithMasterApi(
     options.downloadTrigger,
     {
       dir: options.dir,
-      skipOnFalse: options.skipOnMissing,
+      fixmeOnFalse: options.fixmeOnMissing ?? options.skipOnMissing,
       skipReason: `Master data not found via API: ${options.masterApiUrl}`,
     },
   );

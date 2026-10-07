@@ -294,6 +294,8 @@ const CONF = {
   passedFg: '#006644',
   skippedBg: '#fffae6',
   skippedFg: '#974f0c',
+  notImplementedBg: '#e9f2ff',
+  notImplementedFg: '#0052cc',
   accentBg: '#f3e4d4',
   accentFg: '#a87648',
   font: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif',
@@ -304,6 +306,7 @@ function getRowBg(status: string): string {
   const s = (status || '').toLowerCase();
   if (s === 'failed' || s === 'timedout' || s === 'interrupted')
     return `background:${CONF.failedBg};`;
+  if (s === 'not-implemented') return `background:${CONF.notImplementedBg};`;
   if (s === 'skipped') return `background:${CONF.skippedBg};`;
   return '';
 }
@@ -314,6 +317,7 @@ const STATUS_ICON: Record<string, string> = {
   timedout: '⏱',
   interrupted: '✗',
   skipped: '⊘',
+  'not-implemented': '⚒',
 };
 
 function confluenceStatus(status: string): string {
@@ -333,6 +337,9 @@ function confluenceStatusHtml(status: string): string {
   } else if (s === 'passed') {
     bg = CONF.passedBg;
     fg = CONF.passedFg;
+  } else if (s === 'not-implemented') {
+    bg = CONF.notImplementedBg;
+    fg = CONF.notImplementedFg;
   } else if (s === 'skipped') {
     bg = CONF.skippedBg;
     fg = CONF.skippedFg;

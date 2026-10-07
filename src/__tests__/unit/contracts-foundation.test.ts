@@ -107,6 +107,7 @@ test.describe('Contract Schema Foundation & Hashing (Phase 2)', () => {
         skippedScenarios: 0,
         manualScenarios: 0,
         blockedScenarios: 0,
+        notImplementedScenarios: 0,
       },
       coverageState: coverage,
       diagnostics: [],

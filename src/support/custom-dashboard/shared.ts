@@ -50,32 +50,52 @@ export function jsonForScript(value: unknown): string {
     .replace(/&/g, '\\u0026');
 }
 
-function getVerdict(summary: TestSummary): {
+/**
+ * Single source of truth for the run verdict. Previously duplicated in
+ * Hero.tsx and this file, which risked the two drifting apart.
+ *
+ * Precedence: a failure outranks everything; unfinished coverage outranks a
+ * manual skip (it is actionable work); a manual skip means reduced coverage
+ * but a complete run.
+ */
+export function getVerdict(summary?: TestSummary): {
   label: string;
   tone: 'healthy' | 'warning' | 'critical';
   summaryLine: string;
 } {
-  if (summary.failed > 0) {
+  const failed = summary?.failed ?? 0;
+  const skipped = summary?.skipped ?? 0;
+  const notImplemented = summary?.notImplemented ?? 0;
+  const total = summary?.total ?? 0;
+
+  if (failed > 0) {
     return {
       label: 'Run failed',
       tone: 'critical',
-      summaryLine: `${summary.failed} unhealthy test${summary.failed === 1 ? '' : 's'} need${summary.failed === 1 ? 's' : ''} triage.`,
+      summaryLine: `${failed} unhealthy test${failed === 1 ? '' : 's'} need${failed === 1 ? 's' : ''} triage.`,
     };
   }
 
-  if (summary.skipped > 0) {
+  if (notImplemented > 0) {
+    return {
+      label: 'Run incomplete',
+      tone: 'warning',
+      summaryLine: `${notImplemented} skenario direncanakan tapi belum dibangun — utang kerja, bukan skip.`,
+    };
+  }
+
+  if (skipped > 0) {
     return {
       label: 'Run degraded',
       tone: 'warning',
-      summaryLine: `${summary.skipped} skipped test${summary.skipped === 1 ? '' : 's'} reduced coverage.`,
+      summaryLine: `${skipped} skipped test${skipped === 1 ? '' : 's'} reduced coverage.`,
     };
   }
 
   return {
     label: 'Run healthy',
     tone: 'healthy',
-    summaryLine:
-      summary.total > 0 ? 'All executed tests passed.' : 'No tests were captured in this run.',
+    summaryLine: total > 0 ? 'All executed tests passed.' : 'No tests were captured in this run.',
   };
 }
 

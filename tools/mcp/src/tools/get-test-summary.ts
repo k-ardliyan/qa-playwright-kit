@@ -12,6 +12,8 @@ export interface TestSummary {
   passed: number;
   failed: number;
   skipped: number;
+  /** Planned-but-unbuilt scenarios (test.fixme) — work, not "not applicable". */
+  notImplemented?: number;
   passRate: number;
   timestamp: string;
   // === Table View extensions (populated by custom reporter) ===
@@ -57,6 +59,8 @@ export interface CollectedTestCase {
   hasTrace: boolean;
   /** Present on unhealthy tests when custom reporter ran */
   failureSource?: FailureSource;
+  /** Annotation reason for skipped/not-implemented rows — per-scenario "why". */
+  notImplementedReason?: string;
   /** QA free-text note — merged from the test-notes sidecar when present */
   qaNotes?: string;
   /** AI-authored insight — deterministic + agent narrative, sidecar merged */
@@ -67,17 +71,20 @@ export interface RoleSummary {
   passing: number;
   failing: number;
   skipped: number;
+  notImplemented?: number;
 }
 
 export interface FeatureSummary {
   passing: number;
   failing: number;
+  notImplemented?: number;
 }
 
 /** Per-module test result breakdown — Opsi B: module contains nested features. */
 export interface ModuleSummary {
   passing: number;
   failing: number;
+  notImplemented?: number;
   features: Record<string, FeatureSummary>;
 }
 
@@ -186,6 +193,7 @@ function buildBreakdowns(): {
           const passing = status === 'passed' ? 1 : 0;
           const failing = status === 'failed' || status === 'timedOut' ? 1 : 0;
           const skipped = status === 'skipped' ? 1 : 0;
+          const notImplemented = status === 'not-implemented' ? 1 : 0;
 
           // byRole
           const role = tc.role;
@@ -194,6 +202,7 @@ function buildBreakdowns(): {
             byRole[role].passing += passing;
             byRole[role].failing += failing;
             byRole[role].skipped += skipped;
+            byRole[role].notImplemented = (byRole[role].notImplemented ?? 0) + notImplemented;
           }
 
           // byModule (Opsi B: nested features)
@@ -202,10 +211,13 @@ function buildBreakdowns(): {
           if (!byModule[mod]) byModule[mod] = { passing: 0, failing: 0, features: {} };
           byModule[mod].passing += passing;
           byModule[mod].failing += failing;
+          byModule[mod].notImplemented = (byModule[mod].notImplemented ?? 0) + notImplemented;
           if (!byModule[mod].features[feat])
             byModule[mod].features[feat] = { passing: 0, failing: 0 };
           byModule[mod].features[feat].passing += passing;
           byModule[mod].features[feat].failing += failing;
+          byModule[mod].features[feat].notImplemented =
+            (byModule[mod].features[feat].notImplemented ?? 0) + notImplemented;
         }
         return { byRole, byModule };
       }

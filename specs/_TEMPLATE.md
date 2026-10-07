@@ -33,10 +33,17 @@
 
 ## Scenarios
 
-> Tag di heading hanya untuk `@manual` dan `@blocked` — keduanya memaksa
-> `Execution Mode`. Skenario tanpa tag otomatis berjalan sebagai `automated`
-> (default), jadi JANGAN menulis `(@automated)`. Nilai `Execution Mode` yang
-> sah: `automated`, `manual`, `blocked`.
+> Tag di heading hanya untuk `@manual`, `@blocked`, dan `@not-implemented` —
+> ketiganya memaksa `Execution Mode`. Skenario tanpa tag otomatis berjalan
+> sebagai `automated` (default), jadi JANGAN menulis `(@automated)`.
+> Nilai `Execution Mode` yang sah: `automated`, `manual`, `blocked`,
+> `not-implemented`.
+>
+> Bedanya: `@manual` = tidak berlaku untuk otomasi (CAPTCHA/OTP/biometric —
+> daftar tertutup). `@blocked` = bloker nyata berbukti (halaman error, akses
+> ditolak). `@not-implemented` = direncanakan tapi belum dibangun (halaman
+> belum dieksplorasi, seed belum ada). Bloker dan belum-dibangun WAJIB punya
+> entri di `## Coverage Gaps` — itu catatan kerja belum selesai, bukan skip.
 
 ### SC-01: [Nama Skenario]
 
@@ -46,6 +53,7 @@
 | Covers                | `AC-01`, `AC-02`                                                                                                                                                          |
 | Actor                 | `finance`                                                                                                                                                                 |
 | Auth Context          | `finance`                                                                                                                                                                 |
+| Page                  | `login-form`                                                                                                                                                              |
 | Execution Mode        | `automated`                                                                                                                                                               |
 | Data Setup            | Seed entity in pending state                                                                                                                                              |
 | Actions               | 1. Navigate to /feature/path<br>2. Fill form inputs<br>3. Click submit button                                                                                             |

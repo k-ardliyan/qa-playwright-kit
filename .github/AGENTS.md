@@ -184,7 +184,7 @@ Generated specs must never log in inside the test body — auth comes exclusivel
 
 ### Metadata Mapping
 
-See [`.github/agents/generator.agent.md`](agents/generator.agent.md) for `metadata` → `test.describe` / `test.use` / `test.skip` mapping rules.
+See [`.github/agents/generator.agent.md`](agents/generator.agent.md) for `metadata` → `test.describe` / `test.use` / `test.skip` (`@manual`) / `test.fixme` (blocked, not-implemented) / `test.fail` (known bug) mapping rules.
 
 ### Example Prompt
 

@@ -9,7 +9,7 @@ Use this reference when the AI agent hits `net::ERR_BLOCKED_BY_CLIENT` or a brow
 Do not assume that:
 - The target website is down or unreachable.
 - The web page permanently blocks bots / IPs.
-- Live UI exploration cannot be done and must be skipped or downgraded to `@manual`.
+- Live UI exploration cannot be done — a failed exploration is unfinished work (Coverage Gap / `@not-implemented`), never `test.skip` and never a reason to downgrade the scenario to `@manual`.
 
 ### Real Cause
 

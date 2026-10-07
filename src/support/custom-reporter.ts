@@ -38,6 +38,7 @@ import type {
   CollectedTestData,
   Priority,
   ReportMode,
+  ReportStatus,
   RunMeta,
   TestSummary,
 } from './custom-dashboard/types';
@@ -116,6 +117,59 @@ function loadRunHistory(currentRunId: string): RunHistoryContext | undefined {
 
 function getAnnotation(test: TestCase, type: string): string {
   return (test.annotations ?? []).find((a) => a.type === type)?.description ?? '';
+}
+
+/** Minimal annotation shape — Playwright's TestCase annotation, structurally. */
+export interface TestAnnotationLike {
+  type: string;
+  description?: string;
+}
+
+/**
+ * True when the test carries Playwright's `fixme` annotation.
+ *
+ * Playwright reports a fixme test's status as `'skipped'`, so status alone
+ * cannot tell "not applicable" (`test.skip` / `@manual`) from "planned but not
+ * built" (`test.fixme`). The annotation survives on the TestCase, so it is the
+ * only reliable signal. Note this reads `type`, not `description` — a bare
+ * `test.fixme('title', fn)` has an empty description.
+ */
+export function hasFixmeAnnotation(test: { annotations?: TestAnnotationLike[] }): boolean {
+  return (test.annotations ?? []).some((a) => a.type === 'fixme');
+}
+
+/**
+ * Resolve the reported status for a finished test.
+ *
+ * `test.fixme` reports as `skipped`; the annotation promotes it to
+ * `not-implemented` so unfinished work is not filed as "not applicable".
+ * Pure and exported so the mapping is unit-testable without a live run.
+ */
+export function resolveReportedStatus(
+  resultStatus: string,
+  test: { annotations?: TestAnnotationLike[] },
+): ReportStatus {
+  if (resultStatus === 'skipped' && hasFixmeAnnotation(test)) return 'not-implemented';
+  return resultStatus as ReportStatus;
+}
+
+/**
+ * Per-scenario "why" for skipped/not-implemented rows: the fixme/skip
+ * annotation description ("Butuh payroll berjalan sampai status Dibayar").
+ * Playwright surfaces this reason in its own reports, so must ours — without
+ * it the dashboard can only say "Belum dibangun" with a generic tooltip, never
+ * WHAT is owed. A bare `test.fixme` carries no description → undefined, and
+ * the UI falls back to the static hint. Pure and exported for unit tests.
+ */
+export function resolveNotImplementedReason(
+  status: ReportStatus,
+  test: { annotations?: TestAnnotationLike[] },
+): string | undefined {
+  const reasonOf = (type: string): string | undefined =>
+    (test.annotations ?? []).find((a) => a.type === type)?.description || undefined;
+  if (status === 'not-implemented') return reasonOf('fixme');
+  if (status === 'skipped') return reasonOf('skip');
+  return undefined;
 }
 
 function safeParseJson<T>(raw: string, fallback: T): T {
@@ -263,8 +317,19 @@ export default class CustomReporter implements Reporter {
         ? actualResultAnnotation || 'Sesuai dengan expected result'
         : deriveActualFailureMessage(result, actualResultAnnotation);
 
+    // `test.fixme` reports as `skipped`; the annotation is what distinguishes
+    // "planned but not built" from "not applicable" (`@manual` / `test.skip`).
+    // Without this, unbuilt scenarios read as a neutral skip and the run looks
+    // merely "degraded" instead of carrying visible unfinished coverage.
+    const status: ReportStatus = resolveReportedStatus(result.status, test);
+
+    // Per-scenario "why": the fixme/skip annotation description ("Butuh payroll
+    // berjalan sampai status Dibayar") is what lets the dashboard answer QA's
+    // "kenapa belum jalan" per row, instead of a generic static tooltip.
+    const notImplementedReason = resolveNotImplementedReason(status, test);
+
     const failureSource = resolveFailureSource({
-      status: result.status,
+      status,
       errorMessage,
       title: test.title,
       annotation: getAnnotation(test, 'failureSource'),
@@ -275,7 +340,7 @@ export default class CustomReporter implements Reporter {
       title: test.title,
       fullTitle,
       filePath,
-      status: result.status,
+      status,
       duration: result.duration,
       errorMessage,
       errors,
@@ -298,6 +363,7 @@ export default class CustomReporter implements Reporter {
       actualResult,
       affectedLayer: parseAffectedLayer(getAnnotation(test, 'affectedLayer')),
       failureSource,
+      notImplementedReason,
     };
 
     const previousIndex = this.collectedTests.findIndex((item) => item.logicalKey === logicalKey);
@@ -381,6 +447,7 @@ export default class CustomReporter implements Reporter {
         attachmentCount: t.attachments.length,
         hasTrace: t.attachments.some((a) => a.kind === 'trace'),
         failureSource: t.failureSource,
+        notImplementedReason: t.notImplementedReason,
         qaNotes: t.qaNotes,
         aiNotes: t.aiNotes,
         retry: t.retry,
@@ -397,14 +464,27 @@ export default class CustomReporter implements Reporter {
       const total = this.collectedTests.length;
       const passed = this.collectedTests.filter((t) => t.status === 'passed').length;
       const skipped = this.collectedTests.filter((t) => t.status === 'skipped').length;
-      const failed = total - passed - skipped;
+      const notImplemented = this.collectedTests.filter(
+        (t) => t.status === 'not-implemented',
+      ).length;
+      // Explicit rather than `total - passed - skipped`: an unclassified status
+      // must not silently land in `failed`, and `not-implemented` is unfinished
+      // work with its own bucket — not a failure, not a skip.
+      const failed = total - passed - skipped - notImplemented;
       const summaryByRole: TestSummary['summaryByRole'] = {};
       const summaryByModule: TestSummary['summaryByModule'] = {};
       for (const testCase of this.collectedTests) {
         const role = testCase.role || 'GENERAL / UNSCOPED';
-        const roleBreakdown = (summaryByRole[role] ??= { passing: 0, failing: 0, skipped: 0 });
+        const roleBreakdown = (summaryByRole[role] ??= {
+          passing: 0,
+          failing: 0,
+          skipped: 0,
+          notImplemented: 0,
+        });
         if (testCase.status === 'passed') roleBreakdown.passing += 1;
         else if (testCase.status === 'skipped') roleBreakdown.skipped += 1;
+        else if (testCase.status === 'not-implemented')
+          roleBreakdown.notImplemented = (roleBreakdown.notImplemented ?? 0) + 1;
         else roleBreakdown.failing += 1;
 
         const module = testCase.module || 'GENERAL';
@@ -412,19 +492,25 @@ export default class CustomReporter implements Reporter {
           passing: 0,
           failing: 0,
           skipped: 0,
+          notImplemented: 0,
           features: {},
         });
         if (testCase.status === 'passed') moduleBreakdown.passing += 1;
         else if (testCase.status === 'skipped') moduleBreakdown.skipped += 1;
+        else if (testCase.status === 'not-implemented')
+          moduleBreakdown.notImplemented = (moduleBreakdown.notImplemented ?? 0) + 1;
         else moduleBreakdown.failing += 1;
         const feature = testCase.feature || 'GENERAL';
         const featureBreakdown = (moduleBreakdown.features[feature] ??= {
           passing: 0,
           failing: 0,
           skipped: 0,
+          notImplemented: 0,
         });
         if (testCase.status === 'passed') featureBreakdown.passing += 1;
         else if (testCase.status === 'skipped') featureBreakdown.skipped += 1;
+        else if (testCase.status === 'not-implemented')
+          featureBreakdown.notImplemented = (featureBreakdown.notImplemented ?? 0) + 1;
         else featureBreakdown.failing += 1;
       }
 
@@ -435,7 +521,12 @@ export default class CustomReporter implements Reporter {
         passed,
         failed,
         skipped,
-        passRate: total > 0 ? Math.round((passed / total) * 100) : 0,
+        notImplemented,
+        // Unified formula (see docs/REPORT-GUIDE.md): the pass rate answers
+        // "of the tests that actually ran, how many passed?". `skipped`
+        // (@manual — not applicable) and `not-implemented` (unbuilt) are
+        // reported as separate coverage numbers, never folded into the score.
+        passRate: passed + failed > 0 ? Math.round((passed / (passed + failed)) * 100) : 0,
         timestamp: runMeta.generatedAt,
         reportMode,
         rolesInScope,
@@ -517,6 +608,7 @@ export default class CustomReporter implements Reporter {
           passed: summary.passed,
           failed: summary.failed,
           skipped: summary.skipped,
+          notImplemented: summary.notImplemented,
           passRate: summary.passRate,
           reportMode,
           // archive:save fallback fields — without these, saves from a shell
@@ -544,7 +636,7 @@ export default class CustomReporter implements Reporter {
       console.log('');
       console.log('────────────────────────────────────────────────────────');
       console.log(
-        `  📊 Run complete: ${summary.passed}✅ ${summary.failed}❌ ${summary.skipped}⏭️  (${summary.passRate}%)`,
+        `  📊 Run complete: ${summary.passed}✅ ${summary.failed}❌ ${summary.skipped}⏭️ ${summary.notImplemented}⚒  (${summary.passRate}%)`,
       );
       // The demo suite ships deliberately failing specs to exercise the
       // dashboard. Without this note a first-time QA reads those failures as a
