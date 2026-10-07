@@ -80,6 +80,17 @@
   .workspace {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  /* The ribbon sits in the rail (or full width once stacked) and narrows
+     faster than the page: five tracks stop fitting around 830px, measured.
+     Three across keeps every row filled with the 5th cell spanning two. */
+  .stat-ribbon {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stat-ribbon__cell:last-child:nth-child(3n + 2) {
+    grid-column: span 2;
+  }
 }
 
 /* --- <= 1200px: mastheads and stat rails compress ------------------------ */
@@ -96,31 +107,6 @@
   .latest-run-card__gauge {
     align-items: flex-start;
     min-width: 0;
-  }
-
-  .latest-run-card__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .metric-box:nth-child(odd) {
-    border-left: 0;
-  }
-
-  .metric-box:nth-child(n + 3) {
-    border-top: 1px solid var(--border);
-  }
-
-  .hero-stat-bar {
-    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-  }
-
-  .hero-stat {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-
-  .hero-stat:first-child {
-    border-top: 0;
   }
 
   .comparison-hero {
@@ -504,20 +490,36 @@
     font-size: var(--text-xl);
   }
 
+  /* Five metric cells reflow to 3+2 here — measured: a 5-across row needs
+     ~97px per cell, which only fits at 769px and wider. Dividers come from
+     the grid gap (see dashboard.css), so no border rules are needed. */
+  .latest-run-card__metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Five cells across three columns leaves one track empty in the last row.
+     The gap only draws between cells, so an empty track leaves the separator
+     open — the orphaned last cell spans the remaining tracks instead. */
+  .metric-box:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
+  /* Six hero stats compress to three across once the viewport nears the
+     measured fit limit (a 6-across row needs ~83px per cell). */
   .hero-stat-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .hero-stat:last-child:nth-child(odd) {
+    grid-column: span 2;
   }
 
   .stat-ribbon {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .stat-ribbon__cell:nth-child(odd) {
-    border-left: 0;
-  }
-
-  .stat-ribbon__cell:nth-child(n + 3) {
-    border-top: 1px solid var(--border);
+  .stat-ribbon__cell:last-child:nth-child(3n + 2) {
+    grid-column: span 2;
   }
 
   .comparison-stats-row,
@@ -563,6 +565,34 @@
 
   .metric-box {
     padding: var(--space-3) var(--space-4);
+  }
+
+  /* Metrics drop to 2 columns; hero stats to 2 columns. Dividers are the grid
+     gap, so no border rules are needed here. */
+  .latest-run-card__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Five cells across two columns leaves the last one alone in its row — the
+   * same open-separator problem as the 3-column step. It spans both tracks. */
+  .metric-box:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
+  .hero-stat-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-stat:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
+  .stat-ribbon {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-ribbon__cell:last-child:nth-child(odd) {
+    grid-column: span 2;
   }
 
   .hero__top-row,
@@ -648,19 +678,7 @@
 
 /* --- <= 480px: narrow phone ---------------------------------------------- */
 @media (max-width: 480px) {
-  .latest-run-card__metrics {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .metric-box {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-
-  .metric-box:first-child {
-    border-top: 0;
-  }
-
+  .latest-run-card__metrics,
   .hero-stat-bar,
   .stat-ribbon,
   .comparison-stats-row,
@@ -669,13 +687,12 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .stat-ribbon__cell {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-
-  .stat-ribbon__cell:first-child {
-    border-top: 0;
+  /* Single column: the orphan-span rules above must not create implicit
+     second tracks. */
+  .metric-box:last-child:nth-child(odd),
+  .hero-stat:last-child:nth-child(odd),
+  .stat-ribbon__cell:last-child:nth-child(odd) {
+    grid-column: auto;
   }
 
   .app-header__title {

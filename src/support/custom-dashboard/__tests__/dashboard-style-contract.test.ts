@@ -250,4 +250,52 @@ test.describe('Custom Dashboard Style Contract', () => {
       }
     }
   });
+
+  // Regression guard: the latest-run strip once held 4 metric cells with a 5th
+  // appended conditionally, so it wrapped onto a second row and re-flowed
+  // between runs (and the desktop grid stayed 4-wide even with the 5th present).
+  // The strip is now a permanent five-cell row.
+  test('the metric strip is a fixed five-cell row and the 5th cell is permanent', () => {
+    const css = getDashboardStyles();
+    expect(css).toMatch(
+      /\.latest-run-card__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/,
+    );
+
+    // Five metric boxes render even on an all-passed run (0 unbuilt is a
+    // baseline QA must see, not a hidden cell).
+    const allPassedOverview = buildDashboardOverview({
+      latestSummary: allPassedSummary as unknown as Record<string, unknown>,
+      history: [],
+    });
+    const allPassedHtml = String(DashboardPage({ overview: allPassedOverview, serveMode: false }));
+    const metricCells = allPassedHtml.match(/class="metric-box[ "]/g) ?? [];
+    expect(metricCells.length).toBe(5);
+    expect(allPassedHtml).toContain('Belum dibangun');
+
+    // The unbuilt cell carries the construction mark, not the pencil: a pencil
+    // reads as "editable", which the status is not.
+    expect(allPassedHtml).toContain('icon-hammer');
+    const statusCell = allPassedHtml.match(
+      /class="metric-box metric-box--not-implemented"[\s\S]*?<\/div>/,
+    );
+    expect(statusCell?.[0]).toContain('icon-hammer');
+    expect(statusCell?.[0]).not.toContain('icon-square-pen');
+  });
+
+  test('not-implemented rendering uses the hammer, never the pencil', () => {
+    const html = buildDashboardHtml('local', notImplementedSummary, notImplementedTests);
+    // The status pill in the table renders the hammer geometry.
+    expect(html).toContain('icon-hammer');
+    // Each pill block: non-greedy up to the FIRST closing span of the label —
+    // the icon span closes first, so bound the match at the pill's own end.
+    const pills =
+      html.match(
+        /class="status-pill status-pill--full status-pill--not-implemented"[\s\S]*?<span>Belum dibangun<\/span>/g,
+      ) ?? [];
+    expect(pills.length).toBeGreaterThan(0);
+    for (const pill of pills) {
+      expect(pill).toContain('icon-hammer');
+      expect(pill).not.toContain('icon-square-pen');
+    }
+  });
 });

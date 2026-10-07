@@ -4,11 +4,11 @@ import {
   IconCircleCheck,
   IconCircleX,
   IconCircleSlash2,
+  IconHammer,
   IconSave,
   IconArrowRight,
   IconLayoutDashboard,
   IconList,
-  IconSquarePen,
 } from '../../components/shared/icons';
 
 export interface LatestRunCardProps {
@@ -118,18 +118,20 @@ export function LatestRunCard({ latestRun }: LatestRunCardProps) {
           </span>
           <span class="metric-box__label">Skipped</span>
         </div>
-        {latestRun.notImplemented ? (
-          <div
-            class="metric-box metric-box--not-implemented"
-            title="Skenario direncanakan tapi belum dibangun (test.fixme) — utang kerja, bukan skip"
-          >
-            <span class="metric-box__num">
-              <IconSquarePen size={16} class="metric-icon metric-icon--not-implemented" />
-              <span>{latestRun.notImplemented}</span>
-            </span>
-            <span class="metric-box__label">Belum dibangun</span>
-          </div>
-        ) : null}
+        {/* Unbuilt work is a permanent metric cell, not a conditional append:
+            a 5th cell that only exists when the count is non-zero re-flows the
+            strip between runs and hides the signal exactly when QA should see
+            the "0 unbuilt" baseline. */}
+        <div
+          class="metric-box metric-box--not-implemented"
+          title="Skenario direncanakan tapi belum dibangun (test.fixme) — utang kerja, bukan skip"
+        >
+          <span class="metric-box__num">
+            <IconHammer size={16} class="metric-icon metric-icon--not-implemented" />
+            <span>{latestRun.notImplemented ?? 0}</span>
+          </span>
+          <span class="metric-box__label">Belum dibangun</span>
+        </div>
       </div>
 
       <div class="latest-run-card__actions">

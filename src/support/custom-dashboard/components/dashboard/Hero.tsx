@@ -12,6 +12,7 @@ import {
   IconCircleSlash2,
   IconChartPie,
   IconDownload,
+  IconHammer,
   IconHash,
   IconListChecks,
   IconSave,
@@ -232,6 +233,15 @@ export function Hero({ summary, runActions, isArchived }: HeroProps) {
           <span class="hero-stat__copy">
             <span class="hero-stat__num">{summary?.skipped ?? 0}</span>
             <span class="hero-stat__lbl">Skipped</span>
+          </span>
+        </div>
+        <div class="hero-stat hero-stat--not-implemented">
+          <span class="hero-stat__icon" aria-hidden="true">
+            <IconHammer size={16} />
+          </span>
+          <span class="hero-stat__copy">
+            <span class="hero-stat__num">{summary?.notImplemented ?? 0}</span>
+            <span class="hero-stat__lbl">Belum dibangun</span>
           </span>
         </div>
         <div class="hero-stat hero-stat--accent">

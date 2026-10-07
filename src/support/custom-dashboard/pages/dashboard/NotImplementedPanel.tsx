@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { NotImplementedCategoryEntry } from '../../domain/dashboard';
-import { IconSquarePen } from '../../components/shared/icons';
+import { IconHammer } from '../../components/shared/icons';
 
 export interface NotImplementedPanelProps {
   entries: NotImplementedCategoryEntry[];
@@ -21,7 +21,7 @@ export function NotImplementedPanel({ entries }: NotImplementedPanelProps) {
     <div class="panel why-not-panel">
       <div class="panel-header">
         <h3 class="panel-title">
-          <IconSquarePen size={15} class="icon-neutral" />
+          <IconHammer size={15} class="icon-neutral" />
           <span>Kenapa belum jalan</span>
         </h3>
         <span class="muted font-mono">{total} belum dibangun</span>

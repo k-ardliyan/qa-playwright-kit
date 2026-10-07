@@ -149,6 +149,10 @@ a:hover {
   color: var(--warning);
 }
 
+.stat-inline--not-implemented {
+  color: var(--info);
+}
+
 /* Icon slots that hold a Lucide SVG must centre it and size it to the slot. */
 .panel-empty__mark svg,
 .hero__mark svg,

@@ -54,6 +54,9 @@ export interface ReportHistoryEntry {
   failed: number;
   /** Tests skipped. */
   skipped: number;
+  /** Planned-but-unbuilt scenarios (test.fixme) — work, not "not applicable".
+   *  Optional for archives saved before the fixme split. */
+  notImplemented?: number;
   /** Report mode. */
   reportMode: string;
   /** Overall status: 'success' | 'partial' | 'failed'. */
@@ -220,6 +223,7 @@ function buildEntry(
     passed,
     failed,
     skipped,
+    ...(notImplemented > 0 ? { notImplemented } : {}),
     reportMode: (summary.reportMode as string) ?? metadata?.reportMode ?? 'general',
     status: deriveStatus(passRate, failed, skipped, notImplemented),
     durationMs: metadata?.durationMs,

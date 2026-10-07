@@ -15,6 +15,7 @@ import {
   iconCircleCheck,
   iconCircleSlash,
   iconCircleX,
+  iconHammer,
   iconSquarePen,
   iconTriangleAlert,
 } from './components/shared/icon-strings';
@@ -201,8 +202,11 @@ export function buildDetailPage(options: {
   const passed = (summary?.passed as number) ?? 0;
   const failed = (summary?.failed as number) ?? 0;
   const skipped = (summary?.skipped as number) ?? 0;
+  const notImplemented = (summary?.notImplemented as number) ?? 0;
   const passRate = (summary?.passRate as number) ?? 0;
-  const statusIcon = failed === 0 ? 'Run healthy' : 'Run needs triage';
+  // Unbuilt work outranks a clean pass rate in the header verdict: a run whose
+  // scenarios are mostly unbuilt is not "healthy", whatever the rate says.
+  const statusIcon = failed === 0 && notImplemented === 0 ? 'Run healthy' : 'Run needs triage';
 
   const encodeEvidenceUrl = (relativePath: string, archivedRunId: string): string => {
     if (relativePath.startsWith('/')) return relativePath;
@@ -312,6 +316,7 @@ export function buildDetailPage(options: {
           <span class="stat-inline stat-inline--passed">${iconCircleCheck(12)} ${passed} passed</span>
           <span class="stat-inline stat-inline--failed">${iconCircleX(12)} ${failed} failed</span>
           <span class="stat-inline stat-inline--skipped">${iconCircleSlash(12)} ${skipped} skipped</span>
+          <span class="stat-inline stat-inline--not-implemented">${iconHammer(12)} ${notImplemented} belum dibangun</span>
           <span>Pass rate <strong>${passRate}%</strong></span>
           ${metadata?.ranAt ? `<span>Ran: <strong><time datetime="${escapeHtml(metadata.ranAt)}" data-iso="${escapeHtml(metadata.ranAt)}">${escapeHtml(metadata.ranAt.replace('T', ' ').replace(/\.\d+Z$/, ' UTC'))}</time></strong></span>` : ''}
           ${metadata?.savedAt ? `<span>Saved: <strong><time datetime="${escapeHtml(metadata.savedAt)}" data-iso="${escapeHtml(metadata.savedAt)}">${escapeHtml(metadata.savedAt.replace('T', ' ').replace(/\.\d+Z$/, ' UTC'))}</time></strong></span>` : ''}

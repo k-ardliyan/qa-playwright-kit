@@ -14,6 +14,7 @@ import {
   IconAlert,
   IconTrash,
   IconEdit,
+  IconHammer,
   IconSave,
   IconHistory,
 } from '../../components/shared/icons';
@@ -221,6 +222,17 @@ export function HistoryRunsTable({
                   <span class="tests-breakdown font-mono muted">
                     ({entry.passed}P · {entry.failed}F)
                   </span>
+                  {/* Unbuilt work is a coverage number every run row must show,
+                      the same way the latest-run card and hero strip do. */}
+                  {entry.notImplemented ? (
+                    <span
+                      class="stat-inline stat-inline--not-implemented font-mono"
+                      title="Skenario terencana tapi belum dibangun (test.fixme) — utang kerja, bukan skip"
+                    >
+                      <IconHammer size={12} />
+                      {entry.notImplemented}
+                    </span>
+                  ) : null}
                 </DataTableCell>
                 <DataTableCell class="history-decision">
                   {entry.qaDecision ? (

@@ -66,6 +66,8 @@ interface CaseSpec {
   retry?: number;
   layers?: string[];
   evidence?: boolean;
+  /** Per-scenario fixme reason — the "why" behind a not-implemented row. */
+  notImplementedReason?: string;
 }
 
 function testCase(spec: CaseSpec) {
@@ -81,6 +83,7 @@ function testCase(spec: CaseSpec) {
     retry = 0,
     layers = ['FE'],
     evidence = false,
+    notImplementedReason,
   } = spec;
 
   const failed = status === 'failed' || status === 'timedOut' || status === 'interrupted';
@@ -144,6 +147,7 @@ function testCase(spec: CaseSpec) {
     feature,
     priority,
     failureSource,
+    ...(notImplementedReason ? { notImplementedReason } : {}),
     workerIndex: 1 + (id.charCodeAt(id.length - 1) % 3),
     inputData: { username: `${role}_user@erpku.com` },
     expectedResult: 'Dashboard loads',
@@ -308,6 +312,33 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       priority: 'high',
       layers: ['FE', 'BE', 'DB'],
     }),
+    // Unbuilt work — the strip's "Belum dibangun" cell, the "Kenapa belum
+    // jalan" panel and the not-implemented pill all need real rows to render
+    // against, with reasons spanning more than one category.
+    testCase({
+      id: 'SC-N1',
+      title: 'Export payroll recap to bank file',
+      status: 'not-implemented',
+      role: 'finance',
+      module: 'payroll',
+      feature: 'export',
+      priority: 'high',
+      layers: ['FE'],
+      notImplementedReason:
+        'Butuh payroll berjalan sampai status Dibayar — prasyarat rantai payroll belum tersedia.',
+    }),
+    testCase({
+      id: 'SC-N2',
+      title: 'Reconcile paid payroll against bank statement',
+      status: 'not-implemented',
+      role: 'hrd',
+      module: 'payroll',
+      feature: 'reconciliation',
+      priority: 'medium',
+      layers: ['FE', 'BE'],
+      notImplementedReason:
+        'UI belum dieksplorasi (form/dialog/stepper belum ada di selector catalog) — Explore lanjutan diperlukan',
+    }),
   ];
 
   const failedCount = latestCases.filter(
@@ -315,13 +346,20 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   ).length;
   const passedCount = latestCases.filter((t) => t.status === 'passed').length;
   const skippedCount = latestCases.filter((t) => t.status === 'skipped').length;
+  const notImplementedCount = latestCases.filter((t) => t.status === 'not-implemented').length;
 
   const latestSummary = {
     total: latestCases.length,
     passed: passedCount,
     failed: failedCount,
     skipped: skippedCount,
-    passRate: Math.round((passedCount / latestCases.length) * 100),
+    notImplemented: notImplementedCount,
+    // Pass rate over tests that RAN (docs/REPORT-GUIDE.md): skipped and
+    // not-implemented are coverage numbers, not part of the denominator.
+    passRate:
+      passedCount + failedCount > 0
+        ? Math.round((passedCount / (passedCount + failedCount)) * 100)
+        : 0,
     timestamp: '2026-09-08T18:41:43.575Z',
     reportMode: 'role-aware',
     rolesInScope: ['user', 'finance', 'hrd', 'admin'],

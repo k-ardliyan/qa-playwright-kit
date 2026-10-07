@@ -7,6 +7,7 @@ import {
   IconCircleCheck,
   IconCircleX,
   IconCircleSlash2,
+  IconHammer,
   IconTimer,
   IconCircleHelp,
   IconPlay,
@@ -31,8 +32,9 @@ export function statusIcon(status: string, size = STATUS_ICON_SIZE): Children {
     case 'skipped':
       return <IconCircleSlash2 size={size} />;
     case 'not-implemented':
-      // Wrench-ish mark: unfinished work, not a neutral "not applicable".
-      return <IconSquarePen size={size} />;
+      // Hammer, not a pencil: the mark says "under construction" (unfinished
+      // work). A pencil reads as "editable", which this status is not.
+      return <IconHammer size={size} />;
     case 'failed':
     case 'interrupted':
       return <IconCircleX size={size} />;

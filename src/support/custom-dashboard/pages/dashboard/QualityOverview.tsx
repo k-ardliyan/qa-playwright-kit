@@ -14,16 +14,21 @@ export interface QualityOverviewProps {
  * single most actionable quality signal in the set.
  */
 export function QualityOverview({ metrics }: QualityOverviewProps) {
+  // Five permanent cells: a conditional cell made the ribbon's cell count
+  // vary between runs, so no responsive rule could know where a row started
+  // (and the separator lines drifted). Flaky reads 0 when there is none —
+  // the same "0 is a baseline" rule the metric strip follows.
   const cells: Array<{ label: string; value: string; tone?: string }> = [
     { label: 'Overall Pass Rate', value: `${metrics.overallPassRate}%` },
     { label: 'Archived Runs', value: String(metrics.totalArchivedRuns) },
     { label: 'Approved Runs', value: String(metrics.approvedRunsCount) },
     { label: 'Active Test Series', value: String(metrics.activeTestSeriesCount) },
+    {
+      label: 'Flaky',
+      value: String(metrics.flakyCount),
+      tone: metrics.flakyCount > 0 ? 'skipped' : undefined,
+    },
   ];
-
-  if (metrics.flakyCount > 0) {
-    cells.push({ label: 'Flaky', value: String(metrics.flakyCount), tone: 'skipped' });
-  }
 
   return (
     <div class="stat-ribbon quality-overview-grid" role="group" aria-label="Quality metrics">

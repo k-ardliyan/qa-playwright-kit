@@ -5,6 +5,7 @@ import {
   IconCircleCheck,
   IconCircleSlash2,
   IconCircleX,
+  IconHammer,
   IconSquarePen,
   IconTriangleAlert,
   IconX,
@@ -27,6 +28,7 @@ function svg(children: Children): string {
 export const iconCircleCheck = (size = 13) => svg(<IconCircleCheck size={size} />);
 export const iconCircleX = (size = 13) => svg(<IconCircleX size={size} />);
 export const iconCircleSlash = (size = 13) => svg(<IconCircleSlash2 size={size} />);
+export const iconHammer = (size = 13) => svg(<IconHammer size={size} />);
 export const iconTriangleAlert = (size = 13) => svg(<IconTriangleAlert size={size} />);
 export const iconX = (size = 14) => svg(<IconX size={size} />);
 export const iconSquarePen = (size = 12) => svg(<IconSquarePen size={size} />);

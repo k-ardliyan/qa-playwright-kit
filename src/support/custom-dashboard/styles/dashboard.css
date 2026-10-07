@@ -321,11 +321,18 @@
   color: var(--destructive);
 }
 
-/* Metric strip — divided cells, no nested boxes. */
+/* Metric strip — five cells, one row. The 1px grid gap over a border-coloured
+   background draws every divider (and every row separator when the strip
+   reflows); cells stay border-free. Per-cell borders cannot do this: an empty
+   grid track has no element to carry the rule, so the line stops mid-strip —
+   the bug this technique retires. The strip ALWAYS has five cells, so the
+   desktop layout is a fixed 5-column row. */
 .latest-run-card__metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
   border-top: 1px solid var(--border);
+  background: var(--border);
 }
 
 .metric-box {
@@ -333,12 +340,8 @@
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-4) var(--space-6);
-  border-left: 1px solid var(--border);
+  background: var(--card);
   transition: var(--transition-colors);
-}
-
-.metric-box:first-child {
-  border-left: 0;
 }
 
 .metric-box:hover {
@@ -471,12 +474,17 @@
 
 .stat-ribbon {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  /* Five cells, one row — fixed tracks, not auto-fit: with auto-fit the column
+     count drifts with the container, so no responsive rule can know where a
+     row starts. Dividers are the 1px grid gap over a border-coloured
+     background (cells carry no borders). */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border);
   margin-bottom: var(--space-5);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  background: var(--card);
 }
 
 .stat-ribbon__cell {
@@ -484,12 +492,8 @@
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-4) var(--space-6);
-  border-left: 1px solid var(--border);
+  background: var(--card);
   transition: var(--transition-colors);
-}
-
-.stat-ribbon__cell:first-child {
-  border-left: 0;
 }
 
 .stat-ribbon__cell:hover {
