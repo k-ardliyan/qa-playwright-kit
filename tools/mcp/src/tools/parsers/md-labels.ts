@@ -168,3 +168,51 @@ export function splitCellItems(cell: string): string[] {
     .map((part) => unwrapCode(clean(part).replace(ITEM_PREFIX, '').trim()))
     .filter((part) => part && part.toLowerCase() !== 'none' && part !== '-');
 }
+
+/**
+ * True when a value's inline-code spans are structurally broken — the
+ * free-hand authoring artifact behind `| Covers | AC-03\`, \`AC-16 |` and
+ * `` | Layer | \`FE\`\` \`BE\` | ``. The parsers strip backticks silently, so
+ * without this check the malformed authoring is invisible and the rendered
+ * document lies.
+ *
+ * Deliberately local, tuned to zero false positives on canonical cells:
+ * balanced multi-code lists (`` `AC-01`, `AC-02` ``), prose+code
+ * ("URL ke `/dashboard`"), and the template's whitespace-only literal
+ * (`` literal:`   ` `` — a spaces-only input value) stay clean; only an
+ * unclosed span, an EXACTLY-empty span (adjacent ticks), or a span wrapping
+ * just separator punctuation is broken.
+ */
+export function hasBrokenInlineCode(value: string): boolean {
+  const segments = value.split('`');
+  if (segments.length === 1) return false; // no backticks at all
+  // An even segment count means the span never closes.
+  if (segments.length % 2 === 0) return true;
+  // Interior segments only: the first/last segments are outside any span and
+  // are legitimately empty. Adjacent ticks create an EMPTY segment wherever
+  // they sit, so the emptiness check must scan every interior position — not
+  // just the odd (inside-span) ones.
+  for (let i = 1; i < segments.length - 1; i++) {
+    const seg = segments[i]!;
+    if (seg.length === 0) return true; // adjacent ticks — empty code span
+    if (i % 2 === 1 && /^[,;.-]+$/.test(seg.trim())) return true; // span wrapping only separators
+  }
+  return false;
+}
+
+/**
+ * 1-based line numbers of table rows carrying a broken inline-code value
+ * (see {@link hasBrokenInlineCode}). Header rows are exempt — column labels
+ * are prose, never values.
+ */
+export function findBrokenCodeRows(text: string): number[] {
+  const lines = text.split(/\r?\n/);
+  const out: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (!isRow(line) || isSeparator(line)) continue;
+    if (i + 1 < lines.length && isSeparator(lines[i + 1]!)) continue;
+    if (splitRow(line).some(hasBrokenInlineCode)) out.push(i + 1);
+  }
+  return out;
+}

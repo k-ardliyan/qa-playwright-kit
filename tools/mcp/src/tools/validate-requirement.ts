@@ -6,7 +6,7 @@ import {
   type ToolError,
 } from '../utils/safety';
 import { parseRequirementScenariosFromText } from './parse-requirement-scenarios';
-import { readLabel, readLabelFromSection } from './parsers/md-labels';
+import { readLabel, readLabelFromSection, findBrokenCodeRows } from './parsers/md-labels';
 
 export interface RequirementViolation {
   ruleName: string;
@@ -198,6 +198,24 @@ export function validateRequirementText(text: string): ValidateRequirementOutput
   }
 
   violations.push(...validateMetadata(text));
+
+  // Markdown hygiene: free-hand authoring can leave broken inline-code spans in
+  // table cells (`AC-03`, `AC-16` / `FE`` ``BE`) — the parsers strip backticks
+  // silently, so without this the malformed authoring stays invisible until the
+  // rendered requirement lies to its reader. Warn with the exact line.
+  const brokenCodeRows = findBrokenCodeRows(text);
+  if (brokenCodeRows.length > 0) {
+    const lineList =
+      brokenCodeRows.slice(0, 5).join(', ') +
+      (brokenCodeRows.length > 5 ? ` +${brokenCodeRows.length - 5} more` : '');
+    violations.push({
+      ruleName: 'markdown_hygiene',
+      severity: 'warn',
+      message: `Broken inline-code span(s) in table row(s) at line(s) ${lineList} — a backtick is unpaired, doubled, or wraps only separator punctuation, so the cell does not render as its author intended.`,
+      suggestion:
+        'Wrap each value in its own backtick pair: | Covers | `AC-01`, `AC-02` | — bukan AC-03`, `AC-16.',
+    });
+  }
 
   const scenarios = parseRequirementScenariosFromText(text);
   const hasCriteria = hasAcceptanceCriteria(text);

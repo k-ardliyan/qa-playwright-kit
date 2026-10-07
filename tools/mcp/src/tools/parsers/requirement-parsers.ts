@@ -461,7 +461,10 @@ export function parseScenarios(
     // Parse Covers
     const coversRaw = readLabel(block, 'Covers');
     if (coversRaw) {
-      const tokens = coversRaw.replace(/[`]/g, '').split(/[,;]/);
+      // Space- AND comma-separated: `AC-01` `AC-02` must yield two ids — the
+      // comma-only split turned a space-separated cell into ONE bogus id and
+      // every AC reference in it errored.
+      const tokens = coversRaw.replace(/[`]/g, '').split(/[,;\s]+/);
       for (const tok of tokens) {
         const ac = tok.trim().toUpperCase();
         if (ac) covers.push(ac);
