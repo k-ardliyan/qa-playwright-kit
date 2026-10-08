@@ -78,7 +78,7 @@ const HEALTHY_SPEC = [
   '// spec: specs/login-test-plan.md',
   '// seed: tests/seed.spec.ts',
   '// req: requirements/auth/login.md',
-  '// doctrine: doctrine/v1',
+  '// doctrine: doctrine/v2',
   "import { test, expect } from '@/fixtures/base.fixture';",
   "import { setTestMetadata } from '@/support/test-metadata';",
   '',
@@ -124,12 +124,19 @@ test.describe('tes-qa replay: validator rejects the pre-doctrine failure shape',
     const filePath = writeSpec(repo, 'payroll-process.spec.ts', BROKEN_SPEC);
     const violations = validateSpecFile(filePath, 'tests/payroll-process.spec.ts', repo);
 
+    // Severity comparison must mirror the production rule: a violation with an
+    // explicit severity of 'warning' is NOT an error, even though an absent
+    // severity defaults to error. Getting this backwards is what let SC-08 slip
+    // out of the error list above.
     const errors = violations.filter((v) => (v.severity ?? 'error') === 'error');
     const ruleNames = errors.map((v) => v.ruleName);
 
     // SC-14: capture-only body, zero expect — the file-level rule used to pass
-    // this because SC-01 asserted.
+    // this because SC-01 asserted. The per-test assertion rule fires here, and
+    // every hand-written captureActualResult prose string across the file is
+    // rejected because none is read from the UI: SC-14 has two, SC-08 one.
     expect(ruleNames.some((r) => r.includes('per test') && r.includes('SC-14'))).toBe(true);
+    expect(ruleNames.filter((r) => r.includes('captureActualResult'))).toHaveLength(3);
     // SC-03: permanent skip burying unbuilt work in the grey bucket.
     expect(
       ruleNames.some((r) => r.startsWith('Skip doctrine rule') && r.includes('test.fixme')),
@@ -137,7 +144,13 @@ test.describe('tes-qa replay: validator rejects the pre-doctrine failure shape',
     // SC-05: metadata-less test inside a file that has plenty of calls.
     expect(ruleNames.some((r) => r.includes('Metadata rule') && r.includes('SC-05'))).toBe(true);
 
-    expect(errors.length).toBe(3);
+    // Exact count is pinned so a loosened rule is caught: SC-14 per-test
+    // no-expect, SC-05 metadata, SC-03 skip doctrine, and three fabricated-actual
+    // errors (SC-14 x2 + SC-08) = 6. The file-level no-expect rule does NOT fire
+    // here because SC-01 has real assertions — which is precisely why the
+    // per-test rule exists (a file-level expect must not excuse an unasserted
+    // sibling).
+    expect(errors.length).toBe(6);
 
     // SC-08: copy-pasted SC-01 header checks, differing only in capture prose.
     const warnings = violations.filter((v) => v.severity === 'warning');

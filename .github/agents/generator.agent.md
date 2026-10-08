@@ -49,6 +49,8 @@ Also read per-scenario fields:
   - **NEVER** silently add `authenticate:user` setup block when the project's active roles are a named set (e.g. `admin`, `guru`, `murid`) — those roles have their own credentials and auth files.
 
 - `Auth Context` — storage state path (e.g. `.auth/{APP_ENV}/finance.json` or `authStatePath('finance')`) or `unauthenticated`
+- `Evidence Mode` — `ui-e2e` (default) or `hybrid-ui`. `hybrid-ui` requires tag `@hybrid`, a registered seed producer, a browser action + UI assertion on the same test, and test-owned cleanup — carry it into `setTestMetadata({ evidenceMode: 'hybrid-ui' })`
+- `Data Setup` — declared seed ref (e.g. `seed:invoice.pending`); if present, the test MUST consume it via the `seeded` fixture or `withSeededData` (a declared-but-unused seed is rejected)
 - `Seed` — always `tests/seed.spec.ts`
 
 Also read metadata from the source requirement via `compile_requirement` (or `normalize_requirements`) when available.
@@ -89,6 +91,7 @@ Also read metadata from the source requirement via `compile_requirement` (or `no
 | `qa-playwright-kit` | `list_test_fixtures`       | List test fixture bank files under tests/data/                                                                                                          |
 | `qa-playwright-kit` | `inspect_file`             | Inspect test fixture envelope details                                                                                                                   |
 | `qa-playwright-kit` | `record_ai_note`           | Record provenance-checked, structured generation insights (skeleton/blocked/data gaps) into the notes sidecar; supports pending `pipelineRunId` binding |
+| `qa-playwright-kit` | `get_seed_graph`           | Fetch the executable seed producer graph (endpoint + cleanupEndpoint + dependsOn) instead of hand-copying endpoints into a spec                         |
 
 **Generation insights (`record_ai_note`, source: `generator`):** this dependency is mandatory for generation gaps. When a scenario is generated as a skeleton (blocked or not-implemented, emitted as `test.fixme`), or generation requires assumptions the requirement did not specify, call `record_ai_note` with `source: "generator"`, `scope: "test"`, and key it by `scenarioId` (plus `testId`/`role` when available). Write a concise Indonesian note explaining why the skeleton/fixme exists, what assumption or data gap was used, and what must be added before implementation. Use canonical structured fields from `skills/qa-playwright-kit/references/ai-insight-format.md`: `kind: "coverage"` for not-implemented/skeleton scenarios, `kind: "data"` for seed/data assumptions, plus `observation`, `evidence`, `impact`, `recommendation`, `priority`, `confidence`, `nextAction`, and `status`. Notes without an explicit `runId` bind to the pending `pipelineRunId` while one pipeline is active; do not overlap pipelines. Provenance and canonical `kind`/scope values are validated by the tool.
 
@@ -102,7 +105,7 @@ Check if `metadata.pomFixtures` lists a POM. If yes:
      a. Check if `artifacts/selector-catalog/<feature>/<page>.json` exists
      b. If catalog exists → call `generate_page_object` tool → warn QA to review scaffold + register fixture
      c. If catalog missing → call `snapshot_page` first, then `generate_page_object`
-     d. Output: "⚠️ POM scaffold created. Review TODOs and register in tests/fixtures.ts before running."
+     d. Output: "⚠️ POM scaffold created. Review TODOs and register in src/fixtures/project.fixture.ts before running."
 2. If no `pomFixtures` → generate with inline locators (default behavior)
 
 ### Selector Catalog Reuse (Token-Efficient Locator Discovery)
@@ -196,7 +199,7 @@ Every spec file generated **must** begin with these lines before the first `impo
 // req: requirements/<feature>.md
 // spec: specs/<feature>-test-plan.md
 // seed: tests/seed.spec.ts
-// doctrine: doctrine/v1
+// doctrine: doctrine/v2
 // generated-at: <ISO8601 timestamp>
 ```
 
@@ -215,7 +218,7 @@ Example complete header:
 // req: requirements/auth/login.md
 // spec: specs/login-test-plan.md
 // seed: tests/seed.spec.ts
-// doctrine: doctrine/v1
+// doctrine: doctrine/v2
 // generated-at: 2026-07-23T14:30:22Z
 
 import { test, expect } from './fixtures';
@@ -343,13 +346,37 @@ Mark skeletons with `// SKELETON` so they're easy to find and complete later.
 
 ## Code Generation Rules
 
+**Seeded data (mandatory for declared seeds):** When a scenario's plan declares a seed, build it with the seed-graph runtime instead of hand-rolling setup. The producer graph comes from the project registry — call `get_seed_graph` (MCP) to obtain it; never hand-copy endpoints. `withSeededData` materializes parents before children, cleans up children before parents, and deletes only the IDs this run created. The `seeded` fixture (from `@/fixtures/base.fixture`) does the same with the registry loaded automatically:
+
+```typescript
+// Option A — fixture (registry loaded from config/qa-kit.seeds.json)
+test('SC-02 (@hybrid)', async ({ page, seeded }) => {
+  await seeded(['order.draft'], async (seeds) => {
+    await page.goto(`/orders/${seeds['order.draft'].id}`);
+    await expect(page.getByText('Draft')).toBeVisible();
+  });
+});
+
+// Option B — explicit graph (graph from get_seed_graph)
+import { withSeededData } from '@/support/pw';
+
+await withSeededData(request, seedGraph, ['order.draft'], async (seeds) => {
+  await page.goto(`/orders/${seeds['order.draft'].id}`);
+  await expect(page.getByText('Draft')).toBeVisible();
+});
+```
+
+A test that declares a `seed:` ref in `inputData` MUST materialize it — `validate_generated_tests` rejects the claim otherwise. Never write a `beforeAll` sweep that deletes records by name prefix: that is shared-data deletion and it is rejected too.
+
+**Evidence boundary (mandatory):** Ordinary generated browser scenarios default to `ui-e2e`: perform the behavior under test through the browser and assert the user-visible result. Do not call raw `fetch`, `page.request`, `request.*`, imported HTTP clients, read `.auth` files, extract tokens, or hardcode backend origins in specs. API-assisted prerequisite data is allowed only when the plan declares `Evidence Mode: hybrid-ui`, a registered seed producer, and cleanup policy; use `apiSeed`/`apiCleanup` from `@/support/pw`, cleanup only IDs created by that test, and still perform a browser action plus UI assertion in that same test. `@network-assert` observes the request caused by a UI action and is not API setup. If the required seed or producer is absent, return the scenario to Model/Challenge or Coverage Gaps; do not invent endpoints or perform broad cleanup.
+
 1. **Clean Imports**: Always import `test, expect` from `./fixtures` or `@/fixtures/base.fixture`. Never import via relative directory traversal `../src/...`.
 2. **Strict Typing (Zero `any`)**: NEVER use `any` type (e.g. `page: any`, `err: any`). Always use explicit types `Page`, `Locator` imported from `@playwright/test`.
 3. **No Loose Helper Functions**: Do not declare ad-hoc loose helper functions outside `test.describe()` with `any` types. Keep locators inline using Playwright semantic locators (`page.getByRole`, `page.getByLabel`, `page.getByPlaceholder`) or via Page Object Model (POM).
 4. **No Conditionals in Test Assertions**: Avoid `if (...)` statements or `.catch(() => false)` inside assertions (violates `playwright/no-conditional-in-test`). Test assertions must be deterministic (`await expect(...).toBeVisible()`).
-5. **Metadata First**: Call `setTestMetadata({ testId, priority, module, feature, inputData, expectedResult })` as the very first statement inside each test body.
+5. **Metadata First**: Call `setTestMetadata({ testId, priority, module, feature, inputData, expectedResult, evidenceMode })` as the very first statement inside each test body. Use `evidenceMode: 'ui-e2e'` by default and `'hybrid-ui'` only for plan-declared hybrid scenarios.
 6. **Verbatim UI Action Steps**: Wrap every action in `test.step('<verbatim step text>')`. Titles are UI actions only; keep credentials and test data strictly inside `setTestMetadata.inputData`.
-7. **Verbatim Actual Result**: Call `captureActualResult(<exact expectedResult string>)` once after the last assertion succeeds.
+7. **Observed Actual Result**: After the last assertion succeeds, pass the observed value itself (for example `await page.getByRole('status').innerText()` or `await page.url()`) to `captureActualResult`. The validator accepts only expressions read from the UI, input value, URL, or title; never pass prose or copy `expectedResult` into Actual.
 8. **Web-First Assertions**: Prefer `toBeVisible`, `toHaveURL`, `toHaveText`. Never use `page.$`, `page.$$`, or fixed `waitForTimeout` sleeps.
 9. **Locator Priority**: `getByRole` → `getByLabel` → `getByText` → `getByTestId` → CSS last resort.
 10. **Linter & Typecheck Compliance**: Generated test files MUST pass `npx biome check <specPath>`, `npx eslint --config eslint.playwright.config.mjs <specPath>`, and `npx tsc --noEmit` cleanly without errors or warnings.
@@ -397,7 +424,7 @@ import {
 | ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `(@network)` or `#network`               | Failure depends on HTTP status / offline / API error body | `mockJson` / `mockServerError` / `mockAbort` **before** the UI action; `unmockAll` in cleanup step                                                                                                                                          |
 | `(@network-assert)` or `#network-assert` | Live request payload + response after UI action           | Prefer **`waitAndAssertApi`** (one call) with **inline** `assert` from Input Data keys; optional `contract` path if listed. Fallback: `waitForApi` + `assertNetworkMatch`. Never invent endpoints — discover first if unknown (see recipe). |
-| `(@hybrid)` or `#hybrid`                 | Seed/cleanup cheaper via API than UI                      | Use `request` fixture + `apiSeed` / `apiCleanup`; then assert UI                                                                                                                                                                            |
+| `(@hybrid)` or `#hybrid`                 | Seed/cleanup cheaper via API than UI                      | Declare `Evidence Mode: hybrid-ui`, producer and cleanup in the plan; use only `apiSeed` / `apiCleanup` from `@/support/pw`, then assert a user-visible UI outcome in the same test                                                         |
 | `(@aria)` or `#aria`                     | Structural a11y / landmark regression                     | If `selector-catalog/<feature>/<page>.aria.yml` exists → `expectAriaMatchesCatalog(page.getByRole('main'), 'selector-catalog/...')`; else `expectAriaSnapshot` with a small inline YAML baseline                                            |
 | `(@visual)` or `#visual`                 | Layout/CSS regression                                     | After UI stabilizes: `await expectVisual(locator, { name: '<name>.png' })` or `toHaveScreenshot` (scope to a stable region)                                                                                                                 |
 | `(@download)` or `#download`             | Scenario triggers file download / export                  | `downloadAndSave(page, () => click…)` or `page.waitForEvent('download')` **before** the trigger; then envelope/content asserts as needed                                                                                                    |
@@ -406,7 +433,7 @@ import {
 | Multi-field `(@failure)` validation      | Several fields show errors at once                        | Prefer `expect.soft(...)` or `expectSoftFieldErrors([...])` so one test reports all field failures                                                                                                                                          |
 | Time-sensitive UI                        | Date picker / countdown / "expires at"                    | `freezeTime` / `advanceTime` from `@/support/pw` (`page.clock`)                                                                                                                                                                             |
 
-**Validator:** `validate_generated_tests` fails if file mentions `@network`/`@network-assert`/`@hybrid`/`@aria`/`@visual`/`@download`/`@upload`/`@file-content` (tags) without the matching API usage.
+**Validator:** `validate_generated_tests` fails if file mentions a capability without matching API usage. It also rejects raw backend calls in product specs, token extraction from `.auth`, undeclared hybrid setup, missing UI action/assertion in hybrid tests, unsafe cleanup targets, and `captureActualResult` values that are not read from the UI.
 
 **Visual baselines:** update intentionally with `npx playwright test --update-snapshots path/to/spec.ts`. Do not update snapshots to hide product bugs.
 
@@ -466,14 +493,14 @@ assertNetworkMatch(hit, { request: { requiredKeys: […] }, response: { matchObj
 ### Hybrid API + UI pattern
 
 ```typescript
-test('…', async ({ page, request }) => {
-  const seeded = await test.step('Seed via API', async () => {
-    return apiSeed(request, '/api/invoices', { amount: 1000 });
-  });
-  // UI assertions using seeded.id …
-  await test.step('Cleanup via API', async () => {
-    await apiCleanup(request, `/api/invoices/${(seeded.body as { id?: string }).id}`);
-  });
+test('… (@hybrid)', async ({ page, request }) => {
+  setTestMetadata({ testId: 'TC-XXX-001', evidenceMode: 'hybrid-ui' });
+  const seeded = await apiSeed(request, '/api/invoices', { amount: 1000 });
+  await page.goto('/invoices');
+  const row = page.getByRole('row', { name: /invoice created for this test/ });
+  await expect(row).toBeVisible();
+  captureActualResult(await row.innerText());
+  await apiCleanup(request, `/api/invoices/${(seeded.body as { id?: string }).id}`);
 });
 ```
 

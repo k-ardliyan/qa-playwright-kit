@@ -4,6 +4,8 @@ import { getDashboardStyles } from '../renderer/render-assets';
 import { renderChartScript, renderInteractiveScript, renderThemeScript } from '../shared';
 import { buildClientBootstrapJs } from '../client';
 import { MediaLightbox } from '../components/shared/MediaLightbox';
+import { Toaster } from '../components/shared/Toast';
+import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { QaNoteModal } from '../pages/history/QaNoteModal';
 import { RepoFooter } from './RepoFooter';
 import type { TestSummary } from '../types';
@@ -55,6 +57,8 @@ export function DashboardDocument({
           <RepoFooter />
           <QaNoteModal />
           <MediaLightbox />
+          <Toaster />
+          <ConfirmDialog />
           {safeThemeScript}
           {safeChartScript}
           {safeInteractiveScript}

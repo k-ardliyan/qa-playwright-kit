@@ -9,6 +9,7 @@ import {
   type TestPlanContractV1,
   type RequirementContractV1,
 } from '@/contracts';
+import type { SeedRegistryFile } from '../../../tools/mcp/src/utils/seed-registry';
 
 test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
   const sampleRequirement: RequirementContractV1 = {
@@ -989,6 +990,82 @@ test.describe('validate_plan Test Plan Contract Gate (Phase 4)', () => {
     expect((withRegistry.diagnostics ?? []).some((d) => d.code === 'PLAN_SEED_UNKNOWN')).toBe(
       false,
     );
+  });
+
+  test('blocks hybrid scenarios without a registered seed and safe cleanup policy', () => {
+    const scenario = {
+      scenarioId: 'SC-01',
+      covers: ['AC-01'],
+      page: 'login-form',
+      executionMode: 'automated' as const,
+      evidenceMode: 'hybrid-ui' as const,
+      dataSetup: ['seed:invoice.pending'],
+      actions: ['Open invoice in UI'],
+      assertions: [{ description: 'Invoice is visible', provenance: 'requirement' as const }],
+      locatorIntent: ['getByRole("row")'],
+      networkExpectations: [],
+      artifactExpectations: [],
+      cleanup: ['delete QA invoices by prefix'],
+      unknowns: [],
+    };
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/invoices.md',
+      sourceRequirementHash: sampleRequirement.sourceHash,
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [scenario],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+    const registry: SeedRegistryFile = {
+      schemaVersion: 1,
+      seeds: [{ name: 'invoice.pending', producer: 'registered isolated producer' }],
+    };
+    const result = validateTestPlan(plan, sampleRequirement, { seedRegistry: registry });
+    const codes = result.diagnostics.map((diagnostic) => diagnostic.code);
+    expect(codes).toContain('PLAN_HYBRID_CLEANUP_UNSAFE');
+
+    const missingSeed = validateTestPlan(plan, sampleRequirement, { seedRegistry: null });
+    expect(missingSeed.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      'PLAN_HYBRID_SEED_UNPROVISIONED',
+    );
+  });
+
+  test('accepts declared hybrid seed with test-owned cleanup policy', () => {
+    const plan: TestPlanContractV1 = {
+      schemaVersion: TEST_PLAN_SCHEMA_V1,
+      sourceRequirementPath: 'requirements/invoices.md',
+      sourceRequirementHash: sampleRequirement.sourceHash,
+      catalogEvidence: [{ page: 'login-form' }],
+      scenarios: [
+        {
+          scenarioId: 'SC-01',
+          covers: ['AC-01'],
+          page: 'login-form',
+          executionMode: 'automated',
+          evidenceMode: 'hybrid-ui',
+          dataSetup: ['seed:invoice.pending'],
+          actions: ['Open invoice in UI'],
+          assertions: [{ description: 'Invoice is visible', provenance: 'requirement' }],
+          locatorIntent: ['getByRole("row")'],
+          networkExpectations: [],
+          artifactExpectations: [],
+          cleanup: ['apiCleanup using test-owned resource ID'],
+          unknowns: [],
+        },
+      ],
+      coverageGaps: [],
+      diagnostics: [],
+    };
+    const result = validateTestPlan(plan, sampleRequirement, {
+      seedRegistry: {
+        schemaVersion: 1,
+        seeds: [{ name: 'invoice.pending', producer: 'registered isolated producer' }],
+      },
+    });
+    expect(
+      result.diagnostics.some((diagnostic) => diagnostic.code.startsWith('PLAN_HYBRID_')),
+    ).toBe(false);
   });
 
   /**

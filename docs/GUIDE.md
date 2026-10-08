@@ -39,11 +39,11 @@ npm run health:check:strict # pra-run: sesi expired = gagal
 
 ## Konfigurasi MCP di IDE
 
-| Server              | Fungsi                                                                                                                                                                                                                           |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `playwright`        | Eksplorasi UI (`browser_navigate`, `browser_snapshot`)                                                                                                                                                                           |
-| `playwright-test`   | Menjalankan tes (`run_tests`)                                                                                                                                                                                                    |
-| `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, catatan (`record_ai_note`, `set_test_note`), `snapshot_page`, `discover_pages`, `synthesize_requirement`, `generate_page_object` |
+| Server              | Fungsi                                                                                                                                                                                                                                                                                 |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `playwright`        | Eksplorasi UI (`browser_navigate`, `browser_snapshot`)                                                                                                                                                                                                                                 |
+| `playwright-test`   | Menjalankan tes (`run_tests`)                                                                                                                                                                                                                                                          |
+| `qa-playwright-kit` | Requirement, validasi, coverage map (`list_requirement_status`), kegagalan, ringkasan, archive, catatan (`record_ai_note`, `set_test_note`), `snapshot_page`, `discover_pages`, `synthesize_requirement`, `update_requirement`, `list_seeds`, `get_seed_graph`, `generate_page_object` |
 
 **Hermes:** `.mcp.json` di root project dibaca langsung oleh Hermes. Tidak perlu generate config tambahan. Wizard hanya generate config klien lain yang **terdeteksi terpasang** di laptop (marker `~/.claude`, `~/.cursor`, `~/.kiro`, `~/.codex`); paksa platform tertentu kapan saja dengan `npm run mcp:config --platform=<claude|cursor|kiro|codex>`.
 
@@ -144,7 +144,7 @@ npm run health:check:strict           # pra-run: sesi expired = fail, bukan warn
 Hermes menjalankan **Phase -0.5** (UI Discovery & Requirement Synthesis):
 `health_check` (non-production, `BASE_URL` origin cocok, role siap) → `snapshot_page` → `synthesize_requirement` dengan skenario yang QA nyatakan → `validate_requirement` → review QA → `workflow_run`.
 
-Jika sesi role hilang/expired/mismatch, berhenti dan minta QA menjalankan `npm run auth:setup` (`auth:setup:headed` untuk OTP/CAPTCHA). Jangan transfer cookies Browser Use atau mengarang expected result dari label UI.
+Jika sesi role hilang/expired/mismatch, agent **menjalankan sendiri** `npm run auth:setup` — refresh sesi adalah rutin dan reversibel, bukan hal yang perlu persetujuan QA. Libatkan QA hanya bila memang butuh manusia: OTP/CAPTCHA (`auth:setup:headed`), kredensial belum diisi (`npm run env:edit`), atau sesi tetap gagal setelah satu siklus refresh. Jangan transfer cookies Browser Use atau mengarang expected result dari label UI.
 
 ```bash
 # 3) Review requirement hasil sintesis, lalu jalankan pipeline penuh
@@ -284,7 +284,7 @@ Plan test scenarios dari requirements/nama-fitur.md:
 
 1. validate_requirement (qa-playwright-kit)
 2. parse_requirement_scenarios + normalize_requirements (qa-playwright-kit)
-3. Tulis specs/nama-fitur-test-plan.md dengan kolom: Scenario Name | Steps | Expected Result | Role | Auth Context | Type
+3. Tulis specs/nama-fitur-test-plan.md mengikuti `specs/_TEMPLATE.md` (tabel field per skenario: Covers, Actor, Auth Context, Page, Execution Mode, Evidence Mode, Data Setup, Actions, Assertions, Locator Intent, Cleanup, Unknowns + section Data Targets / Relationships / Coverage Gaps)
 4. Tambah section Coverage Gap untuk scenario yang tidak bisa diplankan.
 
 Jangan generate kode tes — hanya test plan.
@@ -380,18 +380,18 @@ Buat POM scaffold dari halaman target:
 
 ## Troubleshooting `validate_requirement`
 
-| Rule                           | Severity | Perbaikan                                                                           |
-| ------------------------------ | -------- | ----------------------------------------------------------------------------------- |
-| `title_required`               | error    | Tambah baris `# REQ-01: Judul Fitur`                                                |
-| `content_required`             | error    | Tambah bullet di `## Kriteria Penerimaan` atau skenario `###`                       |
-| `scenario_structure`           | error    | Setiap `###` wajib punya `**Langkah:**` dan `**Hasil:**`                            |
-| `observable_result`            | warn     | Hasil harus menyebut URL, teks, atau visibility                                     |
-| `precondition_recommended`     | warn     | Tambah `**Prekondisi:**` untuk skenario auth-sensitive                              |
-| `manual_reason`                | warn     | Skenario `(@manual)` perlu alasan jelas di Hasil                                    |
-| `role_scope_recommended`       | warn     | Auth authenticated + fitur multi-role → tambah `Role scope` di Metadata             |
-| `access_expectation_missing`   | warn     | `Role scope` sudah diisi tapi `Access expectation` belum ada                        |
-| `failure_scenario_recommended` | warn     | Ada kata gagal/error tapi tidak ada skenario `(@failure)`                           |
-| `layer_recommended`            | warn     | Skenario tanpa `**Layer terdampak:**` (FE/BE/DB/API) — SOURCE dashboard kurang info |
+| Rule                           | Severity | Perbaikan                                                                                                                  |
+| ------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `title_required`               | error    | Tambah baris `# REQ-01: Judul Fitur`                                                                                       |
+| `acceptance_criteria_required` | error    | Tambah minimal satu bullet di `## Kriteria Penerimaan`                                                                     |
+| `scenario_structure`           | error    | Setiap `###` wajib punya `**Langkah:**` (atau `**Steps:**`) dan `**Hasil yang Diharapkan:**` (atau `**Expected Result:**`) |
+| `observable_result`            | warn     | Hasil harus menyebut URL, teks, atau visibility                                                                            |
+| `precondition_recommended`     | warn     | Tambah `**Prekondisi:**` untuk skenario auth-sensitive                                                                     |
+| `manual_reason`                | warn     | Skenario `(@manual)` perlu alasan jelas di Hasil                                                                           |
+| `role_scope_recommended`       | warn     | Auth authenticated + fitur multi-role → tambah `Role scope` di Metadata                                                    |
+| `access_expectation_missing`   | warn     | `Role scope` sudah diisi tapi `Access expectation` belum ada                                                               |
+| `failure_scenario_recommended` | warn     | Ada kata gagal/error tapi tidak ada skenario `(@failure)`                                                                  |
+| `layer_recommended`            | warn     | Skenario tanpa `**Layer terdampak:**` (FE/BE/DB/API) — SOURCE dashboard kurang info                                        |
 
 Detail tool dan pipeline: [AGENTS.md](../AGENTS.md).
 
@@ -414,13 +414,13 @@ Detail tool dan pipeline: [AGENTS.md](../AGENTS.md).
 
 ## Troubleshooting `validate_generated_tests`
 
-| Rule              | Perbaikan                                                                                                                                                            |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Import rule       | Pakai `import { test } from '@/fixtures/base.fixture'`                                                                                                               |
-| Describe rule     | Bungkus tes dalam `test.describe(...)`                                                                                                                               |
-| Step rule         | Gunakan `test.step(...)` per aksi                                                                                                                                    |
-| Traceability rule | Tambah header `// spec:` dan `// seed:` — wajib untuk **semua** spec non-exempt (hasil Generator **dan** spec manual). Exempt: `tests/demo/**`, `tests/seed.spec.ts` |
-| Metadata identity | Tambah `testId: 'TC-...'` di dalam `setTestMetadata(...)` — tanpa itu baris dashboard kehilangan identitas                                                           |
+| Rule              | Perbaikan                                                                                                                                                                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Import rule       | Pakai `import { test } from '@/fixtures/base.fixture'`                                                                                                                                                                                                                                                             |
+| Describe rule     | Bungkus tes dalam `test.describe(...)`                                                                                                                                                                                                                                                                             |
+| Step rule         | Gunakan `test.step(...)` per aksi                                                                                                                                                                                                                                                                                  |
+| Traceability rule | Tambah header `// spec:`, `// seed:` dan `// doctrine: <versi>` (mis. `doctrine/v2`) — wajib untuk **semua** spec non-exempt (hasil Generator **dan** spec manual). Exempt: `tests/demo/**`, `tests/seed.spec.ts`. `// doctrine:` yang hilang = warning (spec dianggap pra-doctrine, regenerate untuk stamp ulang) |
+| Metadata identity | Tambah `testId: 'TC-...'` di dalam `setTestMetadata(...)` — tanpa itu baris dashboard kehilangan identitas                                                                                                                                                                                                         |
 
 Tes legacy (login, smoke, seed, demo) exempt via `tools/mcp/src/tools/validate-generated-tests.ts`.
 
@@ -464,7 +464,7 @@ CI mengabaikan pin (`CI=true`). Setelah `env:use`, restart MCP servers.
 
 - **Halaman baru** tanpa POM → Generator pakai inline locators dari selector-catalog. POM opsional — lihat [Path A vs Path B](WRITING-REQUIREMENTS.md#path-a-vs-path-b-kapan-pakai-pom).
 - **`(@manual)`** → tes di-skip otomatis (CAPTCHA, email nyata, biometric).
-- **Healer** → menggunakan prioritization berbasis pattern; tidak ada cap arbitrer.
+- **Healer** → prioritization berbasis pattern (known error → healable dulu), tapi re-entry **di-cap 3 pass per `loopTarget`**; pass ke-4 di-blok dengan `LOOP_LIMIT_REACHED` dan butuh keputusan QA. Setelah pass gagal, Validate berikutnya hanya menjalankan judul yang gagal (`failedOnly`), bukan suite penuh.
 - **Role auth file** → `.auth/{APP_ENV}/<role>.json` harus dibuat dulu via `npm run auth:setup`.
 - **Environment** → tiap QA pakai file `config/environments/{APP_ENV}.env` sendiri (BASE_URL + kredensial per env).
 - **Selector catalog** → di-cache per-hash. `snapshot_page` skip re-capture kalau UI tidak berubah — aman di-run berulang.

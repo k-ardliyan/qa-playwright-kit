@@ -216,6 +216,12 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     description:
       'List the project seed registry (config/qa-kit.seeds.json): every declared seed:<entity>.<state> and its producer. Missing registry returns guidance, not an error.',
   },
+  get_seed_graph: {
+    server: 'qa-playwright-kit',
+    name: 'get_seed_graph',
+    description:
+      'Return the executable seed producer graph (config/qa-kit.seeds.json "create" blocks) ready to pass to withSeededData / the seeded fixture. Skips prose-only seeds and reports them separately, so the Generator never hand-copies endpoints.',
+  },
   update_requirement: {
     server: 'qa-playwright-kit',
     name: 'update_requirement',
@@ -304,6 +310,7 @@ const PHASE_DEFINITIONS: Record<
       'snapshot_page',
       'synthesize_requirement',
       'list_seeds',
+      'get_seed_graph',
       'update_requirement',
     ],
   },
@@ -318,6 +325,7 @@ const PHASE_DEFINITIONS: Record<
       'snapshot_page',
       'generate_page_object',
       'list_test_fixtures',
+      'get_seed_graph',
       'inspect_file',
       'record_ai_note',
     ],

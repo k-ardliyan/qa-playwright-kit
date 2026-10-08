@@ -118,7 +118,7 @@ Save the test plan to `specs/<feature-name>-test-plan.md` using the structure be
 - **Mode:** general (single-role) | role-aware (multi-role)
 - **Roles in Scope:** <active role name, e.g. "admin", or comma-separated list e.g. "finance, super-admin">
 - **Seed:** none | <seed producer, e.g. `tests/data/<feature>.json`> — declare it when ANY scenario depends on `seed:` refs; `none` + seed refs is flagged by validate_plan
-- **Doctrine:** doctrine/v1 — copy the current engine doctrine (pipeline_status → doctrine.version); validate_plan flags PLAN_DOCTRINE_STALE when it drifts
+- **Doctrine:** doctrine/v2 — copy the current engine doctrine (pipeline_status → doctrine.version); validate_plan flags PLAN_DOCTRINE_STALE when it drifts
 - **Generated At:** <YYYY-MM-DD HH:mm:ss>
 - **Seed Test:** `tests/seed.spec.ts`
 
@@ -174,6 +174,28 @@ For **role-aware mode**, group rows under `## Role: <role>` header and use the s
 - `Role` — which role this scenario runs as (active role name from requirement/env, e.g. `admin`, `user`, `finance` — NEVER `"general"`)
 - `Auth Context` — exact storage state path (`.auth/{APP_ENV}/<role>.json`) or `unauthenticated`
 - `Layer` — affected layers: FE / BE / DB / API, or `-` if none
+
+### Data targets and relations (mandatory when the feature touches data)
+
+Carry the requirement's `## Data Targets` and `## Relationships` into the plan.
+For every declared entity×operation, ensure a planned scenario or a Coverage
+Gap exists — `validate_plan` warns `PLAN_DATA_OPERATION_UNCOVERED` otherwise.
+Set each scenario's `Data Operation` / `Data Entity` so coverage is checkable
+rather than inferred from the title.
+
+Relation rules:
+
+- `confirmed` relations may back a runnable assertion; they need a registered
+  seed that builds the parent→child pair (`PLAN_RELATION_SEED_UNPROVISIONED`
+  otherwise).
+- `assumption` relations may be listed but MUST NOT be planned as runnable —
+  `validate_plan` errors `PLAN_RELATION_UNCONFIRMED`. Move them to Coverage Gaps.
+- Never invent a foreign key, cascade, or "delete is blocked" rule from a UI
+  label. If the app's behavior is unconfirmed, it is a gap, not an assertion.
+
+### Evidence mode selection (mandatory)
+
+Add `Evidence Mode` per scenario. Default is `ui-e2e`: the behavior under test is driven and asserted through the browser. Use `hybrid-ui` only when API setup is explicitly required, the plan declares a `seed:<name>` with a producer present in `config/qa-kit.seeds.json`, and Cleanup names `apiCleanup` scoped to a test-owned ID or says residual data is acceptable. Pair `hybrid-ui` with `@hybrid`. API-only checks are not UI-E2E and must not be counted as browser behavior coverage. Missing/unknown seed producer or unsafe cleanup → Coverage Gap, not guessed endpoint or mass cleanup.
 
 ### Required per-scenario fields
 

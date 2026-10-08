@@ -6,6 +6,74 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Studio: tabs shadcn, pratinjau berdampingan, combobox multi-spec, opsi run lebih rapi — 2026-10-08
+
+Penyempurnaan lanjutan Studio berdasarkan review pemakaian langsung.
+
+- **Sidebar diganti TABS (shadcn anatomy).** `TabsList` pill + `TabsTrigger` (aria-selected, navigasi panah/Home/End) + panel per fitur: **Requirement · Jalankan · Environment**. Ini juga menghapus bug rail yang terpotong header sticky (`.app-header` sticky 3.5rem vs rail `top:1rem`).
+- **Requirement ⇄ Pratinjau berdampingan.** Form dan pratinjau markdown kini kiri-kanan (grid 1.35fr/1fr) dengan tombol **Sembunyikan/Tampilkan pratinjau**; di ≤1024px otomatis satu kolom.
+- **Spec = combobox multi-pilih + pencarian.** Ketik untuk memfilter, klik untuk memilih beberapa (tampil sebagai chip yang bisa dihapus). Field "ketik path" dihapus. Backend menerima `specs: string[]` (semua tetap lewat sandbox `tests/**`).
+- **Ukuran layar = dua field angka** (lebar × tinggi, default 1920 × 1080) — tidak perlu menulis pemisah `x` lagi.
+- **Opsi run dirapikan:** "Terapkan setelan ini" (useless) dihapus; **Slow-mo hanya muncul saat mode Headed** (di headless tidak berguna); opsi baru **Urutan jalan** (Paralel / satu-per-satu → `--workers=1`).
+- **Stop & log kontekstual:** tombol **Stop hanya tampil saat run berjalan** (Run ikut disabled), dan **log otomatis expand** saat run dimulai — tersembunyi sebelumnya.
+- **Env picker kompak:** dropdown + tombol **Pakai** satu baris (wrap di layar sempit), tidak lagi memakan satu baris penuh.
+- **Ringkasan run diperbaiki:** sumbernya `latestRun` (bukan `summary`) dari `/api/dashboard`, jadi chip lulus/gagal benar-benar muncul setelah run.
+- **Perbaikan bug combobox:** klik item pertama tidak lagi menutup menu (guard `composedPath`, karena node lama ter-detach saat re-render) — multi-pilih jadi benar.
+- **Verifikasi:** studio browser suite 7/7, dashboard-browser 74/74, unit 1049, format/lint/arch/coverage bersih; diuji langsung di browser (tabs, combobox multi-pilih, viewport 2-field, slow-mo gating, Stop/log kontekstual).
+
+### Studio: layout seksi sticky, toast + dialog konfirmasi, sistem tombol seragam — 2026-10-08
+
+Lanjutan dari panel kontrol Studio: kerapian UI supaya benar-benar terasa satu produk dengan dashboard.
+
+- **Layout rail seksi sticky.** `/studio` kini rail kiri (Tulis requirement · Jalankan spec · Environment & sesi · Pratinjau) + panel kanan, dengan **scroll-spy** active state. Bukan lagi satu kolom panjang.
+- **Toast shadcn-style (self-styled).** `components/shared/Toast.tsx` + `client/toast.ts` (`window.studioToast`) di-mount sekali di `DashboardDocument`; tipe `success|error|warning|info|loading`, auto-dismiss, tombol tutup, ikon Lucide inline. Sukses/gagal aksi (simpan requirement, ganti env, refresh sesi, run selesai, simpan setelan) sekarang muncul sebagai toast, bukan pesan inline.
+- **Dialog konfirmasi sebelum aksi penting.** `components/shared/ConfirmDialog.tsx` + `client/confirm.ts` (`window.studioConfirm`, promise-based, native `<dialog>`): simpan requirement, ganti environment (tone danger untuk production), simpan setelan permanen — semuanya minta **Batal / Lanjutkan** dulu.
+- **Sistem tombol seragam.** Semua tombol dalam satu baris aksi kini satu tinggi (`--control-h` = 36px); sebelumnya `.btn` (36px) dan `.btn-sm` (32px) bercampur dalam satu baris sehingga tinggi tidak konsisten. Aturan defensif `.studio-actions .btn { height: var(--control-h) }` mencegah regresi.
+- **Tanpa emoji.** Semua penanda status memakai ikon Lucide SVG inline (role status, toast, ringkasan run) — bukan karakter emoji.
+- **Verifikasi:** studio browser suite 7/7 hijau (kontrak id/class/markdown byte-identical tetap utuh), dashboard-browser 74/74, unit 1049, format/lint/arch/coverage bersih; dicek langsung di browser (tinggi tombol 36px konsisten, toast sukses+error, dialog konfirmasi resolve benar).
+
+### Web Studio: panel kontrol QA bertema dashboard, opsi run, ringkasan hasil — 2026-10-08
+
+`/studio` dulu halaman HTML dark-theme mandiri (CSS inline hardcode, tidak ada di nav) yang terasa seperti produk lain. Sekarang jadi panel kontrol yang tampil **identik dengan dashboard**.
+
+- **Tampilan = dashboard.** Halaman baru `pages/web-studio/StudioPage.tsx` dirender lewat `DashboardDocument` + `studio.css`, memakai token yang sama (IBM Plex, light default, panel/btn/badge/form). CSS inline dark-theme lama dihapus.
+- **Tab "Studio" di nav dashboard** (`AppNav`) — sebelumnya `/studio` tak bisa ditemukan dari UI.
+- **Opsi run baru:** Slow-mo (ms/aksi), Mode browser (headless/headed), Ukuran layar (viewport, default 1920×1080). Divalidasi di `src/cli/studio-run-settings.ts` (pure, nilai tak valid di-drop + warning, bukan gagal). Dua mode penerapan: **per-run** (env hanya disuntik ke child yang di-spawn — tidak menulis disk) atau **simpan permanen** (`POST /api/studio/run-settings` → tulis `SLOW_MO`/`HEADLESS`/`QA_VIEWPORT` ke env aktif).
+- **Status env/role manusiawi** (🟢 siap / 🔴 kedaluwarsa / ⚪ belum ada + alasan) menggantikan `true/false` mentah; pesan error/sukses ber-tone.
+- **Ringkasan hasil** di Studio setelah run (lulus/gagal/belum dibangun) + tombol ke dashboard triage; log mentah tetap ada di disclosure `<details>`.
+- **Kontrak dipertahankan penuh:** semua id/class yang dipakai `src/__tests__/dashboard-browser/studio.spec.ts` (7 test, hijau) dan markdown preview **byte-identical** dengan `buildRequirementMarkdown`. Guard tetap: sandbox `tests/**`, single-child, `buildRequirementMarkdown` + `SLUG_RE` tetap diexport.
+- **Verifikasi:** unit **1049** (+9 test baru `studio-run-settings`), dashboard-browser studio 7/7 + suite penuh hijau, screenshot `/studio` vs `/dashboard` identik.
+
+### Desktop viewport Full HD (1920×1080) + dokumentasi env lengkap — 2026-10-08
+
+- **Default viewport naik dari 1280×720 → 1920×1080 (Full HD)** untuk SEMUA project desktop (chromium, demo, firefox, webkit, dashboard-browser). Dulu framework mewarisi viewport bawaan device descriptor (1280×720) yang membuat dashboard/tabel lebar terpotong. 1920×1080 adalah resolusi desktop paling umum (~28%, StatCounter 2026) sehingga paling mendekati tampilan user nyata. Helper baru `resolveViewport()` / `desktopViewportUse()` di `config/playwright/base.ts`; **env knob `QA_VIEWPORT=WIDTHxHEIGHT`** (validasi + fallback aman, bukan hardcode). Mobile config sengaja TIDAK diubah (butuh viewport device-nya sendiri). Alasan reproducible: Playwright mendokumentasikan viewport yang mengikuti ukuran window host sebagai **non-deterministic**.
+- **Semua env yang dibaca kode kini terdokumentasi di `config/environments/*.env.example`.** Audit menemukan 26 env dibaca kode tapi tak ada di contoh mana pun. Ditambahkan: `QA_VIEWPORT`, override auth global (`AUTH_LOGIN_URL_PATH`, `AUTH_SUCCESS_URL_PATH`, `AUTH_SUCCESS_TEXT`), `AUTH_FORCE_LOGIN`, `LOG_LEVEL`, `UPDATE_HAR`, `APP_BASE_URL`/`API_BASE_URL`, knob advanced (`QA_COVERAGE_ROOT`, `QA_WORKSPACE_MANIFEST_MODE`, `SELECTOR_CATALOG_MAX_FILES`, `CODEGEN_PW_VERSION`, `CODEGEN_BLOCK_SW`, `PLAYWRIGHT_TEST_ROOT`, `PLAYWRIGHT_ADAPTER_*`). Pola role `<ROLE>_<SUFFIX>` dibuat eksplisit (daftar suffix lengkap + contoh), karena role-name bebas.
+- **Audit balik (reverse): 0 env mati.** Dari 41 key yang tercantum di `.env.example`, semuanya benar-benar dikonsumsi kode: 35 dibaca langsung, 6 lewat pola `<ROLE>_<SUFFIX>` (`FINANCE_*`, `SUPER_ADMIN_*`, `TEST_USER_COMPANY*`). Nilai yang didokumentasikan juga diverifikasi cocok dengan kode (`QA_WORKSPACE_MANIFEST_MODE`: `compat`|`strict` — sebelumnya salah tulis `auto|strict|off`; `SELECTOR_CATALOG_MAX_FILES` default 100; `LOG_LEVEL=debug`; `CODEGEN_PW_VERSION` default 1.58.0).
+- **`env-clean` diselaraskan:** `QA_VIEWPORT` masuk section Browser; `APP_BASE_URL`/`API_BASE_URL` dan override auth global masuk section URL — sebelumnya jatuh ke "Lainnya (dipertahankan)" meski terdokumentasi. Klaim docstring yang menyesatkan ("mirror key dari `*.env.example`") dikoreksi.
+- **Verifikasi:** unit **1040** (case baru: sectioning key terdokumentasi + `QA_VIEWPORT`), property 26/26, dashboard-browser 74 @1920×1080, setup:check, typecheck, lint, format, MCP check — semua hijau.
+
+### Dependencies: Playwright 1.63 → 1.64 — 2026-10-08
+
+Upgrade library ke Playwright 1.64.0 (root + `tools/mcp`), plus catatan fitur baru yang relevan & keputusan TypeScript.
+
+- **Playwright 1.63 → 1.64.0** (`@playwright/test`, `playwright`, `playwright-core`) di kedua package. Chromium bump ke 156.0.8078.4 (Firefox 157, WebKit 27.2). Seluruh gate hijau setelah upgrade: unit 1039, property 26/26, contract 7, dashboard-browser 74, validate 11 spec, MCP typecheck, `mcp:check` (baseline `@playwright/mcp` 0.0.83 tetap cocok, 72 capability tools).
+- **Tidak ada perubahan kode yang dibutuhkan** — framework tidak memakai API yang di-deprecate/breaking di 1.64: tidak memakai `fontSize` video option (yang di-deprecate), tidak bergantung pada perilaku `screen` device descriptor, dan tidak memakai JSX di test file. `toHaveScreenshot` (dipakai `@visual`) tetap kompatibel.
+- **`@playwright/mcp` tetap 0.0.83** — sudah versi terbaru di registry; baseline di `src/shared/mcp/version.ts` tidak berubah.
+- **Test runner 1.64 yang relevan untuk framework** (belum diadopsi, tersedia bila dibutuhkan): `testProject.default` (project di config tanpa dijalankan default — berguna untuk lane cross-browser opsional), `--shuffle` (randomisasi urutan test, seed reproducible — berguna untuk mendeteksi test yang saling bergantung), `lock` di `test.describe.configure()` (serialisasi grup test), `toHaveScreenshot.type` WebP di `testConfig.expect`, `Locator.within()` (locator relatif yang lebih terbaca — kandidat untuk Generator output), dan video `fps`/`style` (default 1.64 sudah pakai VP9, file lebih kecil).
+- **TypeScript TIDAK di-upgrade (tetap 5.9).** `@kitajs/ts-html-plugin` adalah language-service plugin (embedded-language tooling) yang dipakai template `.tsx` dashboard; catatan rilis TypeScript 7 (native Go port) menyatakan embedded-language tooling "belum bisa memanfaatkan TypeScript 7". TS 6.0 juga masih beta. Menunggu ekosistem Kitajs siap.
+- **Verifikasi:** `tsc --noEmit` root + MCP bersih; browser binary `chromium_headless_shell-1248` terpasang (revisi berubah bersama versi Playwright — `npx playwright install chromium`).
+
+### Evidence boundary, executable seed graph & CRUD/relation model, doctrine/v2, hybrid-ui — 2026-10-07
+
+Menutup celah "test mengklaim bukti yang tidak dimilikinya" dan memberi lifecycle data yang benar-benar berjalan (bukan deklarasi kosong):
+
+- **Evidence gate (plan).** `validate_plan` memblokir skenario `automated` yang halamannya tak punya katalog selector (`PLAN_EVIDENCE_MISSING` / `PLAN_EVIDENCE_MAJORITY_GAP` / `PLAN_EVIDENCE_UNAVAILABLE`); skenario tanpa bukti jatuh ke `## Coverage Gaps`, tidak pernah masuk plan sebagai runnable.
+- **Test-evidence boundary (AST).** `validateTestEvidenceBoundary` di `validate_generated_tests` menolak `fetch`/`page.request`/`request.*` langsung, HTTP client terimpor, dan pembacaan token `.auth`; helper hybrid hanya boleh dipakai dengan tag `@hybrid`, `setTestMetadata({ evidenceMode: 'hybrid-ui' })`, aksi browser + assertion UI, dan cleanup test-owned. `captureActualResult` harus berupa bacaan UI nyata (innerText/textContent/inputValue/getAttribute) atau URL/title — bukan prosa yang menyalin expected.
+- **Seed graph eksekutabel.** `config/qa-kit.seeds.json` kini mendukung blok `create: { endpoint, cleanupEndpoint, dependsOn[], payload{}, idField? }`; `src/support/pw/seed-graph.ts` (`resolveSeedOrder` topologis, `materializeSeeds` substitusi `{parent.<seed>.id}`, `teardownSeeds` urutan terbalik test-owned, `withSeededData` setup→use→teardown di `finally`), fixture `seeded` di `src/fixtures/base.fixture.ts`. Tool MCP baru **`get_seed_graph`**.
+- **CRUD + relation model.** Requirement/plan mendapat `Data Targets` + `Relationships` (dengan `confidence: confirmed | assumption`); gate `REQ_DATA_OPERATION_UNDECLARED`, `PLAN_DATA_OPERATION_UNCOVERED`, `PLAN_RELATION_UNCONFIRMED`, `PLAN_RELATION_SEED_UNPROVISIONED`. Relasi adalah kebenaran domain — tidak pernah disimpulkan dari label UI.
+- **`DOCTRINE_VERSION` → `doctrine/v2`.** Stamp `// doctrine: <versi>` di header spec; spec lama tanpa stamp = warning (regenerate untuk stamp ulang).
+- **Verifikasi:** `test:unit` 1039 hijau, `test:property` 26/26, `test:contract` 7, `validate:test-plan` 33, demo seed-graph 2/2; `tsc` root+MCP, `format:check`, `validate:architecture`, `check:twin-parity`, `sync:mcp-generated:check` bersih.
+
 ### Robustness hardening: Windows CI, pipeline checkpoints, conflict gate, agent git safety — 2026-10-06
 
 Empat gap yang tersisa dari audit upgrade engine v2, ditutup satu per satu:

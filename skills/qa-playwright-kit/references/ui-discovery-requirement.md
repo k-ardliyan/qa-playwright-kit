@@ -24,11 +24,13 @@ Run `health_check`; verify `APP_ENV` is non-production, the supplied URL origin 
 npm run setup:check
 ```
 
-If the role is missing, expired, or mismatched, stop and ask QA to refresh it through the real login flow:
+If the role is missing, expired, or mismatched, **refresh it yourself** — this is routine and reversible, not a decision that needs QA:
 
 ```bash
 npm run auth:setup
 ```
+
+Do NOT stop and ask QA for a plain re-login. Hand off only when the refresh genuinely needs a human: OTP/CAPTCHA (`npm run auth:setup:headed`), credentials missing or placeholder in `config/environments/{APP_ENV}.env` (`npm run env:edit`), or the session still fails after one refresh cycle.
 
 ### 2. Capture the Requested Page
 

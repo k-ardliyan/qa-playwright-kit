@@ -90,4 +90,36 @@ test.describe('buildCleanEnvContent', () => {
   test('defaults cover the non-wizard keys documented in .env.example', () => {
     expect(Object.keys(ENV_FILE_DEFAULTS).sort()).toEqual(['PLAYWRIGHT_CONFIG', 'SLOW_MO']);
   });
+
+  test('sections the documented URL/Browser keys (incl. QA_VIEWPORT, global auth)', () => {
+    const content = buildCleanEnvContent({
+      appEnv: 'dev',
+      values: {
+        BASE_URL: 'http://x',
+        AUTH_LOGIN_URL_PATH: '/login',
+        AUTH_SUCCESS_URL_PATH: '/dashboard',
+        APP_BASE_URL: 'https://app.example.com',
+        API_BASE_URL: 'https://api.example.com',
+        QA_VIEWPORT: '1920x1080',
+        HEADLESS: 'true',
+      },
+    });
+
+    const urlIdx = content.indexOf('# ── URL Aplikasi');
+    const browserIdx = content.indexOf('# ── Browser');
+    expect(urlIdx).toBeGreaterThanOrEqual(0);
+    expect(browserIdx).toBeGreaterThan(urlIdx);
+    // Documented advanced keys must be sectioned, never dumped into "Lainnya".
+    const lainnyaIdx = content.indexOf('# ── Lainnya (dipertahankan)');
+    for (const line of [
+      'AUTH_LOGIN_URL_PATH=/login',
+      'APP_BASE_URL=https://app.example.com',
+      'API_BASE_URL=https://api.example.com',
+      'QA_VIEWPORT=1920x1080',
+    ]) {
+      const at = content.indexOf(line);
+      expect(at).toBeGreaterThanOrEqual(0);
+      if (lainnyaIdx >= 0) expect(at).toBeLessThan(lainnyaIdx);
+    }
+  });
 });

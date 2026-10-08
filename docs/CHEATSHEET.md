@@ -62,12 +62,13 @@ npm run dashboard                     # server di http://localhost:4567 (default
 npm run dashboard -- --port=4568      # port bisa diganti kalau 4567 terpakai
 ```
 
-Buka `http://localhost:4567/studio` di browser — semua langkah di bawah tanpa terminal.
+Buka `http://localhost:4567/studio` (atau klik tab **Studio** di nav) — tampilannya sama dengan dashboard, dengan **tabs** (Requirement · Jalankan · Environment). Semua langkah di bawah tanpa terminal:
 
-- Tulis requirement lewat form (slug, title, module, feature, auth state, halaman awal, skenario) → tersimpan ke `requirements/<slug>.md` setelah lolos validator; slug yang sudah ada ditolak.
-- Ganti `APP_ENV` lewat dropdown **Pakai environment** (menulis pin `config/environments/.active-env`; `production` minta konfirmasi).
-- **Refresh auth** per environment — centang **Buka browser** kalau ada OTP/CAPTCHA; login diselesaikan di jendela browser yang terbuka.
-- Pilih spec dari `tests/` lalu **Run** — log tampil live; **Stop** menghentikan run. Hanya satu run aktif.
+- **Tab Requirement:** tulis requirement lewat form (slug, judul, modul, fitur, perlu login?, halaman awal, skenario) dengan **pratinjau markdown live di sebelah kanan** (bisa disembunyikan lewat tombol "Sembunyikan pratinjau"). Simpan minta **konfirmasi**, lalu tersimpan ke `requirements/<slug>.md` setelah lolos validator; slug yang sudah ada ditolak.
+- **Tab Jalankan:** cari spec lewat **combobox** (bisa pilih beberapa — muncul sebagai chip), lalu **Run**. Log **muncul otomatis saat run mulai**; tombol **Stop** hanya tampil selama run berjalan. Setelah selesai, ringkasan (lulus/gagal/belum dibangun) + tombol **Lihat detail di Dashboard**.
+  - **Opsi jalankan**: Mode browser (headless/headed), Urutan jalan (paralel / satu per satu), Slow-mo (muncul **hanya** saat headed), dan Ukuran layar sebagai dua field (lebar × tinggi, default 1920 × 1080).
+- **Tab Environment:** ganti `APP_ENV` lewat dropdown + tombol **Pakai** (menulis pin `config/environments/.active-env`; minta **konfirmasi**, `production` ber-tone danger). Status tiap role tampil hijau siap / merah kedaluwarsa / abu belum ada. **Refresh sesi login** — centang **Buka browser** kalau ada OTP/CAPTCHA.
+- Aksi penting memakai **dialog konfirmasi** (Batal / Lanjutkan) dan hasilnya muncul sebagai **toast** (sukses/gagal) — bukan pesan inline yang mudah terlewat.
 - **Export portable HTML** (tombol Export di header dashboard) — satu file HTML mandiri, screenshot ter-inline — tersedia kalau sudah ada run.
 
 ---
@@ -166,9 +167,9 @@ npm run qa:run
 
 **Revisi requirement pasca-report (REVISE REQUIREMENT):** pakai tool `update_requirement` (qa-playwright-kit) — `requirementPath`, `content` (markdown utuh), opsional `previousHash` (kunci anti lost-update) + `reason`. Otomatis: backup `.bak`, re-compile, dan kembalikan `previousHash`/`newHash` — plan lama harus direkompilasi (`validate_plan` menjaganya via `PLAN_STALE_REQUIREMENT`). Jangan edit requirement manual.
 
-**Seed (`seed:<entity>.<state>`):** deklarasikan produser di `config/qa-kit.seeds.json` (salin dari `config/qa-kit.seeds.example.json`); lihat daftarnya dengan tool `list_seeds`. Bila registry ada, `validate_plan` mem-warning `PLAN_SEED_UNKNOWN` untuk ref seed tanpa produser.
+**Seed (`seed:<entity>.<state>`):** deklarasikan produser di `config/qa-kit.seeds.json` (salin dari `config/qa-kit.seeds.example.json`); lihat daftarnya dengan tool `list_seeds`, dan ambil graph siap-pakai untuk runtime lewat tool `get_seed_graph`. Seed dengan blok `create` (endpoint + cleanupEndpoint) bersifat **executable** — runtime membangun parent lebih dulu, lalu child, dan membersihkan child sebelum parent hanya untuk ID milik run itu. Spec memakai fixture `seeded` atau helper `withSeededData`. Bila registry ada, `validate_plan` mem-warning `PLAN_SEED_UNKNOWN` untuk ref seed tanpa produser dan `PLAN_SEED_NOT_EXECUTABLE` untuk seed yang hanya prosa.
 
-**Versi doktrin:** spec menyimpan header `// doctrine: doctrine/v1` dan plan Metadata `| Doctrine | doctrine/v1 |`. `validate_generated_tests` mem-warning bila header hilang (spec lama) atau berbeda dari versi engine saat ini; `pipeline_status` mengembalikan `doctrine.version`. Naikkan `DOCTRINE_VERSION` (`src/contracts/versions.ts`) tiap kali aturan agent berubah material, lalu regenerate.
+**Versi doktrin:** spec menyimpan header `// doctrine: doctrine/v2` dan plan Metadata `| Doctrine | doctrine/v2 |`. `validate_generated_tests` mem-warning bila header hilang (spec lama) atau berbeda dari versi engine saat ini; `pipeline_status` mengembalikan `doctrine.version`. Naikkan `DOCTRINE_VERSION` (`src/contracts/versions.ts`) tiap kali aturan agent berubah material, lalu regenerate.
 
 ---
 

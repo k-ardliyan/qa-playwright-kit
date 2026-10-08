@@ -13,6 +13,7 @@ import {
   buildPlaywrightSharedDefaults,
   buildMultiBrowserProjects,
   createFrameworkReporters,
+  desktopViewportUse,
 } from './base';
 
 loadEnvironment();
@@ -47,7 +48,7 @@ export default defineConfig({
       name: 'demo',
       timeout: 60_000,
       retries: 0,
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...desktopViewportUse() },
       testDir: './tests/demo',
       testMatch: '**/*.spec.ts',
     },

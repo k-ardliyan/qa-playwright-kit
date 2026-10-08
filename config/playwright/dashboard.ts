@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as path from 'node:path';
+import { desktopViewportUse } from './base';
 
 /**
  * Dashboard browser test config — boots the real dashboard HTTP server against
@@ -17,6 +18,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   use: {
     ...devices['Desktop Chrome'],
+    ...desktopViewportUse(),
     baseURL: 'http://127.0.0.1:4567',
     headless: true,
     trace: 'retain-on-failure',

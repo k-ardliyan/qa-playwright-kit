@@ -104,13 +104,13 @@ export function buildAgentPrompt(
       `- BASE_URL: ${baseUrl || 'BELUM DI-SET'}\n` +
       `- Requirement: ${reqRelPath}\n` +
       `- Kredensial role: config/environments/${appEnv}.env (secret terenkripsi dotenvx — JANGAN dibaca manual; nilai dipakai otomatis oleh npm scripts)\n` +
-      `- Sesi role: .auth/${appEnv}/<role>.json (materialisasi: npm run auth:setup)`,
+      `- Sesi role: .auth/${appEnv}/<role>.json (materialisasi: npm run auth:setup — jalankan sendiri bila sesi hilang/expired; cukup minta QA bila butuh OTP/CAPTCHA atau kredensial belum diisi)`,
     `[ENV CONTEXT]\n` +
       `- Active APP_ENV: ${appEnv} (${envOrigin})\n` +
       `- BASE_URL: ${baseUrl || 'NOT SET'}\n` +
       `- Requirement: ${reqRelPath}\n` +
       `- Role credentials: config/environments/${appEnv}.env (dotenvx encrypted secrets — DO NOT read manually; values used automatically by npm scripts)\n` +
-      `- Role sessions: .auth/${appEnv}/<role>.json (materialization: npm run auth:setup)`,
+      `- Role sessions: .auth/${appEnv}/<role>.json (materialization: npm run auth:setup — run it yourself when a session is missing/expired; involve QA only for OTP/CAPTCHA or unfilled credentials)`,
   );
 
   const fallbackMcp = t(

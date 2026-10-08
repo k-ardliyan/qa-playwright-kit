@@ -1,35 +1,36 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { mcpWorkspace } from './workspace-paths';
+import {
+  SEED_REGISTRY_RELATIVE_PATH,
+  parseSeedRegistry,
+  type SeedRegistryFile,
+} from './seed-registry-core';
 
 /**
- * Seed registry — the per-project answer to "does `seed:<entity>.<state>`
+ * Seed registry LOADER — the per-project answer to "does `seed:<entity>.<state>`
  * exist, and what produces it?".
  *
- * The registry is a PER-PROJECT artifact at `config/qa-kit.seeds.json`
- * (shipped as `config/qa-kit.seeds.example.json` — copy and adapt). The
- * framework ships NO registry: an absent file means every seed behavior is
- * inert, so existing QA workspaces never get new noise. When present,
- * `validate_plan` cross-checks scenario `seed:` refs against it
- * (PLAN_SEED_UNKNOWN) and `list_seeds` surfaces it to the agent.
+ * The registry shape, the canonical path constant, and the registry→graph
+ * conversion live in `seed-registry-core` (twin-synced from
+ * `src/shared/mcp/seed-registry-core.ts`) so the MCP tooling and the Playwright
+ * runtime cannot drift apart. This module only adds the disk read.
+ *
+ * The registry is a PER-PROJECT artifact (shipped as
+ * `config/qa-kit.seeds.example.json` — copy and adapt). The framework ships NO
+ * registry: an absent file means every seed behavior is inert, so existing QA
+ * workspaces never get new noise. When present, `validate_plan` cross-checks
+ * scenario `seed:` refs against it (PLAN_SEED_UNKNOWN) and `list_seeds`
+ * surfaces it to the agent.
  */
 
-export const SEED_REGISTRY_RELATIVE_PATH = path.join('config', 'qa-kit.seeds.json');
-
-export interface SeedRegistryEntry {
-  /** Seed ref name WITHOUT the `seed:` prefix — e.g. `payroll.draft`. */
-  name: string;
-  /** How the seed is produced (API endpoint + state, DB fixture, UI path). */
-  producer?: string;
-  /** Optional fixture file backing the seed state. */
-  fixture?: string;
-  notes?: string;
-}
-
-export interface SeedRegistryFile {
-  schemaVersion: number;
-  seeds: SeedRegistryEntry[];
-}
+export type { SeedProducerSpec, SeedRegistryEntry, SeedRegistryFile } from './seed-registry-core';
+export {
+  SEED_REGISTRY_RELATIVE_PATH,
+  hasExecutableProducer,
+  parseSeedRegistry,
+  toSeedProducers,
+} from './seed-registry-core';
 
 export type SeedRegistryLoad =
   | { ok: true; registry: SeedRegistryFile; registryPath: string }
@@ -56,15 +57,8 @@ export function loadSeedRegistry(rootDir: string = mcpWorkspace.rootDir): SeedRe
     return { ok: false, reason: 'missing', registryPath };
   }
   try {
-    const parsed = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as Partial<SeedRegistryFile>;
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      !Array.isArray(parsed.seeds) ||
-      parsed.seeds.some(
-        (s) => typeof s !== 'object' || s === null || typeof s.name !== 'string' || !s.name.trim(),
-      )
-    ) {
+    const registry = parseSeedRegistry(JSON.parse(fs.readFileSync(registryPath, 'utf-8')));
+    if (!registry) {
       return {
         ok: false,
         reason: 'invalid',
@@ -72,13 +66,6 @@ export function loadSeedRegistry(rootDir: string = mcpWorkspace.rootDir): SeedRe
         registryPath,
       };
     }
-    const registry: SeedRegistryFile = {
-      schemaVersion: typeof parsed.schemaVersion === 'number' ? parsed.schemaVersion : 1,
-      seeds: parsed.seeds.filter(
-        (s): s is SeedRegistryEntry =>
-          typeof s === 'object' && s !== null && typeof s.name === 'string',
-      ),
-    };
     return { ok: true, registry, registryPath };
   } catch (error) {
     return {

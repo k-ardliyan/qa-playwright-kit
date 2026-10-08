@@ -98,7 +98,7 @@ Set `AUTH_CHALLENGE_MODE` via `npm run env:edit`. Ordinary feature scenarios tha
 Trigger: 401/403, `unauthorized`, `session expired`, the test redirects to `/login`, or trace/screenshot shows the page ended on the login page.
 
 1. **Stop healing that file.** Auth failure = `failureSource: 'env'`, `isHealable: false`. Patching locators while the page is stuck on login corrupts the test.
-2. **Real re-login via the setup project:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). This is the only session producer — a real UI login that writes cookies + localStorage + sessionStorage in one pass. Still-valid sessions are reused automatically (cheap, no re-login).
+2. **Real re-login via the setup project:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). **Run it yourself** — a plain session refresh is routine and reversible; do not stop to ask QA for permission. Escalate to QA only when a human is genuinely required (OTP/CAPTCHA, credentials not yet filled via `npm run env:edit`) or when the session still fails after this one cycle. This is the only session producer — a real UI login that writes cookies + localStorage + sessionStorage in one pass. Still-valid sessions are reused automatically (cheap, no re-login).
 3. **Re-run only the affected spec files**, then resume the phase.
 4. **Max 1 re-auth cycle per role per run.** A 401 recurring after a fresh login = a server session TTL / multi-layer session problem → report to QA as FIX ENVIRONMENT, do not loop silently.
 

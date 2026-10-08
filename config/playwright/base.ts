@@ -51,6 +51,41 @@ export function resolveHeadless(): boolean {
   return true;
 }
 
+/**
+ * Desktop viewport for every project — Full HD (1920×1080) by default, the most
+ * common desktop resolution (~28%, StatCounter 2026) so wide dashboards/tables
+ * render as real users see them; also the least-clipping baseline. Override per
+ * machine/env with `QA_VIEWPORT=WIDTHxHEIGHT` (e.g. `QA_VIEWPORT=1600x900`);
+ * invalid values warn and fall back to the FHD default.
+ */
+export const DEFAULT_VIEWPORT = { width: 1920, height: 1080 } as const;
+
+export function resolveViewport(): { width: number; height: number } {
+  const raw = process.env.QA_VIEWPORT?.trim();
+  if (!raw) return { ...DEFAULT_VIEWPORT };
+  const m = /^(\d+)x(\d+)$/i.exec(raw);
+  if (!m) {
+    warnConfig(`Invalid QA_VIEWPORT='${raw}'. Expected WIDTHxHEIGHT. Falling back to default.`);
+    return { ...DEFAULT_VIEWPORT };
+  }
+  const width = Number.parseInt(m[1], 10);
+  const height = Number.parseInt(m[2], 10);
+  if (width < 320 || height < 240) {
+    warnConfig(`QA_VIEWPORT='${raw}' too small. Falling back to default.`);
+    return { ...DEFAULT_VIEWPORT };
+  }
+  return { width, height };
+}
+
+/**
+ * Desktop viewport override to spread AFTER a `devices[...]` spread — device
+ * descriptors carry their own 1280×720 viewport, so a bare shared default would
+ * be clobbered. Mobile configs must NOT use this (they need the device viewport).
+ */
+export function desktopViewportUse(): { viewport: { width: number; height: number } } {
+  return { viewport: resolveViewport() };
+}
+
 export function buildPlaywrightSharedDefaults(): Partial<PlaywrightTestConfig> {
   return {
     fullyParallel: true,
@@ -64,6 +99,7 @@ export function buildPlaywrightSharedDefaults(): Partial<PlaywrightTestConfig> {
     use: {
       baseURL: process.env.BASE_URL || 'http://localhost:3000',
       headless: resolveHeadless(),
+      viewport: resolveViewport(),
       launchOptions: {
         slowMo: resolveSlowMo(),
       },
@@ -138,6 +174,7 @@ export function buildFirefoxProject(options?: MultiBrowserProjectOptions): Proje
     name: 'firefox',
     use: {
       ...devices['Desktop Firefox'],
+      ...desktopViewportUse(),
       ...(options?.storageState ? { storageState: options.storageState } : {}),
     },
     ...(options?.testDir ? { testDir: options.testDir } : {}),
@@ -157,6 +194,7 @@ export function buildWebkitProject(options?: MultiBrowserProjectOptions): Projec
     name: 'webkit',
     use: {
       ...devices['Desktop Safari'],
+      ...desktopViewportUse(),
       ...(options?.storageState ? { storageState: options.storageState } : {}),
     },
     ...(options?.testDir ? { testDir: options.testDir } : {}),
@@ -185,6 +223,7 @@ export function buildMultiBrowserProjects(options?: MultiBrowserProjectOptions):
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        ...desktopViewportUse(),
         storageState,
       },
       ...commonProps,

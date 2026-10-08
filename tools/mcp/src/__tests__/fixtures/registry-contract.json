@@ -182,6 +182,13 @@
     "readOnly": true
   },
   {
+    "name": "get_seed_graph",
+    "description": "Return the executable seed producer graph (config/qa-kit.seeds.json \"create\" blocks) ready to pass to withSeededData / the seeded fixture. Skips prose-only seeds and reports them separately, so the Generator never hand-copies endpoints.",
+    "stability": "stable",
+    "profiles": ["planner", "generator", "author", "all"],
+    "readOnly": true
+  },
+  {
     "name": "update_requirement",
     "description": "Revise an existing requirement file (whole-file replacement) with an optimistic hash lock, an automatic .bak backup, and an eager re-compile so diagnostics surface immediately. This is the sanctioned REVISE REQUIREMENT path after a report.",
     "stability": "stable",

@@ -98,19 +98,20 @@ When QA chats naturally in Hermes or IDE agents:
 
 ## Input Format
 
+`workflow_run` takes this shape (`startFromPrd` is **not** a tool parameter — see Phase -1):
+
 ```json
 {
   "requirementPath": "requirements/<feature-name>.md",
   "orchestrationMode": "manual | automatic",
-  "roleFilter": ["finance", "super-admin"],
-  "startFromPrd": false
+  "roleFilter": ["finance", "super-admin"]
 }
 ```
 
-- `requirementPath` is required (unless `startFromPrd: true`).
+- `requirementPath` is required.
 - `orchestrationMode` defaults to `manual` when omitted.
 - `roleFilter` is optional — if provided, only run scenarios matching these roles. Omit to run all roles.
-- `startFromPrd` is optional — if `true`, run the `prd-decompose` phase first (see below).
+- Other accepted params: `stage` (run one stage), `evidence`, `runId`, `resume`, `timeoutMs`.
 - The file must exist under the repository `requirements/` directory.
 - Format reference: [`requirements/_TEMPLATE.md`](requirements/_TEMPLATE.md).
 
@@ -152,6 +153,7 @@ List every tool explicitly by server:
   - `synthesize_requirement` (synthesize compliant requirement markdown from semantic selector-catalog)
   - `update_requirement` (revise an existing requirement — whole-file replace with hash lock, `.bak` backup, eager re-compile; the REVISE REQUIREMENT path)
   - `list_seeds` (declared seed producers from `config/qa-kit.seeds.json`; missing registry returns guidance)
+  - `get_seed_graph` (returns the executable producer graph ready for `withSeededData`, plus `nonExecutable[]`; the runtime companion to `list_seeds`)
   - `list_test_fixtures` (fixture-first upload paths under `tests/data/`)
   - `inspect_file` (envelope: kind/size/magic under `tests/data/` or `artifacts/test-results/`)
   - `extract_pdf_text` (raw PDF text only — match scenario tokens; no domain field schema)
@@ -186,7 +188,7 @@ List every tool explicitly by server:
 **Trigger:** QA provides a live web URL and wants to auto-generate `requirements/<feature-name>.md` from interactive UI snapshots.
 
 **Steps:**
-1. Run `health_check`; require a non-production `APP_ENV`, a target whose origin matches configured `BASE_URL`, and a ready role session. If the role session is missing, expired, or bound to another company, stop and have QA run `npm run auth:setup` (`auth:setup:headed` for OTP/CAPTCHA). Never transfer Browser Use/profile cookies, call `browser_set_storage_state`, or inject storage state.
+1. Run `health_check`; require a non-production `APP_ENV`, a target whose origin matches configured `BASE_URL`, and a ready role session. If the role session is missing, expired, or bound to another company, **refresh it yourself** — run `npm run auth:setup` (headless, non-interactive). Do NOT stop to ask QA for a plain re-login: a session refresh is routine, reversible, and the agent owns it. Only hand off to QA when the run needs a human in the loop: OTP/CAPTCHA (`npm run auth:setup:headed`), missing/placeholder credentials (`npm run env:edit`), or a second failure after one refresh cycle. Never transfer Browser Use/profile cookies, call `browser_set_storage_state`, or inject storage state.
 2. Call `snapshot_page` (or `discover_pages` when QA explicitly asks to map linked pages) with `url`, `featureName`, and `role` (using `.auth/{APP_ENV}/{role}.json` session). Reject a result that reports auth/session/tenant warnings — an unauthenticated catalog is not role evidence.
 3. Deep discovery extracts semantic structures (Tables, KPI Cards, Tabs, Form Inputs, Modals, Uploads, Sub-routes with `:id` deduplication).
 4. Derive the scenario set with [`skills/qa-playwright-kit/references/scenario-design.md`](skills/qa-playwright-kit/references/scenario-design.md) — QA-stated titles/steps/results verbatim, plus technique-derived scenarios (equivalence partition / boundary / decision table / state transition) and relation scenarios when the snapshot links another menu, after a dedupe pass. Call `synthesize_requirement` with `entryUrl`, `role`, and the top-ranked `userScenarios` (tool cap 20 per call); append the overflow as full `### SC-XX` blocks in the same file, then validate. Do not invent business assertions from observed UI labels. `synthesize_requirement` never overwrites an existing path — to REVISE an existing requirement (post-report REVISE REQUIREMENT), use `update_requirement` (hash lock + `.bak` + re-compile), not a free-hand edit.
@@ -197,7 +199,7 @@ List every tool explicitly by server:
 
 ### Phase -1: PRD Decompose (Optional)
 
-**Trigger:** `startFromPrd: true` in input, or user provides a PRD document instead of a requirement file.
+**Trigger:** the user provides a PRD/ticket text instead of a requirement file (or the orchestrator agent is asked to `startFromPrd`). This is an **agent-level** input, not a `workflow_run` parameter — `workflow_run` accepts only `requirementPath`, `stage`, `orchestrationMode`, `evidence`, `runId`, `resume`, `roleFilter`, `timeoutMs`. The agent decomposes the PRD, writes the requirement file, then launches `workflow_run` normally.
 
 **Steps:**
 
@@ -228,8 +230,7 @@ List every tool explicitly by server:
 - Planner compiles requirement via `compile_requirement` (or `parse_requirement_scenarios` / `normalize_requirements`).
 - Planner drafts test plan and verifies it using `validate_plan`.
 - If `roleFilter` is set, instruct Planner to only generate scenarios for those roles.
-- Expect Planner output as a Markdown test plan with columns per scenario:
-  - `Scenario Name`, `Steps`, `Expected Result`, `Role`, `Auth Context`, `Page`, `Type`
+- Expect Planner output as a Markdown test plan following [`specs/_TEMPLATE.md`](specs/_TEMPLATE.md): per scenario a field table with `Covers`, `Actor`, `Auth Context`, `Page`, `Execution Mode` (`automated`/`manual`/`blocked`/`not-implemented`), `Evidence Mode` (`ui-e2e` default; `hybrid-ui` only with `@hybrid` + registered seed + safe cleanup), `Data Setup`, optional `Data Operation`/`Data Entity`/`Asserts Relation`, `Actions`, `Assertions`, `Locator Intent`, `Network Expectations`, `Cleanup`, `Unknowns`, plus `## Data Targets`, `## Relationships`, and `## Coverage Gaps` sections.
 - **Evidence gate (Rule 0):** a scenario may be planned `automated` only when its `Page` has an entry in the plan's `Catalog Evidence`. No catalog page → the scenario goes to `Coverage Gap`, never into the plan as runnable. Explore is complete for a feature when every referenced page is captured (`elementCount > 0`, no auth warning).
 - Planner must include a `Coverage Gap` section for scenarios that couldn't be planned — including every scenario whose page lacks catalog evidence.
 - When the requirement targets a public site, Planner MAY call `discover_pages` first to populate `artifacts/selector-catalog/<feature>/`.
@@ -257,7 +258,7 @@ List every tool explicitly by server:
 Applies when the run hits auth failures — classification `auth`, `failureSource: 'env'`, error text matching `401|403|unauthorized|session expired|redirected to login|storageState` — or any failure whose trace/screenshot shows the page landed on the login page:
 
 1. **STOP healing the affected file.** Auth failures are `isHealable: false`; patching locators against a login-redirect page corrupts tests.
-2. **Re-run the real login flow once for the affected roles:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). This performs a genuine UI login in the setup project and refreshes `.auth/{APP_ENV}/<role>.json` — cookies AND localStorage AND sessionStorage in one pass. Sessions whose live check still passes are reused automatically (cheap no-op).
+2. **Re-run the real login flow once for the affected roles:** `npm run auth:setup` (OTP/CAPTCHA: `npm run auth:setup:headed`). **Run this yourself** — a plain session refresh is routine, reversible, and does not need QA's permission; only involve QA when the refresh needs a human (OTP/CAPTCHA, unfilled credentials) or fails a second time. This performs a genuine UI login in the setup project and refreshes `.auth/{APP_ENV}/<role>.json` — cookies AND localStorage AND sessionStorage in one pass. Sessions whose live check still passes are reused automatically (cheap no-op).
 3. **Re-run only the affected spec files**, then resume the phase.
 4. **Max 1 re-auth cycle per role per run.** If 401 recurs after a fresh login, the session TTL or a multi-layer session is the problem — classify `failureSource: 'env'`, surface to QA as FIX ENVIRONMENT. Do not loop silently.
 

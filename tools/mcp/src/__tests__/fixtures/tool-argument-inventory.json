@@ -165,6 +165,10 @@
     "reads": []
   },
   {
+    "name": "get_seed_graph",
+    "reads": []
+  },
+  {
     "name": "update_requirement",
     "reads": ["requirementPath", "content", "previousHash", "reason"]
   }

@@ -96,10 +96,10 @@ Per-test notes travel with the run: archiving copies the `test-notes.json` sidec
 
 ## Common symptoms and fixes
 
-| Symptom                                       | Likely cause                          | Fix                                                                           |
-| --------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------- |
-| Test passes but URL shows `/login?redirect=…` | `toHaveURL` false positive            | Heal spec: assert `pathname`, not full URL                                    |
-| Actual shows `-` on a passing test            | `captureActualResult` not called      | Heal spec: add `captureActualResult(expectedResult)` after the last assertion |
-| Test Step column is empty                     | `test.step` not used                  | Heal spec: wrap each step body in `test.step('…', async () => { … })`         |
-| All tests SKIPPED                             | Auth file empty or `@demo` tag active | Re-run `npm run auth:setup`; run pipeline without demo tag filter             |
-| Dashboard shows stale data                    | Reporter did not finish               | Wait for Reporter to complete or re-run the pipeline                          |
+| Symptom                                                      | Likely cause                          | Fix                                                                                           |
+| ------------------------------------------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Test passes but URL shows `/login?redirect=…`                | `toHaveURL` false positive            | Heal spec: assert `pathname`, not full URL                                                    |
+| Actual says it was not explicitly recorded on a passing test | No observed value was captured        | Update the spec to read and record the actual UI value/state; never copy Expected into Actual |
+| Test Step column is empty                                    | `test.step` not used                  | Heal spec: wrap each step body in `test.step('…', async () => { … })`                         |
+| All tests SKIPPED                                            | Auth file empty or `@demo` tag active | Re-run `npm run auth:setup`; run pipeline without demo tag filter                             |
+| Dashboard shows stale data                                   | Reporter did not finish               | Wait for Reporter to complete or re-run the pipeline                                          |

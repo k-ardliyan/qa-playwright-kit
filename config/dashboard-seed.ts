@@ -149,7 +149,7 @@ function testCase(spec: CaseSpec) {
     failureSource,
     ...(notImplementedReason ? { notImplementedReason } : {}),
     workerIndex: 1 + (id.charCodeAt(id.length - 1) % 3),
-    inputData: { username: `${role}_user@erpku.com` },
+    inputData: { username: `${role}_user@demo.test` },
     expectedResult: 'Dashboard loads',
     actualResult: failed ? 'Login redirect timed out' : 'Dashboard loaded',
     affectedLayer: layers,

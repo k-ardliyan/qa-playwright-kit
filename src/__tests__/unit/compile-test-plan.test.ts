@@ -106,7 +106,7 @@ test.describe('Test Plan compiler (TestPlanContractV1)', () => {
 
   test('stamps the current doctrine by default and honors an explicit Metadata row', () => {
     const stamped = compileTestPlanFromText(GOOD_PLAN, 'specs/login-valid.plan.md');
-    expect(stamped.data?.doctrine).toBe('doctrine/v1');
+    expect(stamped.data?.doctrine).toBe('doctrine/v2');
 
     // readLabel is order-independent, so a Metadata row appended before the
     // next section still binds to the plan.

@@ -46,8 +46,11 @@ Skenario OTP/CAPTCHA tetap `(@manual)`. `AUTH_CHALLENGE_MODE` hanya membantu `au
 
 1. Salin [`_TEMPLATE.md`](_TEMPLATE.md) → `nama-fitur.md`
 2. Isi metadata wajib + skenario
-3. Validasi: `npm run validate:requirement`
-4. Pipeline Hermes
+3. Jika ada operasi CRUD / relasi antar-entitas, isi section `## Data Targets` (entity × operations) dan `## Relationships` (parent/child + `confidence: confirmed | assumption`). Relasi dugaan **wajib** bertanda `assumption` — relasi `assumption` tidak boleh menggerakkan assertion runnable
+4. Validasi: `npm run validate:requirement`
+5. Pipeline Hermes
+
+> Metadata opsional yang diteruskan ke contract: `Risk level`, `Data scope` (mis. `seed:invoice.pending`), `Environment scope`. Lihat [`_TEMPLATE.md`](_TEMPLATE.md).
 
 ## Mode penulisan
 

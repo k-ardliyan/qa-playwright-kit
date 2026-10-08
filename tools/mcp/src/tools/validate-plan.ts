@@ -17,6 +17,7 @@ import { compileTestPlanFromText } from './compile-test-plan';
 import { containsEphemeralReference } from '../utils/ephemeral-guard';
 import {
   extractSeedRefs,
+  hasExecutableProducer,
   knownSeedNames,
   loadSeedRegistry,
   type SeedRegistryFile,
@@ -55,6 +56,12 @@ export interface PlanValidationSummary {
   /** Strict majority of automated scenarios lack catalog evidence — the plan is
    *  blocked (`PLAN_EVIDENCE_MAJORITY_GAP`), not merely warned. */
   majorityEvidenceGap?: boolean;
+  /** Declared entity×operation targets with no automated scenario and no gap. */
+  dataCoverageGapsCount?: number;
+  /** Relations declared as assumptions (not confirmed) — must not be asserted. */
+  relationAssumptionCount?: number;
+  /** Confirmed relations whose parent→child seed is not registered. */
+  relationUnprovisionedCount?: number;
 }
 
 export type ValidatePlanOutput = McpResult<PlanValidationSummary | undefined>;
@@ -361,6 +368,54 @@ export function validateTestPlan(
     availablePages.length > 0
       ? ` Available pages: ${availablePages.join(', ')}.`
       : ' No pages are catalogued for this feature yet — snapshot the page first.';
+  const executableSeedRefs = new Set(
+    (seedRegistry?.seeds ?? []).filter(hasExecutableProducer).map((s) => s.name),
+  );
+  for (const sc of plan.scenarios) {
+    if (sc.evidenceMode !== 'hybrid-ui') continue;
+    const refs = extractSeedRefs(sc.dataSetup.join('\n'));
+    const known = new Set(knownSeedNames(seedRegistry));
+    if (refs.length === 0 || !seedRegistry || refs.some((ref) => !known.has(ref))) {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_HYBRID_SEED_UNPROVISIONED',
+          'error',
+          `Hybrid scenario ${sc.scenarioId} must reference a seed:<name> with a producer registered in config/qa-kit.seeds.json.`,
+          { scenarioId: sc.scenarioId },
+        ),
+      );
+    } else if (refs.some((ref) => !executableSeedRefs.has(ref))) {
+      // Registered but prose-only: the seed documents intent, yet nothing
+      // materializes the record. That is the gap this whole feature closes.
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_SEED_NOT_EXECUTABLE',
+          'warning',
+          `Hybrid scenario ${sc.scenarioId} references seed(s) that are registered but have no executable producer (missing "create" block with endpoint + cleanupEndpoint): ${refs
+            .filter((ref) => !executableSeedRefs.has(ref))
+            .map((ref) => `seed:${ref}`)
+            .join(', ')}. Add the producer so setup runs instead of being improvised in the spec.`,
+          { scenarioId: sc.scenarioId },
+        ),
+      );
+    }
+    if (
+      !sc.cleanup.some((item) =>
+        /\b(?:apiCleanup.*\b(?:id|_id)|test-owned resource ID|residual data acceptable)/i.test(
+          item,
+        ),
+      )
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_HYBRID_CLEANUP_UNSAFE',
+          'error',
+          `Hybrid scenario ${sc.scenarioId} must declare apiCleanup using a test-owned ID, or state that residual data is acceptable.`,
+          { scenarioId: sc.scenarioId },
+        ),
+      );
+    }
+  }
   for (const sc of plan.scenarios) {
     if (sc.executionMode !== 'automated') continue;
     const page = sc.page?.trim();
@@ -532,6 +587,77 @@ export function validateTestPlan(
     }
   }
 
+  // 8. CRUD/data-target coverage: every entity operation the requirement (or
+  //    the plan) commits to must be planned by a runnable scenario or recorded
+  //    as a gap. A green suite that never deletes is not delete coverage.
+  const plannedOps = new Set(
+    plan.scenarios
+      .filter((sc) => sc.executionMode === 'automated')
+      .flatMap((sc) => {
+        const typed = sc.dataSetupTyped;
+        if (!typed?.entity || !typed.operation) return [];
+        return [`${typed.entity}:${typed.operation}`];
+      }),
+  );
+  const gappedEntities = new Set(
+    plan.coverageGaps.flatMap((gap) => {
+      const entity = gap.reason.match(/\bentity:?\s*([a-z][\w.-]*)/i)?.[1];
+      return entity ? [entity.toLowerCase()] : [];
+    }),
+  );
+  let dataCoverageGaps = 0;
+  for (const target of plan.dataTargets ?? []) {
+    if (gappedEntities.has(target.entity)) continue;
+    for (const operation of target.operations) {
+      if (plannedOps.has(`${target.entity}:${operation}`)) continue;
+      dataCoverageGaps++;
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_DATA_OPERATION_UNCOVERED',
+          'warning',
+          `Declared data target "${target.entity}" operation "${operation}" has no automated scenario and no coverage gap. Add a scenario that exercises it, set the scenario's Data Operation/Data Entity, or record a coverage gap.`,
+        ),
+      );
+    }
+  }
+
+  // 9. Relations: an assumption relation may not be planned as runnable, and a
+  //    confirmed relation being asserted needs a registered seed to build the
+  //    parent→child pair.
+  const knownSeeds = new Set(knownSeedNames(seedRegistry));
+  let relationAssumptionCount = 0;
+  let unprovisionedRelationCount = 0;
+  for (const relation of plan.relations ?? []) {
+    if (relation.confidence !== 'confirmed') {
+      relationAssumptionCount++;
+      if (relation.scenarioId && plannedOps.size >= 0) {
+        const planned = plan.scenarios.find((sc) => sc.scenarioId === relation.scenarioId);
+        if (planned && planned.executionMode === 'automated') {
+          diagnostics.push(
+            createDiagnostic(
+              'PLAN_RELATION_UNCONFIRMED',
+              'error',
+              `Scenario ${relation.scenarioId} asserts relation ${relation.parent} → ${relation.child} declared as an assumption. Confirm the relation in the requirement/domain contract, or move the scenario to Coverage Gaps.`,
+              { scenarioId: relation.scenarioId },
+            ),
+          );
+        }
+      }
+      continue;
+    }
+    if (relation.scenarioId && relation.seedRef && !knownSeeds.has(relation.seedRef)) {
+      unprovisionedRelationCount++;
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_RELATION_SEED_UNPROVISIONED',
+          'error',
+          `Relation ${relation.parent} → ${relation.child} uses seed:${relation.seedRef}, which is not declared in config/qa-kit.seeds.json. Register the producer that builds the parent→child pair, or record a coverage gap.`,
+          { scenarioId: relation.scenarioId },
+        ),
+      );
+    }
+  }
+
   const errorCount = diagnostics.filter((d) => d.severity === 'error').length;
   const warningCount = diagnostics.filter((d) => d.severity === 'warning').length;
   const valid = errorCount === 0;
@@ -556,6 +682,9 @@ export function validateTestPlan(
     locatorIntentGapsCount: locatorIntentGapIds.size,
     seedUnprovisionedCount,
     seedUnknownCount,
+    dataCoverageGapsCount: dataCoverageGaps,
+    relationAssumptionCount,
+    relationUnprovisionedCount: unprovisionedRelationCount,
     majorityEvidenceGap:
       automatedScenarios.length >= EVIDENCE_MAJORITY_MIN_SCENARIOS &&
       evidenceGapIds.size / automatedScenarios.length > EVIDENCE_MAJORITY_THRESHOLD,

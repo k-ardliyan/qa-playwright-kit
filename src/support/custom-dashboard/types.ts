@@ -107,7 +107,7 @@ export interface CollectedTestData {
   attempts?: number;
   /** Playwright worker that ran the test (parity with the built-in report). */
   workerIndex?: number;
-  /** True when expected/actual metadata was not supplied by the test. */
+  /** True when expected/actual is missing or Actual merely copies Expected. */
   metadataIncomplete?: boolean;
   // === Table view metadata ===
   testId: string;
@@ -116,6 +116,8 @@ export interface CollectedTestData {
   reqRef?: string;
   /** Execution track ('strict' | 'express'). */
   track?: 'strict' | 'express';
+  /** Declared evidence path for this scenario. */
+  evidenceMode?: 'ui-e2e' | 'hybrid-ui' | 'unknown';
   role: string;
   /** Module this test belongs to — from requirement metadata or folder. */
   module: string;
@@ -153,6 +155,8 @@ export interface CollectedTestCase {
   reqRef?: string;
   /** Execution track ('strict' | 'express'). */
   track?: 'strict' | 'express';
+  /** Declared evidence path; legacy results may not carry this field. */
+  evidenceMode?: 'ui-e2e' | 'hybrid-ui' | 'unknown';
   title: string;
   /** Spec file that produced this row — dashboard scope badge + evidence drill-down (serve mode). */
   filePath?: string;
@@ -189,7 +193,7 @@ export interface CollectedTestCase {
   attempts?: number;
   /** Playwright worker that ran the test (parity with the built-in report). */
   workerIndex?: number;
-  /** True when expected/actual metadata was not supplied by the test. */
+  /** True when expected/actual is missing or Actual merely copies Expected. */
   metadataIncomplete?: boolean;
 }
 

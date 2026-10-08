@@ -27,7 +27,7 @@ Configure all three in [`.mcp.json`](../.mcp.json) as the project MCP config. Ke
 
 **Branch protection:** require CI workflow `Quality Gate` on PRs. E2E workflow runs on push to main / manual dispatch (needs GitHub Secrets).
 
-**Generated tests:** must include `@ui`, `@regression`, and traceability headers (`// spec:`, `// seed:`). Demo/healer specs use `@demo` and are excluded from default `npm test`.
+**Generated tests:** must include traceability headers `// spec:` and `// seed:` (a missing `// doctrine: <version>` stamp is a warning). Demo/healer specs use `@demo` and are excluded from default `npm test`.
 
 ## 1) Orchestrator Agent
 
@@ -96,7 +96,7 @@ When QA chats naturally in Hermes:
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `health_check`, `pipeline_status`, `workflow_run`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `synthesize_requirement`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `archive_report`, `generate_page_object`, `record_ai_note`, `set_test_note`
+- `qa-playwright-kit`: `health_check`, `pipeline_status`, `workflow_run`, `compile_requirement`, `compile_test_plan`, `validate_plan`, `trace_requirement`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `validate_generated_tests`, `get_test_failures`, `get_test_summary`, `list_artifacts`, `list_requirement_status`, `snapshot_page`, `discover_pages`, `synthesize_requirement`, `update_requirement`, `list_seeds`, `get_seed_graph`, `list_test_fixtures`, `inspect_file`, `extract_pdf_text`, `archive_report`, `generate_page_object`, `record_ai_note`, `set_test_note`
 - `playwright-test`: `run_tests`
 - `playwright`: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`; see root [`AGENTS.md`](../AGENTS.md)
 
@@ -125,20 +125,19 @@ Transforms requirement files into structured scenario plans.
 Hybrid Markdown test plan written to:
 `specs/<feature-name>-test-plan.md`
 
-Includes Application Overview, per-scenario `### SC-XX` sections, **Seed:** `tests/seed.spec.ts`, and a table per scenario with columns:
+Includes Application Overview, per-scenario `### SC-XX` sections, `## Data Targets` / `## Relationships` / `## Coverage Gaps` sections, and a field table per scenario (canonical shape: [`specs/_TEMPLATE.md`](../specs/_TEMPLATE.md)):
 
-- `Scenario Name`
-- `Steps`
-- `Expected Result`
-- `Role`
-- `Auth Context`
-- `Type`
+- `Covers`, `Actor`, `Auth Context`, `Page`
+- `Execution Mode` (`automated` | `manual` | `blocked` | `not-implemented`)
+- `Evidence Mode` (`ui-e2e` default; `hybrid-ui` only with `@hybrid` + registered seed + safe cleanup)
+- `Data Setup`, optional `Data Operation` / `Data Entity` / `Asserts Relation`
+- `Actions`, `Assertions`, `Locator Intent`, `Network Expectations`, `Artifact Expectations`, `Cleanup`, `Unknowns`
 
 Canonical shape: [`specs/_TEMPLATE.md`](../specs/_TEMPLATE.md).
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `compile_requirement`, `compile_test_plan`, `validate_plan`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `list_artifacts`, `list_test_fixtures`, `discover_pages`, `snapshot_page`
+- `qa-playwright-kit`: `compile_requirement`, `compile_test_plan`, `validate_plan`, `validate_requirement`, `normalize_requirements`, `parse_requirement_scenarios`, `list_artifacts`, `list_seeds`, `get_seed_graph`, `list_test_fixtures`, `discover_pages`, `snapshot_page`
 - `playwright-test`: `run_tests` (seed bootstrap: `tests/seed.spec.ts`)
 - `playwright`: `browser_navigate`, `browser_snapshot`
 
@@ -156,14 +155,12 @@ Converts planner scenario tables into Playwright TypeScript test files.
 
 ### Input Format
 
-Planner table with columns:
+Planner scenario table with the per-scenario field table from [`specs/_TEMPLATE.md`](../specs/_TEMPLATE.md):
 
-- `Scenario Name`
-- `Steps`
-- `Expected Result`
-- `Role`
-- `Auth Context`
-- `Type`
+- `Covers`, `Actor`, `Auth Context`, `Page`
+- `Execution Mode`, `Evidence Mode`
+- `Data Setup`, optional `Data Operation` / `Data Entity` / `Asserts Relation`
+- `Actions`, `Assertions`, `Locator Intent`, `Network Expectations`, `Cleanup`, `Unknowns`
 
 ### Output Format
 
@@ -174,7 +171,7 @@ Planner table with columns:
 
 ### MCP Tools Consumed
 
-- `qa-playwright-kit`: `compile_test_plan`, `validate_generated_tests`, `snapshot_page` (catalog reuse), `list_test_fixtures`, `inspect_file`, `generate_page_object`
+- `qa-playwright-kit`: `compile_test_plan`, `validate_generated_tests`, `snapshot_page` (catalog reuse), `list_seeds`, `get_seed_graph`, `list_test_fixtures`, `inspect_file`, `generate_page_object`
 - `playwright-test`: `run_tests` (live verification loop, iterate until pass)
 - `playwright`: `browser_navigate`, `browser_snapshot`
 

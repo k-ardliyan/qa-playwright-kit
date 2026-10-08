@@ -46,6 +46,7 @@ export interface RunMeta {
 export interface CollectedTestCase {
   testId: string;
   scenarioId: string;
+  evidenceMode?: 'ui-e2e' | 'hybrid-ui' | 'unknown';
   title: string;
   role: string;
   status: string;

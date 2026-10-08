@@ -42,6 +42,18 @@ export { readAriaCatalog, expectAriaMatchesCatalog, expectAriaSnapshot } from '.
 
 export { apiJson, apiSeed, apiCleanup, type ApiJsonResult, type HttpMethod } from './api-seed';
 
+export {
+  resolveSeedOrder,
+  materializeSeeds,
+  teardownSeeds,
+  withSeededData,
+  type SeedGraph,
+  type SeedProducerSpec,
+  type MaterializedSeed,
+} from './seed-graph';
+
+export { loadSeedGraph, toSeedGraph, SEED_REGISTRY_RELATIVE_PATH } from './seed-config';
+
 export { expectAllVisible, expectAllToContainText, expectSoftFieldErrors } from './soft-forms';
 
 export { expectVisual, expectPageVisual, type VisualOptions } from './visual';

@@ -21,6 +21,27 @@ export interface PlanAssertion {
  */
 export type PlanExecutionMode = 'automated' | 'manual' | 'blocked' | 'not-implemented';
 
+/** Evidence path for browser scenarios; legacy plans default to ui-e2e. */
+export type ScenarioEvidenceMode = 'ui-e2e' | 'hybrid-ui';
+
+/** CRUD-style operation a planned scenario exercises. */
+export type PlanDataOperation = 'create' | 'read' | 'update' | 'delete' | 'transition';
+
+/**
+ * Structured data setup for a planned scenario: which registered seed it
+ * needs, which entity/operation it targets, and (for hybrid scenarios) that
+ * the producer is registered rather than improvised in the spec.
+ */
+export interface PlanDataSetupV1 {
+  /** `seed:<name>` refs, without the prefix. */
+  seeds: string[];
+  entity?: string;
+  operation?: PlanDataOperation;
+  /** Registered seed this scenario asserts a relation for. */
+  assertsRelation?: string;
+  notes?: string;
+}
+
 export interface PlanScenarioV1 {
   scenarioId: string;
   testId?: string;
@@ -32,8 +53,11 @@ export interface PlanScenarioV1 {
   page?: string;
 
   executionMode: PlanExecutionMode;
+  evidenceMode?: ScenarioEvidenceMode;
 
   dataSetup: string[];
+  /** Typed view of `dataSetup`: seeds, entity/operation, asserted relation. */
+  dataSetupTyped?: PlanDataSetupV1;
   actions: string[];
   assertions: PlanAssertion[];
 
@@ -48,6 +72,29 @@ export interface CoverageGap {
   scenarioId?: string;
   acceptanceCriterionId?: string;
   reason: string;
+}
+
+/** Entity/operation coverage the plan commits to (mirrors the requirement). */
+export interface PlanDataTargetV1 {
+  entity: string;
+  operations: PlanDataOperation[];
+  /** Scenario IDs that cover this target. */
+  covers?: string[];
+}
+
+/**
+ * Relation the plan asserts. `confidence: 'assumption'` relations may not be
+ * asserted as runnable checks — they stay coverage gaps until confirmed.
+ */
+export interface PlanRelationV1 {
+  name?: string;
+  parent: string;
+  child: string;
+  confidence: 'confirmed' | 'assumption';
+  /** Scenario that asserts this relation, when one exists. */
+  scenarioId?: string;
+  /** Seed that materializes the parent→child pair. */
+  seedRef?: string;
 }
 
 export interface CatalogEvidence {
@@ -73,6 +120,11 @@ export interface TestPlanContractV1 {
 
   module?: string;
   feature?: string;
+
+  /** Entities/operations the plan commits to cover (mirrors the requirement). */
+  dataTargets?: PlanDataTargetV1[];
+  /** Relations the plan asserts, each pointing at a declared seed. */
+  relations?: PlanRelationV1[];
 
   catalogEvidence: CatalogEvidence[];
   scenarios: PlanScenarioV1[];

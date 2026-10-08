@@ -59,20 +59,32 @@ The list is **closed**. Nothing outside it qualifies:
 
 ## What must NOT be `(@manual)` — use these instead
 
-| Need                                      | Correct tag         | Helper                                                     |
-| ----------------------------------------- | ------------------- | ---------------------------------------------------------- |
-| Upload a file                             | `(@upload)`         | `uploadFixture`, `uploadViaChooser`                        |
-| Download an export                        | `(@download)`       | `downloadAndSave`, `assertDownloadedEnvelope`              |
-| Assert PDF text / CSV structure           | `(@file-content)`   | `assertPdfContains`, `assertStringsContain`                |
-| Assert live API payload after a UI action | `(@network-assert)` | `waitAndAssertApi`                                         |
-| Mock HTTP 500 / offline for error UX      | `(@network)`        | `mockServerError`, `mockAbort`                             |
-| Seed data via API then assert UI          | `(@hybrid)`         | `apiSeed`, `apiCleanup`                                    |
-| Assert ARIA snapshot stability            | `(@aria)`           | `browser_snapshot` at inspect time, then standard locators |
-| Assert a visual/layout baseline           | `(@visual)`         | `expectVisual` / `expectPageVisual` / `toHaveScreenshot`   |
+| Need                                      | Correct tag         | Helper                                                                                                                         |
+| ----------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Upload a file                             | `(@upload)`         | `uploadFixture`, `uploadViaChooser`                                                                                            |
+| Download an export                        | `(@download)`       | `downloadAndSave`, `assertDownloadedEnvelope`                                                                                  |
+| Assert PDF text / CSV structure           | `(@file-content)`   | `assertPdfContains`, `assertStringsContain`                                                                                    |
+| Assert live API payload after a UI action | `(@network-assert)` | `waitAndAssertApi`                                                                                                             |
+| Mock HTTP 500 / offline for error UX      | `(@network)`        | `mockServerError`, `mockAbort`                                                                                                 |
+| Seed data via API then assert UI          | `(@hybrid)`         | Declare `Evidence Mode: hybrid-ui`; use registered `seed:<name>`, `apiSeed` / `apiCleanup` from `@/support/pw`, then assert UI |
+| Assert ARIA snapshot stability            | `(@aria)`           | `browser_snapshot` at inspect time, then standard locators                                                                     |
+| Assert a visual/layout baseline           | `(@visual)`         | `expectVisual` / `expectPageVisual` / `toHaveScreenshot`                                                                       |
 
-`validate_generated_tests` **enforces** these: a spec that mentions a capability
-tag without the matching API call fails. `@visual` in particular requires
-`toHaveScreenshot` or `expectVisual`/`expectPageVisual` from `@/support/pw`.
+`validate_generated_tests` enforces capability helpers and the evidence boundary: raw `fetch`/`request` calls and `.auth` token reads are rejected in product specs. Hybrid setup must declare `evidenceMode: 'hybrid-ui'`, use a registered seed and safe cleanup policy, and still include a browser action plus UI assertion in the same test. `@network-assert` observes a request triggered by UI and does not authorize direct API setup. `@visual` requires `toHaveScreenshot` or `expectVisual`/`expectPageVisual` from `@/support/pw`.
+
+---
+
+## CRUD data and relations
+
+A scenario that creates, changes, or deletes a record declares its `Data Operation`
+and `Data Entity`; the requirement's `## Data Targets` lists which operations the
+feature performs, and `validate_plan` checks each one is planned or gapped
+(`PLAN_DATA_OPERATION_UNCOVERED`). Relations between entities live in
+`## Relationships`: a `confirmed` relation may be asserted and needs a registered
+seed; an `assumption` relation may not be planned as runnable
+(`PLAN_RELATION_UNCONFIRMED`). Seed records are declared in
+`config/qa-kit.seeds.json` as executable producers and built by `withSeededData`
+— see [scenario-design.md](scenario-design.md) § "CRUD coverage and relations".
 
 ---
 

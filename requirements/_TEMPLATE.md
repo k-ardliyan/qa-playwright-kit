@@ -58,6 +58,29 @@
 | finance     | allow  | Bisa menyetujui invoice yang berstatus pending   |
 | hrd         | deny   | Tidak memiliki akses ke halaman approval finance |
 
+## Data Targets
+
+> Opsional. Isi bila fitur melakukan operasi CRUD pada data. Ini yang membuat
+> `validate_plan` dapat memeriksa "delete sudah diuji atau belum" — bukan
+> sekadar percaya pada judul skenario.
+
+| Entity   | Operations       | Covers  |
+| -------- | ---------------- | ------- |
+| invoice  | read, transition | `SC-01` |
+| customer | create, delete   | `SC-02` |
+
+## Relationships
+
+> Opsional. Isi bila satu entitas bergantung pada entitas lain (foreign key).
+> **Relasi adalah kebenaran domain** — jangan menyimpulkannya dari label UI.
+> `Confidence: confirmed` berarti aturan ini dinyatakan requirement/kontrak
+> domain; `assumption` berarti masih dugaan dan TIDAK boleh menjadi assertion
+> runnable.
+
+| Parent   | Child   | Name              | Cardinality | On Delete | Confidence | Evidence    |
+| -------- | ------- | ----------------- | ----------- | --------- | ---------- | ----------- |
+| customer | invoice | customer-invoices | one-to-many | restrict  | confirmed  | requirement |
+
 ## Kriteria Penerimaan
 
 > Daftar 3-7 kondisi yang harus **terbukti** agar fitur selesai.
@@ -100,6 +123,10 @@
 | Prioritas skenario    | `high`                                                                                                                                                                     |
 | Layer terdampak       | `FE` `BE`                                                                                                                                                                  |
 | Prekondisi            | Pengguna login sebagai `finance`, terdapat invoice berstatus pending.                                                                                                      |
+| Data Operation        | `transition`                                                                                                                                                               |
+| Data Entity           | `invoice`                                                                                                                                                                  |
+| Seed Refs             | `seed:invoice.pending`                                                                                                                                                     |
+| Asserts Relations     | `customer-invoices`                                                                                                                                                        |
 | Input Data            | `invoiceId: seed:invoice.pending`<br>`note: literal:Approved for Q3 payout`                                                                                                |
 | Langkah               | 1. Buka halaman detail invoice dari daftar `/finance/invoices`<br>2. Klik tombol "Setujui Invoice"<br>3. Masukkan catatan approval<br>4. Klik tombol "Konfirmasi Approval" |
 | Hasil yang Diharapkan | - Muncul notifikasi sukses "Invoice berhasil disetujui"<br>- Status badge invoice berubah menjadi "Approved"<br>- Tombol "Setujui Invoice" tidak lagi ditampilkan          |
@@ -149,6 +176,8 @@
 - [ ] Setiap skenario memiliki baris `| Covers | \`AC-XX\` |` yang merujuk ke AC yang sah
 - [ ] Skenario multi-role memiliki baris `| Role | \`role-name\` |` (parser requirement membaca `Role:`)
 - [ ] Input data menggunakan prefix provenance (`seed:`, `credential:`, `fixture:`, `literal:`)
+- [ ] Jika ada operasi CRUD, `## Data Targets` mencantumkan entity + operations
+- [ ] Jika ada relasi antar-entitas, `## Relationships` diisi dengan `Confidence` yang benar (relasi dugaan = `assumption`)
 - [ ] Skenario non-otomatis ditandai `(@manual)` dengan alasan di `Hasil yang Diharapkan`
 - [ ] Beberapa item dalam satu sel dipisah `<br>`; karakter pipe di-escape `\|`
 - [ ] File tervalidasi: `npm run validate:requirement`

@@ -13,6 +13,7 @@ import {
   normalizeRelativePath,
 } from './rules/rule-helpers';
 import { validateCapabilityPowerRules } from './rules/capability-rules';
+import { validateSeedUsage, validateTestEvidenceBoundary } from './rules/test-evidence-rules';
 import {
   validateNoInlineAuth,
   looksLikeClonedRoleName,
@@ -531,6 +532,8 @@ export function validateSpecFile(
   violations.push(...validateSkipDoctrine(content, filePath, rel));
   violations.push(...validateDuplicateTestBodies(content, filePath, rel));
   violations.push(...validateCapabilityPowerRules(content, filePath, rel));
+  violations.push(...validateTestEvidenceBoundary(content, filePath, rel));
+  violations.push(...validateSeedUsage(content, filePath, rel));
   violations.push(...validateNoEphemeralRefs(content, filePath, rel));
   violations.push(...validateNoHardcodedWaits(content, filePath, rel));
   violations.push(...validateNoDataInStepTitles(content, filePath, rel));

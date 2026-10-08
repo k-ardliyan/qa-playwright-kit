@@ -1,4 +1,5 @@
 import type { TestResult, TestStep } from '@playwright/test/reporter';
+import { FRAMEWORK_ROLE_HINTS } from '../../shared/utils/role-credentials';
 import type { CollectedError, CollectedStep } from '../custom-dashboard/types';
 import { buildStepSnippet, toStepLocation } from './snippet';
 
@@ -98,9 +99,9 @@ export function resolveFeatureFromPath(annotationValue: string, filePath: string
   const normalized = filePath.replace(/\\/g, '/');
   const filename = normalized.split('/').pop() ?? '';
   let stem = filename.replace(/\.spec\.ts$/i, '').toLowerCase();
-  // Strip known role suffixes
-  const knownRoles = ['super-admin', 'finance', 'hrd', 'admin', 'user'];
-  for (const role of knownRoles) {
+  // Strip known role suffixes (framework hints only — unrecognized roles keep
+  // their suffix; the annotation path is authoritative when present).
+  for (const role of FRAMEWORK_ROLE_HINTS) {
     if (stem.endsWith(`-${role}`)) {
       stem = stem.slice(0, stem.length - role.length - 1);
       break;

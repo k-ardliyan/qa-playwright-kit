@@ -304,6 +304,8 @@ export default class CustomReporter implements Reporter {
     const reqRef = getAnnotation(test, 'requirement') || getAnnotation(test, 'reqRef') || undefined;
     const track =
       (getAnnotation(test, 'track') as 'strict' | 'express') || (reqRef ? 'express' : undefined);
+    const evidenceMode =
+      (getAnnotation(test, 'evidenceMode') as 'ui-e2e' | 'hybrid-ui') || 'unknown';
     const role = getAnnotation(test, 'role');
     const module = resolveModuleFromPath(getAnnotation(test, 'module') || '', filePath);
     const feature = resolveFeatureFromPath(getAnnotation(test, 'feature') || '', filePath);
@@ -314,7 +316,7 @@ export default class CustomReporter implements Reporter {
     const actualResultAnnotation = getAnnotation(test, 'actualResult');
     const actualResult =
       result.status === 'passed'
-        ? actualResultAnnotation || 'Sesuai dengan expected result'
+        ? actualResultAnnotation || 'Hasil aktual belum dicatat secara eksplisit.'
         : deriveActualFailureMessage(result, actualResultAnnotation);
 
     // `test.fixme` reports as `skipped`; the annotation is what distinguishes
@@ -354,6 +356,7 @@ export default class CustomReporter implements Reporter {
       scenarioId,
       reqRef,
       track,
+      evidenceMode,
       role,
       module,
       feature,
@@ -432,6 +435,7 @@ export default class CustomReporter implements Reporter {
         scenarioId: t.scenarioId,
         reqRef: t.reqRef,
         track: t.track,
+        evidenceMode: t.evidenceMode,
         title: t.title,
         filePath: t.filePath,
         role: t.role,

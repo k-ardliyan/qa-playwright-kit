@@ -8,9 +8,10 @@ import {
   IconMoon,
   IconFlaskConical,
   IconMenu,
+  IconSlidersHorizontal,
 } from '../shared/icons';
 
-export type NavTab = 'dashboard' | 'history' | 'compare' | 'report';
+export type NavTab = 'dashboard' | 'history' | 'compare' | 'report' | 'studio';
 
 export interface AppNavProps {
   activeTab?: NavTab;
@@ -41,6 +42,12 @@ export function AppNav({ activeTab = 'dashboard' }: AppNavProps) {
       label: 'Compare',
       href: '/compare',
       icon: <IconArrowRightLeft size={15} />,
+    },
+    {
+      id: 'studio',
+      label: 'Studio',
+      href: '/studio',
+      icon: <IconSlidersHorizontal size={15} />,
     },
   ];
 

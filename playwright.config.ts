@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnvironment } from './src/utils/env-loader';
-import { buildPlaywrightSharedDefaults, createFrameworkReporters } from './config/playwright/base';
+import {
+  buildPlaywrightSharedDefaults,
+  createFrameworkReporters,
+  desktopViewportUse,
+} from './config/playwright/base';
 
 loadEnvironment();
 
@@ -37,6 +41,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        ...desktopViewportUse(),
         // Default unauthenticated. Generated authenticated specs MUST override:
         //   test.use({ storageState: authStatePath('<role>') })
         //   // or `.auth/${process.env.APP_ENV||'local'}/<role>.json`
@@ -56,6 +61,7 @@ export default defineConfig({
       retries: 0,
       use: {
         ...devices['Desktop Chrome'],
+        ...desktopViewportUse(),
       },
       testDir: './tests/demo',
       testMatch: '**/*.spec.ts',

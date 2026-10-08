@@ -37,8 +37,8 @@ function test(name: string, fn: () => void): void {
 function baseState(overrides: Partial<LoginTemplateState> = {}): LoginTemplateState {
   const roles: RoleSpec[] = [{ name: 'user', authFile: '.auth/local/user.json' }];
   return {
-    projectName: 'erpku',
-    baseUrl: 'https://stg.erpku.com',
+    projectName: 'demo-app',
+    baseUrl: 'https://stg.demo-app.test',
     loginUrl: '/login',
     successUrlPath: '/dashboard',
     roles,
@@ -51,7 +51,7 @@ function baseState(overrides: Partial<LoginTemplateState> = {}): LoginTemplateSt
 
 test('form: title uses project name', () => {
   const md = buildLoginRequirement(baseState());
-  assert.ok(md.includes('# REQ-AUTH-001: Login — erpku'), 'title missing');
+  assert.ok(md.includes('# REQ-AUTH-001: Login — demo-app'), 'title missing');
 });
 
 test('form: no POM metadata (Path A)', () => {
@@ -160,7 +160,7 @@ test('form: steps never repeat Input Data values', () => {
   assert.ok(!steps.includes('literal:'), 'steps must not copy literal provenance');
   assert.ok(!steps.includes('qa.invalid.user.not.exists'), 'fictional user belongs in Input Data');
   assert.ok(!steps.includes('WrongPasswordInvalid!'), 'password value belongs in Input Data');
-  assert.ok(!steps.includes('https://stg.erpku.com'), 'URL belongs in Prekondisi / Input Data');
+  assert.ok(!steps.includes('https://stg.demo-app.test'), 'URL belongs in Prekondisi / Input Data');
   assert.ok(md.includes('identifier: credential:user.email'), 'input data still has credentials');
   assert.ok(
     md.includes('identifier: literal:qa.invalid.user.not.exists'),
@@ -399,7 +399,7 @@ test('writeLoginRequirementFile overwrites AUTO-GENERATED login.md', () => {
   const result = writeLoginRequirementFile(tmp, baseState());
   assert.equal(result.skipped, false);
   const next = fs.readFileSync(path.join(dir, 'login.md'), 'utf-8');
-  assert.ok(next.includes('# REQ-AUTH-001: Login — erpku'), 'autogen file should be rewritten');
+  assert.ok(next.includes('# REQ-AUTH-001: Login — demo-app'), 'autogen file should be rewritten');
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 

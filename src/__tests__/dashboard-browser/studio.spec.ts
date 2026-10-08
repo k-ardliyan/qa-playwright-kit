@@ -124,6 +124,7 @@ test.describe('studio page: form + requirement preview', () => {
 test.describe('studio page: auth + run controls', () => {
   test('environment select carries all four appEnv options', async ({ page }) => {
     await gotoStudio(page);
+    await page.locator('[data-studio-tab="env"]').click();
     await expect(page.locator('#envbtn')).toBeVisible();
     await expect(page.locator('#authbtn')).toBeVisible();
 
@@ -133,7 +134,10 @@ test.describe('studio page: auth + run controls', () => {
 
   test('#speclist renders spec options from the API', async ({ page }) => {
     await gotoStudio(page);
+    await page.locator('[data-studio-tab="run"]').click();
     await expect(page.locator('#spec')).toBeVisible();
+    // Options are held in the combobox's option store (the searchable popup
+    // menu is rendered from it on focus).
     await expect
       .poll(() => page.locator('#speclist option').count(), { timeout: 10_000 })
       .toBeGreaterThan(1);

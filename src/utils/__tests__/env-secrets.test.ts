@@ -116,7 +116,7 @@ test('normalizeDotenvxBanner keeps the public key, strips box/-fk/basename noise
     '#/            public-key encryption for .env files          /',
     '#/       [how it works](https://dotenvx.com/encryption)     /',
     '#/----------------------------------------------------------/',
-    'DOTENV_PUBLIC_KEY_DEVDEVELOPMENT="02fc" # -fk ..\\..\\Users\\kardl\\.dotenvx-keys\\.env.keys',
+    'DOTENV_PUBLIC_KEY_DEVDEVELOPMENT="02fc" # -fk ..\\..\\Users\\qa\\.dotenvx-keys\\.env.keys',
     '',
     '# dev.env',
     '# regular comment stays',

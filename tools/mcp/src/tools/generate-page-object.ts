@@ -286,6 +286,6 @@ ${ctorLines.join('\n')}
     elementCount: filtered.length,
     fragileCount,
     warnings: warnings.length > 0 ? warnings : undefined,
-    message: `✅ POM scaffold created at ${outputPath}. Review TODOs and register in tests/fixtures.ts.`,
+    message: `✅ POM scaffold created at ${outputPath}. Review TODOs and register in src/fixtures/project.fixture.ts.`,
   };
 }

@@ -5,10 +5,15 @@ import {
   type RequirementInputData,
   type InputDataSource,
   type ScenarioType,
+  type DataOperation,
+  type RequirementRelationV1,
+  type RequirementDataTargetV1,
+  type RelationConfidence,
   type Diagnostic,
   createDiagnostic,
 } from '../../contracts';
 import { readLabel, readLabelFromSection, splitRow } from './md-labels';
+import { FRAMEWORK_ROLE_HINTS } from '../../utils/role-credentials';
 
 export function readString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -351,6 +356,94 @@ export function parseAcceptanceCriteria(text: string): {
   return { criteria, diagnostics };
 }
 
+/**
+ * Parse the `## Relationships` table:
+ *   | Parent | Child | Name | Cardinality | On Delete | Confidence | Evidence |
+ *
+ * Foreign keys/cascade rules are domain truths. A row without `confirmed`
+ * confidence is recorded as `assumption` — it must not back a runnable
+ * assertion until confirmed.
+ */
+export function parseRelations(text: string): {
+  relations: RequirementRelationV1[];
+  diagnostics: Diagnostic[];
+} {
+  const relations: RequirementRelationV1[] = [];
+  const diagnostics: Diagnostic[] = [];
+  const section = text.match(/##+\s+(?:Relationships?|Relasi)([\s\S]*?)(?=##+|$)/i);
+  if (!section) return { relations, diagnostics };
+
+  for (const line of section[1].split('\n')) {
+    const trimmed = line.trim();
+    if (!/^\|.*\|$/.test(trimmed)) continue;
+    const cells = splitRow(trimmed);
+    const parent = (cells[0] ?? '').toLowerCase();
+    const child = (cells[1] ?? '').toLowerCase();
+    if (!parent || !child) continue;
+    if (parent === 'parent' || /^[-:]+$/.test(parent)) continue;
+
+    const confidenceRaw = (cells[5] ?? '').toLowerCase();
+    const confidence: RelationConfidence =
+      confidenceRaw === 'confirmed' ? 'confirmed' : 'assumption';
+    relations.push({
+      parent,
+      child,
+      ...(cells[2] ? { name: cells[2] } : {}),
+      ...(cells[3] && ['one-to-one', 'one-to-many', 'many-to-many'].includes(cells[3].toLowerCase())
+        ? { cardinality: cells[3].toLowerCase() as RequirementRelationV1['cardinality'] }
+        : {}),
+      ...(cells[4] && ['cascade', 'restrict', 'set-null', 'none'].includes(cells[4].toLowerCase())
+        ? { onDelete: cells[4].toLowerCase() as RequirementRelationV1['onDelete'] }
+        : {}),
+      confidence,
+      ...(cells[6] ? { evidence: cells[6] } : {}),
+    });
+  }
+  return { relations, diagnostics };
+}
+
+/**
+ * Parse the `## Data Targets` table:
+ *   | Entity | Operations | Covers |
+ *
+ * Operations is a comma/space separated list of create/read/update/delete/transition.
+ */
+export function parseDataTargets(text: string): {
+  dataTargets: RequirementDataTargetV1[];
+  diagnostics: Diagnostic[];
+} {
+  const dataTargets: RequirementDataTargetV1[] = [];
+  const diagnostics: Diagnostic[] = [];
+  const section = text.match(/##+\s+(?:Data\s+Targets?|Target\s+Data)([\s\S]*?)(?=##+|$)/i);
+  if (!section) return { dataTargets, diagnostics };
+
+  for (const line of section[1].split('\n')) {
+    const trimmed = line.trim();
+    if (!/^\|.*\|$/.test(trimmed)) continue;
+    const cells = splitRow(trimmed);
+    const entity = (cells[0] ?? '').toLowerCase();
+    if (!entity || entity === 'entity' || /^[-:]+$/.test(entity)) continue;
+
+    const operations = (cells[1] ?? '')
+      .toLowerCase()
+      .split(/[,\s]+/)
+      .map((op) => op.trim())
+      .filter((op): op is DataOperation =>
+        ['create', 'read', 'update', 'delete', 'transition'].includes(op),
+      );
+    const covers = (cells[2] ?? '')
+      .split(/[,\s]+/)
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+    dataTargets.push({
+      entity,
+      operations,
+      ...(covers.length > 0 ? { covers } : {}),
+    });
+  }
+  return { dataTargets, diagnostics };
+}
+
 export function parseInputData(rawLines: string[]): RequirementInputData[] {
   const result: RequirementInputData[] = [];
   for (const line of rawLines) {
@@ -458,6 +551,21 @@ export function parseScenarios(
     // Parse Test ID
     const testId = readLabel(block, 'Test ID') ?? undefined;
 
+    // Typed data targets: which CRUD operation/entity this scenario exercises.
+    const dataOperationRaw = (
+      readLabel(block, 'Data Operation', 'Operasi Data') ?? ''
+    ).toLowerCase();
+    const dataOperation =
+      dataOperationRaw &&
+      ['create', 'read', 'update', 'delete', 'transition'].includes(dataOperationRaw)
+        ? (dataOperationRaw as DataOperation)
+        : undefined;
+    const dataEntity = readLabel(block, 'Data Entity', 'Entitas Data') ?? undefined;
+    const seedRefs = readLabelFromSection(block, ['Seed Refs', 'Referensi Seed']).flatMap((line) =>
+      (line.match(/\bseed:\s*([a-z][\w.-]*)/gi) ?? []).map((m) => m.replace(/^seed:\s*/i, '')),
+    );
+    const assertsRelations = readLabelFromSection(block, ['Asserts Relations', 'Relasi Diuji']);
+
     // Parse Covers
     const coversRaw = readLabel(block, 'Covers');
     if (coversRaw) {
@@ -480,7 +588,7 @@ export function parseScenarios(
       const prefixMatch = cleanTitle.match(/^([a-zA-Z0-9_-]+)\s*:\s*(.+)$/);
       if (
         prefixMatch &&
-        ['super-admin', 'finance', 'hrd', 'admin', 'user'].includes(prefixMatch[1].toLowerCase())
+        (FRAMEWORK_ROLE_HINTS as readonly string[]).includes(prefixMatch[1].toLowerCase())
       ) {
         actor = prefixMatch[1].toLowerCase();
       }
@@ -571,6 +679,10 @@ export function parseScenarios(
         automatable: !isManual,
         reason: isManual ? 'Tagged with @manual' : undefined,
       },
+      ...(dataOperation ? { dataOperation } : {}),
+      ...(dataEntity ? { dataEntity } : {}),
+      ...(seedRefs.length > 0 ? { seedRefs } : {}),
+      ...(assertsRelations.length > 0 ? { assertsRelations } : {}),
     });
   }
 

@@ -40,6 +40,15 @@ const ROLE_SUFFIX_ALT = [...ROLE_SUFFIXES].sort((a, b) => b.length - a.length).j
 /** `{PREFIX}_{SUFFIX}` key parser shared by env-clean, wizard, and env-edit. */
 export const ROLE_KEY_RE = new RegExp(`^([A-Z0-9_]+?)_(${ROLE_SUFFIX_ALT})$`);
 
+/**
+ * Framework-bundled role name HINTS — a best-effort fallback ONLY, never an
+ * allow-list. Used to (a) strip a role suffix from a spec filename and (b)
+ * recognize a `Role:` heading prefix, so the common bundled roles resolve even
+ * when no env/annotation names them. Any role not listed still works: env-derived
+ * role keys (`<PREFIX>_PASSWORD`) are authoritative and always win.
+ */
+export const FRAMEWORK_ROLE_HINTS = ['super-admin', 'finance', 'hrd', 'admin', 'user'] as const;
+
 export interface RoleCredentialRef {
   /** Public role id (kebab). Always `user` for default account — never `default`/`general`. */
   name: string;

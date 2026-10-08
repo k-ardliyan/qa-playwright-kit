@@ -32,7 +32,7 @@ Test data is the most common scaling bottleneck — plan it together with the sc
 
 - **Seed factory, not hand-made rows:** every `seed:` ref in Input Data must have a clear producer (API seed `(@hybrid)`, DB fixture, or a documented UI path). No producer → the scenario goes to Coverage Gap, not into the suite. Declare producers in `config/qa-kit.seeds.json` (copy `config/qa-kit.seeds.example.json`); `list_seeds` lists them and `validate_plan` warns `PLAN_SEED_UNKNOWN` for any `seed:` ref with no declared producer (when a registry exists).
 - **Unique per run:** names/identifiers the scenario creates carry a unique suffix (timestamp/random) — shared environments collide on static values. `literal:` is for read-only lookups only.
-- **Reset/cleanup:** scenarios that create data state their cleanup (`apiCleanup` for `(@hybrid)`; otherwise write "residual data acceptable" in Prekondisi). Never rely on another test's cleanup.
+- **Reset/cleanup:** scenarios that create data state their cleanup (`apiCleanup` for declared `hybrid-ui`, scoped to an ID created by that test; otherwise write "residual data acceptable" in Prekondisi). Never rely on another test's cleanup or sweep shared data by prefix.
 - **Account isolation:** one role account is never shared across QA members; scenarios that mutate the account follow the serialization rule (anti-slop #5).
 
 ## Where the evidence lives
@@ -93,6 +93,56 @@ When the snapshot links another menu (sub-route, nav) or the requirement mention
 3. The data link uses `seed:` / `literal:` refs — never "the record created by SC-04".
 4. Needs a role the scenario does not run as? Split into two scenarios linked by the same seed ref.
 5. State the comparison observably in `Hasil yang Diharapkan`: "Qty stok = stok awal − qty order", not "data konsisten".
+
+## CRUD coverage and relations (data lifecycle)
+
+A CRUD page is not covered by one "buat data" scenario. Declare the entity and
+the operations the feature actually performs in the requirement's
+`## Data Targets`, and the entity links in `## Relationships`. `validate_plan`
+then checks each declared operation has a planned scenario or a Coverage Gap —
+so "delete" can no longer silently never be tested.
+
+- **Operations come from the requirement, not from a template.** Declare only
+  the operations the feature really performs; a read-only report has `read`,
+  not four CRUD rows. A missing operation is a gap with a reason, never a
+  fabricated scenario.
+- **Relations are domain truths.** `Confidence: confirmed` means the
+  requirement or domain contract states the rule (e.g. `customer → invoice`,
+  `onDelete: restrict`). `assumption` means it was inferred from a UI label —
+  it may be listed, but it must NOT become a runnable assertion until
+  confirmed. `validate_plan` blocks an assumption relation planned as runnable.
+- **Data is declared, then materialized.** Records a scenario needs live in
+  `config/qa-kit.seeds.json` as an executable producer (endpoint +
+  cleanupEndpoint). Parents first: a child seed lists `dependsOn` and
+  substitutes `{parent.<seed>.id}`. Cleanup runs reverse-order, deleting only
+  the IDs that run created.
+- **Keep the behavior under test on its own layer.** API seeds build the
+  prerequisite (customer exists so an order can be created). The operation
+  being tested — creating the order — still runs through the UI. An API-only
+  check is API coverage, not UI coverage.
+
+```jsonc
+// config/qa-kit.seeds.json — parent → child with test-owned cleanup
+{
+  "seeds": [
+    {
+      "name": "customer.active",
+      "entity": "customer",
+      "create": { "endpoint": "/api/customers", "cleanupEndpoint": "/api/customers/{id}" }
+    },
+    {
+      "name": "order.draft",
+      "entity": "order",
+      "create": {
+        "endpoint": "/api/orders",
+        "cleanupEndpoint": "/api/orders/{id}",
+        "dependsOn": ["customer.active"],
+        "payload": { "customerId": "{parent.customer.active.id}", "status": "draft" }
+      }
+    }
+  ]
+}
+```
 
 ## Sizing — how a page legitimately reaches 20–40 scenarios
 

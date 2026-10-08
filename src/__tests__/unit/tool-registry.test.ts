@@ -62,9 +62,9 @@ test.describe('MCP Tool Registry & Backward Compatibility (Phase 8)', () => {
     expect(synthesize?.description).toContain('QA-authored scenarios');
   });
 
-  test('registry is the canonical 27-tool surface with one route per tool', () => {
-    expect(TOOL_REGISTRY).toHaveLength(27);
-    expect(new Set(TOOL_REGISTRY.map((tool) => tool.name)).size).toBe(27);
+  test('registry is the canonical 28-tool surface with one route per tool', () => {
+    expect(TOOL_REGISTRY).toHaveLength(28);
+    expect(new Set(TOOL_REGISTRY.map((tool) => tool.name)).size).toBe(28);
     const registryContract = JSON.parse(
       fs.readFileSync(
         path.resolve(__dirname, '../../../tools/mcp/src/__tests__/fixtures/registry-contract.json'),

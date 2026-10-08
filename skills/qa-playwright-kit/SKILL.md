@@ -159,7 +159,7 @@ Load `.github/agents/generator.agent.md`. Follow [generator-step-titles.md](refe
 1. Wrap every requirement step in `test.step('<step text verbatim>')`. Step titles are **UI actions only** (e.g. `Buka halaman login`, `Isi field login dan password`).
 2. **STRICT DATA ISOLATION:** Put all input data/credentials strictly in `setTestMetadata({ inputData })`. Never write email, username, phone, passwords, OTP, tokens, or record IDs into `test.step` titles.
 3. `expectedResult` = verbatim expected-result text from the requirement.
-4. After the last successful assertion, call `captureActualResult(<same expectedResult string>)`.
+4. Set `evidenceMode: 'ui-e2e'` by default; use `'hybrid-ui'` only when the plan declares it. After the last successful assertion, record a value/state read from the UI with `captureActualResult`; never copy `expectedResult` into Actual.
 5. Never use a Playwright API call (`fill`, `click`, `getByRole`) as a top-level step title.
 
 Run `qa-playwright-kit:validate_generated_tests`.
@@ -176,7 +176,7 @@ Validate runs the execution, diagnosis, reporting, and review loop:
 - **Feedback Loop (LEARN → REFINE → RE-EXPLORE):** Failures route intelligently to the smallest useful target (UI unknown → `explore`; requirement conflict → `model`; weak assertion → `challenge`; test bug → `generate`; app defect → `file-bug`; auth/env issue → `fix-environment`; insufficient evidence → `blocked`). These are **routing targets, not pipeline stages**.
 - **QA Review & Gated Archive:** Ask QA. For a pipeline run, **APPROVE is gated**: allowed only when `analysisVerdict=complete`, `analysisVerified=true`, `analysis.completed=true`, exact sidecar evidence counts match, a Reporter Analyze insight exists, and there are no unresolved failures. Archive via `archive_report`.
 
-**Auth failure mid-run (401 / redirected to login / session expired / wrong company):** stop healing that file, re-run `npm run auth:setup` (real UI login — the ONLY session producer), re-run the affected spec files. Max 1 re-auth cycle per role per run. A `warnings` entry on `snapshot_page` / `discover_pages` means the role session was another company and the capture ran WITHOUT it — same fix, do not trust that catalog. NEVER inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) and NEVER log in inside a spec — see [auth-and-roles.md](references/auth-and-roles.md).
+**Auth failure mid-run (401 / redirected to login / session expired / wrong company):** stop healing that file, **refresh the session yourself** with `npm run auth:setup` (real UI login — the ONLY session producer; no QA permission needed for a plain re-login), re-run the affected spec files. Max 1 re-auth cycle per role per run. Escalate to QA only when a human is required (OTP/CAPTCHA → `auth:setup:headed`, or credentials not yet filled) or the failure repeats after one refresh. A `warnings` entry on `snapshot_page` / `discover_pages` means the role session was another company and the capture ran WITHOUT it — same fix, do not trust that catalog. NEVER inject storage state (`browser_set_storage_state`, `addCookies`, `localStorage.setItem`, hand-editing `.auth/*.json`) and NEVER log in inside a spec — see [auth-and-roles.md](references/auth-and-roles.md).
 
 **NEVER duplicate/rename `.auth/*.json` to fake a role** (e.g. `user-2.json`): roles exist ONLY when registered in `config/environments/{APP_ENV}.env`; sessions are produced ONLY by `npm run auth:setup`. Need another account → `npm run env:edit` → `npm run auth:setup`. `validate_generated_tests` fails specs referencing unregistered roles.
 
@@ -191,9 +191,9 @@ Completion: report handed to QA; zero diffs under protected paths.
 - Playwright auto-records `Expect "getByRole(...)..." to be visible` as steps. Without `test.step()`, those strings become the Table View Test Step column — that is the bug QA reports.
 - Dashboard `formatSteps` shows **top-level** steps only. Nested auto-steps stay in Accordion. Top-level titles must stay business language.
 - `captureActualResult` never runs on fail (assertion throws first). Reporter uses the error message — do not invent a fake actual on failure.
-- Pass fallback in `custom-reporter.ts` is `Sesuai dengan expected result` (hardcoded). Still call `captureActualResult` with the exact `expectedResult` string so Actual equals Expected.
+- Passing tests without an explicitly observed actual value are labeled as unrecorded; read a UI value/state before calling `captureActualResult`. Never copy Expected into Actual.
 - Email / password / IDs belong in Input Data, never in `test.step` titles.
-- Auth session expired mid-run (401 / redirected to login) → do NOT heal locators and do NOT inject storage state. Re-run `npm run auth:setup`, then re-run the affected specs (max 1 re-auth cycle per role per run). See [auth-and-roles.md](references/auth-and-roles.md).
+- Auth session expired mid-run (401 / redirected to login) → do NOT heal locators and do NOT inject storage state. Refresh it yourself with `npm run auth:setup` (no QA permission needed for a plain re-login), then re-run the affected specs (max 1 re-auth cycle per role per run). Escalate only for OTP/CAPTCHA or unfilled credentials. See [auth-and-roles.md](references/auth-and-roles.md).
 - Never log in inside a spec (`tests/*.spec.ts` filling login forms). Auth = `test.use({ storageState: authStatePath('<role>') })` from the setup project only. Exception: the requirement itself tests login (`authState: unauthenticated`).
 - Do not write `toBeVisible` / `fill` / `getByRole` into the requirement or test-plan Steps column.
 - Humans type `npm run qa:run` / `validate:requirement` / `setup:local` / `env:use:staging` — no npm `--`. Agents use `npx tsx …` with a positional path. `--` inside a script value is Playwright, not something QA types.
@@ -205,7 +205,7 @@ Completion: report handed to QA; zero diffs under protected paths.
 - [ ] Every scenario step is user-observable (click, type, open) — zero Playwright APIs in requirement text
 - [ ] Generated spec: one `test.step` per requirement step; title matches that step text verbatim
 - [ ] `setTestMetadata.inputData` populated from requirement Input Data; step titles have no raw credential values
-- [ ] Pass row: Actual text equals Expected text
+- [ ] Pass row: Actual is an observed UI value/state, not copied Expected text
 - [ ] Fail row: Actual is the error message, not a copy of Expected
 - [ ] Table View: QA note editable via ✎ in NOTES column; AI NOTES column present
 - [ ] `qaDecision` asked and recorded; pipeline `analysisVerdict` and `analysisVerified` reviewed

@@ -735,20 +735,20 @@ test.describe('validate-generated-tests doctrine stamp rule', () => {
 
   test('warns on doctrine drift (older stamp)', () => {
     const violations = validateTraceabilityRule(
-      `${HEADER}\n// doctrine: doctrine/v0`,
+      `${HEADER}\n// doctrine: doctrine/v1`,
       'x',
       'tests/x.spec.ts',
     );
     const doctrine = violations.find((v) => v.ruleName.startsWith('Doctrine rule'));
     expect(doctrine).toBeDefined();
     expect(doctrine?.severity).toBe('warning');
-    expect(doctrine?.ruleName).toContain('doctrine/v0');
     expect(doctrine?.ruleName).toContain('doctrine/v1');
+    expect(doctrine?.ruleName).toContain('doctrine/v2');
   });
 
   test('stays silent when the stamp matches the current doctrine', () => {
     const violations = validateTraceabilityRule(
-      `${HEADER}\n// doctrine: doctrine/v1`,
+      `${HEADER}\n// doctrine: doctrine/v2`,
       'x',
       'tests/x.spec.ts',
     );

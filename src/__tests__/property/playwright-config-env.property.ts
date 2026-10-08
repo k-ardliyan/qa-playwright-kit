@@ -7,8 +7,10 @@ import path from 'node:path';
 import { loadEnvironment } from '../../utils/env-loader';
 import {
   buildPlaywrightSharedDefaults,
+  DEFAULT_VIEWPORT,
   resolveHeadless,
   resolveSlowMo,
+  resolveViewport,
 } from '../../../config/playwright/base';
 
 function withTempEnvFile(
@@ -112,6 +114,26 @@ async function main(): Promise<void> {
     process.env.CI = previousCiForSlowMo;
   }
   process.stdout.write('✓ resolveSlowMo reads process.env when already loaded\n');
+
+  const previousViewport = process.env.QA_VIEWPORT;
+  delete process.env.QA_VIEWPORT;
+  assert.deepEqual(resolveViewport(), DEFAULT_VIEWPORT);
+  assert.deepEqual(buildPlaywrightSharedDefaults().use?.viewport, DEFAULT_VIEWPORT);
+
+  process.env.QA_VIEWPORT = '1600x900';
+  assert.deepEqual(resolveViewport(), { width: 1600, height: 900 });
+
+  process.env.QA_VIEWPORT = 'nonsense';
+  assert.deepEqual(resolveViewport(), DEFAULT_VIEWPORT);
+
+  process.env.QA_VIEWPORT = '10x10';
+  assert.deepEqual(resolveViewport(), DEFAULT_VIEWPORT);
+  if (previousViewport === undefined) {
+    delete process.env.QA_VIEWPORT;
+  } else {
+    process.env.QA_VIEWPORT = previousViewport;
+  }
+  process.stdout.write('✓ QA_VIEWPORT default/override/invalid-fallback all resolve\n');
 }
 
 main().catch((error) => {

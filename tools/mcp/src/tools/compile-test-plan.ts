@@ -7,6 +7,11 @@ import {
   type PlanAssertion,
   type AssertionProvenance,
   type PlanExecutionMode,
+  type ScenarioEvidenceMode,
+  type PlanDataOperation,
+  type PlanDataSetupV1,
+  type PlanDataTargetV1,
+  type PlanRelationV1,
   type CoverageGap,
   type CatalogEvidence,
   type Diagnostic,
@@ -223,6 +228,60 @@ export function compileTestPlanFromText(
 
   // Parse Plan Scenarios
   const scenarios: PlanScenarioV1[] = [];
+
+  // ## Data Targets — | Entity | Operations | Covers |
+  const planDataTargets: PlanDataTargetV1[] = [];
+  const targetSection = text.match(/##+\s+(?:Data\s+Targets?|Target\s+Data)([\s\S]*?)(?=##+|$)/i);
+  if (targetSection) {
+    for (const line of targetSection[1].split('\n')) {
+      const trimmed = line.trim();
+      if (!/^\|.*\|$/.test(trimmed)) continue;
+      const cells = splitRow(trimmed);
+      const entity = (cells[0] ?? '').toLowerCase();
+      if (!entity || entity === 'entity' || /^[-:]+$/.test(entity)) continue;
+      const operations = (cells[1] ?? '')
+        .toLowerCase()
+        .split(/[,\s]+/)
+        .map((op) => op.trim())
+        .filter((op): op is PlanDataOperation =>
+          ['create', 'read', 'update', 'delete', 'transition'].includes(op),
+        );
+      const covers = (cells[2] ?? '')
+        .split(/[,\s]+/)
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean);
+      planDataTargets.push({
+        entity,
+        operations,
+        ...(covers.length > 0 ? { covers } : {}),
+      });
+    }
+  }
+
+  // ## Relationships — | Parent | Child | Confidence | Scenario | Seed |
+  const planRelations: PlanRelationV1[] = [];
+  const relationSection = text.match(/##+\s+(?:Relationships?|Relasi)([\s\S]*?)(?=##+|$)/i);
+  if (relationSection) {
+    for (const line of relationSection[1].split('\n')) {
+      const trimmed = line.trim();
+      if (!/^\|.*\|$/.test(trimmed)) continue;
+      const cells = splitRow(trimmed);
+      const parent = (cells[0] ?? '').toLowerCase();
+      const child = (cells[1] ?? '').toLowerCase();
+      if (!parent || !child || parent === 'parent' || /^[-:]+$/.test(parent)) continue;
+      const confidence =
+        (cells[2] ?? '').toLowerCase() === 'confirmed' ? 'confirmed' : 'assumption';
+      const scenarioId = (cells[3] ?? '').toUpperCase() || undefined;
+      const seedRef = (cells[4] ?? '').replace(/^seed:\s*/i, '').trim() || undefined;
+      planRelations.push({
+        parent,
+        child,
+        confidence,
+        ...(scenarioId ? { scenarioId } : {}),
+        ...(seedRef ? { seedRef } : {}),
+      });
+    }
+  }
   const scenarioBlocks = text.split(/(?=^###\s+)/m).filter((block) => /^###\s+/m.test(block));
 
   for (let idx = 0; idx < scenarioBlocks.length; idx++) {
@@ -238,6 +297,7 @@ export function compileTestPlanFromText(
     let actor: string | undefined;
     let authContext: string | undefined;
     let executionMode: PlanExecutionMode = 'automated';
+    let evidenceMode: ScenarioEvidenceMode = 'ui-e2e';
 
     if (/@manual/i.test(heading)) executionMode = 'manual';
     else if (/@not-implemented/i.test(heading)) executionMode = 'not-implemented';
@@ -265,6 +325,42 @@ export function compileTestPlanFromText(
 
     const authRaw = readLabel(block, 'Auth Context', 'Auth');
     if (authRaw) authContext = authRaw.toLowerCase();
+
+    const evidenceModeRaw = readLabel(block, 'Evidence Mode');
+    if (evidenceModeRaw) {
+      const raw = evidenceModeRaw.toLowerCase();
+      if (raw === 'ui-e2e' || raw === 'hybrid-ui') evidenceMode = raw;
+      else {
+        diagnostics.push(
+          createDiagnostic(
+            'PLAN_EVIDENCE_MODE_INVALID',
+            'error',
+            `Scenario ${scenarioId} has unsupported Evidence Mode "${evidenceModeRaw}". Use ui-e2e or hybrid-ui.`,
+            { scenarioId },
+          ),
+        );
+      }
+    }
+    if (evidenceMode === 'hybrid-ui' && !/@hybrid\b/i.test(heading)) {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_HYBRID_TAG_MISSING',
+          'error',
+          `Scenario ${scenarioId} declares Evidence Mode hybrid-ui but is missing the @hybrid capability tag.`,
+          { scenarioId },
+        ),
+      );
+    }
+    if (/@hybrid\b/i.test(heading) && evidenceMode !== 'hybrid-ui') {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_HYBRID_MODE_MISSING',
+          'error',
+          `Scenario ${scenarioId} uses @hybrid but does not declare Evidence Mode hybrid-ui.`,
+          { scenarioId },
+        ),
+      );
+    }
 
     const modeRaw = readLabel(block, 'Execution Mode');
     if (modeRaw) {
@@ -294,6 +390,64 @@ export function compileTestPlanFromText(
     ]);
     const cleanup = readLabelFromSection(block, ['Cleanup', 'Teardown']);
     const unknowns = readLabelFromSection(block, ['Unknowns']);
+
+    // Typed data setup: seeds + entity/operation + asserted relation. Kept
+    // alongside the free-text `dataSetup` so legacy plans keep parsing.
+    const planSeeds = [
+      ...new Set(
+        dataSetup.flatMap((item) =>
+          (item.match(/\bseed:\s*([a-z][\w.-]*)/gi) ?? []).map((m) =>
+            m.replace(/^seed:\s*/i, '').trim(),
+          ),
+        ),
+      ),
+    ];
+    const planOperationRaw = (
+      readLabel(block, 'Data Operation', 'Operasi Data') ?? ''
+    ).toLowerCase();
+    const planOperation = ['create', 'read', 'update', 'delete', 'transition'].includes(
+      planOperationRaw,
+    )
+      ? (planOperationRaw as PlanDataOperation)
+      : undefined;
+    const planEntity = readLabel(block, 'Data Entity', 'Entitas Data') ?? undefined;
+    const planAssertsRelation = readLabel(block, 'Asserts Relation', 'Relasi Diuji') ?? undefined;
+    const dataSetupTyped: PlanDataSetupV1 | undefined =
+      planSeeds.length > 0 || planEntity || planOperation || planAssertsRelation
+        ? {
+            seeds: planSeeds,
+            ...(planEntity ? { entity: planEntity } : {}),
+            ...(planOperation ? { operation: planOperation } : {}),
+            ...(planAssertsRelation ? { assertsRelation: planAssertsRelation } : {}),
+          }
+        : undefined;
+
+    if (
+      evidenceMode === 'hybrid-ui' &&
+      !dataSetup.some((item) => /\bseed:\s*[a-z][\w.-]*/i.test(item))
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_HYBRID_SETUP_MISSING',
+          'error',
+          `Scenario ${scenarioId} declares hybrid-ui but has no seed:<name> producer in Data Setup. Declare a registered producer or move the scenario to Coverage Gaps.`,
+          { scenarioId },
+        ),
+      );
+    }
+    if (
+      evidenceMode === 'hybrid-ui' &&
+      !cleanup.some((item) => /\b(?:apiCleanup|test-owned|residual data acceptable)/i.test(item))
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          'PLAN_HYBRID_CLEANUP_MISSING',
+          'error',
+          `Scenario ${scenarioId} declares hybrid-ui but has no explicit safe Cleanup policy. Use apiCleanup for test-owned IDs or state that residual data is acceptable.`,
+          { scenarioId },
+        ),
+      );
+    }
 
     for (const itemClean of [
       ...dataSetup,
@@ -331,7 +485,9 @@ export function compileTestPlanFromText(
       authContext,
       page,
       executionMode,
+      evidenceMode,
       dataSetup,
+      ...(dataSetupTyped ? { dataSetupTyped } : {}),
       actions,
       assertions,
       locatorIntent,
@@ -352,6 +508,8 @@ export function compileTestPlanFromText(
     doctrine,
     module: module || undefined,
     feature: feature || undefined,
+    ...(planDataTargets.length > 0 ? { dataTargets: planDataTargets } : {}),
+    ...(planRelations.length > 0 ? { relations: planRelations } : {}),
     catalogEvidence,
     scenarios,
     coverageGaps,

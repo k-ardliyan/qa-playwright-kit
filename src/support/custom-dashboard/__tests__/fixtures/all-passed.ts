@@ -44,7 +44,7 @@ export const allPassedTests: CollectedTestData[] = [
     module: 'auth',
     feature: 'login',
     priority: 'high',
-    inputData: { username: 'finance_user@erpku.com' },
+    inputData: { username: 'finance_user@demo.test' },
     expectedResult: 'Redirected to finance dashboard',
     actualResult: 'Dashboard loaded successfully',
     affectedLayer: ['FE', 'BE'],

@@ -16,8 +16,8 @@ import { encodeEnvValue } from './env-text';
 import { envPrefixToRole, ROLE_KEY_RE, ROLE_SUFFIXES } from '../shared/utils/role-credentials';
 
 /**
- * Non-secret defaults a fresh env file starts with (mirror the active keys
- * documented in `*.env.example`). Wizard-managed keys always win over these.
+ * Non-secret defaults a fresh env file starts with (the active keys the wizard
+ * seeds). Wizard-managed keys always win over these.
  */
 export const ENV_FILE_DEFAULTS: Record<string, string> = {
   SLOW_MO: '0',
@@ -28,7 +28,13 @@ export const ENV_FILE_DEFAULTS: Record<string, string> = {
 const ROLE_SUFFIX_ORDER: readonly string[] = ROLE_SUFFIXES;
 
 /** Keys shown under "URL Aplikasi". */
-const URL_KEYS = ['BASE_URL', 'AUTH_LOGIN_URL_PATH', 'AUTH_SUCCESS_URL_PATH'];
+const URL_KEYS = [
+  'BASE_URL',
+  'AUTH_LOGIN_URL_PATH',
+  'AUTH_SUCCESS_URL_PATH',
+  'APP_BASE_URL',
+  'API_BASE_URL',
+];
 
 /** Keys shown under "Challenge login (OTP/CAPTCHA)". */
 const CHALLENGE_KEYS = [
@@ -39,7 +45,7 @@ const CHALLENGE_KEYS = [
 ];
 
 /** Keys shown under "Browser". */
-const BROWSER_KEYS = ['HEADLESS', 'SLOW_MO'];
+const BROWSER_KEYS = ['HEADLESS', 'SLOW_MO', 'QA_VIEWPORT'];
 
 /** Key prefixes shown under "Playwright". */
 const PLAYWRIGHT_PREFIX = 'PLAYWRIGHT_';

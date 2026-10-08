@@ -40,20 +40,16 @@ Notes are per-run: they reset when a new run starts and become permanent when th
 Reporter logic in `custom-reporter.ts`:
 
 ```
-passed  → actualResult annotation || 'Sesuai dengan expected result'
+passed  → actualResult annotation || 'Hasil aktual belum dicatat secara eksplisit.'
 failed  → actualResult annotation || error.message || '-'
 ```
 
-The pass fallback is hardcoded Indonesian. Do not rely on it. Call `captureActualResult` with the exact `expectedResult` string so Actual equals Expected.
-
-`captureActualResult` is an annotation push. On fail the assertion throws first, so the annotation is usually missing — using the error message as Actual is correct behaviour.
+`captureActualResult` stores an annotation; it does not inspect the application. On pass, record only a concise observed value or state (for example the rendered status text or resulting URL). Never copy Expected into Actual: identical text is not independent evidence. If no actual value was read, the report says it was not explicitly recorded.
 
 **Contract for Generator:**
 
-- Pass: call `captureActualResult(<exact expectedResult string>)` after the last successful assertion. Table then shows Actual === Expected.
+- Pass: derive Actual from a value/state read from the UI after the assertion.
 - Fail: do not catch and rewrite. Let the Playwright error become Actual.
-
-Do not write a different "nice" actual on pass (`"confirmed"`, `"OK"`, `"page loaded"`) unless it is character-for-character the same as the Expected text.
 
 ## Input Data must not appear in Test Step
 
@@ -65,4 +61,4 @@ Actual = Playwright error (timeout, element not visible, wrong URL). SOURCE clas
 
 ## Pass row
 
-Actual equals Expected. SOURCE is `-`. No error block.
+Status is Passed because the declared assertions succeeded. Actual is the independently observed value when recorded; if not recorded, the row explicitly says it was not recorded. Passing does not claim that Actual equals Expected beyond the assertions the test actually ran. SOURCE is `-`. No error block.

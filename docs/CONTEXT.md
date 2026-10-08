@@ -30,7 +30,7 @@
 
 ## Test Architecture
 
-- **Page Object (POM)** — A TypeScript class wrapping selectors and actions for a specific page. Registered under `tests/pages/` or `tests/fixtures.ts`. Useful for selector reuse and stability, but **not required** for the _Generator_ to produce tests.
+- **Page Object (POM)** — A TypeScript class wrapping selectors and actions for a specific page. Registered under `tests/pages/` and wired into `src/fixtures/project.fixture.ts` (the sole POM registration seam; `tests/fixtures.ts` is only a re-export barrel). Useful for selector reuse and stability, but **not required** for the _Generator_ to produce tests.
 - **Requirement** — A markdown document in `requirements/` following `_TEMPLATE.md`. Written by the _QA User_ in natural language with structured scenarios. This is the _only_ input the QA User needs to provide.
 - **Test Plan** — A markdown document in `specs/` produced by the _Planner_ from a _Requirement_. Not edited by the QA User.
 - **Balanced Safety Guard** — AST validator rules for Express Mode: strictly enforces zero ephemeral locators (`tw-XXXX`) and mandatory auth fixtures (`authStatePath(role)`), while allowing SDETs full freedom in custom Page Objects and assertion design.

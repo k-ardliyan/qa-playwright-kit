@@ -24,6 +24,7 @@ import { inspectFile } from './inspect-file';
 import { extractPdfTextTool } from './extract-pdf-text';
 import { listTestFixtures } from './list-test-fixtures';
 import { listSeeds } from './list-seeds';
+import { getSeedGraph } from './get-seed-graph';
 import { updateRequirement } from './update-requirement';
 import { listRequirementStatus } from './list-requirement-status';
 import { compileRequirement } from './compile-requirement';
@@ -402,7 +403,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
       properties: {
         testPlanPath: {
           type: 'string',
-          description: 'Repo-relative path under specs/ (e.g. specs/feature.plan.md).',
+          description: 'Repo-relative path under specs/ (e.g. specs/feature-test-plan.md).',
         },
         testPlanText: {
           type: 'string',
@@ -1001,6 +1002,19 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     readOnly: true,
     profiles: ['planner', 'generator', 'author', 'all'],
     handler: () => listSeeds(),
+  },
+  {
+    name: 'get_seed_graph',
+    description:
+      'Return the executable seed producer graph (config/qa-kit.seeds.json "create" blocks) ready to pass to withSeededData / the seeded fixture. Skips prose-only seeds and reports them separately, so the Generator never hand-copies endpoints.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+    stability: 'stable',
+    readOnly: true,
+    profiles: ['planner', 'generator', 'author', 'all'],
+    handler: () => getSeedGraph(),
   },
   {
     name: 'update_requirement',

@@ -68,7 +68,7 @@ const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     id: 'butuh-rantai-data',
     label: 'Butuh rantai data',
     nextAction:
-      'Skenario butuh state dari alur lain (mis. payroll sampai Dibayar) — jalankan alur pembentuk datanya atau siapkan seed state akhir, lalu regenerate.',
+      'Skenario butuh state dari alur lain (mis. data harus sudah melewati tahap sebelumnya) — jalankan alur pembentuk datanya atau siapkan seed state akhir, lalu regenerate.',
     patterns: [/prasyarat/i, /rantai/i, /berjalan sampai/i],
   },
 ];

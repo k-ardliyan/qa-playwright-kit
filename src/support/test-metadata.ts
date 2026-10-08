@@ -16,6 +16,7 @@ export interface TestMetadata {
   reqRef?: string;
   /** Execution track: 'strict' (AI pipeline) or 'express' (SDET code-first). */
   track?: 'strict' | 'express';
+  evidenceMode?: 'ui-e2e' | 'hybrid-ui';
   priority?: 'HIGH' | 'MEDIUM' | 'LOW';
   role?: string;
   /** Module this test belongs to — matches requirement `- **Module:** <name>`. */
@@ -64,6 +65,9 @@ export function setTestMetadata(metadata: TestMetadata): void {
   }
   if (metadata.track) {
     info.annotations.push({ type: 'track', description: metadata.track });
+  }
+  if (metadata.evidenceMode) {
+    info.annotations.push({ type: 'evidenceMode', description: metadata.evidenceMode });
   }
   if (metadata.priority) {
     info.annotations.push({ type: 'priority', description: metadata.priority });

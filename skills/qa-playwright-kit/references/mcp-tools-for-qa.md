@@ -1,6 +1,6 @@
 # MCP Tools for QA — Which Tool, When
 
-The `qa-playwright-kit` MCP server exposes 27 tools. You do not need to remember
+The `qa-playwright-kit` MCP server exposes 28 tools. You do not need to remember
 them: this map answers "which one do I need?" for the tasks QA actually does.
 All tools are called as `qa-playwright-kit:<tool_name>`.
 
@@ -77,6 +77,10 @@ refuses to overwrite — that is why the revision path has its own tool.
   `config/qa-kit.seeds.json` (copy `config/qa-kit.seeds.example.json`). A missing
   registry returns guidance, not an error. When a registry exists, `validate_plan`
   warns `PLAN_SEED_UNKNOWN` for any `seed:` ref without a declared producer.
+- `get_seed_graph` — the **executable** producer graph (endpoint + cleanupEndpoint
+  - dependsOn) ready to pass to `withSeededData` / the `seeded` fixture. Use this
+  instead of copying endpoints into a spec. Seeds without a `create` block are
+  listed separately as non-executable.
 
 ## Not for daily QA
 

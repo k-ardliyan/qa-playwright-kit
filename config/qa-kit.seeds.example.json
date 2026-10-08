@@ -1,11 +1,30 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "seeds": [
     {
-      "name": "invoice.pending",
-      "producer": "api POST /api/invoices { status: 'pending' } via (@hybrid) apiSeed — cleanup: apiCleanup /api/invoices/:id",
-      "fixture": "tests/data/network/contracts/demo/submit-success.json",
-      "notes": "CONTOH — copy file ini ke config/qa-kit.seeds.json lalu sesuaikan. Setiap ref seed:<entity>.<state> di Input Data / Data Setup skenario harus punya entri di sini; ref tanpa entri di-warning validate_plan (PLAN_SEED_UNKNOWN)."
+      "name": "customer.active",
+      "entity": "customer",
+      "producer": "POST /api/customers — creates one active customer owned by this test run",
+      "create": {
+        "endpoint": "/api/customers",
+        "cleanupEndpoint": "/api/customers/{id}",
+        "payload": { "name": "QA Customer", "status": "active" },
+        "idField": "id"
+      },
+      "notes": "CONTOH executable. Jalankan via fixture `seeded` (seed-graph runtime): setup parent dulu, cleanup reverse-order, hanya ID milik run ini. Ganti endpoint/payload sesuai API aplikasi Anda."
+    },
+    {
+      "name": "order.draft",
+      "entity": "order",
+      "producer": "POST /api/orders dengan customerId dari seed:customer.active",
+      "create": {
+        "endpoint": "/api/orders",
+        "cleanupEndpoint": "/api/orders/{id}",
+        "dependsOn": ["customer.active"],
+        "payload": { "customerId": "{parent.customer.active.id}", "status": "draft" },
+        "idField": "id"
+      },
+      "notes": "Contoh RELASI parent→child: {parent.customer.active.id} di-substitusi dari hasil producer parent. Cleanup otomatis menghapus order sebelum customer karena aplikasi memakai onDelete: restrict."
     }
   ]
 }

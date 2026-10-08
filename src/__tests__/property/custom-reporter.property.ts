@@ -230,7 +230,7 @@ async function property9AnnotationExtraction(): Promise<void> {
         );
         assert.strictEqual(
           tc.actualResult,
-          'Sesuai dengan expected result',
+          'Hasil aktual belum dicatat secara eksplisit.',
           'passed test actualResult fallback',
         );
         // Row identity must survive into test-summary.json: serve mode derives

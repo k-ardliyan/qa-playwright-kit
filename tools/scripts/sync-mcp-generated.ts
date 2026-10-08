@@ -86,6 +86,10 @@ export const MCP_GENERATED_PAIRS: SyncPair[] = [
     source: 'src/shared/mcp/failed-grep.ts',
     dest: 'tools/mcp/src/utils/failed-grep.ts',
   },
+  {
+    source: 'src/shared/mcp/seed-registry-core.ts',
+    dest: 'tools/mcp/src/utils/seed-registry-core.ts',
+  },
 ];
 
 const BANNER_RE =

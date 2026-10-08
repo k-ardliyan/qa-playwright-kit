@@ -44,7 +44,9 @@ Derive the scenario set first — see [`skills/qa-playwright-kit/references/scen
 - [ ] Hasil bersifat observable (URL, teks, status badge — bukan "berjalan baik")
 - [ ] Skenario non-otomatis ditandai `(@manual)` di judul dengan alasan di Hasil yang Diharapkan
 - [ ] Jika multi-role, sediakan tabel `## Access Matrix`
+- [ ] (Jika CRUD/relasi) section `## Data Targets` (entity × operasi) dan `## Relationships` (parent/child + `confidence`) diisi — relasi wajib `confirmed` bila menggerakkan assertion runnable; tandai `assumption` bila belum terbukti
 - [ ] (Disarankan) setiap skenario isi `- **Layer terdampak:** FE` / `BE` / `DB` / `API`
+- [ ] Metadata `Data scope`, `Risk level`, `Environment scope` diisi bila relevan (lihat [`requirements/_TEMPLATE.md`](../requirements/_TEMPLATE.md))
 
 ---
 
@@ -215,14 +217,14 @@ FORMAT YANG HARUS DIIKUTI:
 
 ## Troubleshooting validasi
 
-| Rule                           | Perbaikan                                                        |
-| ------------------------------ | ---------------------------------------------------------------- |
-| `title_required`               | Tambah `# REQ-01: Judul`                                         |
-| `scenario_structure`           | Cek bold `**Langkah:**` dan `**Hasil:**` per skenario `###`      |
-| `observable_result`            | Hasil harus URL/teks/visibility, bukan "berjalan baik"           |
-| `role_scope_recommended`       | Jika authenticated + multi-role, tambah `Role scope` di Metadata |
-| `access_expectation_missing`   | Tambah `Access expectation` jika `Role scope` sudah diisi        |
-| `failure_scenario_recommended` | Tambah skenario `(@failure)` jika ada kata error/gagal/ditolak   |
+| Rule                           | Perbaikan                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `title_required`               | Tambah `# REQ-01: Judul`                                                                                                 |
+| `scenario_structure`           | Cek `**Langkah:**` (atau `**Steps:**`) dan `**Hasil yang Diharapkan:**` (atau `**Expected Result:**`) per skenario `###` |
+| `observable_result`            | Hasil harus URL/teks/visibility, bukan "berjalan baik"                                                                   |
+| `role_scope_recommended`       | Jika authenticated + multi-role, tambah `Role scope` di Metadata                                                         |
+| `access_expectation_missing`   | Tambah `Access expectation` jika `Role scope` sudah diisi                                                                |
+| `failure_scenario_recommended` | Tambah skenario `(@failure)` jika ada kata error/gagal/ditolak                                                           |
 
 Detail: [GUIDE — troubleshooting validate_requirement](GUIDE.md#troubleshooting-validate_requirement)
 

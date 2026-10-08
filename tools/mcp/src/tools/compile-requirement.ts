@@ -16,6 +16,8 @@ import {
   parseAccessMatrix,
   parseAcceptanceCriteria,
   parseScenarios,
+  parseRelations,
+  parseDataTargets,
 } from './parsers/requirement-parsers';
 
 export interface CompileRequirementArgs {
@@ -46,8 +48,16 @@ export function compileRequirementFromText(
   const declaredAcIds = new Set(criteria.map((c) => c.id));
 
   const { scenarios, diagnostics: scenarioDiags } = parseScenarios(requirementsText, declaredAcIds);
+  const { relations, diagnostics: relationDiags } = parseRelations(requirementsText);
+  const { dataTargets, diagnostics: targetDiags } = parseDataTargets(requirementsText);
 
-  const allDiagnostics: Diagnostic[] = [...matrixDiags, ...acDiags, ...scenarioDiags];
+  const allDiagnostics: Diagnostic[] = [
+    ...matrixDiags,
+    ...acDiags,
+    ...scenarioDiags,
+    ...relationDiags,
+    ...targetDiags,
+  ];
 
   // Validation rules
   // 1. Check duplicate AC IDs
@@ -110,6 +120,65 @@ export function compileRequirementFromText(
     );
   }
 
+  // 5. Data targets/relations — cross-check declared references.
+  const declaredEntities = new Set(dataTargets.map((t) => t.entity));
+  const declaredOps = new Map(dataTargets.map((t) => [t.entity, new Set(t.operations)]));
+  const relationNames = new Set(
+    relations.flatMap((r) => [r.name, `${r.parent}-${r.child}`].filter(Boolean) as string[]),
+  );
+  for (const sc of scenarios) {
+    if (sc.dataEntity && declaredEntities.size > 0 && !declaredEntities.has(sc.dataEntity)) {
+      allDiagnostics.push(
+        createDiagnostic(
+          'REQ_UNKNOWN_DATA_ENTITY',
+          'error',
+          `Scenario ${sc.id} targets entity "${sc.dataEntity}" which is not declared in ## Data Targets.`,
+          { scenarioId: sc.id },
+        ),
+      );
+    }
+    if (
+      sc.dataEntity &&
+      sc.dataOperation &&
+      declaredOps.has(sc.dataEntity) &&
+      !declaredOps.get(sc.dataEntity)?.has(sc.dataOperation)
+    ) {
+      allDiagnostics.push(
+        createDiagnostic(
+          'REQ_DATA_OPERATION_UNDECLARED',
+          'error',
+          `Scenario ${sc.id} exercises "${sc.dataOperation}" on "${sc.dataEntity}", but that operation is not declared in ## Data Targets.`,
+          { scenarioId: sc.id },
+        ),
+      );
+    }
+    for (const relation of sc.assertsRelations ?? []) {
+      if (relationNames.size > 0 && !relationNames.has(relation)) {
+        allDiagnostics.push(
+          createDiagnostic(
+            'REQ_UNKNOWN_RELATION',
+            'error',
+            `Scenario ${sc.id} asserts relation "${relation}" which is not declared in ## Relationships.`,
+            { scenarioId: sc.id },
+          ),
+        );
+      }
+    }
+  }
+
+  // 6. Assumption relations may not silently drive runnable assertions.
+  for (const relation of relations) {
+    if (relation.confidence !== 'confirmed') {
+      allDiagnostics.push(
+        createDiagnostic(
+          'REQ_RELATION_UNCONFIRMED',
+          'warning',
+          `Relation ${relation.parent} → ${relation.child} is declared as an assumption; confirm it in the requirement/domain contract before asserting it in a runnable test.`,
+        ),
+      );
+    }
+  }
+
   const hasErrors = allDiagnostics.some((d) => d.severity === 'error');
 
   const contract: RequirementContractV1 = {
@@ -132,6 +201,8 @@ export function compileRequirementFromText(
     startPage: metadata.startPage,
     environmentScope: metadata.environmentScope,
     dataScope: metadata.dataScope,
+    ...(dataTargets.length > 0 ? { dataTargets } : {}),
+    ...(relations.length > 0 ? { relations } : {}),
     acceptanceCriteria: criteria,
     scenarios,
     diagnostics: allDiagnostics,

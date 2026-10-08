@@ -10,6 +10,7 @@ export const STYLE_FILES = [
   'table.css',
   'detail.css',
   'states.css',
+  'studio.css',
   'responsive.css',
   'print.css',
 ] as const;

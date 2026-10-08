@@ -68,7 +68,7 @@ Playwright's auto `Expect "getByText('Welcome')" to be visible` is nested inside
 4. Values live in `inputData`, not in step titles.
 5. Structured step context (Playwright v1.63+): `test.step(title, async () => { ... }, { subtitle, params })` can be used for non-sensitive operational parameters to enrich report traces without polluting step titles.
 6. Prefer `locator.visible()` over `:visible` CSS pseudo-class.
-7. `captureActualResult` argument **equals** `expectedResult` (same string, character-for-character).
+7. `captureActualResult` records an independently observed UI value/state. Never copy `expectedResult` into Actual; without an observed value, leave the annotation absent and let the report say it was not explicitly recorded.
 8. Import `setTestMetadata` and `captureActualResult` from `tests/fixtures.ts` (or `@/public/metadata`). Never invent a second metadata helper.
 9. `test.skip` / skeleton: still call `setTestMetadata`; omit `captureActualResult`.
 

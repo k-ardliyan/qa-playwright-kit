@@ -118,6 +118,7 @@ const DASHBOARD_STYLE_FILES = [
   'table.css',
   'detail.css',
   'states.css',
+  'studio.css',
   'responsive.css',
   'print.css',
 ] as const;
@@ -470,8 +471,20 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
 
   if (pathname === '/api/studio/run' && method === 'POST') {
     const body = await readBody(req);
-    const spec = isRecord(body) && typeof body.spec === 'string' ? body.spec : '';
-    const started = startStudioRun(spec, broadcastEvent);
+    const record = isRecord(body) ? body : {};
+    // Accept one spec (`spec`) or many (`specs: string[]`).
+    const specs = Array.isArray(record.specs)
+      ? record.specs.filter((s): s is string => typeof s === 'string')
+      : typeof record.spec === 'string'
+        ? [record.spec]
+        : [];
+    const settings = {
+      slowMo: typeof record.slowMo === 'number' ? record.slowMo : Number(record.slowMo),
+      headless: typeof record.headless === 'boolean' ? record.headless : undefined,
+      viewport: typeof record.viewport === 'string' ? record.viewport : undefined,
+      serial: typeof record.serial === 'boolean' ? record.serial : undefined,
+    };
+    const started = startStudioRun(specs, broadcastEvent, settings);
     jsonResponse(res, started.ok ? 202 : 409, started);
     return;
   }

@@ -2,6 +2,21 @@
 
 Small, committed files for upload/download/content self-tests and generated specs.
 
+## What does NOT belong here
+
+This folder is for **static files** (PDFs, images, invalid samples, network
+contract payloads). It is **not** a place for database seed logic or CRUD
+records. Test data that must exist in the application's backend is declared in
+`config/qa-kit.seeds.json` and materialized by the seed-graph runtime
+(`src/support/pw/seed-graph.ts`), not committed here as a data dump.
+
+| Need                                              | Where it lives                                       |
+| ------------------------------------------------- | ---------------------------------------------------- |
+| Upload sample, PDF, image, invalid file           | This folder (`tests/data/…`)                         |
+| Live network contract for `@network-assert`       | `tests/data/network/contracts/<feature>/…`           |
+| Database record a scenario needs (order, invoice) | `config/qa-kit.seeds.json` → `create` producer       |
+| Parent→child pair (customer → order)              | Seed `dependsOn` + `{parent.<seed>.id}` substitution |
+
 ## Rules
 
 1. **Fixture-first upload** — tests call `setInputFiles` / `uploadFixture` with paths under this folder. Do **not** use headed OS file-picker pause in the pipeline.

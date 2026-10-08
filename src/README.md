@@ -7,11 +7,11 @@ Folder ini berisi implementasi inti (core engine) dari **QA Playwright Kit**:
 
 - `agents/`: Pipeline coordinator (`WorkflowController`), stage implementations, dan sub-agent orchestration.
 - `cli/`: CLI dashboard server, runner utilities.
-- `fixtures/`: Internal Playwright fixture chain implementation.
+- `fixtures/`: Internal Playwright fixture chain implementation (`base.fixture.ts` — logger/sessionGuard/testTrace + the test-scoped `seeded` fixture backed by `support/pw/seed-graph.ts`).
 - `observability/`: Evidence collection, tracer, logger.
 - `public/`: Stable public API surface untuk dikonsumsi oleh `tests/` workspace.
 - `setup/`: Setup wizard engine and environment bootstrap.
-- `shared/`: Shared domain types, evidence models, workspace path resolver.
+- `shared/`: Shared domain types, evidence models, workspace path resolver (`shared/mcp/` holds cores twin-synced to `tools/mcp`).
 - `support/`: Custom reporter, custom dashboard renderer, Playwright power helpers.
 - `utils/`: `app-env`, `env-loader`, `logger`.
 
