@@ -104,6 +104,11 @@ function testCase(spec: CaseSpec) {
         status: 'passed',
         duration: 400,
         steps: [],
+        // A long URL subtitle — the real-world case that broke the TEST STEP
+        // column. The step-subtitle chip is atomic (inline-flex), so without a
+        // width cap it painted straight through INPUT DATA; the browser suite
+        // measures that geometry, and it needs a subtitle this long to bite.
+        subtitle: 'erp.dev.solusiuntuknegeri.com/dashboard',
         location: { file: `tests/${module}-${feature}.spec.ts`, line: 12, column: 3 },
         snippet: {
           startLine: 10,

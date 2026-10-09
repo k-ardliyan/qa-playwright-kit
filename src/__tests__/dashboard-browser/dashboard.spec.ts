@@ -957,3 +957,68 @@ test.describe('overview workspace grid', () => {
     }
   });
 });
+
+test.describe('table cell containment', () => {
+  // QA reported a step's URL subtitle painting over the INPUT DATA column. The
+  // cause was the tag family making `.step-subtitle-badge` an atomic
+  // `inline-flex` chip: an atomic box ignores its parent's width, so
+  // `overflow-wrap` had nothing to break against and the badge ran 51-69px past
+  // its own cell.
+  //
+  // This measures the PAINTED TEXT (a Range over the cell's text nodes), not
+  // element boxes. That distinction is the whole point: a capped-but-still-
+  // atomic chip has a perfectly-sized BOX while its text keeps painting
+  // outside — so a box measurement, or any stylesheet assertion, reports the
+  // bug as fixed while the user still sees it. Ink is the only signal that
+  // separates the two, and it was verified to fail on both broken variants.
+  test('no cell text paints past its own cell', async ({ page }) => {
+    for (const width of [1920, 1440, 1024]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/latest?view=table');
+      await page.waitForLoadState('domcontentloaded');
+
+      const spills = await page.evaluate(() => {
+        const out: Array<{ col: string; over: number; text: string }> = [];
+        document.querySelectorAll('table.qa-report-table tbody tr').forEach((row) => {
+          Array.from((row as HTMLTableRowElement).cells).forEach((cell) => {
+            const c = cell.getBoundingClientRect();
+            const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+            let node = walker.nextNode();
+            while (node) {
+              if ((node.textContent || '').trim()) {
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                const over = Math.round(range.getBoundingClientRect().right - c.right);
+                if (over > 1) {
+                  out.push({
+                    col: cell.getAttribute('data-col') || '',
+                    over,
+                    text: (node.textContent || '').trim().slice(0, 40),
+                  });
+                }
+              }
+              node = walker.nextNode();
+            }
+          });
+        });
+        return out;
+      });
+      expect(spills, `cell text spills at ${width}px: ${JSON.stringify(spills)}`).toEqual([]);
+    }
+  });
+
+  // The seeded step carries a 39-character URL subtitle. Without it the guard
+  // above passes vacuously — no subtitle means no atomic chip to overflow.
+  test('the long step subtitle is present, so the containment guard can bite', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/latest?view=table');
+    await page.waitForLoadState('domcontentloaded');
+
+    const badge = page.locator('.step-subtitle-badge').first();
+    await expect(badge).toBeVisible();
+    expect((await badge.innerText()).length).toBeGreaterThan(30);
+    // It wraps inside the cell rather than being clipped to nothing.
+    const box = await badge.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThan(20);
+  });
+});

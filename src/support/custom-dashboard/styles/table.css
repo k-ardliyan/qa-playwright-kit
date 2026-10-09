@@ -725,9 +725,16 @@ html[data-sticky-left="off"] .col-sticky-0 {
 }
 
 .step-subtitle-badge {
-  /* Follows the step text inline; wraps under it when the text is long. */
+  /* Follows the step text inline; wraps under it when the text is long.
+     `inline-block` + `max-width` are load-bearing: the tag family in base.css
+     makes this an atomic `inline-flex` chip, and an atomic box ignores the
+     parent's width entirely — a 39-character URL subtitle punched 51-69px
+     straight through the neighbouring INPUT DATA column. `overflow-wrap` alone
+     could never fix it, because breaking only applies once the box is
+     shrinkable; the cap is what gives the break something to work with. */
+  display: inline-block;
   margin-left: var(--space-1);
-  min-width: 0;
+  max-width: 100%;
   white-space: normal;
   overflow-wrap: break-word;
 }
