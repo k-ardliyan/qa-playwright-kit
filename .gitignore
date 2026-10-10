@@ -99,6 +99,11 @@ Thumbs.db
 debug-validator.ts
 *.diff
 
+# Stray curl cookie-jar dump (e.g. `curl -c 500 ...` writes a Netscape cookie
+# file named after the value passed to -c). Root-anchored: nothing legit lives
+# at the repo root under this name.
+/500
+
 # Scratch dirs (dashboard-browser seeds, ad-hoc runs)
 .tmp/
 
