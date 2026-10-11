@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Dependencies: patch refresh (Playwright 1.64.1, dotenvx, @types/node) + hold notes — 2026-10-14
+
+Patch-level refresh of both packages. Dua library sengaja TIDAK di-upgrade, alasannya dicatat di bawah supaya tidak diangkat lagi tanpa bukti.
+
+- **Playwright `1.64.0 → 1.64.1`** (`@playwright/test`, `playwright`, `playwright-core`) di root **dan** `tools/mcp`. Browser revision **tidak berubah** (chromium v1248 / Chrome for Testing 156.0.8078.4, headless shell v1248) — patch rilis ini tidak membawa binary baru, jadi `npx playwright install` cukup no-op.
+- **`@dotenvx/dotenvx` `2.33.0 → 2.35.0`** (root + `tools/mcp`).
+- **`@types/node` `26.6.4 → 26.6.5`** (root + `tools/mcp`).
+- **`typescript-eslint` `8.71.1 → 8.71.2`** (root).
+- **HOLD `typescript`** di `^5.9.3` (root) / `^6.0.3` (`tools/mcp`). `@kitajs/ts-html-plugin` (dipakai template `.tsx` dashboard) masih `peerDependency: typescript@^5.9.3`, dan TS 7 (native Go port) belum bisa dipakai embedded-language tooling. Bukan kelalaian — ini keputusan yang sama seperti upgrade 1.63→1.64.
+- **HOLD `@playwright/mcp`** di `0.0.83`. Dicek ke registry: `0.0.83` **masih versi terbaru**; tidak ada yang bisa di-upgrade. Baseline literal hidup di `src/shared/mcp/version.ts` + capability manifest (72 tool) + fixture, jadi bump versi = proyek re-probe, bukan patch bump.
+- **`@modelcontextprotocol/sdk` `^1.32.1` tidak diubah** — tidak ada rilis lebih baru yang terdeteksi.
+- **Verifikasi:** `npm ls` kedua package menunjukkan resolusi yang diharapkan (playwright 1.64.1, dotenvx 2.35.0, @types/node 26.6.5, typescript-eslint 8.71.2, typescript tetap 5.9.3/6.0.3); gate penuh dijalankan setelah batch ini (lihat commit body).
+
 ### Studio: tabs shadcn, pratinjau berdampingan, combobox multi-spec, opsi run lebih rapi — 2026-10-08
 
 Penyempurnaan lanjutan Studio berdasarkan review pemakaian langsung.
