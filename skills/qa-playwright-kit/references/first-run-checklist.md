@@ -71,9 +71,9 @@ npm run qa:run    # TTY picker → select file → copy printed prompt → paste
 ```
 
 The `qa:run` prompt includes `[ENV CONTEXT]` and `[FALLBACK MCP]`. If the `qa-playwright-kit` MCP tools are not active in Hermes, the agent automatically uses the CLI fallback (`validate-requirement.ts`) or the Playwright MCP.
-Execution results are stored in `artifacts/reports/pipeline-state.json` and `artifacts/reports/html/index.html`.
+Execution results are stored in `artifacts/reports/pipeline-state.json`; the custom dashboard is written to `artifacts/reports/custom-dashboard.html` (Playwright's built-in report is the separate `artifacts/reports/html/index.html`).
 Check pipeline position at any time via `qa-playwright-kit:pipeline_status` — one call: current phase, resume safety, last run result, and ready auth sessions.
-Open the dashboard: `npm run dashboard` (or open `artifacts/reports/html/index.html` directly).
+Open the dashboard: `npm run dashboard` (or open `artifacts/reports/custom-dashboard.html` directly).
 
 ---
 

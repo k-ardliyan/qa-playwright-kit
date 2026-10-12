@@ -27,7 +27,7 @@ Read these before generating — they are the canonical output shape:
 
 ## Input Format
 
-Input is the Planner Markdown test plan under `specs/` (hybrid format with Application Overview + per-scenario tables).
+Input is the Planner Markdown test plan under `specs/` (canonical shape: `## Metadata`, `## Catalog Evidence`, `## Data Targets`, `## Relationships`, `## Scenarios` with per-scenario field tables, `## Coverage Gaps` — see `specs/_TEMPLATE.md`).
 
 Required table columns:
 
@@ -172,7 +172,7 @@ Before committing generated test code:
 | `(@visual)`                     | Assert screenshot baseline with `expectVisual(page, 'name')` or `expectPageVisual()`.                                                                                                                                                                                                                                                                                                      |
 | `(@download)`                   | Download files and verify envelope with `downloadAndSave()` from `@/support/pw`.                                                                                                                                                                                                                                                                                                           |
 | `(@upload)`                     | Upload files with `uploadFixture()` or `uploadImageAndVerify()` from `@/support/pw`.                                                                                                                                                                                                                                                                                                       |
-| `(@file-content)`               | Assert text/headers in PDF/Excel fixtures with `assertPdfContains()` or `assertExcelHeaders()` from `@/support/pw`.                                                                                                                                                                                                                                                                        |
+| `(@file-content)`               | Assert text/envelope of a downloaded PDF/CSV/XLSX fixture with `assertPdfContains()` / `assertPdfMatches()` / `extractPdfText()` / `assertFileMagic()` / `inspectFileLocal()` from `@/support/pw`.                                                                                                                                                                                         |
 | `metadata.pomFixtures`          | Import and use the named POM class(es) from `tests/pages/<name>.ts`                                                                                                                                                                                                                                                                                                                        |
 
 ## File Naming Convention
@@ -413,10 +413,10 @@ import {
   uploadViaChooser,
   assertDownloadedEnvelope,
   assertPdfContains,
+  assertPdfMatches,
   extractPdfText,
-  assertExcelHeaders,
-  readExcelSummary,
   assertFileMagic,
+  inspectFileLocal,
 } from '@/support/pw';
 ```
 
@@ -429,7 +429,7 @@ import {
 | `(@visual)` or `#visual`                 | Layout/CSS regression                                     | After UI stabilizes: `await expectVisual(locator, { name: '<name>.png' })` or `toHaveScreenshot` (scope to a stable region)                                                                                                                 |
 | `(@download)` or `#download`             | Scenario triggers file download / export                  | `downloadAndSave(page, () => click…)` or `page.waitForEvent('download')` **before** the trigger; then envelope/content asserts as needed                                                                                                    |
 | `(@upload)` or `#upload`                 | Scenario uploads file(s)                                  | Fixture-first: `uploadFixture(locator, 'tests/data/…')` or `uploadViaChooser(page, open, 'tests/data/…')` or `setInputFiles` — **never** `page.pause()` for OS file pick                                                                    |
-| `(@file-content)` or `#file-content`     | Assert PDF/Excel/CSV content or file envelope             | `assertPdfContains` / `extractPdfText` / `assertExcelHeaders` / `readExcelSummary` / `assertDownloadedEnvelope` / `assertFileMagic` — **needles/headers from THIS scenario only**                                                           |
+| `(@file-content)` or `#file-content`     | Assert PDF/CSV/XLSX content or file envelope              | `assertPdfContains` / `assertPdfMatches` / `extractPdfText` / `assertDownloadedEnvelope` / `assertFileMagic` / `inspectFileLocal` — **needles from THIS scenario only**                                                                     |
 | Multi-field `(@failure)` validation      | Several fields show errors at once                        | Prefer `expect.soft(...)` or `expectSoftFieldErrors([...])` so one test reports all field failures                                                                                                                                          |
 | Time-sensitive UI                        | Date picker / countdown / "expires at"                    | `freezeTime` / `advanceTime` from `@/support/pw` (`page.clock`)                                                                                                                                                                             |
 
@@ -551,8 +551,10 @@ await test.step('Assert PDF content', async () => {
     /* tokens from THIS scenario only, e.g. values listed in Expected Result */
   ]);
 });
-// Excel example:
-// await assertExcelHeaders(downloaded.path, [/* headers from THIS scenario only */]);
+// Regex-token example (same needle discipline):
+// await assertPdfMatches(downloaded.path, [/INV-\d{4}/]);
+// Envelope / magic-byte example for any binary download (sync — no await):
+// assertFileMagic(downloaded.path, 'pdf'); // FileKind: pdf | xlsx | zip | png | jpg | gif | csv | txt
 ```
 
 **Content-assert principle (non-negotiable):**

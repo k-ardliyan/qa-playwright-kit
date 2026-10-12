@@ -15,6 +15,11 @@ Orchestration is performed by the runtime engine (`WorkflowController` in
 All requirement files must follow [`requirements/_TEMPLATE.md`](../requirements/_TEMPLATE.md).
 QA documentation: [`docs/GUIDE.md`](../docs/GUIDE.md), [`docs/WRITING-REQUIREMENTS.md`](../docs/WRITING-REQUIREMENTS.md).
 
+## Agent Flow & Delegation Contracts
+
+- Runtime flow (pause/handoff/gate codes, feedback routing): [`docs/AGENT-FLOW.md`](../docs/AGENT-FLOW.md).
+- Per-stage input/output + file ownership for delegating to a sub-agent: [`docs/AGENT-DELEGATION.md`](../docs/AGENT-DELEGATION.md).
+
 ## MCP Servers (three-server hybrid)
 
 | Server              | Command                                                       | Role                                            |
@@ -46,6 +51,8 @@ When driving the semantic workflow via `workflow_run`:
 2. **Model Handoff (Plan Missing):** If paused at `model` (`planner-required`), write `specs/<feature>-test-plan.md` per Planner instructions, verify via `validate_plan`, then resume immediately: `workflow_run({ requirementPath, resume: true, runId })`.
 3. **Generate Handoff (Spec Missing):** If paused at `generate` (`awaiting-generator`), write `tests/<feature>[-<role>].spec.ts` per Generator instructions, verify via `validate_generated_tests`, then resume immediately: `workflow_run({ requirementPath, resume: true, runId })`. Dual path: the AI-agent (Hermes) path is default & recommended; without an AI agent the manual path is first-class — follow the pause's `nextRequiredAction` (target paths + conventions + resume command).
 4. **Validate & QA Review:** When finished with `qa-decision-required`, present the summary, instruct opening `npm run dashboard`, and record decision via `archive_report`.
+
+> **Typed handoff:** a paused response carries `result.handoff` (`handoffType`, `requiredArtifactPath`, `resumeCommand`, `resumeInstruction`, `reason`) — read it instead of parsing `nextRequiredAction` prose. Full contract: [`docs/AGENT-FLOW.md`](../docs/AGENT-FLOW.md).
 
 #### Natural Language Chat Intent Routing
 
@@ -125,7 +132,7 @@ Transforms requirement files into structured scenario plans.
 Hybrid Markdown test plan written to:
 `specs/<feature-name>-test-plan.md`
 
-Includes Application Overview, per-scenario `### SC-XX` sections, `## Data Targets` / `## Relationships` / `## Coverage Gaps` sections, and a field table per scenario (canonical shape: [`specs/_TEMPLATE.md`](../specs/_TEMPLATE.md)):
+Includes `## Metadata`, `## Catalog Evidence`, per-scenario `### SC-XX` sections, `## Data Targets` / `## Relationships` / `## Coverage Gaps` sections, and a field table per scenario (canonical shape: [`specs/_TEMPLATE.md`](../specs/_TEMPLATE.md)):
 
 - `Covers`, `Actor`, `Auth Context`, `Page`
 - `Execution Mode` (`automated` | `manual` | `blocked` | `not-implemented`)
