@@ -653,7 +653,12 @@ test.describe('WorkflowController runtime invariants', () => {
     });
     expect(firstResponse.workflowStage).toBe('model');
     expect(firstResponse.workflowStatus).toBe('blocked');
+    // Typed handoff: the Planner pause names the artifact the Planner must write.
+    expect(firstResponse.result?.handoff?.handoffType).toBe('planner-required');
+    expect(firstResponse.result?.handoff?.requiredArtifactPath).toContain('test-plan');
+    expect(firstResponse.result?.handoff?.resumeCommand).toContain('--resume');
     const runId = first.getState().runId;
+    expect(firstResponse.result?.handoff?.resumeCommand).toContain(runId);
 
     // Planner creates the plan, then resume with the same runId.
     planExists = true;
@@ -776,6 +781,11 @@ test.describe('WorkflowController runtime invariants', () => {
     expect(response.workflowStage).toBe('generate');
     expect(response.workflowStatus).toBe('blocked');
     expect(response.nextRequiredAction).toContain('resume');
+    // Typed handoff: the pause is machine-readable, not just prose.
+    expect(response.result?.handoff?.handoffType).toBe('awaiting-generator');
+    expect(response.result?.handoff?.resumeCommand).toContain('--resume');
+    expect(response.result?.handoff?.resumeCommand).toContain(controller.getState().runId);
+    expect(response.result?.handoff?.requiredArtifactPath).toContain('.spec.ts');
     expect(controller.getState().status).toBe('paused');
     expect(controller.getState().workflow?.generate?.status).toBe('blocked');
     expect(tracking.calls).not.toContain('validate-adapter');

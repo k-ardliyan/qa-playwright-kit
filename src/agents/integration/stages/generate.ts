@@ -107,6 +107,7 @@ export async function runGenerateStage(ctx: StageContext, input: StageInput): Pr
         input.requirementPath,
         state.runId,
       );
+      const resumeCommand = `npx tsx tools/scripts/workflow-run.ts ${input.requirementPath} --resume --run-id ${state.runId}`;
       return {
         status: 'in-progress',
         runId: state.runId,
@@ -117,6 +118,8 @@ export async function runGenerateStage(ctx: StageContext, input: StageInput): Pr
         result: {
           handoff: {
             handoffType: 'awaiting-generator',
+            requiredArtifactPath: targetPaths.join(', '),
+            resumeCommand,
             resumeInstruction,
             reason: result.reason,
           },

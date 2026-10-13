@@ -11,7 +11,14 @@
  */
 
 import type { EvidenceReference } from './explore-policy';
-import type { ProtocolError, WorkflowStage, WorkflowStatus } from './types';
+import type {
+  FeedbackDecision,
+  ProtocolError,
+  ValidateResult,
+  WorkflowEnvelope,
+  WorkflowStage,
+  WorkflowStatus,
+} from './types';
 
 /**
  * Adapter seam: each semantic stage maps to existing engine/agent work.
@@ -134,6 +141,47 @@ export interface WorkflowStartInput {
 }
 
 /**
+ * Why a run paused for external work. Each value names the artifact the
+ * external actor must produce before the run can resume:
+ * - `planner-required`     → the Planner must write `specs/<feature>-test-plan.md`
+ * - `awaiting-generator`   → the Generator (AI or human) must write `tests/*.spec.ts`
+ * - `adapter-failed`       → the Model adapter itself could not run (not a handoff
+ *                            the caller can fill; surfaced so the shape stays closed)
+ */
+export type HandoffType = 'planner-required' | 'awaiting-generator' | 'adapter-failed';
+
+/**
+ * Machine-readable pause contract. `nextRequiredAction` is the human sentence;
+ * this object is the same information in a shape an automated delegator can
+ * parse without regexing prose.
+ */
+export interface WorkflowHandoff {
+  handoffType: HandoffType;
+  /** Path the external actor must write before resuming. */
+  requiredArtifactPath?: string;
+  /** Exact copy-paste resume command for this run. */
+  resumeCommand?: string;
+  /** Human-readable instruction (mirrors `nextRequiredAction`). */
+  resumeInstruction?: string;
+  reason?: string;
+}
+
+/**
+ * Payload of a `WorkflowResponse.result`. Every producer sets at most one key,
+ * so consumers narrow on the key they need instead of casting `unknown`.
+ */
+export interface WorkflowResult {
+  /** Present on a paused run that is waiting for external work. */
+  handoff?: WorkflowHandoff;
+  /** Persisted workflow envelope after a single-stage `runStage` call. */
+  workflowStage?: WorkflowEnvelope;
+  /** Validate stage outcome (counts, substage, analysis proof). */
+  validate?: ValidateResult;
+  /** Bounded feedback routing decision, when a Validate pass routed a failure. */
+  feedback?: FeedbackDecision;
+}
+
+/**
  * Structured semantic response (superset of the physical AgentProtocolResponse).
  */
 export interface WorkflowResponse {
@@ -144,7 +192,7 @@ export interface WorkflowResponse {
   nextRequiredAction?: string;
   phase: string | 'all';
   errors?: ProtocolError[];
-  result?: unknown;
+  result?: WorkflowResult;
 }
 
 /**

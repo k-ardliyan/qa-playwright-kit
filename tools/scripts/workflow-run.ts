@@ -427,8 +427,7 @@ async function main(): Promise<number> {
   // Human-readable guidance on stderr for blocked semantic runs: the AI-agent
   // path (Hermes) is the default, but the manual no-AI path is first-class.
   if (response.workflowStatus === 'blocked' || response.workflowStatus === 'needs-review') {
-    const handoff = (response as { result?: { handoff?: { handoffType?: string } } }).result
-      ?.handoff;
+    const handoff = response.result?.handoff;
     if (handoff?.handoffType === 'awaiting-generator') {
       process.stderr.write(
         [

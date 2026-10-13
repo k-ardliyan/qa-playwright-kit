@@ -41,7 +41,8 @@ export async function runModelStage(ctx: StageContext, input: StageInput): Promi
     // waiting for external Planner output, never a terminal failure.
     if (err instanceof ModelHandoffError) {
       ctx.markPaused(err.message);
-      const resumeInstruction = `Run the Planner to create ${err.requiredArtifactPath}, then resume: npx tsx tools/scripts/workflow-run.ts ${input.requirementPath} --resume --run-id ${state.runId}`;
+      const resumeCommand = `npx tsx tools/scripts/workflow-run.ts ${input.requirementPath} --resume --run-id ${state.runId}`;
+      const resumeInstruction = `Run the Planner to create ${err.requiredArtifactPath}, then resume: ${resumeCommand}`;
       return {
         status: 'in-progress',
         runId: state.runId,
@@ -53,6 +54,7 @@ export async function runModelStage(ctx: StageContext, input: StageInput): Promi
           handoff: {
             handoffType: err.handoffType,
             requiredArtifactPath: err.requiredArtifactPath,
+            resumeCommand,
             resumeInstruction,
           },
         },

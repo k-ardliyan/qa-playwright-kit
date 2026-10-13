@@ -124,18 +124,27 @@ export async function runValidateStage(
     const reason = 'No executable generated files are available for Validate.';
     ctx.markPaused(reason);
     const fallbackPaths = [`tests/${requirementPathToFeature(input.requirementPath)}.spec.ts`];
+    const resumeInstruction = buildManualResumeInstruction(
+      fallbackPaths,
+      input.requirementPath,
+      state.runId,
+    );
     return {
       status: 'in-progress',
       runId: state.runId,
       workflowStage: 'validate',
       workflowStatus: 'blocked',
-      nextRequiredAction: buildManualResumeInstruction(
-        fallbackPaths,
-        input.requirementPath,
-        state.runId,
-      ),
+      nextRequiredAction: resumeInstruction,
       phase: 'generate',
-      result: { handoff: { handoffType: 'awaiting-generator', reason } },
+      result: {
+        handoff: {
+          handoffType: 'awaiting-generator',
+          requiredArtifactPath: fallbackPaths.join(', '),
+          resumeCommand: `npx tsx tools/scripts/workflow-run.ts ${input.requirementPath} --resume --run-id ${state.runId}`,
+          resumeInstruction,
+          reason,
+        },
+      },
     };
   }
   try {
