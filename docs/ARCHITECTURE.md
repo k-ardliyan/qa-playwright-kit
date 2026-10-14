@@ -26,6 +26,9 @@ config/                ← Environments & Playwright configuration presets
 ## Canonical References
 
 > Tabel lengkap ada di [`AGENTS.md`](../AGENTS.md) § Architecture Quick Reference — di-load otomatis setiap sesi.
+>
+> Alur runtime agent (pause/handoff/gate codes, siapa merutekan ke mana): [`AGENT-FLOW.md`](AGENT-FLOW.md).
+> Cara mendelegasikan satu tahap ke sub-agent (kontrak input/output + ownership): [`AGENT-DELEGATION.md`](AGENT-DELEGATION.md).
 
 ## Key Conventions (inline)
 

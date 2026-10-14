@@ -8,14 +8,16 @@ Before writing or editing any file:
 2. Load the QA Playwright Kit skill pack: [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) (or via `.agents/skills/qa-playwright-kit/SKILL.md`).
 3. Then use this table to find the specific reference you need.
 
-| Need                           | File                                                                     |
-| ------------------------------ | ------------------------------------------------------------------------ |
-| QA Skill & Runbook (English)   | [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) |
-| Auth pattern, fixture chain    | [`docs/AUTH-CONTEXT-CONVENTION.md`](docs/AUTH-CONTEXT-CONVENTION.md)     |
-| Domain glossary (roles, terms) | [`docs/CONTEXT.md`](docs/CONTEXT.md)                                     |
-| Commands, env, npm scripts     | [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md)                               |
-| Requirement format             | [`requirements/_TEMPLATE.md`](requirements/_TEMPLATE.md)                 |
-| Writing a requirement          | [`docs/WRITING-REQUIREMENTS.md`](docs/WRITING-REQUIREMENTS.md)           |
+| Need                              | File                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| QA Skill & Runbook (English)      | [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) |
+| Agent flow, handoff, gate codes   | [`docs/AGENT-FLOW.md`](docs/AGENT-FLOW.md)                               |
+| Delegating a stage to a sub-agent | [`docs/AGENT-DELEGATION.md`](docs/AGENT-DELEGATION.md)                   |
+| Auth pattern, fixture chain       | [`docs/AUTH-CONTEXT-CONVENTION.md`](docs/AUTH-CONTEXT-CONVENTION.md)     |
+| Domain glossary (roles, terms)    | [`docs/CONTEXT.md`](docs/CONTEXT.md)                                     |
+| Commands, env, npm scripts        | [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md)                               |
+| Requirement format                | [`requirements/_TEMPLATE.md`](requirements/_TEMPLATE.md)                 |
+| Writing a requirement             | [`docs/WRITING-REQUIREMENTS.md`](docs/WRITING-REQUIREMENTS.md)           |
 
 > **Skills & Rules:** Always consult [`skills/qa-playwright-kit/SKILL.md`](skills/qa-playwright-kit/SKILL.md) and its `references/` for standard requirement language, step titles, report contracts, and QA boundaries.
 
@@ -86,6 +88,8 @@ When driving the semantic workflow via the native `workflow_run` tool:
    - Present the execution summary to QA.
    - Remind QA to inspect the interactive report (`npm run dashboard`).
    - After QA review, record decision via `archive_report({ runId, reportPath, qaDecision })`.
+
+> **Typed handoff (machine-readable):** every paused response carries `result.handoff` = `{ handoffType, requiredArtifactPath, resumeCommand, resumeInstruction, reason }`. Read `handoff.handoffType` and `handoff.resumeCommand` instead of regexing the `nextRequiredAction` prose. Full contract + gate-code table + feedback routing: [`docs/AGENT-FLOW.md`](docs/AGENT-FLOW.md). Per-stage delegation contracts: [`docs/AGENT-DELEGATION.md`](docs/AGENT-DELEGATION.md).
 
 ## Natural Language Chat Intent Routing
 
