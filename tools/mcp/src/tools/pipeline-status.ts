@@ -137,7 +137,7 @@ export interface PipelineStatusOutput {
       /**
        * Validate substage. `needs-heal` = failures exist and a heal pass is
        * REQUIRED (nothing healed yet); `heal` = a healer actually ran. Keep in
-       * sync with `ValidateResult['substage']` in src/agents/integration/types.ts
+       * sync with `ValidateResult['substage']` in src/agents/pipeline/types.ts
        * (guarded by pipeline-status-substage-parity.test.ts).
        */
       currentSubstage?: 'execute' | 'needs-heal' | 'heal' | 'report-analyze' | 'qa-review';

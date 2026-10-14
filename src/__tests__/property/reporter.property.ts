@@ -4,12 +4,12 @@
 
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { buildReport } from '../../agents/reporter/report-builder';
+import { buildReport } from '../../agents/reporting/report-builder';
 import type {
   BuildReportInput,
   PipelineReport,
   ScenarioCoverage,
-} from '../../agents/reporter/report-builder';
+} from '../../agents/reporting/report-builder';
 
 /**
  * Validates: Requirements 5.3, 5.4

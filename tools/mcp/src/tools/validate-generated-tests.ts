@@ -737,7 +737,7 @@ export function validateNoDataInStepTitles(
 }
 
 /**
- * ARCH-014 / Playwright 2026: Discourage deprecated `:visible` pseudo-class.
+ * ARCH-016 / Playwright 2026: Discourage deprecated `:visible` pseudo-class.
  * Recommend native `locator.visible()` instead.
  */
 export function validateNoVisiblePseudoClass(

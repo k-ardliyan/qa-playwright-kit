@@ -13,7 +13,7 @@ process.env['QA_ARCHIVE_DIR'] = TMP_ARCHIVE_DIR;
 import { test, expect } from '@playwright/test';
 import * as http from 'node:http';
 import { handleRequest } from '../../cli/dashboard-server';
-import { upsertLatestTestNote } from '../../agents/reporter/test-notes';
+import { upsertLatestTestNote } from '../../agents/reporting/test-notes';
 
 function createArchiveFixture(runId: string): void {
   const runDir = path.join(TMP_ARCHIVE_DIR, runId);

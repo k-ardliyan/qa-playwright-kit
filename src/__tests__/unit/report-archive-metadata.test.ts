@@ -13,8 +13,8 @@ import {
   updateArchivedMetadata,
   loadArchivedMetadata,
   type ArchiveMetadata,
-} from '../../agents/reporter/report-archive';
-import { getComparisonCompatibility } from '../../agents/reporter/report-compare';
+} from '../../agents/reporting/report-archive';
+import { getComparisonCompatibility } from '../../agents/reporting/report-compare';
 
 function createArchiveFixture(runId: string, meta: Partial<ArchiveMetadata> = {}): void {
   const runDir = path.join(TMP_ARCHIVE_DIR, runId);

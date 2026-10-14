@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { saveState, resumeState, type PipelineState } from '../../agents/integration/state';
+import { saveState, resumeState, type PipelineState } from '../../agents/pipeline/state';
 import { computeSourceHash } from '../../../tools/mcp/src/contracts/hashing';
 import { useIsolatedReportDir } from '../helpers/report-dir-isolation';
 

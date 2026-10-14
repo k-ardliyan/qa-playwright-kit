@@ -27,15 +27,15 @@ import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { loadEnvironment } from '../../src/utils/env-loader';
-import { WorkflowController } from '../../src/agents/integration/workflow-controller';
-import { createMcpAdapters } from '../../src/agents/integration/mcp-adapters';
+import { WorkflowController } from '../../src/agents/pipeline/workflow-controller';
+import { createMcpAdapters } from '../../src/agents/pipeline/mcp-adapters';
 import {
   parsePlaywrightJsonReport,
   type PlaywrightRunCounters,
-} from '../../src/agents/integration/playwright-counters';
-import { loadState, type PipelineState } from '../../src/agents/integration/state';
+} from '../../src/agents/pipeline/playwright-counters';
+import { loadState, type PipelineState } from '../../src/agents/pipeline/state';
 import { resolveAllowedPath } from '../mcp/src/utils/safety';
-import type { WorkflowStage } from '../../src/agents/integration/types';
+import type { WorkflowStage } from '../../src/agents/pipeline/types';
 import { commitPipelineCheckpoint, shouldAutoCommit } from './pipeline-checkpoint';
 
 /* eslint-disable @typescript-eslint/require-await */

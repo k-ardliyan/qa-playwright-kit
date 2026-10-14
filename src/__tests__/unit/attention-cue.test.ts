@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { buildAttentionCueJs } from '../../support/custom-dashboard/client/attention-cue';
-import { buildClientBootstrapJs } from '../../support/custom-dashboard/client/bootstrap';
+import { buildAttentionCueJs } from '../../support/dashboard/client/attention-cue';
+import { buildClientBootstrapJs } from '../../support/dashboard/client/bootstrap';
 
 /**
  * The "Open report" cue loops for as long as the page is open, so the two

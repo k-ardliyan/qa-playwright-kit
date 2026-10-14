@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
-import { buildDashboardOverview } from '../../support/custom-dashboard/domain/dashboard-overview';
-import { DashboardPage } from '../../support/custom-dashboard/pages/dashboard';
-import { HistoryPage } from '../../support/custom-dashboard/pages/history';
-import { TrendChart } from '../../support/custom-dashboard/pages/history/TrendChart';
-import { ComparePage } from '../../support/custom-dashboard/pages/compare';
-import { ReportDetailPage } from '../../support/custom-dashboard/pages/report-detail';
-import type { ReportHistoryEntry } from '../../agents/reporter/report-history';
-import type { TestSummary } from '../../support/custom-dashboard/types';
+import { buildDashboardOverview } from '../../support/dashboard/domain/dashboard-overview';
+import { DashboardPage } from '../../support/dashboard/pages/dashboard';
+import { HistoryPage } from '../../support/dashboard/pages/history';
+import { TrendChart } from '../../support/dashboard/pages/history/TrendChart';
+import { ComparePage } from '../../support/dashboard/pages/compare';
+import { ReportDetailPage } from '../../support/dashboard/pages/report-detail';
+import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
+import type { TestSummary } from '../../support/dashboard/types';
 import {
   allPassedSummary,
   notImplementedSummary,
-} from '../../support/custom-dashboard/__tests__/fixtures';
+} from '../../support/dashboard/__tests__/fixtures';
 
 const mockHistory: ReportHistoryEntry[] = [
   {

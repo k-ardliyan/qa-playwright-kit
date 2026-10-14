@@ -2,10 +2,10 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import type * as http from 'node:http';
 import * as path from 'node:path';
-import { StudioPage } from '../../support/custom-dashboard/pages/web-studio';
+import { StudioPage } from '../../support/dashboard/pages/web-studio';
 import { resolveAppEnv } from '../../utils/app-env';
 import { persistRunSettings } from '../studio-run';
-import { htmlResponse, isRecord, jsonResponse, readBody, validationError } from './helpers';
+import { htmlResponse, isRecord, jsonResponse, readBody, validationError } from './http';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 export const SLUG_RE = /^[a-z0-9-]+$/;

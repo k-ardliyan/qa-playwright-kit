@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { TableColumnPicker } from '../../support/custom-dashboard/components/table/TableToolbar';
-import { renderInteractiveScript } from '../../support/custom-dashboard/shared';
+import { TableColumnPicker } from '../../support/dashboard/components/table/TableToolbar';
+import { renderInteractiveScript } from '../../support/dashboard/shared';
 
 test.describe('Table Column Picker Component & Structure', () => {
   test('TableColumnPicker component renders scrollable body and actions footer', () => {

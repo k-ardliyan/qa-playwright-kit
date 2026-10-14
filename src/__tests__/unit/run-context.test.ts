@@ -13,14 +13,14 @@ import {
   ensurePendingRun,
   readPendingRun,
   resolveCurrentRunIdentity,
-} from '../../agents/reporter/run-context';
+} from '../../agents/reporting/run-context';
 import {
   isStaleSidecar,
   loadLatestTestNotes,
   resetLatestTestNotes,
   upsertLatestTestNote,
   emptyTestNotesFile,
-} from '../../agents/reporter/test-notes';
+} from '../../agents/reporting/test-notes';
 
 test.afterAll(() => {
   fs.rmSync(TMP_ROOT, { recursive: true, force: true });

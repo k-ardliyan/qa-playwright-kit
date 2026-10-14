@@ -1,6 +1,6 @@
 /**
  * Per-test notes sidecar for MCP tools — self-contained twin of
- * `src/agents/reporter/test-notes.ts` (the MCP server builds separately and
+ * `src/agents/reporting/test-notes.ts` (the MCP server builds separately and
  * must not import from src/). Same schema: qa.test-notes/v1, keyed by
  * `<scenarioId>::<role>` with testId fallback, `user` ↔ `general` alias,
  * secret redaction, idempotent appends, and locked atomic writes.
@@ -89,7 +89,7 @@ export interface McpInsightDraft {
 
 const MCP_INSIGHT_FIELD_CAP = 1000;
 
-// ─── Secret redaction (twin of src/agents/reporter/test-notes.ts) ───────────
+// ─── Secret redaction (twin of src/agents/reporting/test-notes.ts) ───────────
 
 const MCP_SECRET_PATTERNS: Array<[RegExp, (match: string) => string]> = [
   [
@@ -125,7 +125,7 @@ function normalizeForDedupe(text: string): string {
 
 /**
  * Compose an insight into the canonical multi-line BODY format — twin of
- * composeInsightText in src/agents/reporter/test-notes.ts. The `[source]`
+ * composeInsightText in src/agents/reporting/test-notes.ts. The `[source]`
  * prefix is intentionally NOT added here; storage/render layers own it so
  * insights never end up double-prefixed.
  */
@@ -566,7 +566,7 @@ export function appendRunInsight(
 /**
  * Canonical run identity of the latest run — `run-YYYYMMDD-HHmmss-SSS` derived
  * from test-summary.json timestamp, matching the archive directory naming in
- * src/agents/reporter/report-archive.ts. Null when no summary exists.
+ * src/agents/reporting/report-archive.ts. Null when no summary exists.
  */
 export function canonicalLatestRunId(): string | null {
   const summaryPath = path.join(mcpWorkspace.reportsDir, 'test-summary.json');

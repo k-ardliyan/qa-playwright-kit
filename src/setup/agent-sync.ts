@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'node:child_process';
-import { generateConfig, type Platform } from '../agents/integration/mcp-config-generator';
+import { generateConfig, type Platform } from '../agents/pipeline/mcp-config-generator';
 import { logger } from '../utils/logger';
 import { npmSpawn } from './spawn-bin';
 

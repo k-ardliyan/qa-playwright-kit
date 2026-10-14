@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { buildMarkdownReport } from '../../support/reporter/markdown-report';
+import { buildMarkdownReport } from '../../support/report-artifacts/markdown-report';
 import { formatMarkdownInText } from '../../../tools/scripts/format-markdown';
 
 /**

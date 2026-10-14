@@ -9,7 +9,11 @@ process.env['QA_REPORT_DIR'] = TMP_REPORT_DIR;
 process.env['QA_ARCHIVE_DIR'] = path.join(TMP_REPORT_DIR, 'archive');
 
 import { test, expect } from '@playwright/test';
-import { bakeAutoAiNotes, buildAutoAiNote, buildRunInsights } from '../../agents/reporter/ai-notes';
+import {
+  bakeAutoAiNotes,
+  buildAutoAiNote,
+  buildRunInsights,
+} from '../../agents/reporting/ai-notes';
 import {
   appendAiNote,
   appendLatestRunInsight,
@@ -29,9 +33,9 @@ import {
   upsertLatestTestNote,
   upsertTestNote,
   MAX_TEST_NOTE_LENGTH,
-} from '../../agents/reporter/test-notes';
-import { AiNotesCell, NotesCell } from '../../support/custom-dashboard/components/table/TableCells';
-import type { CollectedTestData, CollectedStep } from '../../support/custom-dashboard/types';
+} from '../../agents/reporting/test-notes';
+import { AiNotesCell, NotesCell } from '../../support/dashboard/components/table/TableCells';
+import type { CollectedTestData, CollectedStep } from '../../support/dashboard/types';
 
 test.afterAll(() => {
   fs.rmSync(TMP_ROOT, { recursive: true, force: true });
@@ -192,7 +196,7 @@ test.describe('test-notes archive lifecycle', () => {
   });
 
   test('upsertArchivedTestNote requires an existing archive run', async () => {
-    const { upsertArchivedTestNote } = await import('../../agents/reporter/test-notes');
+    const { upsertArchivedTestNote } = await import('../../agents/reporting/test-notes');
     const runDir = path.join(TMP_REPORT_DIR, 'archive', 'run-20260906-020202-003');
     fs.mkdirSync(runDir, { recursive: true });
     upsertArchivedTestNote('run-20260906-020202-003', 'SC-05::general', {

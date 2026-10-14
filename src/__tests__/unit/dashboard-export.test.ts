@@ -5,8 +5,8 @@ import {
   toConfluenceMarkup,
   toConfluenceHtml,
   buildExportScript,
-} from '../../support/custom-dashboard/export-helpers';
-import type { CollectedTestData } from '../../support/custom-dashboard/types';
+} from '../../support/dashboard/export-helpers';
+import type { CollectedTestData } from '../../support/dashboard/types';
 
 function sample(partial: Partial<CollectedTestData> = {}): CollectedTestData {
   return {

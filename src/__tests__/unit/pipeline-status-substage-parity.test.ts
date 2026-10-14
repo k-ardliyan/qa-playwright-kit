@@ -27,8 +27,8 @@ const EXPECTED = ['execute', 'heal', 'needs-heal', 'qa-review', 'report-analyze'
 test.describe('Validate substage union parity', () => {
   test('src contracts declare the full substage union', () => {
     for (const file of [
-      'src/agents/integration/types.ts',
-      'src/agents/integration/workflow-controller-types.ts',
+      'src/agents/pipeline/types.ts',
+      'src/agents/pipeline/workflow-controller-types.ts',
     ]) {
       expect(substageUnionFrom(file), file).toEqual(EXPECTED);
     }
@@ -40,11 +40,11 @@ test.describe('Validate substage union parity', () => {
 
   test('state validator + JSON schema accept needs-heal', () => {
     const stateValidator = fs.readFileSync(
-      path.join(REPO_ROOT, 'src/agents/integration/state.ts'),
+      path.join(REPO_ROOT, 'src/agents/pipeline/state.ts'),
       'utf-8',
     );
     const schema = fs.readFileSync(
-      path.join(REPO_ROOT, 'src/agents/integration/schemas/pipeline-state.schema.json'),
+      path.join(REPO_ROOT, 'src/agents/pipeline/schemas/pipeline-state.schema.json'),
       'utf-8',
     );
     expect(stateValidator).toContain("'needs-heal'");
@@ -53,7 +53,7 @@ test.describe('Validate substage union parity', () => {
 
   test('completed-phase rule only credits heal for a real heal pass', () => {
     const validateStage = fs.readFileSync(
-      path.join(REPO_ROOT, 'src/agents/integration/stages/validate.ts'),
+      path.join(REPO_ROOT, 'src/agents/pipeline/stages/validate.ts'),
       'utf-8',
     );
     // Isolate the `if (...) { completedPhysical.push('heal'); }` guard and

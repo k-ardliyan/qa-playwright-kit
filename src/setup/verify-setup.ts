@@ -23,7 +23,7 @@ import { isSecretEnvKey, decryptEnvFileToText, EnvEncryptError } from '../utils/
 import { getGlobalKeysPath } from '../utils/dotenv-keys';
 import { hasChromiumInstalled } from './browser-check';
 import { detectInstalledClients } from './agent-sync';
-import { getOutputPath, type Platform } from '../agents/integration/mcp-config-generator';
+import { getOutputPath, type Platform } from '../agents/pipeline/mcp-config-generator';
 import { type WizardLang, t } from './i18n';
 
 export type CheckStatus = 'pass' | 'warn' | 'fail';

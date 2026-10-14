@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Coverage Map — Static Test Coverage Visibility (ARCH-014)
+ * Coverage Map — Static Test Coverage Visibility (ARCH-015)
  *
  * Static import-map over the source tree: for every non-test source file
  * under src/, find at least one test file that imports it (directly, via the
  * `@/` alias, or via a relative path that resolves into the module). This is
  * NOT a runtime coverage tool — it reports structural test presence per module
- * so blind spots (src/observability, src/executor, CLI entrypoints, …) become
+ * so blind spots (CLI entrypoints, thin wrappers, …) become
  * visible instead of being inferred by name.
  *
  * Policy (exit 1 on error):
@@ -142,8 +142,8 @@ export function isModuleCoveredByTest(srcFile: string, testFile: string, srcRoot
     // Direct module import, or a barrel import from the module's own
     // directory, or any ancestor directory (barrel/re-export chain makes the
     // module reachable). Ancestor matches are intentional: a test importing
-    // src/agents/integration/workflow-controller exercises the stage modules
-    // under src/agents/integration/stages/ via the barrel.
+    // src/agents/pipeline/workflow-controller exercises the stage modules
+    // under src/agents/pipeline/stages/ via the barrel.
     if (importedDir === srcDir) return true;
     if (srcDir.startsWith(importedDir + path.sep)) return true;
   }

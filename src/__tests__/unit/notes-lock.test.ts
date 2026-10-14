@@ -10,7 +10,7 @@ process.env['QA_REPORT_DIR'] = TMP_REPORT_DIR;
 process.env['QA_NOTES_LOCK_TIMEOUT_MS'] = '500';
 
 import { test, expect } from '@playwright/test';
-import { upsertTestNote, loadTestNotesFromFile } from '../../agents/reporter/test-notes';
+import { upsertTestNote, loadTestNotesFromFile } from '../../agents/reporting/test-notes';
 import {
   upsertTestNote as mcpUpsertTestNote,
   loadNotesFile,

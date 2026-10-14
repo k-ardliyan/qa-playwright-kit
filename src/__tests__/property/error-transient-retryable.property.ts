@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { classifyError } from '../../observability/error-classifier';
+import { classifyError } from '../../pipeline-telemetry/error-classifier';
 
 // Known transient error messages
 const KNOWN_TRANSIENT_MESSAGES = [

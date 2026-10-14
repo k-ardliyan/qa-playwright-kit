@@ -22,7 +22,7 @@ Rekomendasi: concrete action
 Next Action: next step for QA
 ```
 
-The labels (`Jenis:` / `Status:` / `Prioritas:` / `Observasi:` / `Bukti:` / `Dampak:` / `Rekomendasi:` / `Next Action:`) are rendered verbatim by the tool (`src/agents/reporter/run-insights.ts`, `tools/mcp/src/utils/test-notes.ts`) — never translate or rename them.
+The labels (`Jenis:` / `Status:` / `Prioritas:` / `Observasi:` / `Bukti:` / `Dampak:` / `Rekomendasi:` / `Next Action:`) are rendered verbatim by the tool (`src/agents/reporting/run-insights.ts`, `tools/mcp/src/utils/test-notes.ts`) — never translate or rename them.
 
 Content language: **Indonesian**. Keep each note 1–6 lines; QA/programmer must be able to act on it without re-reading the trace.
 

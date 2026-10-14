@@ -1,6 +1,6 @@
 /**
  * Pending pipeline run identity — MCP twin of
- * `src/agents/reporter/run-context.ts` (the MCP server builds separately and
+ * `src/agents/reporting/run-context.ts` (the MCP server builds separately and
  * must not import from src/). Notes recorded BEFORE the reporter runs
  * (Generator/Plan) are stamped with this identity so the reporter adopts
  * them instead of resetting them as stale.

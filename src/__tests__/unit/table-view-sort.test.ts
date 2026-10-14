@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { TableView } from '../../support/custom-dashboard/components/table/TableView';
-import type { CollectedTestData, TestSummary } from '../../support/custom-dashboard/types';
+import { TableView } from '../../support/dashboard/components/table/TableView';
+import type { CollectedTestData, TestSummary } from '../../support/dashboard/types';
 
 function summary(over: Partial<TestSummary> = {}): TestSummary {
   return {

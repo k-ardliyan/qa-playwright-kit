@@ -3,8 +3,8 @@ import {
   categorizeNotImplementedReason,
   computeNotImplementedByCategory,
   NOT_IMPLEMENTED_CATEGORY_ORDER,
-} from '../../support/custom-dashboard/domain/not-implemented-categories';
-import { buildDashboardOverview } from '../../support/custom-dashboard/domain/dashboard-overview';
+} from '../../support/dashboard/domain/not-implemented-categories';
+import { buildDashboardOverview } from '../../support/dashboard/domain/dashboard-overview';
 
 /**
  * The "Kenapa belum jalan" panel answers QA's question with a CATEGORY and a

@@ -49,7 +49,7 @@ Playwright Test Run
 
 ### 2. **Custom Dashboard** (`artifacts/reports/custom-dashboard.html`)
 
-- **Sumber:** `CustomReporter` (`src/support/custom-reporter.ts`) + modules `src/support/custom-dashboard/*`
+- **Sumber:** `CustomReporter` (`src/support/custom-reporter.ts`) + modules `src/support/dashboard/*`
 - **File output:** selalu `artifacts/reports/custom-dashboard.html` (bukan path terpisah untuk CI). Mode **local** vs **ci** dipilih di builder (`buildLocalHtml` / `buildCiHtml`) berdasarkan `CI=true`.
 - **Isi:** **2 view mode** (toggle di section head)
   - **Table View** (**default**) — triage table + Filter columns + export
@@ -68,7 +68,7 @@ Playwright Test Run
 
 ### 4. **Pipeline Report Markdown** (`artifacts/reports/pipeline-report-<runId>.md`)
 
-- **Sumber:** Reporter agent (`.github/agents/reporter.agent.md`), ditulis oleh `report-builder.ts` ke `artifacts/reports/` sesuai workspace manifest
+- **Sumber:** Reporter agent (`.github/agents/reporting.agent.md`), ditulis oleh `report-builder.ts` ke `artifacts/reports/` sesuai workspace manifest
 - **Isi:** Markdown narrative dari full pipeline run (Explore → Model → Challenge → Generate → Validate; mesin: Plan → Generate → Execute → Heal → Report(Analyze)); Report includes the mandatory Analyze sub-phase and `## AI Analysis` contract section
 - **Kapan digunakan:** Review end-to-end pipeline result, audit trail, QA decision tracking; APPROVE is valid only when `analysisVerdict=complete` and `analysisVerified=true`
 
@@ -463,10 +463,10 @@ Atau via Orchestrator:
 
 - Runtime (tanpa code): **Filter columns** di table-toolbar — show/hide + pin sticky header / pin Test ID (persist localStorage)
 - Source code:
-  - Header/export: `src/support/custom-dashboard/export-helpers.ts`
-  - HTML row: `src/support/custom-dashboard/components/table/TableView.tsx`
-  - Filter attrs: `src/support/custom-dashboard/filter-attrs.ts`
-  - SOURCE decision: `src/support/custom-dashboard/failure-source.ts`
+  - Header/export: `src/support/dashboard/export-helpers.ts`
+  - HTML row: `src/support/dashboard/components/table/TableView.tsx`
+  - Filter attrs: `src/support/dashboard/filter-attrs.ts`
+  - SOURCE decision: `src/support/dashboard/failure-source.ts`
 
 Rebuild: run test ulang (custom reporter menulis `test-summary.json` + dashboard) atau `npm run dashboard` (lalu **Ctrl+F5**).
 

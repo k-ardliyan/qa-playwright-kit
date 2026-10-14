@@ -7,9 +7,9 @@ import {
   upsertArchivedTestNote,
   testNoteKey,
   MAX_TEST_NOTE_LENGTH,
-} from '../../agents/reporter/test-notes';
-import { isValidRunId } from '../../agents/reporter/report-archive';
-import { readBody, jsonResponse, validationError, isRecord } from './helpers';
+} from '../../agents/reporting/test-notes';
+import { isValidRunId } from '../../agents/reporting/report-archive';
+import { readBody, jsonResponse, validationError, isRecord } from './http';
 
 export async function handleNotesRoute(
   req: http.IncomingMessage,

@@ -4,7 +4,7 @@
 
 ## Apa ini?
 
-Framework Playwright TypeScript untuk AI-driven E2E testing. AI agent (Hermes, Cursor, Codex, Kiro) menggerakkan metodologi QA kanonik: **01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate**. Workflow semantik ini di-enforce di runtime oleh `WorkflowController` (state machine + Explore policy + Challenge gate + feedback router — lihat `src/agents/integration/workflow-*.ts`). Saat ada kegagalan, Validate merutekan balik ke tahap terkecil yang bertanggung jawab (`explore` | `model` | `challenge` | `generate`) atau ke keputusan terminal (`file-bug` | `fix-environment` | `blocked`) — inilah kosakata "learn → refine → re-explore": **target routing, bukan stage**. Mesin eksekusi fisik **Plan → Generate → Execute → Heal → Report(Analyze)** adalah jalur kompatibilitas internal; **`Heal` di situ adalah label substage, bukan stage handler** — tidak ada stage heal di engine. Report mencakup sub-phase Analyze yang wajib; identitas `pipelineRunId` dipakai sebelum run dan `archiveRunId` menjadi ID arsip kanonik, dengan catatan yang hidup di sidecar.
+Framework Playwright TypeScript untuk AI-driven E2E testing. AI agent (Hermes, Cursor, Codex, Kiro) menggerakkan metodologi QA kanonik: **01. Explore → 02. Model → 03. Challenge → 04. Generate → 05. Validate**. Workflow semantik ini di-enforce di runtime oleh `WorkflowController` (state machine + Explore policy + Challenge gate + feedback router — lihat `src/agents/pipeline/workflow-*.ts`). Saat ada kegagalan, Validate merutekan balik ke tahap terkecil yang bertanggung jawab (`explore` | `model` | `challenge` | `generate`) atau ke keputusan terminal (`file-bug` | `fix-environment` | `blocked`) — inilah kosakata "learn → refine → re-explore": **target routing, bukan stage**. Mesin eksekusi fisik **Plan → Generate → Execute → Heal → Report(Analyze)** adalah jalur kompatibilitas internal; **`Heal` di situ adalah label substage, bukan stage handler** — tidak ada stage heal di engine. Report mencakup sub-phase Analyze yang wajib; identitas `pipelineRunId` dipakai sebelum run dan `archiveRunId` menjadi ID arsip kanonik, dengan catatan yang hidup di sidecar.
 
 ## Layer Diagram
 
@@ -44,7 +44,7 @@ test.use({ storageState: authStatePath('finance') });
 import { REQUIREMENT_SCHEMA_V1, TEST_PLAN_SCHEMA_V1, TRACEABILITY_SCHEMA_V1 } from '@/public/contracts';
 
 // ✅ Pipeline reporting types
-import type { PipelineReport } from '@/agents/reporter';
+import type { PipelineReport } from '@/agents/reporting';
 
 // ✅ PW helpers barrel
 import { mockJson, waitAndAssertApi } from '@/support/pw';
@@ -73,7 +73,7 @@ import { mockJson, waitAndAssertApi } from '@/support/pw';
 ## Web Studio (non-coder entry point)
 
 - UI tanpa terminal di `GET /studio` — QA non-coder menulis requirement, ganti env, refresh auth, atur opsi run, dan menjalankan spec dari browser.
-- **Tampilan = dashboard.** Halaman dirender lewat `DashboardDocument` (`src/support/custom-dashboard/pages/web-studio/StudioPage.tsx`) + `studio.css`, jadi memakai token/tema yang sama (IBM Plex, light default, panel/btn/badge). Layout = **tabs shadcn** (Requirement · Jalankan · Environment) + panel per fitur; panel Requirement menampilkan form & pratinjau **berdampingan** dengan tombol collapse. Markup di `StudioPage`; hanya SATU script inline (`renderStudioScript()` di `src/cli/routes/studio.ts`) yang mengikat kontrolnya.
+- **Tampilan = dashboard.** Halaman dirender lewat `DashboardDocument` (`src/support/dashboard/pages/web-studio/StudioPage.tsx`) + `studio.css`, jadi memakai token/tema yang sama (IBM Plex, light default, panel/btn/badge). Layout = **tabs shadcn** (Requirement · Jalankan · Environment) + panel per fitur; panel Requirement menampilkan form & pratinjau **berdampingan** dengan tombol collapse. Markup di `StudioPage`; hanya SATU script inline (`renderStudioScript()` di `src/cli/routes/studio.ts`) yang mengikat kontrolnya.
 - **Toast & konfirmasi shared.** `components/shared/Toast.tsx` (+ `client/toast.ts`, `window.studioToast`) dan `components/shared/ConfirmDialog.tsx` (+ `client/confirm.ts`, `window.studioConfirm`) di-mount sekali di `DashboardDocument` — dipakai semua halaman, bukan studio-only. Aksi penting (simpan requirement, simpan setelan, ganti environment) minta konfirmasi; hasil sukses/gagal muncul sebagai toast. Ikon = Lucide SVG inline (bukan emoji).
 - Route: `GET /studio`, `POST /api/studio/requirement`, `POST /api/studio/run-settings`, `GET|POST /api/studio/env`, `GET|POST /api/studio/auth`, `GET /api/studio/specs`, `POST|DELETE /api/studio/run`, `GET /export/portable`, SSE `GET /events` (`run-log`, `run-done`).
 - Tab **Studio** ada di nav dashboard (`AppNav`, `NavTab='studio'`).
@@ -81,4 +81,4 @@ import { mockJson, waitAndAssertApi } from '@/support/pw';
 - Refresh auth spawn proses terpisah; stdout/stderr TIDAK di-pipe ke browser (log auth bisa memuat kredensial) — OTP/CAPTCHA selesai di jendela browser.
 - **Opsi run (slow-mo / headless / viewport / urutan)** divalidasi di `src/cli/studio-run-settings.ts` (pure). **Per-run** (env + argv hanya untuk child yang di-spawn — `--workers=1` untuk mode serial; tidak ditulis ke disk) atau **simpan permanen** (`POST /api/studio/run-settings` → `upsertEnvContent` menulis `SLOW_MO`/`HEADLESS`/`QA_VIEWPORT` ke `config/environments/<APP_ENV>.env`). Viewport diisi dua field angka (lebar × tinggi). Slow-mo hanya berlaku saat headed.
 - Run spec disandbox ke `tests/**/*.spec.ts` (regex + path containment, `src/cli/studio-run.ts`), **bisa banyak spec sekaligus**, dan hanya SATU child process aktif — `DELETE /api/studio/run` untuk stop (tombol Stop hanya tampil saat run berjalan).
-- Export portable (`src/support/reporter/portable-html.ts`) = satu file HTML mandiri; screenshot PNG/JPEG di-inline base64 selama < 400KB (`MAX_INLINE_BYTES`).
+- Export portable (`src/support/report-artifacts/portable-html.ts`) = satu file HTML mandiri; screenshot PNG/JPEG di-inline base64 selama < 400KB (`MAX_INLINE_BYTES`).

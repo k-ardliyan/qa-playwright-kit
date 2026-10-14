@@ -1,0 +1,937 @@
+/**
+ * MCP Runtime Adapters — Native Semantic Workflow
+ *
+ * Production wiring of the semantic workflow engine into the MCP runtime.
+ * Each adapter maps one semantic stage to the existing MCP tool functions
+ * (snapshot_page / discover_pages / compile_requirement / compile_test_plan /
+ * validate_plan / validate_generated_tests / run_tests / get_test_failures /
+ * get_test_summary / trace_requirement / archive_report).
+ *
+ * The adapters return durable references and hashes only — never raw browser
+ * refs, credentials, or full payloads. The controller (WorkflowController)
+ * owns stage transitions; this file owns the tool calls.
+ *
+ * @module agents/pipeline/mcp-adapters
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import { computeSourceHash } from '@/contracts';
+import { discoverExploreEvidence, deriveFeatureSlug } from './explore-evidence';
+import {
+  writeValidateRunManifest,
+  readValidateRunManifest,
+  assertCurrentValidateManifest,
+} from './validate-manifest';
+import type {
+  WorkflowAdapters,
+  ExploreAdapterInput,
+  ModelAdapterInput,
+  ModelAdapterResult,
+  ChallengeAdapterInput,
+  ChallengeAdapterResult,
+  GenerateAdapterInput,
+  GenerateAdapterResult,
+  ValidateAdapterInput,
+  ValidateAdapterResult,
+} from './workflow-controller';
+import type { EvidenceReference } from './explore-policy';
+import {
+  buildReport,
+  writeReportMarkdown,
+  writeReportJson,
+  type BuildReportInput,
+  type UnresolvedFailure,
+} from '../reporting/report-builder';
+import { loadLatestTestNotes } from '../reporting/test-notes';
+import { buildFailedGrepPattern } from '../../shared/mcp/failed-grep';
+import { extractTestMetadataFromSpec } from '../../support/traceability/test-index';
+
+/** One report coverage row (scenario → status) derived from the trace graph. */
+type BuildCoverageScenario = BuildReportInput['scenarios'][number];
+
+/** failureSource values accepted by the report contract. */
+const FAILURE_SOURCES = ['app', 'test', 'requirement', 'env', 'ai_generation', 'unknown'] as const;
+type FailureSource = (typeof FAILURE_SOURCES)[number];
+
+function asFailureSource(value: unknown): FailureSource | undefined {
+  return typeof value === 'string' && (FAILURE_SOURCES as readonly string[]).includes(value)
+    ? (value as FailureSource)
+    : undefined;
+}
+
+/**
+ * Raised by the Model adapter when the Planner handoff artifact (the test
+ * plan) is missing. The controller treats this as a PAUSED run waiting for
+ * external Planner output — never as a terminal failure.
+ */
+export class ModelHandoffError extends Error {
+  constructor(
+    public readonly requiredArtifactPath: string,
+    public readonly handoffType: 'planner-required' | 'adapter-failed' = 'planner-required',
+  ) {
+    super(
+      `[mcp-adapters] Test plan not found at ${requiredArtifactPath}. Run the Planner (Model stage) to produce the plan before Challenge.`,
+    );
+    this.name = 'ModelHandoffError';
+  }
+}
+
+/**
+ * Tool-function seam. The MCP package cannot import root TS, so the runtime
+ * injects the actual tool functions; tests inject fakes. Each function is
+ * optional — a missing function makes its stage fail closed with an
+ * actionable error instead of silently skipping the gate.
+ */
+export interface McpToolFunctions {
+  snapshotPage?: (args: Record<string, unknown>) => Promise<unknown>;
+  discoverPages?: (args: Record<string, unknown>) => Promise<unknown>;
+  compileRequirement?: (args: Record<string, unknown>) => Promise<unknown>;
+  compileTestPlan?: (args: Record<string, unknown>) => Promise<unknown>;
+  validatePlan?: (args: Record<string, unknown>) => Promise<unknown>;
+  validateGeneratedTests?: (args: Record<string, unknown>) => Promise<unknown>;
+  getTestFailures?: (args: Record<string, unknown>) => Promise<unknown>;
+  getTestSummary?: (args: Record<string, unknown>) => Promise<unknown>;
+  traceRequirement?: (args: Record<string, unknown>) => Promise<unknown>;
+  recordAiNote?: (args: Record<string, unknown>) => Promise<unknown>;
+  /** Real Playwright runner invocation scoped to this run (driver implements it). */
+  runPlaywrightTests?: (args: {
+    testFiles: string[];
+    resultsDir: string;
+    /** Requirement source path — surfaced to reporters via REQUIREMENT_PATH. */
+    requirementPath?: string;
+  }) => Promise<{
+    ok: boolean;
+    total?: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+    timedOut?: number;
+    interrupted?: number;
+    resultsJsonPath?: string;
+    message?: string;
+  }>;
+}
+
+export interface McpAdapterOptions {
+  tools: McpToolFunctions;
+  /** Repo root for resolving requirement/plan paths. Defaults to cwd. */
+  repoRoot?: string;
+}
+
+function repoRootOf(options: McpAdapterOptions): string {
+  return options.repoRoot ?? process.cwd();
+}
+
+function requireTool<K extends keyof McpToolFunctions>(
+  tools: McpToolFunctions,
+  name: K,
+): NonNullable<McpToolFunctions[K]> {
+  const fn = tools[name];
+  if (!fn) {
+    throw new Error(
+      `[mcp-adapters] Tool function '${name}' is not wired into the MCP runtime. The semantic workflow cannot run without it.`,
+    );
+  }
+  return fn as NonNullable<McpToolFunctions[K]>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return (value ?? {}) as Record<string, unknown>;
+}
+
+function firstString(record: Record<string, unknown>, key: string): string | undefined {
+  const v = record[key];
+  return typeof v === 'string' ? v : undefined;
+}
+
+function normalizeUrl(raw: string): string {
+  const url = new URL(raw);
+  url.hash = '';
+  if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
+  return url.href;
+}
+
+function firstNumber(record: Record<string, unknown>, key: string): number | undefined {
+  const v = record[key];
+  return typeof v === 'number' ? v : undefined;
+}
+
+function readHash(absPath: string): string | null {
+  try {
+    return computeSourceHash(fs.readFileSync(absPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function isContainedFile(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return (
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
+
+function inspectExplicitGeneratedFile(
+  repoRoot: string,
+  file: string,
+):
+  | { ok: true; absolutePath: string; relativePath: string }
+  | { ok: false; mode: 'blocked' | 'awaiting-generator'; reason: string } {
+  const testsRoot = path.join(repoRoot, 'tests');
+  if (typeof file !== 'string' || file.trim() === '') {
+    return { ok: false, mode: 'blocked', reason: 'Generated file must be a non-empty path.' };
+  }
+  const absolutePath = path.resolve(repoRoot, file);
+  const relativePath = path.relative(repoRoot, absolutePath).replace(/\\/g, '/');
+  if (
+    !isContainedFile(testsRoot, absolutePath) ||
+    !relativePath.startsWith('tests/') ||
+    !relativePath.endsWith('.spec.ts')
+  ) {
+    return {
+      ok: false,
+      mode: 'blocked',
+      reason: `Generated file must be a regular tests/**/*.spec.ts file: ${file}`,
+    };
+  }
+  if (!fs.existsSync(absolutePath)) {
+    return {
+      ok: false,
+      mode: 'awaiting-generator',
+      reason: `Expected generated file is missing: ${file}`,
+    };
+  }
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(absolutePath);
+  } catch {
+    return { ok: false, mode: 'blocked', reason: `Unable to inspect generated file: ${file}` };
+  }
+  if (!stat.isFile()) {
+    return { ok: false, mode: 'blocked', reason: `Generated path is not a regular file: ${file}` };
+  }
+  try {
+    const realTestsRoot = fs.realpathSync(testsRoot);
+    const realFile = fs.realpathSync(absolutePath);
+    if (!isContainedFile(realTestsRoot, realFile)) {
+      return {
+        ok: false,
+        mode: 'blocked',
+        reason: `Generated file resolves outside tests/: ${file}`,
+      };
+    }
+  } catch {
+    return {
+      ok: false,
+      mode: 'blocked',
+      reason: `Unable to resolve generated file safely: ${file}`,
+    };
+  }
+  return { ok: true, absolutePath, relativePath };
+}
+
+/** Recursively list .spec.ts files under a directory (repo-relative paths). */
+function listSpecFiles(dirAbs: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (/\.spec\.ts$/.test(entry.name)) {
+        out.push(path.relative(process.cwd(), full).replace(/\\/g, '/'));
+      }
+    }
+  };
+  walk(dirAbs);
+  return out.sort();
+}
+
+/**
+ * Count the `test(...)` declarations across generated spec files.
+ *
+ * `generatedFiles.length` is a FILE count — reporting it as "Tests Generated"
+ * alongside a TEST count (`testsPassing`) mixed two units in one table (a run
+ * showed "Tests Generated 1 / Tests Passing 18"). Count real declarations.
+ */
+function countTestDeclarations(repoRoot: string, files: string[]): number {
+  let total = 0;
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(path.resolve(repoRoot, file), 'utf-8');
+      total += extractTestMetadataFromSpec(content, file).length;
+    } catch {
+      // Unreadable file — it is still a generated artifact; do not invent tests.
+    }
+  }
+  return total;
+}
+
+/**
+ * Resolve a per-run results directory. Validate refuses a missing/unsafe runId
+ * rather than falling back to the shared workflow directory (PC-B1/B2).
+ */
+export function resolveValidateResultsDir(repoRoot: string, runId: string | undefined): string {
+  if (!runId || !/^[A-Za-z0-9._-]+$/.test(runId)) {
+    throw new Error('VALIDATE_RUN_ID_REQUIRED: semantic Validate requires a safe runId.');
+  }
+  return path.join(repoRoot, 'artifacts', 'test-results', 'workflow', runId);
+}
+
+export interface TraceReportCoverage {
+  scenarios: BuildCoverageScenario[];
+  /** Scenarios the traceability graph reports as healed (0 until a heal pass exists). */
+  healedScenarios: number;
+}
+
+/**
+ * Map a TraceabilityContractV1 payload onto report coverage rows + heal count.
+ *
+ * The trace contract is the only end-to-end source that links a requirement
+ * scenario to its execution evidence, so the pipeline report reuses it instead
+ * of shipping an empty Coverage table. Unparseable input yields empty data —
+ * a missing trace is reported as no-coverage, never invented.
+ */
+export function extractReportCoverageFromTrace(
+  traceData: Record<string, unknown>,
+): TraceReportCoverage {
+  const scenarios = Array.isArray(traceData.scenarios) ? traceData.scenarios : [];
+  const rows: BuildCoverageScenario[] = [];
+  for (const item of scenarios) {
+    const row = asRecord(item);
+    const id = firstString(row, 'scenarioId');
+    const title = firstString(row, 'title');
+    const executionStatus = firstString(row, 'executionStatus');
+    if (!id || !executionStatus) continue;
+    rows.push({
+      id,
+      name: title ?? id,
+      status: coverageStatusFromExecution(executionStatus),
+    });
+  }
+  const metrics = asRecord(traceData.metrics);
+  const healed = firstNumber(metrics, 'healedScenarios');
+  return { scenarios: rows, healedScenarios: healed && healed > 0 ? healed : 0 };
+}
+
+/**
+ * Trace execution status → report coverage status.
+ *
+ * `manual` and `not-implemented` survive the mapping instead of collapsing into
+ * `not-generated`: "not applicable" and "not built yet" are different facts, and
+ * folding them together is what let 112 unbuilt scenarios read as a neutral
+ * outcome. Only truly unknown states fall through to `not-generated`.
+ */
+function coverageStatusFromExecution(status: string): BuildCoverageScenario['status'] {
+  switch (status) {
+    case 'passed':
+      return 'passed';
+    case 'failed':
+    case 'timedOut':
+    case 'interrupted':
+      return 'failed';
+    case 'skipped':
+      return 'skipped';
+    case 'not-implemented':
+      return 'not-implemented';
+    default:
+      // manual / blocked / not-generated / not-executed
+      return 'not-generated';
+  }
+}
+
+/**
+ * Build the production adapter set from injected MCP tool functions.
+ */
+export function createMcpAdapters(options: McpAdapterOptions): WorkflowAdapters {
+  const root = repoRootOf(options);
+  const tools = options.tools;
+
+  return {
+    async explore(input: ExploreAdapterInput): Promise<{ evidence: EvidenceReference[] }> {
+      const requirement = asRecord(
+        await requireTool(tools, 'compileRequirement')({ requirementPath: input.requirementPath }),
+      );
+      const status = firstString(requirement, 'status');
+      if (status !== 'success' && status !== 'warning') {
+        throw new Error(
+          `[mcp-adapters] Explore cannot compile requirement '${input.requirementPath}' (status=${status ?? 'unknown'}). Fix requirement errors before browsing.`,
+        );
+      }
+      const contract = asRecord(requirement.data);
+      const auth = asRecord(contract.auth);
+      const isUnauthenticated = auth.state === 'unauthenticated';
+      const role = isUnauthenticated
+        ? undefined
+        : (input.role ?? firstString(auth, 'defaultRole') ?? undefined);
+      if (!isUnauthenticated && !role) {
+        throw new Error(
+          '[mcp-adapters] Explore requires an explicit role or requirement auth.defaultRole for authenticated pages.',
+        );
+      }
+
+      const configuredBase = process.env.BASE_URL;
+      let configuredUrl: URL | undefined;
+      if (configuredBase) {
+        try {
+          configuredUrl = new URL(configuredBase);
+        } catch {
+          throw new Error('[mcp-adapters] Explore BASE_URL must be a valid absolute http(s) URL.');
+        }
+        if (!['http:', 'https:'].includes(configuredUrl.protocol)) {
+          throw new Error('[mcp-adapters] Explore BASE_URL must be an absolute http(s) URL.');
+        }
+      }
+      const explicitStartPage = input.startPage ?? firstString(contract, 'startPage') ?? undefined;
+      if (explicitStartPage && !configuredUrl) {
+        throw new Error(
+          '[mcp-adapters] Explore requires a valid BASE_URL to resolve the requested startPage.',
+        );
+      }
+
+      if (explicitStartPage && process.env.APP_ENV?.trim().toLowerCase() === 'production') {
+        throw new Error(
+          '[mcp-adapters] URL-driven Explore is blocked for APP_ENV=production. Select a non-production environment.',
+        );
+      }
+
+      const feature = deriveFeatureSlug(input.requirementPath);
+      let targetUrl: URL | undefined;
+      if (explicitStartPage && configuredUrl) {
+        try {
+          targetUrl = new URL(explicitStartPage, `${configuredUrl.origin}/`);
+        } catch {
+          throw new Error('[mcp-adapters] Explore startPage is not a valid URL or route.');
+        }
+        if (
+          !['http:', 'https:'].includes(targetUrl.protocol) ||
+          targetUrl.origin !== configuredUrl.origin
+        ) {
+          throw new Error(
+            '[mcp-adapters] Explore startPage must use the same http(s) origin as BASE_URL.',
+          );
+        }
+        if (targetUrl.username || targetUrl.password) {
+          throw new Error('[mcp-adapters] Explore startPage must not contain URL credentials.');
+        }
+      }
+
+      targetUrl ??= configuredUrl;
+      const requestedUrl = targetUrl?.href;
+      const discovered = discoverExploreEvidence(input.requirementPath, role, root, requestedUrl);
+      if (discovered.evidence.length > 0 && !input.force) {
+        return { evidence: discovered.evidence };
+      }
+      if (role && discovered.roleMismatch.length > 0 && !input.force) {
+        throw new Error(
+          `[mcp-adapters] Explore evidence exists for a different role or target URL. Re-capture with role '${role}'.`,
+        );
+      }
+
+      // No durable evidence for this exact route and role — snapshot it live.
+      const baseUrl = configuredUrl;
+      if (!baseUrl) {
+        throw new Error(
+          '[mcp-adapters] Explore requires BASE_URL (set in config/environments/{APP_ENV}.env) to run live snapshot_page/discover_pages.',
+        );
+      }
+      targetUrl ??= new URL(
+        contract.startPage ? String(contract.startPage) : '/',
+        `${baseUrl.origin}/`,
+      );
+      const routeName = `${targetUrl.pathname}${targetUrl.hash}`
+        .replace(/^\/+|\/+$/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/-+/g, '-');
+      const pageName = [routeName || 'home', role].filter(Boolean).join('-');
+      const snapshot = asRecord(
+        await requireTool(
+          tools,
+          'snapshotPage',
+        )({
+          url: targetUrl.href,
+          featureName: feature,
+          pageName,
+          force: input.force === true,
+          ...(role ? { role } : {}),
+        }),
+      );
+      if (snapshot.status === 'error') {
+        throw new Error(
+          `[mcp-adapters] Explore snapshot failed: ${firstString(snapshot, 'message') ?? 'snapshot_page returned status=error'}`,
+        );
+      }
+      const warnings = Array.isArray(snapshot.warnings) ? snapshot.warnings : [];
+      const authWarning = warnings.find(
+        (warning): warning is string =>
+          typeof warning === 'string' && /auth|session|tenant|company/i.test(warning),
+      );
+      if (role && authWarning) {
+        throw new Error(`[mcp-adapters] Explore did not use role '${role}': ${authWarning}`);
+      }
+      if (
+        typeof snapshot.url === 'string' &&
+        normalizeUrl(snapshot.url) !== normalizeUrl(targetUrl.href)
+      ) {
+        throw new Error(
+          `[mcp-adapters] Explore snapshot landed on '${snapshot.url}' instead of requested URL '${targetUrl.href}'.`,
+        );
+      }
+      const freshEvidence = discoverExploreEvidence(
+        input.requirementPath,
+        role,
+        root,
+        targetUrl.href,
+      ).evidence;
+      if (freshEvidence.length === 0) {
+        throw new Error(
+          `[mcp-adapters] Explore snapshot produced no durable evidence for ${targetUrl.href}${role ? ` as role '${role}'` : ''}.`,
+        );
+      }
+      return { evidence: freshEvidence };
+    },
+
+    async model(input: ModelAdapterInput): Promise<ModelAdapterResult> {
+      const compileRequirement = requireTool(tools, 'compileRequirement');
+      const compileTestPlan = requireTool(tools, 'compileTestPlan');
+
+      const reqResult = asRecord(
+        await compileRequirement({ requirementPath: input.requirementPath }),
+      );
+      const reqData = asRecord(reqResult.data);
+      const sourceHash = firstString(reqData, 'sourceHash') ?? firstString(reqResult, 'sourceHash');
+      if (!sourceHash) {
+        throw new Error(
+          '[mcp-adapters] compile_requirement did not return a sourceHash — cannot link Model to the requirement.',
+        );
+      }
+
+      const feature = deriveFeatureSlug(input.requirementPath);
+      const planPath = path.join('specs', `${feature}-test-plan.md`).replace(/\\/g, '/');
+      const planAbs = path.join(root, planPath);
+      if (!fs.existsSync(planAbs)) {
+        throw new ModelHandoffError(planPath);
+      }
+      const planHash = readHash(planAbs);
+      if (!planHash) {
+        throw new Error(`[mcp-adapters] Cannot hash test plan at ${planPath}.`);
+      }
+
+      const planResult = asRecord(
+        await compileTestPlan({ testPlanPath: planPath, requirementPath: input.requirementPath }),
+      );
+      const planData = asRecord(planResult.data);
+      const scenarios = Array.isArray(planData.scenarios) ? planData.scenarios : [];
+      const coverageGaps = Array.isArray(planData.coverageGaps) ? planData.coverageGaps : [];
+
+      return {
+        planPath,
+        planHash,
+        scenarioCount: scenarios.length,
+        coverageGapCount: coverageGaps.length,
+        requirementHash: sourceHash,
+      };
+    },
+
+    async challenge(input: ChallengeAdapterInput): Promise<ChallengeAdapterResult> {
+      const validatePlan = requireTool(tools, 'validatePlan');
+      const compileTestPlan = requireTool(tools, 'compileTestPlan');
+
+      const result = asRecord(
+        await validatePlan({
+          testPlanPath: input.planPath,
+          requirementPath: input.requirementPath,
+        }),
+      );
+      const diagnostics = Array.isArray(result.diagnostics)
+        ? (result.diagnostics as Array<{ code: string; severity: 'error' | 'warning' | 'info' }>)
+        : [];
+      const data = asRecord(result.data);
+      const assumptionCount = firstNumber(data, 'assumptionsCount') ?? 0;
+      const coverageGapCount = firstNumber(data, 'coverageGapsCount') ?? 0;
+
+      // PC-03 (Task 3.1): fail closed on the validator RESULT STATUS, not just
+      // on diagnostics. A result with status=error but no diagnostics (or a
+      // malformed result) must never allow Generate.
+      const validatorStatus = firstString(result, 'status');
+      if (validatorStatus === 'error') {
+        throw new Error(
+          `[mcp-adapters] validate_plan returned status=error: ${String(result.message ?? 'validation failed')}. Challenge is blocked.`,
+        );
+      }
+      if (validatorStatus !== 'success' && validatorStatus !== 'warning') {
+        throw new Error(
+          `[mcp-adapters] validate_plan returned unexpected status '${String(validatorStatus)}'. Challenge fails closed.`,
+        );
+      }
+
+      // Assertion count comes from the compiled plan (sum of scenario assertions).
+      const planResult = asRecord(
+        await compileTestPlan({
+          testPlanPath: input.planPath,
+          requirementPath: input.requirementPath,
+        }),
+      );
+      const planData = asRecord(planResult.data);
+      const scenarios = Array.isArray(planData.scenarios) ? planData.scenarios : [];
+      const assertionCount = scenarios.reduce(
+        (n, s) =>
+          n +
+          (Array.isArray((s as Record<string, unknown>).assertions)
+            ? ((s as Record<string, unknown>).assertions as unknown[]).length
+            : 0),
+        0,
+      );
+
+      return {
+        diagnostics,
+        assumptions: [],
+        coverageGaps: [],
+        assertionCount,
+        assumptionCount,
+        coverageGapCount,
+        validatorStatus,
+      };
+    },
+
+    async generate(input: GenerateAdapterInput): Promise<GenerateAdapterResult> {
+      const validateGeneratedTests = requireTool(tools, 'validateGeneratedTests');
+      // Resume path: validate ONLY explicit files supplied by the external
+      // Generator, never scan all of tests/ and treat unrelated specs as output.
+      if (input.generatedFiles && input.generatedFiles.length > 0) {
+        for (const file of input.generatedFiles) {
+          const inspected = inspectExplicitGeneratedFile(root, file);
+          if (!inspected.ok) {
+            return {
+              mode: inspected.mode,
+              generatedFiles: input.generatedFiles,
+              testCount: 0,
+              reason: inspected.reason,
+            };
+          }
+        }
+        for (const file of input.generatedFiles) {
+          const result = asRecord(await validateGeneratedTests({ filePath: file }));
+          if (result.status === 'error') {
+            return {
+              mode: 'failed',
+              generatedFiles: input.generatedFiles,
+              testCount: 0,
+              reason: `Generated test validation failed for ${file}: ${String(result.message ?? 'structural violations found')}`,
+            };
+          }
+        }
+        return {
+          mode: 'completed',
+          generatedFiles: input.generatedFiles,
+          testCount: countTestDeclarations(root, input.generatedFiles),
+          reason: 'External generated files exist and validate successfully.',
+        };
+      }
+
+      const result = asRecord(await validateGeneratedTests({}));
+      if (result.status === 'error') {
+        const count = firstNumber(result, 'validatedCount') ?? 0;
+        throw new Error(
+          `[mcp-adapters] validate_generated_tests failed: ${String(result.message ?? 'structural violations found')} (${count} file(s) checked). Fix the generated specs and re-run Generate.`,
+        );
+      }
+      // PC-02: this adapter has no real generator wired yet. Validating
+      // pre-existing specs must NEVER claim a Generate pass — report an
+      // explicit awaiting-generator handoff so the run pauses truthfully.
+      const testsDir = path.join(root, 'tests');
+      const feature = deriveFeatureSlug(input.requirementPath);
+      const featurePattern = new RegExp(`^tests[\\/]${feature}(-[^\\/]+)?\\.spec\\.ts$`);
+      const allFiles = fs.existsSync(testsDir) ? listSpecFiles(testsDir) : [];
+      const existingFiles = allFiles.filter((f) => featurePattern.test(f.replace(/\\/g, '/')));
+      return {
+        mode: 'awaiting-generator',
+        generatedFiles: existingFiles,
+        testCount: countTestDeclarations(root, existingFiles),
+        reason:
+          'No generator is wired into the semantic runtime yet. Run the Generator agent to produce tests/<feature>[-<role>].spec.ts, then resume.',
+      };
+    },
+
+    async validate(input: ValidateAdapterInput): Promise<ValidateAdapterResult> {
+      const getTestFailures = requireTool(tools, 'getTestFailures');
+      const traceRequirement = requireTool(tools, 'traceRequirement');
+      const runPlaywrightTests = requireTool(tools, 'runPlaywrightTests');
+
+      // Task B1/B2: every semantic Validate run gets its own isolated result
+      // directory derived solely from the controller runId.
+      const resultsDir = resolveValidateResultsDir(root, input.runId);
+      const startedAt = new Date().toISOString();
+      const summaryPath = path.join(resultsDir, 'results.json');
+      const manifestPath = writeValidateRunManifest(root, {
+        runId: input.runId as string,
+        requirementPath: input.requirementPath,
+        generatedFiles: input.generatedFiles,
+        resultsDir,
+        summaryPath,
+        startedAt,
+      });
+      const run = await runPlaywrightTests({
+        testFiles: input.generatedFiles,
+        resultsDir,
+        requirementPath: input.requirementPath,
+        // Re-entry narrowing: grep only the previously failed titles.
+        ...(input.failedOnly ? { grep: buildFailedGrepPattern(input.failedOnly.titles) } : {}),
+      });
+      if (!run.ok) {
+        throw new Error(
+          `[mcp-adapters] Playwright produced no current-run JSON evidence: ${run.message ?? 'unknown runner error'}.`,
+        );
+      }
+
+      // A narrowing pass that matched ZERO tests proves nothing: reporting it as
+      // "no unresolved failures" would be a false green. Fail loud instead.
+      if (input.failedOnly && run.total === 0) {
+        throw new Error(
+          `[mcp-adapters] Re-entry grep matched no tests (${input.failedOnly.titles.length} title(s) requested). Cannot verify the previous failures — inspect the titles and re-run.`,
+        );
+      }
+
+      // B4/B5: failures and summaries must be attributed to THIS run's
+      // manifest — write the completed manifest after runner execution
+      // (Playwright wipes --output on launch), then verify it.
+      const completedAt = new Date().toISOString();
+      const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
+      console.log(
+        `[validate] run ${input.runId}: ${run.total} test(s) — ${run.passed} passed, ${run.failed} failed, ${run.skipped} skipped in ${durationMs}ms`,
+      );
+      writeValidateRunManifest(root, {
+        runId: input.runId as string,
+        requirementPath: input.requirementPath,
+        generatedFiles: input.generatedFiles,
+        resultsDir,
+        summaryPath,
+        startedAt,
+        completedAt,
+      });
+
+      const currentManifest = readValidateRunManifest(manifestPath);
+      assertCurrentValidateManifest(currentManifest, {
+        runId: input.runId as string,
+        requirementPath: input.requirementPath,
+        resultsDir,
+      });
+      const failures = asRecord(await getTestFailures({ resultsDir }));
+      const failureList = Array.isArray(failures.failures) ? failures.failures : [];
+      const unresolvedFailures = failureList.length;
+      const summary: Record<string, unknown> = {
+        runId: input.runId,
+        requirementPath: input.requirementPath,
+        resultsDir,
+        summaryPath,
+        startedAt,
+        completedAt,
+        total: run.total ?? run.passed + run.failed + run.skipped,
+        passed: run.passed,
+        failed: run.failed,
+        skipped: run.skipped,
+        timedOut: run.timedOut ?? 0,
+        interrupted: run.interrupted ?? 0,
+        testCases: failureList,
+      };
+      // Traceability graph feeds the pipeline report coverage (previously the
+      // result was discarded and the report shipped an empty Coverage table).
+      // Trace failure must never kill Validate — fall back to empty coverage
+      // and the executed-test count.
+      let traceCoverage: TraceReportCoverage = { scenarios: [], healedScenarios: 0 };
+      try {
+        const traceResult = asRecord(
+          await traceRequirement({ requirementPath: input.requirementPath }),
+        );
+        traceCoverage = extractReportCoverageFromTrace(asRecord(traceResult.data));
+      } catch (err) {
+        // Trace failure must not kill Validate, but it must be visible: a
+        // silent fallback ships healedCount 0 indistinguishable from "nothing
+        // was healed". Log the cause, keep the empty coverage.
+        console.warn(
+          `[validate] trace_requirement failed for ${input.requirementPath}: ${err instanceof Error ? err.message : String(err)}. Coverage falls back to executed-test counts.`,
+        );
+        traceCoverage = { scenarios: [], healedScenarios: 0 };
+      }
+      const coverageScenarios = traceCoverage.scenarios;
+      const plannedScenarios =
+        coverageScenarios.length > 0
+          ? coverageScenarios.length
+          : typeof summary.total === 'number'
+            ? summary.total
+            : 0;
+
+      // Production Analyze seam (honest minimum): one run-level insight plus
+      // per-scenario insights for FAILED tests only (no evidence for passed
+      // scenarios here — AGENTS.md allows skipping without evidence). Counts
+      // must match what was actually recorded, or the archive APPROVE gate
+      // would verify against fabricated numbers. If the note/report seam is
+      // not wired, return explicit incomplete proof; never fabricate.
+      let analysisCompleted = false;
+      let analysisVerified = false;
+      let analysisVerdict: ValidateAdapterResult['analysisVerdict'] = 'unverifiable';
+      const recordAiNote = tools.recordAiNote;
+      if (recordAiNote) {
+        let recordedInsights = 0;
+        const runNote = asRecord(
+          await recordAiNote({
+            scope: 'run',
+            source: 'reporter',
+            kind: 'stability',
+            observation: `Current run executed ${summary.total} test(s): ${summary.passed} passed, ${summary.failed} failed.`,
+            evidence: resultsDir,
+            impact:
+              unresolvedFailures > 0
+                ? 'Unresolved current-run failure remains.'
+                : 'No current-run failure detected.',
+            recommendation:
+              unresolvedFailures > 0
+                ? 'Review current-run failure evidence before QA decision.'
+                : 'Proceed to explicit QA review.',
+            priority: unresolvedFailures > 0 ? 'high' : 'medium',
+            confidence: 'high',
+            status: 'observed',
+          }),
+        );
+        if (runNote.status === 'success') recordedInsights += 1;
+
+        // Per-scenario insight for each failed test (best-effort; count only
+        // notes that actually persisted so the gate evidence stays truthful).
+        for (const failure of failureList) {
+          const f = asRecord(failure);
+          const testId =
+            typeof f.testId === 'string' && f.testId
+              ? f.testId
+              : typeof f.title === 'string'
+                ? f.title
+                : undefined;
+          if (!testId) continue;
+          const errorText =
+            typeof f.errorMessage === 'string'
+              ? f.errorMessage.slice(0, 300)
+              : typeof f.message === 'string'
+                ? f.message.slice(0, 300)
+                : 'unknown error';
+          const evidencePaths = [f.tracePath, f.screenshotPath]
+            .filter((p): p is string => typeof p === 'string' && p.length > 0)
+            .join(', ');
+          const scenarioNote = asRecord(
+            await recordAiNote({
+              scope: 'test',
+              testId,
+              source: 'reporter',
+              kind: 'root-cause',
+              observation: `Skenario gagal pada run ini: ${errorText}`,
+              evidence: evidencePaths || resultsDir,
+              impact: 'Skenario tidak lulus; butuh triage sebelum keputusan QA.',
+              recommendation:
+                'Periksa trace/screenshot di artifacts/test-results untuk root cause.',
+              priority: 'high',
+              confidence: 'medium',
+              status: 'observed',
+            }),
+          );
+          if (scenarioNote.status === 'success') recordedInsights += 1;
+        }
+
+        if (runNote.status === 'success') {
+          const passed = typeof summary.passed === 'number' ? summary.passed : 0;
+          const failed = typeof summary.failed === 'number' ? summary.failed : 0;
+          const skipped = typeof summary.skipped === 'number' ? summary.skipped : 0;
+          const notImplemented =
+            typeof summary.notImplemented === 'number' ? summary.notImplemented : undefined;
+          const unresolved: UnresolvedFailure[] = failureList.map((failure) => {
+            const f = asRecord(failure);
+            // Preserve the classified source from the failure payload when it
+            // is one of the contract values. Defaulting a 500 to 'app' when
+            // nothing classified it would fabricate a verdict.
+            const classified = asFailureSource(f.failureSource);
+            return {
+              scenarioId:
+                typeof f.testId === 'string' ? f.testId : ((f.title as string) ?? 'unknown'),
+              stage: 'healer',
+              errorMessage:
+                typeof f.errorMessage === 'string'
+                  ? f.errorMessage
+                  : typeof f.message === 'string'
+                    ? f.message
+                    : 'unknown failure',
+              ...(classified ? { failureSource: classified } : {}),
+              ...(typeof f.tracePath === 'string' ? { tracePath: f.tracePath } : {}),
+              ...(typeof f.screenshotPath === 'string' ? { screenshotPath: f.screenshotPath } : {}),
+            };
+          });
+          // The archive gate cross-checks `runInsightsRecorded` against the
+          // sidecar's TOTAL run insights (notes from earlier passes accumulate
+          // while the runId is unchanged), so declare the observed sidecar
+          // count — never just what this pass recorded.
+          let sidecarRunInsights = recordedInsights;
+          try {
+            const notes = loadLatestTestNotes();
+            if (!notes.runId || notes.runId === input.runId) {
+              sidecarRunInsights = notes.runInsights?.length ?? recordedInsights;
+            }
+          } catch {
+            // Sidecar unreadable — keep this pass's count
+          }
+          const report = buildReport({
+            runId: input.runId as string,
+            startedAt,
+            completedAt,
+            requirementPath: input.requirementPath,
+            scenariosPlanned: plannedScenarios,
+            testsGenerated: countTestDeclarations(root, input.generatedFiles),
+            testResults: { passing: passed, failing: failed, skipped, notImplemented },
+            // Heal count comes from the trace graph — 0 while no heal pass
+            // exists, never a placeholder that claims healing happened.
+            healedCount: traceCoverage.healedScenarios,
+            scenarios: coverageScenarios,
+            unresolvedFailures: unresolved,
+            analysis: {
+              completed: true,
+              runInsightsRecorded: sidecarRunInsights,
+              passedScenariosReviewed: 0,
+              skippedForInsufficientEvidence: passed,
+            },
+          });
+          writeReportMarkdown(report);
+          writeReportJson(report);
+          analysisCompleted = true;
+          analysisVerified = true;
+          analysisVerdict = 'complete';
+        }
+      }
+
+      return {
+        runId: input.runId,
+        startedAt,
+        resultsDir,
+        generatedFiles: input.generatedFiles,
+        executionCommand: `playwright test ${input.generatedFiles.join(' ')}`,
+        unresolvedFailures,
+        // `needs-heal` = failures exist and a heal pass is REQUIRED; nothing was
+        // healed in this run. Reporting `heal` here would falsely claim the
+        // heal substep completed (see ValidateResult contract).
+        substage: unresolvedFailures > 0 ? 'needs-heal' : 'qa-review',
+        passed: run.passed,
+        failed: run.failed,
+        skipped: run.skipped,
+        failureList,
+        testSummary: summary,
+        analysisCompleted,
+        analysisVerified,
+        analysisVerdict,
+      };
+    },
+  };
+}

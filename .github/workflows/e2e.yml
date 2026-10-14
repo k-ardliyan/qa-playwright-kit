@@ -152,7 +152,7 @@ jobs:
 
       - name: Build portable report
         if: always() && steps.shard.outputs.skip != 'true'
-        run: npx tsx -e "import { writePortableReport } from './src/support/reporter/portable-html.ts'; try { console.log(writePortableReport()); } catch (e) { console.log('no summary', e.message); }"
+        run: npx tsx -e "import { writePortableReport } from './src/support/report-artifacts/portable-html.ts'; try { console.log(writePortableReport()); } catch (e) { console.log('no summary', e.message); }"
 
       - name: Upload test results
         if: always() && steps.shard.outputs.skip != 'true'

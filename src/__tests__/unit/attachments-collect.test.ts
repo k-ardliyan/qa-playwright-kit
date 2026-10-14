@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { collectAttachments, classifyAttachment } from '../../support/reporter/attachments';
+import { collectAttachments, classifyAttachment } from '../../support/report-artifacts/attachments';
 import type { TestResult } from '@playwright/test/reporter';
 
 /**

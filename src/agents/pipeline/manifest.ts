@@ -1,0 +1,681 @@
+/**
+ * Capability Manifest Generator — Agent AI Integration Layer
+ *
+ * Generates `agent-manifest.json` at repository root describing every
+ * pipeline phase, its required MCP tools, input/output contracts, and
+ * supported orchestration modes.
+ *
+ * The manifest keeps a package-boundary-safe metadata snapshot because the
+ * nested MCP package cannot be imported by its own build. Tests validate that
+ * snapshot against the canonical MCP registry and generation fails closed on
+ * any internal phase/catalog drift.
+ *
+ * @module agents/pipeline/manifest
+ */
+
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { PipelinePhase, OrchestrationModeDescriptor, WorkflowStage } from './types';
+import { WORKFLOW_STAGES, WORKFLOW_STAGE_DEFINITIONS, type WorkflowStageDescriptor } from './types';
+
+// ─── Type Definitions ────────────────────────────────────────────────────────
+
+/**
+ * Simplified JSON Schema object type used for input/output schemas.
+ */
+export type JsonSchemaObject = Record<string, unknown>;
+
+/**
+ * Describes a single MCP tool available within a pipeline phase.
+ */
+export interface ToolDescriptor {
+  server: string;
+  name: string;
+  description: string;
+}
+
+/**
+ * Describes the capabilities of a single pipeline phase.
+ */
+export interface PhaseCapability {
+  description: string;
+  agentFile: string;
+  mcpServers: string[];
+  tools: ToolDescriptor[];
+  inputSchema: JsonSchemaObject;
+  outputSchema: JsonSchemaObject;
+}
+
+/**
+ * Describes the semantic workflow stages and their execution mapping.
+ */
+export interface WorkflowManifest {
+  stages: WorkflowStageDescriptor[];
+  notes: string;
+}
+
+/**
+ * Machine-readable contract for one semantic workflow stage: when it may
+ * start, what it must produce, and where the flow may go next.
+ */
+export interface WorkflowStageContract {
+  stage: WorkflowStage;
+  entryConditions: string[];
+  exitConditions: string[];
+  gate?: string;
+  physicalMapping: PipelinePhase[];
+  requiredArtifacts: string[];
+  allowedNextStages: WorkflowStage[];
+}
+
+/**
+ * Prerequisites required to run the pipeline.
+ */
+export interface Prerequisites {
+  nodeVersion: string;
+  requiredEnvVars: string[];
+  dependencies: string[];
+}
+
+/**
+ * The full capability manifest describing the pipeline.
+ */
+export interface CapabilityManifest {
+  version: string;
+  generatedAt: string;
+  phases: Record<PipelinePhase, PhaseCapability>;
+  workflow?: WorkflowManifest;
+  workflowContracts?: WorkflowStageContract[];
+  orchestrationModes: OrchestrationModeDescriptor[];
+  prerequisites: Prerequisites;
+}
+
+// ─── Static Tool Info ────────────────────────────────────────────────────────
+
+/**
+ * Static tool information matching the MCP tool registry.
+ * Each entry contains the server, name, and description.
+ */
+const TOOL_INFO: Record<string, ToolDescriptor> = {
+  health_check: {
+    server: 'qa-playwright-kit',
+    name: 'health_check',
+    description:
+      'Verify Node, Playwright packages, MCP build, environment files, `.auth/{APP_ENV}/` storage state, and test result artifacts before running the agent pipeline. A role whose saved session belongs to another company than {ROLE}_COMPANY is reported not ready.',
+  },
+  pipeline_status: {
+    server: 'qa-playwright-kit',
+    name: 'pipeline_status',
+    description:
+      'One-call pipeline orientation: reads pipeline-state.json, the last test-summary.json, and .auth/{APP_ENV}/ — reports current phase, resume safety (requirement staleness, missing artifacts), last run pass/fail, and ready auth roles. A role whose session is stamped for another company than {ROLE}_COMPANY is not ready. Call before deciding to resume or start a fresh run.',
+  },
+  workflow_run: {
+    server: 'qa-playwright-kit',
+    name: 'workflow_run',
+    description:
+      'Run the native semantic workflow (Explore → Model → Challenge → Generate → Validate) for a requirement through the production driver. Returns the structured WorkflowResponse (workflowStage, workflowStatus, nextRequiredAction) so a block is actionable. Use this instead of manual phase-by-phase invoke when the semantic flow is desired.',
+  },
+  compile_requirement: {
+    server: 'qa-playwright-kit',
+    name: 'compile_requirement',
+    description:
+      'Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix. Accepts both the legacy bullet form and the table form (| Label | value |).',
+  },
+  compile_test_plan: {
+    server: 'qa-playwright-kit',
+    name: 'compile_test_plan',
+    description:
+      'Compile Markdown test plan (specs/*.md) into canonical TestPlanContractV1 (qa.test-plan/v1) with typed assertion provenance, scenario metadata, and coverage gaps. Accepts both the legacy bullet form and the table form (| Label | value |).',
+  },
+  validate_plan: {
+    server: 'qa-playwright-kit',
+    name: 'validate_plan',
+    description:
+      'Validate a TestPlanContractV1 (qa.test-plan/v1) against its source requirement contract. Checks scenario coverage, AC coverage, role/auth drift, assertion provenance, and ephemeral browser references. Accepts both the legacy bullet form and the table form (| Label | value |).',
+  },
+  trace_requirement: {
+    server: 'qa-playwright-kit',
+    name: 'trace_requirement',
+    description:
+      'Build end-to-end TraceabilityContractV1 (qa.traceability/v1) graph linking Requirement -> Acceptance Criteria -> Scenarios -> Test Specs -> Execution Evidence.',
+  },
+  validate_requirement: {
+    server: 'qa-playwright-kit',
+    name: 'validate_requirement',
+    description:
+      'Validate requirement markdown structure before Planner runs. Checks title, scenarios, observable results, and @manual conventions. Accepts both the legacy bullet form and the table form (| Label | value |).',
+  },
+  normalize_requirements: {
+    server: 'qa-playwright-kit',
+    name: 'normalize_requirements',
+    description:
+      'Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios. Accepts both the legacy bullet form and the table form (| Label | value |).',
+  },
+  parse_requirement_scenarios: {
+    server: 'qa-playwright-kit',
+    name: 'parse_requirement_scenarios',
+    description:
+      'Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English). Accepts both the legacy bullet form and the table form (| Label | value |).',
+  },
+  discover_pages: {
+    server: 'qa-playwright-kit',
+    name: 'discover_pages',
+    description:
+      'BFS auto-crawl a public site from a single entry point. For each unique same-origin URL: persist ARIA + selector catalog and append to page-map.json. Respects robots.txt, applies politeness delay, and supports checkpoint/resume.',
+  },
+  snapshot_page: {
+    server: 'qa-playwright-kit',
+    name: 'snapshot_page',
+    description:
+      'Navigate to URL, capture ARIA snapshot, and persist a structured selector catalog under artifacts/selector-catalog/<feature>/<page>.{aria.yml,json}. Returns a compact summary (path, elementCount, hash, semanticSummary) for AI agents — read the JSON file for selector details.',
+  },
+  validate_generated_tests: {
+    server: 'qa-playwright-kit',
+    name: 'validate_generated_tests',
+    description:
+      'Validate generated .spec.ts files for base.fixture import, test.describe, and test.step rules.',
+  },
+  get_test_failures: {
+    server: 'qa-playwright-kit',
+    name: 'get_test_failures',
+    description:
+      "Get Playwright test failures from the caller's resultsDir (or artifacts/test-results/ by default). Includes trace and screenshot paths when available.",
+  },
+  get_test_summary: {
+    server: 'qa-playwright-kit',
+    name: 'get_test_summary',
+    description:
+      'Read machine-readable pass/fail summary from artifacts/reports/test-summary.json.',
+  },
+  list_artifacts: {
+    server: 'qa-playwright-kit',
+    name: 'list_artifacts',
+    description: 'List requirement, spec, and generated test files under allowed project paths.',
+  },
+  list_requirement_status: {
+    server: 'qa-playwright-kit',
+    name: 'list_requirement_status',
+    description:
+      'Coverage map: each pipeline requirement with hasPlan, hasTests, manual scenario count, and last run status from test-summary when available.',
+  },
+  generate_page_object: {
+    server: 'qa-playwright-kit',
+    name: 'generate_page_object',
+    description:
+      'Generate TypeScript POM scaffold from selector catalog JSON. Never overwrites existing files unless force=true. Returns scaffold with grouped locators, TODO markers for business methods, and warnings for fragile selectors.',
+  },
+  list_test_fixtures: {
+    server: 'qa-playwright-kit',
+    name: 'list_test_fixtures',
+    description:
+      'List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker).',
+  },
+  list_seeds: {
+    server: 'qa-playwright-kit',
+    name: 'list_seeds',
+    description:
+      'List the project seed registry (config/qa-kit.seeds.json): every declared seed:<entity>.<state> and its producer. Missing registry returns guidance, not an error.',
+  },
+  get_seed_graph: {
+    server: 'qa-playwright-kit',
+    name: 'get_seed_graph',
+    description:
+      'Return the executable seed producer graph (config/qa-kit.seeds.json "create" blocks) ready to pass to withSeededData / the seeded fixture. Skips prose-only seeds and reports them separately, so the Generator never hand-copies endpoints.',
+  },
+  update_requirement: {
+    server: 'qa-playwright-kit',
+    name: 'update_requirement',
+    description:
+      'Revise an existing requirement file (whole-file replacement) with an optimistic hash lock, an automatic .bak backup, and an eager re-compile so diagnostics surface immediately. This is the sanctioned REVISE REQUIREMENT path after a report.',
+  },
+  inspect_file: {
+    server: 'qa-playwright-kit',
+    name: 'inspect_file',
+    description:
+      'Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.',
+  },
+  extract_pdf_text: {
+    server: 'qa-playwright-kit',
+    name: 'extract_pdf_text',
+    description:
+      'Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).',
+  },
+  synthesize_requirement: {
+    server: 'qa-playwright-kit',
+    name: 'synthesize_requirement',
+    description:
+      'Synthesize a requirement from selector catalogs and preserve up to 20 structured QA-authored scenarios before observation-derived scenarios. Accepts both the legacy bullet form and the table form (| Label | value |).',
+  },
+  archive_report: {
+    server: 'qa-playwright-kit',
+    name: 'archive_report',
+    description:
+      'Archive a pipeline report (Markdown + optional JSON) to artifacts/reports/archive/<runId>/. Requires an explicit QA decision and never overwrites an existing archive. Call this after the Reporter produces the final pipeline report and QA decides.',
+  },
+  record_ai_note: {
+    server: 'qa-playwright-kit',
+    name: 'record_ai_note',
+    description:
+      'Append an AI-authored insight — to one test row (scope=test, default; shown in the AI NOTES column) or to the whole run (scope=run; shown in the overview AI Run Insights panel). Structured fields (kind/observation/evidence/impact/recommendation/priority/confidence/nextAction/status) render in the canonical insight format; a plain message also works. Cover failure root causes AND insights on passed scenarios (UI/UX suggestions, flow A vs B comparison, data/seed tips). Write in Indonesian. Notes are additive; targets the latest run unless an archived runId is given.',
+  },
+  set_test_note: {
+    server: 'qa-playwright-kit',
+    name: 'set_test_note',
+    description:
+      'Set or clear the QA free-text note for one test row in the report notes sidecar (NOTES column). Replaces the previous QA note for that row; targets the latest run unless an archived runId is given.',
+  },
+};
+
+// ─── Phase Definitions ───────────────────────────────────────────────────────
+
+/**
+ * Package-boundary-safe phase metadata defining which tools and MCP servers each phase uses.
+ */
+/**
+ * Tools intentionally omitted from the phase manifest because they are
+ * on-demand artifact helpers gated by their MCP profiles.
+ */
+export const MANIFEST_OMITTED_ON_DEMAND_TOOLS = ['extract_pdf_text'] as const;
+
+const REQUIRED_PHASE_TOOLS: Partial<Record<PipelinePhase, readonly string[]>> = {
+  plan: ['health_check', 'pipeline_status'],
+  report: ['trace_requirement', 'get_test_summary', 'get_test_failures'],
+};
+
+const PHASE_DEFINITIONS: Record<
+  PipelinePhase,
+  {
+    description: string;
+    agentFile: string;
+    mcpServers: string[];
+    toolNames: string[];
+  }
+> = {
+  plan: {
+    description: 'Analyze requirements and produce a structured test plan',
+    agentFile: '.github/agents/planner.agent.md',
+    mcpServers: ['qa-playwright-kit'],
+    toolNames: [
+      'health_check',
+      'pipeline_status',
+      'workflow_run',
+      'compile_requirement',
+      'compile_test_plan',
+      'validate_plan',
+      'validate_requirement',
+      'normalize_requirements',
+      'parse_requirement_scenarios',
+      'list_requirement_status',
+      'discover_pages',
+      'snapshot_page',
+      'synthesize_requirement',
+      'list_seeds',
+      'get_seed_graph',
+      'update_requirement',
+    ],
+  },
+  generate: {
+    description: 'Generate Playwright test specifications from the test plan',
+    agentFile: '.github/agents/generator.agent.md',
+    mcpServers: ['qa-playwright-kit', 'playwright'],
+    toolNames: [
+      'compile_requirement',
+      'compile_test_plan',
+      'validate_generated_tests',
+      'snapshot_page',
+      'generate_page_object',
+      'list_test_fixtures',
+      'get_seed_graph',
+      'inspect_file',
+      'record_ai_note',
+    ],
+  },
+  execute: {
+    description: 'Run generated tests using the Playwright test runner',
+    agentFile: '',
+    mcpServers: ['playwright-test'],
+    toolNames: [],
+  },
+  heal: {
+    description: 'Diagnose and fix test failures using trace and screenshot data',
+    agentFile: '.github/agents/healer.agent.md',
+    mcpServers: ['qa-playwright-kit', 'playwright-test', 'playwright'],
+    toolNames: [
+      'get_test_failures',
+      'validate_generated_tests',
+      'snapshot_page',
+      'inspect_file',
+      'record_ai_note',
+    ],
+  },
+  report: {
+    description: 'Aggregate test results into a structured pipeline report',
+    agentFile: '.github/agents/reporting.agent.md',
+    mcpServers: ['qa-playwright-kit'],
+    toolNames: [
+      'trace_requirement',
+      'get_test_summary',
+      'get_test_failures',
+      'list_artifacts',
+      'list_requirement_status',
+      'archive_report',
+      'record_ai_note',
+      'set_test_note',
+    ],
+  },
+};
+
+// ─── Input/Output Schemas ────────────────────────────────────────────────────
+
+/**
+ * Input schemas for each pipeline phase.
+ */
+const INPUT_SCHEMAS: Record<PipelinePhase, JsonSchemaObject> = {
+  plan: {
+    type: 'object',
+    properties: {
+      requirementPath: { type: 'string', description: 'Path to requirement markdown file' },
+    },
+    required: ['requirementPath'],
+  },
+  generate: {
+    type: 'object',
+    properties: {
+      testPlan: { type: 'string', description: 'Markdown table with scenario definitions' },
+      requirementPath: { type: 'string', description: 'Original requirement file path' },
+    },
+    required: ['testPlan'],
+  },
+  execute: {
+    type: 'object',
+    properties: {
+      testFiles: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Paths to generated spec files to execute',
+      },
+    },
+    required: ['testFiles'],
+  },
+  heal: {
+    type: 'object',
+    properties: {
+      failures: {
+        type: 'array',
+        items: { type: 'object' },
+        description: 'Array of test failure objects from get_test_failures',
+      },
+    },
+    required: ['failures'],
+  },
+  report: {
+    type: 'object',
+    properties: {
+      runId: { type: 'string', description: 'Pipeline run identifier' },
+      testSummary: { type: 'object', description: 'Test summary from get_test_summary' },
+      failures: { type: 'array', description: 'Unresolved failures array' },
+    },
+    required: ['runId'],
+  },
+};
+
+/**
+ * Output schemas for each pipeline phase.
+ */
+const OUTPUT_SCHEMAS: Record<PipelinePhase, JsonSchemaObject> = {
+  plan: {
+    type: 'object',
+    properties: {
+      testPlan: { type: 'string', description: 'Markdown table of planned scenarios' },
+      scenarioCount: { type: 'number', description: 'Number of scenarios planned' },
+    },
+    required: ['testPlan', 'scenarioCount'],
+  },
+  generate: {
+    type: 'object',
+    properties: {
+      generatedFiles: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Paths to generated .spec.ts files',
+      },
+      testCount: { type: 'number', description: 'Number of tests generated' },
+    },
+    required: ['generatedFiles', 'testCount'],
+  },
+  execute: {
+    type: 'object',
+    properties: {
+      passed: { type: 'number' },
+      failed: { type: 'number' },
+      skipped: { type: 'number' },
+      duration: { type: 'number', description: 'Total duration in milliseconds' },
+    },
+    required: ['passed', 'failed', 'skipped', 'duration'],
+  },
+  heal: {
+    type: 'object',
+    properties: {
+      healed: { type: 'number', description: 'Number of tests successfully healed' },
+      unresolved: { type: 'number', description: 'Number of tests that could not be healed' },
+      patches: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Paths to healer patch files',
+      },
+    },
+    required: ['healed', 'unresolved'],
+  },
+  report: {
+    type: 'object',
+    properties: {
+      reportPath: { type: 'string', description: 'Path to generated pipeline report' },
+      summary: {
+        type: 'object',
+        properties: {
+          scenariosPlanned: { type: 'number' },
+          testsGenerated: { type: 'number' },
+          testsPassing: { type: 'number' },
+          testsFailing: { type: 'number' },
+          testsHealed: { type: 'number' },
+          testsSkipped: { type: 'number' },
+        },
+      },
+    },
+    required: ['reportPath', 'summary'],
+  },
+};
+
+// ─── Manifest Constants ──────────────────────────────────────────────────────
+
+/** Current manifest schema version. */
+export const MANIFEST_VERSION = '1.0.0';
+
+/** Output path relative to repository root. */
+export const MANIFEST_FILENAME = 'agent-manifest.json';
+
+// ─── Semantic Stage Contracts ────────────────────────────────────────────────
+
+/**
+ * Canonical per-stage entry/exit contracts. Generated once here and surfaced
+ * in the manifest so AI clients can read real runtime preconditions instead
+ * of re-inferring them from physical phase completion.
+ */
+const WORKFLOW_STAGE_CONTRACTS: WorkflowStageContract[] = [
+  {
+    stage: 'explore',
+    entryConditions: [
+      'Requirement path and environment are known',
+      'No usable on-disk evidence, or the feature is new/changed/high-risk',
+    ],
+    exitConditions: [
+      'Evidence satisfied (catalog/page-map paths + hashes verified)',
+      'Explicit safe skip recorded with reason',
+      'Blocked with actionable reason',
+    ],
+    physicalMapping: [],
+    requiredArtifacts: [
+      'artifacts/selector-catalog/<feature>/*',
+      'artifacts/selector-catalog/<feature>/page-map.json',
+    ],
+    allowedNextStages: ['model'],
+  },
+  {
+    stage: 'model',
+    entryConditions: ['Explore result is usable (satisfied/skipped/recommended)'],
+    exitConditions: [
+      'Valid requirement and plan path with matching hashes',
+      'Scenario metadata recorded',
+    ],
+    physicalMapping: ['plan'],
+    requiredArtifacts: ['specs/<feature>-test-plan.md'],
+    allowedNextStages: ['challenge'],
+  },
+  {
+    stage: 'challenge',
+    entryConditions: ['Model result exists and passed'],
+    exitConditions: [
+      'Zero blocking diagnostics',
+      'Warnings recorded as needs-review/manual decision',
+    ],
+    gate: 'validate_plan — coverage, AC, role/auth drift, assertion provenance, catalog evidence, ephemeral refs',
+    physicalMapping: ['plan'],
+    requiredArtifacts: ['specs/<feature>-test-plan.md (compiled TestPlanContractV1)'],
+    allowedNextStages: ['generate'],
+  },
+  {
+    stage: 'generate',
+    entryConditions: [
+      'Explore usable',
+      'Model passed',
+      'Challenge allowed',
+      'Requirement/plan hashes current',
+    ],
+    exitConditions: [
+      'Structurally valid generated specs (validate_generated_tests)',
+      'No credential or ephemeral ref leakage',
+    ],
+    gate: 'canGenerate() — the machine-enforced FOURTH, NOT FIRST invariant',
+    physicalMapping: ['generate'],
+    requiredArtifacts: ['tests/<feature>-<role>.spec.ts'],
+    allowedNextStages: ['validate'],
+  },
+  {
+    stage: 'validate',
+    entryConditions: ['Generated specs available'],
+    exitConditions: [
+      'Report/Analyze complete and verified',
+      'Explicit QA decision recorded (archive_report)',
+    ],
+    physicalMapping: ['execute', 'heal', 'report'],
+    requiredArtifacts: [
+      'artifacts/reports/pipeline-report-<runId>.md',
+      'artifacts/reports/test-notes.json (sidecar)',
+      'artifacts/reports/archive/<runId>/ (after QA decision)',
+    ],
+    allowedNextStages: [],
+  },
+];
+
+// ─── Manifest Generator ──────────────────────────────────────────────────────
+
+/**
+ * Builds the full capability manifest from static phase definitions and tool info.
+ *
+ * @returns The complete CapabilityManifest object.
+ */
+export function generateManifest(): CapabilityManifest {
+  const phases = {} as Record<PipelinePhase, PhaseCapability>;
+  const catalogNames = new Set(Object.keys(TOOL_INFO));
+  const phaseNames = new Set<string>();
+
+  for (const [phase, def] of Object.entries(PHASE_DEFINITIONS) as [
+    PipelinePhase,
+    (typeof PHASE_DEFINITIONS)[PipelinePhase],
+  ][]) {
+    const unknownTools = def.toolNames.filter((name) => !catalogNames.has(name));
+    if (unknownTools.length > 0) {
+      throw new Error(
+        `[agent-manifest] Phase "${phase}" references unknown tool(s): ${unknownTools.join(', ')}`,
+      );
+    }
+    for (const name of def.toolNames) phaseNames.add(name);
+
+    const missingRequired = (REQUIRED_PHASE_TOOLS[phase] ?? []).filter(
+      (name) => !def.toolNames.includes(name),
+    );
+    if (missingRequired.length > 0) {
+      throw new Error(
+        `[agent-manifest] Phase "${phase}" omits required tool(s): ${missingRequired.join(', ')}`,
+      );
+    }
+
+    const tools: ToolDescriptor[] = def.toolNames.map((name) => TOOL_INFO[name]);
+
+    phases[phase] = {
+      description: def.description,
+      agentFile: def.agentFile,
+      mcpServers: def.mcpServers,
+      tools,
+      inputSchema: INPUT_SCHEMAS[phase],
+      outputSchema: OUTPUT_SCHEMAS[phase],
+    };
+  }
+
+  const allowedOmissions = new Set<string>(MANIFEST_OMITTED_ON_DEMAND_TOOLS);
+  const missingCatalogEntries = Object.keys(TOOL_INFO).filter(
+    (name) => !phaseNames.has(name) && !allowedOmissions.has(name),
+  );
+  if (missingCatalogEntries.length > 0) {
+    throw new Error(
+      `[agent-manifest] Tool catalog entries are not mapped to any phase: ${missingCatalogEntries.join(', ')}`,
+    );
+  }
+
+  const orchestrationModes: OrchestrationModeDescriptor[] = [
+    {
+      mode: 'manual',
+      description:
+        'Prompt-driven execution — one phase at a time with user confirmation between phases.',
+    },
+    {
+      mode: 'automatic',
+      description:
+        'Full pipeline runs without user intervention. All phases execute sequentially with automatic retry on retryable failures.',
+    },
+  ];
+
+  const prerequisites: Prerequisites = {
+    nodeVersion: '>=20.19.0',
+    requiredEnvVars: ['BASE_URL'],
+    dependencies: ['@playwright/test', '@playwright/mcp', 'tsx'],
+  };
+
+  const workflow: WorkflowManifest = {
+    stages: WORKFLOW_STAGES.map((s) => WORKFLOW_STAGE_DEFINITIONS[s]),
+    notes:
+      'Canonical QA workflow: Explore → Model → Challenge → Generate → Validate. Physical phases (plan, generate, execute, heal, report) are preserved for execution engine compatibility.',
+  };
+
+  return {
+    version: MANIFEST_VERSION,
+    generatedAt: new Date().toISOString(),
+    phases,
+    workflow,
+    workflowContracts: WORKFLOW_STAGE_CONTRACTS,
+    orchestrationModes,
+    prerequisites,
+  };
+}
+
+/**
+ * Writes the capability manifest to `agent-manifest.json` at the repository root.
+ *
+ * @param manifest - Optional pre-built manifest. If omitted, generates a fresh one.
+ */
+export function writeManifest(manifest?: CapabilityManifest): void {
+  const data = manifest ?? generateManifest();
+  const repoRoot = resolve(__dirname, '..', '..', '..');
+  const outputPath = resolve(repoRoot, MANIFEST_FILENAME);
+  writeFileSync(outputPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+}

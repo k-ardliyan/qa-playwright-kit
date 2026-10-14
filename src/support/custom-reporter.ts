@@ -9,20 +9,20 @@ import type {
 } from '@playwright/test/reporter';
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildCiHtml } from './custom-dashboard/build-ci-html';
-import { buildLocalHtml } from './custom-dashboard/build-local-html';
-import { listReportHistory } from '../agents/reporter/report-history';
+import { buildCiHtml } from './dashboard/build-ci-html';
+import { buildLocalHtml } from './dashboard/build-local-html';
+import { listReportHistory } from '../agents/reporting/report-history';
 import {
   generateRunId,
   listArchivedRunIds,
   loadArchivedSummary,
-} from '../agents/reporter/report-archive';
+} from '../agents/reporting/report-archive';
 import {
   bakeAutoAiNotes,
   buildRunInsights,
   historyKey,
   type RunHistoryContext,
-} from '../agents/reporter/ai-notes';
+} from '../agents/reporting/ai-notes';
 import {
   emptyTestNotesFile,
   isStaleSidecar,
@@ -30,8 +30,8 @@ import {
   mergeTestNotes,
   resetLatestTestNotes,
   stampLatestTestNotesRunId,
-} from '../agents/reporter/test-notes';
-import { clearPendingRun, readPendingRun } from '../agents/reporter/run-context';
+} from '../agents/reporting/test-notes';
+import { clearPendingRun, readPendingRun } from '../agents/reporting/run-context';
 import type {
   AffectedLayer,
   CollectedTestCase,
@@ -41,9 +41,9 @@ import type {
   ReportStatus,
   RunMeta,
   TestSummary,
-} from './custom-dashboard/types';
-import { resolveFailureSource } from './custom-dashboard/failure-source';
-import { streamTelemetryEvent } from './streaming/live-telemetry';
+} from './dashboard/types';
+import { resolveFailureSource } from './dashboard/failure-source';
+import { streamTelemetryEvent } from './telemetry/live-stream';
 import { logger } from '../utils/logger';
 import { canonicalRoleName } from '../shared/utils/role-credentials';
 import { resolveWorkspaceReportDir } from '../shared/workspace-paths';
@@ -55,7 +55,7 @@ import {
   resolveFeatureFromPath,
   deriveActualFailureMessage,
   formatErrorMessage,
-} from './reporter/collect';
+} from './report-artifacts/collect';
 import {
   reportDir,
   dashboardPath,
@@ -65,8 +65,8 @@ import {
   collectAttachments,
   ensureReportDirectory,
   attachmentsDir,
-} from './reporter/attachments';
-import { forcePlaywrightHtmlToLight } from './reporter/theme-patch';
+} from './report-artifacts/attachments';
+import { forcePlaywrightHtmlToLight } from './report-artifacts/theme-patch';
 
 function buildRunMeta(tests: CollectedTestData[]): RunMeta {
   const playwrightRunId = process.env.PLAYWRIGHT_RUN_ID?.trim();
@@ -548,7 +548,7 @@ export default class CustomReporter implements Reporter {
       };
 
       // Load report history for the dashboard History tab (only saved archives)
-      let reportHistory: import('../agents/reporter/report-history').ReportHistoryEntry[] = [];
+      let reportHistory: import('../agents/reporting/report-history').ReportHistoryEntry[] = [];
       try {
         reportHistory = listReportHistory({ sort: 'newest', limit: 20 });
       } catch {
@@ -682,6 +682,6 @@ export default class CustomReporter implements Reporter {
   }
 }
 
-export * from './reporter/collect';
-export * from './reporter/attachments';
-export * from './reporter/theme-patch';
+export * from './report-artifacts/collect';
+export * from './report-artifacts/attachments';
+export * from './report-artifacts/theme-patch';

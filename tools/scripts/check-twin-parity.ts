@@ -57,7 +57,7 @@ export interface ManualTwinPair {
 export const MANUAL_TWIN_PAIRS: ManualTwinPair[] = [
   {
     name: 'test-notes',
-    src: 'src/agents/reporter/test-notes.ts',
+    src: 'src/agents/reporting/test-notes.ts',
     mcp: 'tools/mcp/src/utils/test-notes.ts',
     requiredExports: [
       // Shared types (both after Mcp-prefix normalization)
@@ -98,7 +98,7 @@ export const MANUAL_TWIN_PAIRS: ManualTwinPair[] = [
   },
   {
     name: 'run-context',
-    src: 'src/agents/reporter/run-context.ts',
+    src: 'src/agents/reporting/run-context.ts',
     mcp: 'tools/mcp/src/utils/run-context.ts',
     // Function names are Mcp-prefixed and excluded from the contract by design.
     requiredConstants: ['PENDING_RUN_TTL_MS'],
@@ -110,7 +110,7 @@ export const MANUAL_TWIN_PAIRS: ManualTwinPair[] = [
   },
   {
     name: 'analysis-gate',
-    src: 'src/agents/reporter/analysis-gate.ts',
+    src: 'src/agents/reporting/analysis-gate.ts',
     mcp: 'tools/mcp/src/utils/analysis-gate.ts',
     // Verdict set, gate codes, evidence keys and issue strings are the contract;
     // names (Mcp prefix) and extra exports are excluded by design.

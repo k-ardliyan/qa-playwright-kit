@@ -9,9 +9,9 @@
 
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { saveState, loadState, resumeState } from '../../agents/integration/state';
-import type { PipelineState } from '../../agents/integration/state';
-import type { PipelinePhase } from '../../agents/integration/types';
+import { saveState, loadState, resumeState } from '../../agents/pipeline/state';
+import type { PipelineState } from '../../agents/pipeline/state';
+import type { PipelinePhase } from '../../agents/pipeline/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createIsolatedReportDir } from '../helpers/report-dir-isolation';

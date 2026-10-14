@@ -91,7 +91,7 @@ test.describe('dashboard dev server lifecycle', () => {
       expect(received.match(/event: report-updated/g)).toHaveLength(1);
 
       received = '';
-      const stylesDir = path.resolve(__dirname, '../../support/custom-dashboard/styles');
+      const stylesDir = path.resolve(__dirname, '../../support/dashboard/styles');
       const watchedStyle = path.join(stylesDir, 'tokens.css');
       fs.utimesSync(watchedStyle, new Date(), new Date(Date.now() + 1000));
       expect(await waitFor(() => received.includes('event: dashboard-updated'))).toBe(true);

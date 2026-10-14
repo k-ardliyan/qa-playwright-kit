@@ -11,7 +11,7 @@ Framework punya **dua** urutan yang berbeda. Jangan campur:
 | **Metodologi QA (semantik)** | `Explore → Model → Challenge → Generate → Validate`  | Cara berpikir QA; di-enforce runtime oleh `WorkflowController` |
 | **Mesin eksekusi (fisik)**   | `Plan → Generate → Execute → Heal → Report(Analyze)` | Jalur kompatibilitas internal; dijalankan di dalam Validate    |
 
-`Heal` hanya **label substage** di jalur fisik — **tidak ada stage handler `heal`**. Yang ada: `src/agents/integration/stages/{explore,model,challenge,generate,validate}.ts`.
+`Heal` hanya **label substage** di jalur fisik — **tidak ada stage handler `heal`**. Yang ada: `src/agents/pipeline/stages/{explore,model,challenge,generate,validate}.ts`.
 
 Saat Validate gagal, hasilnya **dirutekan balik**, bukan "diulang dari awal":
 
@@ -88,7 +88,7 @@ interface WorkflowHandoff {
 
 - `nextRequiredAction` tetap ada sebagai **kalimat manusia** untuk QA.
 - `resumeCommand` adalah bentuk **mesin** dari hal yang sama — dipakai delegator otomatis.
-- Keduanya dibangun dari satu sumber: `buildManualResumeInstruction()` di `src/agents/integration/stages/resume-instruction.ts`.
+- Keduanya dibangun dari satu sumber: `buildManualResumeInstruction()` di `src/agents/pipeline/stages/resume-instruction.ts`.
 
 > **Dua jalur yang sama-sama first-class:** (1) agent AI menulis plan/spec lalu resume; (2) QA menulis plan/spec manual, verifikasi, lalu resume. Kontraknya identik — hanya aktornya berbeda.
 
@@ -133,7 +133,7 @@ Gate **fail-closed**: bila bukti tidak cukup, plan tidak pernah sampai ke Genera
 | `RESUME_NOT_SEMANTIC` / `RESUME_STALE_REQUIREMENT`                             | Resume    | ya      | Run lama bukan semantic-v1 / requirement berubah sejak pause    |
 | `WORKFLOW_PAUSED` / `WORKFLOW_BLOCKED`                                         | Semua     | —       | Info status pause/block (bukan error)                           |
 
-Sumber kode: `src/contracts/diagnostics.ts` (kode `PLAN_*`/`REQ_*`) dan `src/agents/integration/stages/*.ts` (kode `*_BLOCKED`/`*_FAILED`/`*_TRANSITION`).
+Sumber kode: `src/contracts/diagnostics.ts` (kode `PLAN_*`/`REQ_*`) dan `src/agents/pipeline/stages/*.ts` (kode `*_BLOCKED`/`*_FAILED`/`*_TRANSITION`).
 
 ## Routing balik: siapa memperbaiki apa
 

@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { MediaLightbox } from '../../support/custom-dashboard/components/shared/MediaLightbox';
-import { buildMediaLightboxJs } from '../../support/custom-dashboard/client/media-lightbox';
-import { Attachments } from '../../support/custom-dashboard/components/detail/Attachments';
-import { NotesCell } from '../../support/custom-dashboard/components/table/TableCells';
-import { buildClientBootstrapJs } from '../../support/custom-dashboard/client/bootstrap';
-import type { CollectedTestData } from '../../support/custom-dashboard/types';
+import { MediaLightbox } from '../../support/dashboard/components/shared/MediaLightbox';
+import { buildMediaLightboxJs } from '../../support/dashboard/client/media-lightbox';
+import { Attachments } from '../../support/dashboard/components/detail/Attachments';
+import { NotesCell } from '../../support/dashboard/components/table/TableCells';
+import { buildClientBootstrapJs } from '../../support/dashboard/client/bootstrap';
+import type { CollectedTestData } from '../../support/dashboard/types';
 
 /**
  * The evidence lightbox replaces "opens in a new tab" with an in-page dialog.

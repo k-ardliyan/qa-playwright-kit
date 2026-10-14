@@ -6,7 +6,7 @@ import {
   writeValidateRunManifest,
   readValidateRunManifest,
   assertCurrentValidateManifest,
-} from '../../agents/integration/validate-manifest';
+} from '../../agents/pipeline/validate-manifest';
 
 test.describe('Validate current-run manifest', () => {
   test('Run A and Run B use independent result directories', () => {

@@ -15,8 +15,8 @@
  * @module src/cli/notes-cli
  */
 
-import { getLatestRunInfo } from '../agents/reporter/report-archive';
-import { resolveCurrentRunIdentity } from '../agents/reporter/run-context';
+import { getLatestRunInfo } from '../agents/reporting/report-archive';
+import { resolveCurrentRunIdentity } from '../agents/reporting/run-context';
 import {
   testNoteKey,
   upsertArchivedTestNote,
@@ -26,7 +26,7 @@ import {
   latestTestNotesPath,
   isValidRunIdFormat,
   MAX_TEST_NOTE_LENGTH,
-} from '../agents/reporter/test-notes';
+} from '../agents/reporting/test-notes';
 
 function parseArgs(argv: string[]): Record<string, string | boolean> {
   const result: Record<string, string | boolean> = {};

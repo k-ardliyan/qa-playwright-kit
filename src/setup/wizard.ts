@@ -69,7 +69,7 @@ import {
 import { writeAndValidateLoginRequirement } from './tasks/requirement';
 import { writeAuthSetupFile } from './tasks/auth-setup';
 import { writeEnvAndPin } from './tasks/env-write';
-import { syncAgentArtifacts } from './tasks/agent-sync';
+import { syncAgentArtifacts } from './tasks/sync-agent-artifacts';
 import {
   authSetupScript,
   materializeAuthSession,

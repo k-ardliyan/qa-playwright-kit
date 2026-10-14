@@ -8,7 +8,7 @@ This document defines governance for framework agents:
 - `reporter`
 
 Orchestration is performed by the runtime engine (`WorkflowController` in
-`src/agents/integration/workflow-controller.ts`), not by a separate agent file.
+`src/agents/pipeline/workflow-controller.ts`), not by a separate agent file.
 
 ## Requirement Template
 

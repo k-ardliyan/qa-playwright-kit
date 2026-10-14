@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { test, expect } from '@playwright/test';
-import { generateRunId } from '../../agents/reporter/report-archive';
+import { generateRunId } from '../../agents/reporting/report-archive';
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-evidence-integrity-'));
 const reportDir = path.join(tempRoot, 'reports');
@@ -126,7 +126,7 @@ import {
   loadArchivedSummary,
   saveLatestRun,
   type ArchiveSaveResult,
-} from '../../agents/reporter/report-archive';
+} from '../../agents/reporting/report-archive';
 
 let archive: ArchiveSaveResult;
 

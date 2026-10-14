@@ -16,7 +16,7 @@ import {
   recordPipelineRun,
   loadMetricsStore,
   saveMetricsStore,
-} from '../../observability/metrics-collector';
+} from '../../pipeline-telemetry/metrics-collector';
 import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
 
 // Metrics writes go to a temp dir via QA_REPORT_DIR (resolveWorkspaceReportDir),

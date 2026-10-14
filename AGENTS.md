@@ -69,7 +69,7 @@ Your goal is to transform a requirement file into executable tests, run those te
 - **Planner:** `.github/agents/planner.agent.md`
 - **Generator:** `.github/agents/generator.agent.md`
 - **Healer:** `.github/agents/healer.agent.md`
-- **Reporter:** `.github/agents/reporter.agent.md`
+- **Reporter:** `.github/agents/reporting.agent.md`
 
 You must delegate tasks by consulting the corresponding sub-agent file for instructions on how to perform that specific phase.
 
@@ -276,7 +276,7 @@ Applies when the run hits auth failures — classification `auth`, `failureSourc
 ### Phase 4: Heal
 
 - Call `get_test_failures` on **qa-playwright-kit** to retrieve structured failure data.
-- Rank failures by fix likelihood from the payload itself: known error patterns first, shared fixtures prioritized, healability order respected (auth → `fix-environment`, never healed — see feedback router in `src/agents/integration/feedback-router.ts`; the re-entry cap is enforced at ENTRY in `stages/validate.ts` — a pass beyond the cap returns `LOOP_LIMIT_REACHED` blocked instead of re-running).
+- Rank failures by fix likelihood from the payload itself: known error patterns first, shared fixtures prioritized, healability order respected (auth → `fix-environment`, never healed — see feedback router in `src/agents/pipeline/feedback-router.ts`; the re-entry cap is enforced at ENTRY in `stages/validate.ts` — a pass beyond the cap returns `LOOP_LIMIT_REACHED` blocked instead of re-running).
 - Use `tracePath` and `screenshotPath` from failure payload when present.
 - **Before healing any `locator` failure:** check the trace/screenshot final URL. If the page is the login page (session died mid-run), reclassify as `auth` and apply the Auth Recovery Protocol above instead of patching locators.
 - For each prioritized failure: lookup known pattern → apply or diagnose → fix → store outcome.
@@ -289,7 +289,7 @@ Applies when the run hits auth failures — classification `auth`, `failureSourc
 
 > **Analyze sub-phase (WAJIB — bagian dari Report phase):** alurnya `Execute → Heal → Report(Analyze)` — Analyze adalah sub-phase runtime di dalam Report, bukan phase pipeline terpisah. Reporter **wajib** memanggil `record_ai_note` minimal satu kali dengan `scope: "run"` **dan `source: "reporter"`** (ringkasan pola lintas skenario), plus insight per skenario saat buktinya cukup (trace/screenshot/step/console) — untuk skenario gagal MAUPUN yang lulus (UI/UX, flow A vs B, tips data). `source` default-nya `analyzer`, jadi harus ditulis eksplisit: `archive_report` menolak APPROVE bila tidak ada run insight dengan `source: "reporter"` di sidecar. Jika bukti tidak cukup, **jangan mengarang insight** — lewati skenario tersebut atau pakai `confidence: low` + `status: inferred`. Format kanonik: `skills/qa-playwright-kit/references/ai-insight-format.md`. Proof-of-analysis diverifikasi: `archive_report` **menolak APPROVE** bila `analysis.completed !== true`, dan mencocokkan `runInsightsRecorded` dengan jumlah run insight di sidecar arsip.
 
-- Delegate to Reporter agent (`.github/agents/reporter.agent.md`).
+- Delegate to Reporter agent (`.github/agents/reporting.agent.md`).
 - Pass pipeline context: `runId`, `startedAt`, `requirementPath`, `scenarios`, `rolesInScope`, `healingResults`.
 - Reporter calls `trace_requirement` to build closed-loop `TraceabilityContractV1` graph and coverage metrics.
 - Reporter calls `get_test_summary` (reads `byRole` and `byModule` if available) and `get_test_failures`.

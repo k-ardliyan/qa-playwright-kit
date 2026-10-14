@@ -7,7 +7,7 @@ import {
   normalizeFailureSource,
   resolveFailureSource,
   suggestFailureSource,
-} from '../../support/custom-dashboard/failure-source';
+} from '../../support/dashboard/failure-source';
 
 test.describe('failure-source helpers', () => {
   test('normalizeFailureSource accepts aliases and rejects junk', () => {

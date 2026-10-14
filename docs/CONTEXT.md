@@ -20,7 +20,7 @@
 
 ## Pipeline
 
-- **Orchestration Model** — Supports both prompt-driven (`manual` mode — QA User invokes pipeline steps via prompts) and fully automated (`automatic` mode — AI agent executes all phases sequentially without pausing). Automatic mode includes pipeline state persistence and resume capability via `artifacts/reports/pipeline-state.json`. Multi-platform AI client support through the Universal Agent Integration Layer (`src/agents/integration/`).
+- **Orchestration Model** — Supports both prompt-driven (`manual` mode — QA User invokes pipeline steps via prompts) and fully automated (`automatic` mode — AI agent executes all phases sequentially without pausing). Automatic mode includes pipeline state persistence and resume capability via `artifacts/reports/pipeline-state.json`. Multi-platform AI client support through the Universal Agent Integration Layer (`src/agents/pipeline/`).
 - **Dual-Track Workflow** — Supports **Strict Mode** (full AI governance: Markdown Requirement → Test Plan → Generated Spec → Validation gate) and **Express Mode** (code-first SDET workflow: direct Playwright spec with lightweight requirement annotations).
 - **Dashboard Web Studio** — Local browser interface extending `dashboard-server` for non-coders: visual requirement form builder, one-click execution with Server-Sent Events (SSE) live log streaming, and report inspection without terminal interaction.
 - **Annotation-Driven Linking** — Express Mode convention where SDETs annotate Playwright test cases with requirement IDs (`test('...', { annotation: { type: 'requirement', description: 'REQ-ID' } })`) to bind results directly into the traceability matrix without a test plan markdown file.

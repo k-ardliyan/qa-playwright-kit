@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { createElement as h } from '@kitajs/html';
-import { StatusPill } from '../../support/custom-dashboard/components/shared/StatusPill';
-import { Breadcrumb } from '../../support/custom-dashboard/components/navigation/Breadcrumb';
-import { AppNav } from '../../support/custom-dashboard/components/navigation/AppNav';
-import { Hero } from '../../support/custom-dashboard/components/dashboard/Hero';
-import { LatestRunCard } from '../../support/custom-dashboard/pages/dashboard/LatestRunCard';
-import { HistoryRunsTable } from '../../support/custom-dashboard/pages/history/HistoryRunsTable';
-import { DashboardDocument } from '../../support/custom-dashboard/layouts/DashboardDocument';
-import { ActualResultCell } from '../../support/custom-dashboard/components/table/TableCells';
-import type { CollectedTestData } from '../../support/custom-dashboard/types';
-import type { ReportHistoryEntry } from '../../agents/reporter/report-history';
-import type { LatestRunSummary } from '../../support/custom-dashboard/domain/dashboard';
+import { StatusPill } from '../../support/dashboard/components/shared/StatusPill';
+import { Breadcrumb } from '../../support/dashboard/components/navigation/Breadcrumb';
+import { AppNav } from '../../support/dashboard/components/navigation/AppNav';
+import { Hero } from '../../support/dashboard/components/dashboard/Hero';
+import { LatestRunCard } from '../../support/dashboard/pages/dashboard/LatestRunCard';
+import { HistoryRunsTable } from '../../support/dashboard/pages/history/HistoryRunsTable';
+import { DashboardDocument } from '../../support/dashboard/layouts/DashboardDocument';
+import { ActualResultCell } from '../../support/dashboard/components/table/TableCells';
+import type { CollectedTestData } from '../../support/dashboard/types';
+import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
+import type { LatestRunSummary } from '../../support/dashboard/domain/dashboard';
 
 /**
  * @kitajs/html@4.2.13 (runtime, not the README table):

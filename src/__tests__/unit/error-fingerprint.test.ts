@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   generateErrorFingerprint,
   clusterFailuresByFingerprint,
-} from '../../support/classifier/fingerprint';
+} from '../../support/error-fingerprint';
 
 test.describe('Error Fingerprinting & Clustering Engine', () => {
   test('generates identical fingerprint for errors with different dynamic UUIDs and timestamps', () => {

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { buildHashRouterJs } from '../../support/custom-dashboard/build-hash-router';
-import { buildDetailPage } from '../../support/custom-dashboard/build-fragments';
+import { buildHashRouterJs } from '../../support/dashboard/build-hash-router';
+import { buildDetailPage } from '../../support/dashboard/build-fragments';
 
 test.describe('hash-router detail fragment toggle', () => {
   test('buildHashRouterJs defines global window.toggleDetailRow', () => {

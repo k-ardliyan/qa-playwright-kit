@@ -51,7 +51,7 @@ interface PipelineAnalysis {
  * Requires an explicit QA decision and never overwrites an existing archive.
  * Analyze-phase gate: APPROVE requires proof of the Analyze sub-phase
  * (declaration complete + sidecar evidence consistent — same contract as
- * saveLatestRun via src/agents/reporter/analysis-gate.ts).
+ * saveLatestRun via src/agents/reporting/analysis-gate.ts).
  */
 export function archiveReport(input: ArchiveReportInput): ArchiveReportOutput {
   const { runId, reportPath, jsonReportPath, qaDecision, qaNotes = '' } = input;

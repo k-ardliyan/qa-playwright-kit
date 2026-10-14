@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { hasCriticalFailure, verifySetupArtifacts, authSessionStatus } from '@/setup/verify-setup';
-import type { Platform } from '@/agents/integration/mcp-config-generator';
+import type { Platform } from '@/agents/pipeline/mcp-config-generator';
 import { stampSessionCompany } from '@/support/auth-helpers';
 import { encryptSecretKeysInFile } from '@/utils/env-secrets';
 

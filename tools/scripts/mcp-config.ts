@@ -14,8 +14,8 @@ import {
   generateConfig,
   detectDrift,
   ALL_PLATFORMS,
-} from '../../src/agents/integration/mcp-config-generator';
-import type { Platform } from '../../src/agents/integration/mcp-config-generator';
+} from '../../src/agents/pipeline/mcp-config-generator';
+import type { Platform } from '../../src/agents/pipeline/mcp-config-generator';
 
 function parseArgs(argv: string[]): { platform?: string; check: boolean } {
   const args: { platform?: string; check: boolean } = { check: false };

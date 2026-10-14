@@ -10,8 +10,8 @@ process.env['QA_REPORT_DIR'] = TMP_REPORT_DIR;
 process.env['QA_ARCHIVE_DIR'] = TMP_ARCHIVE_DIR;
 
 import { test, expect } from '@playwright/test';
-import { generateRunId, saveLatestRun } from '../../agents/reporter/report-archive';
-import { appendLatestRunInsight } from '../../agents/reporter/test-notes';
+import { generateRunId, saveLatestRun } from '../../agents/reporting/report-archive';
+import { appendLatestRunInsight } from '../../agents/reporting/test-notes';
 
 function writeSummary(summary: Record<string, unknown>): void {
   fs.writeFileSync(

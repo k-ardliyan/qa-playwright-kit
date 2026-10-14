@@ -1,7 +1,7 @@
 import type { FullConfig } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { generateRunId } from '../src/agents/reporter/report-archive';
+import { generateRunId } from '../src/agents/reporting/report-archive';
 
 /**
  * Seed the isolated QA_REPORT_DIR with deterministic report artifacts so the

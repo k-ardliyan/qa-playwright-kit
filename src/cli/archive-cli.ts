@@ -28,7 +28,7 @@ import {
   isLatestRunArchived,
   getArchiveDir,
   type QaDecision,
-} from '../agents/reporter/report-archive';
+} from '../agents/reporting/report-archive';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -379,7 +379,7 @@ async function deleteCommand(args: Record<string, string | boolean>): Promise<vo
 
 async function compareCommand(args: Record<string, string | boolean>): Promise<void> {
   const { compareLatestVsPrevious, compareReports, generateComparisonSummary } = await import(
-    '../agents/reporter/report-compare'
+    '../agents/reporting/report-compare'
   );
 
   const baseline = args['baseline'] as string | undefined;

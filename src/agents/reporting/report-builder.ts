@@ -1,0 +1,303 @@
+/**
+ * Report Builder — Pipeline report construction
+ *
+ * Defines the core interfaces for pipeline reporting and provides
+ * the `buildReport` function that aggregates test execution results
+ * into a structured PipelineReport, and `writeReportMarkdown` that
+ * generates a Markdown report file.
+ *
+ * @module agents/reporting/report-builder
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
+
+/**
+ * Coverage status for a single requirement scenario.
+ *
+ * `skipped` is reserved for `@manual` (not applicable to automation).
+ * `not-implemented` is planned-but-unbuilt work — it must stay distinct from
+ * `skipped`, or unfinished coverage reads as a neutral outcome.
+ */
+export interface ScenarioCoverage {
+  scenarioId: string;
+  scenarioName: string;
+  status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-implemented' | 'not-generated';
+}
+
+/**
+ * Represents a failure that could not be resolved by the Healer agent.
+ */
+export interface UnresolvedFailure {
+  scenarioId?: string;
+  stage: string;
+  errorMessage: string;
+  failureSource?: 'app' | 'test' | 'requirement' | 'env' | 'ai_generation' | 'unknown';
+  tracePath?: string;
+  screenshotPath?: string;
+}
+
+/**
+ * Complete pipeline run report containing summary metrics,
+ * per-scenario coverage, and any unresolved failures.
+ */
+export interface PipelineReport {
+  runId: string;
+  timestamp: string;
+  duration: number;
+  requirementPath?: string; // provenance — source requirement file
+  rolesInScope?: string[];
+  summary: {
+    scenariosPlanned: number;
+    testsGenerated: number;
+    testsPassing: number;
+    testsFailing: number;
+    testsHealed: number;
+    testsSkipped: number;
+    /** Planned-but-unbuilt scenarios (test.fixme) — reported separately so the
+     *  pipeline summary never folds unfinished work into "skipped". */
+    testsNotImplemented?: number;
+  };
+  summaryByRole?: Record<string, { passing: number; failing: number; skipped: number }>;
+  summaryByModule?: Record<
+    string,
+    { features: Record<string, { passing: number; failing: number }> }
+  >;
+  coverage: ScenarioCoverage[];
+  unresolvedFailures: UnresolvedFailure[];
+  /** Analyze sub-phase contract — proof the Reporter ran the analysis. */
+  analysis?: AnalysisSummary;
+  qaDecision?: string | null;
+}
+
+/**
+ * Runtime proof of the Analyze sub-phase (Execute → Heal → Analyze → Report).
+ * The Reporter agent fills this from its record_ai_note activity; consumers
+ * can treat `completed !== true` as an incomplete report.
+ */
+export interface AnalysisSummary {
+  completed: boolean;
+  /** Run-level insights recorded via record_ai_note scope=run. */
+  runInsightsRecorded?: number;
+  /** Passed scenarios inspected for product insights. */
+  passedScenariosReviewed?: number;
+  /** Scenarios skipped because evidence was insufficient (no fabrication). */
+  skippedForInsufficientEvidence?: number;
+}
+
+/**
+ * Input parameters for the buildReport function.
+ */
+export interface BuildReportInput {
+  runId: string;
+  startedAt: string; // ISO 8601
+  completedAt: string; // ISO 8601
+  requirementPath?: string; // provenance — path to source requirement file
+  scenariosPlanned: number;
+  testsGenerated: number;
+  testResults: {
+    passing: number;
+    failing: number;
+    skipped: number;
+    /** From test-summary.json's notImplemented bucket (fixme-promoted). */
+    notImplemented?: number;
+  };
+  healedCount: number;
+  scenarios: Array<{
+    id: string;
+    name: string;
+    status: 'passed' | 'failed' | 'healed' | 'skipped' | 'not-implemented' | 'not-generated';
+  }>;
+  unresolvedFailures?: UnresolvedFailure[];
+  /** Analyze sub-phase proof (Execute → Heal → Analyze → Report). */
+  analysis?: AnalysisSummary;
+}
+
+/**
+ * Resolve the report directory at call time — QA_REPORT_DIR test override
+ * or canonical artifacts/reports/.
+ */
+export function getReportDir(): string {
+  return resolveWorkspaceReportDir();
+}
+
+/**
+ * Builds a structured pipeline report from test execution results.
+ *
+ * 1. Computes duration from startedAt to completedAt timestamps (in ms)
+ * 2. Builds the PipelineReport object with summary and coverage
+ * 3. Returns the PipelineReport object
+ */
+export function buildReport(input: BuildReportInput): PipelineReport {
+  const startTime = new Date(input.startedAt).getTime();
+  const endTime = new Date(input.completedAt).getTime();
+  const duration = endTime - startTime;
+
+  // Map scenarios to ScenarioCoverage[]
+  const coverage: ScenarioCoverage[] = input.scenarios.map((s) => ({
+    scenarioId: s.id,
+    scenarioName: s.name,
+    status: s.status,
+  }));
+
+  const report: PipelineReport = {
+    runId: input.runId,
+    timestamp: input.completedAt,
+    duration,
+    requirementPath: input.requirementPath,
+    summary: {
+      scenariosPlanned: input.scenariosPlanned,
+      testsGenerated: input.testsGenerated,
+      testsPassing: input.testResults.passing,
+      testsFailing: input.testResults.failing,
+      testsHealed: input.healedCount,
+      testsSkipped: input.testResults.skipped,
+      testsNotImplemented: input.testResults.notImplemented,
+    },
+    coverage,
+    unresolvedFailures: input.unresolvedFailures || [],
+    // Always present so consumers can treat `completed !== true` as an
+    // incomplete report — a missing Analyze sub-phase is a fact, not an
+    // absent field.
+    analysis: input.analysis ?? { completed: false },
+  };
+
+  return report;
+}
+
+/**
+ * Analyze-phase gate: a report is analysis-complete only when the Reporter
+ * proved the Analyze sub-phase ran (`analysis.completed === true`). Consumers
+ * (archive tooling, dashboards) use this to MARK — not silently trust — an
+ * unanalyzed report.
+ */
+export function isAnalysisComplete(report: PipelineReport): boolean {
+  return report.analysis?.completed === true;
+}
+
+/** Write the structured PipelineReport JSON beside its Markdown report. */
+export function writeReportJson(report: PipelineReport): string {
+  const reportsDir = getReportDir();
+  if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
+  const reportPath = path.join(reportsDir, `pipeline-report-${report.runId}.json`);
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf-8');
+  return reportPath;
+}
+
+/**
+ * Generates a Markdown report from a PipelineReport and writes it to disk.
+ *
+ * Output: `artifacts/reports/pipeline-report-<runId>.md`
+ *
+ * Sections:
+ * - Title: `# Pipeline Report — <runId>`
+ * - Summary section with counts table
+ * - Duration section
+ * - Coverage section (table with scenario names and statuses)
+ * - Unresolved Failures section (if any)
+ *
+ * @returns The output file path
+ */
+export function writeReportMarkdown(report: PipelineReport): string {
+  const lines: string[] = [];
+
+  // Provenance header — machine-readable, hidden from rendered markdown
+  lines.push(`<!-- run-id: ${report.runId} -->`);
+  if (report.requirementPath) {
+    lines.push(`<!-- requirement: ${report.requirementPath} -->`);
+  }
+  lines.push(`<!-- generated-at: ${report.timestamp} -->`);
+  lines.push('');
+  lines.push(`# Pipeline Report — ${report.runId}`);
+  lines.push('');
+
+  // Summary section
+  lines.push('## Summary');
+  lines.push('');
+  lines.push('| Metric | Count |');
+  lines.push('|--------|-------|');
+  lines.push(`| Scenarios Planned | ${report.summary.scenariosPlanned} |`);
+  lines.push(`| Tests Generated | ${report.summary.testsGenerated} |`);
+  lines.push(`| Tests Passing | ${report.summary.testsPassing} |`);
+  lines.push(`| Tests Failing | ${report.summary.testsFailing} |`);
+  lines.push(`| Tests Healed | ${report.summary.testsHealed} |`);
+  lines.push(`| Tests Skipped | ${report.summary.testsSkipped} |`);
+  if (report.summary.testsNotImplemented !== undefined) {
+    lines.push(`| Tests Not Implemented | ${report.summary.testsNotImplemented} |`);
+  }
+  lines.push('');
+
+  // Duration section
+  lines.push('## Duration');
+  lines.push('');
+  lines.push(`**Total Duration:** ${report.duration}ms`);
+  lines.push('');
+  lines.push(`**Timestamp:** ${report.timestamp}`);
+  lines.push('');
+
+  // Coverage section
+  lines.push('## Coverage');
+  lines.push('');
+  lines.push('| Scenario | Status |');
+  lines.push('|----------|--------|');
+  for (const entry of report.coverage) {
+    lines.push(`| ${entry.scenarioName} | ${entry.status} |`);
+  }
+  lines.push('');
+
+  // Unresolved Failures section (only if there are failures)
+  if (report.unresolvedFailures.length > 0) {
+    lines.push('## Unresolved Failures');
+    lines.push('');
+    lines.push('| Scenario | Stage | Source | Error |');
+    lines.push('|----------|-------|--------|-------|');
+    for (const failure of report.unresolvedFailures) {
+      const sc = failure.scenarioId || '-';
+      const src = failure.failureSource || 'unknown';
+      lines.push(`| ${sc} | ${failure.stage} | ${src} | ${failure.errorMessage} |`);
+    }
+    lines.push('');
+  }
+
+  // AI Analysis section — runtime proof of the Analyze sub-phase
+  const analysis = report.analysis ?? { completed: false };
+  lines.push('## AI Analysis');
+  lines.push('');
+  lines.push(`**Completed:** ${analysis.completed}`);
+  if (analysis.runInsightsRecorded !== undefined) {
+    lines.push(`**Run insights recorded:** ${analysis.runInsightsRecorded}`);
+  }
+  if (analysis.passedScenariosReviewed !== undefined) {
+    lines.push(`**Passed scenarios reviewed:** ${analysis.passedScenariosReviewed}`);
+  }
+  if (analysis.skippedForInsufficientEvidence !== undefined) {
+    lines.push(`**Skipped for insufficient evidence:** ${analysis.skippedForInsufficientEvidence}`);
+  }
+  if (!analysis.completed) {
+    lines.push('');
+    lines.push(
+      '> ⚠️ Analyze sub-phase tidak terbukti berjalan — insight AI naratif mungkin tidak tersedia untuk run ini.',
+    );
+  }
+  lines.push('');
+
+  // QA Decision section
+  lines.push('## QA Decision');
+  lines.push('');
+  lines.push(`**Status:** ${report.qaDecision ?? 'Pending QA Review'}`);
+  lines.push('');
+
+  const markdown = lines.join('\n');
+
+  // Ensure report directory exists
+  const reportsDir = getReportDir();
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+
+  const reportPath = path.join(reportsDir, `pipeline-report-${report.runId}.md`);
+  fs.writeFileSync(reportPath, markdown, 'utf-8');
+
+  return reportPath;
+}

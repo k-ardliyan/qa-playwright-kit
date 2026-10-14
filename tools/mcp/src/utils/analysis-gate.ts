@@ -1,6 +1,6 @@
 /**
  * Unified Analyze-phase archive gate — MCP twin of
- * `src/agents/reporter/analysis-gate.ts` (the MCP server builds separately
+ * `src/agents/reporting/analysis-gate.ts` (the MCP server builds separately
  * and must not import from src/). Same verdicts, exact evidence semantics,
  * run binding, and Reporter proof requirement.
  *

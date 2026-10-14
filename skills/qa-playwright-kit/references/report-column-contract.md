@@ -4,7 +4,7 @@ Load when reading, explaining, or debugging dashboard Table View columns (Test S
 
 Table View (`artifacts/reports/custom-dashboard.html`) is what QA reads after the pipeline. Columns come from Playwright annotations and collected steps — not from free-form reporter prose.
 
-Source: `src/support/custom-reporter.ts` (`onTestEnd`) and `src/support/custom-dashboard/export-helpers.ts` (`formatSteps`, `formatInputData`).
+Source: `src/support/custom-reporter.ts` (`onTestEnd`) and `src/support/dashboard/export-helpers.ts` (`formatSteps`, `formatInputData`).
 
 ## Columns
 

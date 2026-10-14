@@ -16,7 +16,7 @@ import {
   recordPipelineRun,
   loadMetricsStore,
   saveMetricsStore,
-} from '../../observability/metrics-collector';
+} from '../../pipeline-telemetry/metrics-collector';
 import type { PipelineMetricsStore, PipelineRun } from '../../shared/types/pipeline-metrics.schema';
 import { createIsolatedReportDir } from '../helpers/report-dir-isolation';
 

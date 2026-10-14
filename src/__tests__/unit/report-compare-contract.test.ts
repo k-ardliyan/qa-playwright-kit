@@ -18,7 +18,7 @@ process.env['QA_REPORT_DIR'] = path.join(TMP_ARCHIVE_ROOT, 'reports');
 
 // Now import modules that depend on ARCHIVE_DIR — they will pick up the env var.
 import { test, expect } from '@playwright/test';
-import { compareReports, classifyChange } from '../../agents/reporter/report-compare';
+import { compareReports, classifyChange } from '../../agents/reporting/report-compare';
 
 function scenario(status: string, errorMessage?: string) {
   return {

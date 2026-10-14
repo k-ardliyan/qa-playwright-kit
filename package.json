@@ -58,7 +58,7 @@
     "mcp:build": "npm run install:mcp-server && npm run sync:file-core && npx tsc src/utils/app-env.ts src/utils/env-loader.ts src/utils/logger.ts --outDir src/utils --module commonjs --target es2020 --esModuleInterop --declaration --skipLibCheck --types node && cd tools/mcp && npm run build",
     "mcp:config": "tsx tools/scripts/mcp-config.ts",
     "mcp:typecheck": "npm run install:mcp-server && npx tsc -p tools/mcp/tsconfig.json --noEmit",
-    "sync:file-core": "tsx tools/scripts/sync-file-content-core.ts",
+    "sync:file-core": "tsx tools/scripts/sync-mcp-generated-compat.ts",
     "sync:mcp-generated": "tsx tools/scripts/sync-mcp-generated.ts",
     "sync:mcp-generated:check": "tsx tools/scripts/sync-mcp-generated.ts --check",
     "check:twin-parity": "tsx tools/scripts/check-twin-parity.ts",

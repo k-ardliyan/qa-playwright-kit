@@ -11,13 +11,13 @@ import {
   isQaDecision,
   QA_DECISIONS,
   type QaDecision,
-} from '../../agents/reporter/report-archive';
-import { compareLatestVsPrevious, compareReports } from '../../agents/reporter/report-compare';
-import { loadArchivedTestNotes, mergeTestNotes } from '../../agents/reporter/test-notes';
-import type { CollectedTestCase } from '../../support/custom-dashboard/types';
-import { escapeHtml } from '../../support/custom-dashboard/shared';
-import { readBody, jsonResponse, htmlResponse, validationError, isRecord, hasOwn } from './helpers';
-import { buildErrorPage } from './render';
+} from '../../agents/reporting/report-archive';
+import { compareLatestVsPrevious, compareReports } from '../../agents/reporting/report-compare';
+import { loadArchivedTestNotes, mergeTestNotes } from '../../agents/reporting/test-notes';
+import type { CollectedTestCase } from '../../support/dashboard/types';
+import { escapeHtml } from '../../support/dashboard/shared';
+import { readBody, jsonResponse, htmlResponse, validationError, isRecord, hasOwn } from './http';
+import { buildErrorPage } from './pages';
 
 export interface ArchiveRouteDependencies {
   broadcastEvent: (type: string, data?: unknown) => void;

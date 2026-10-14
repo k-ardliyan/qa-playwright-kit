@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { TestDetail } from '../../support/custom-dashboard/components/detail/TestDetail';
-import { TriageStrip } from '../../support/custom-dashboard/components/detail/TriageStrip';
-import { AttentionPanel } from '../../support/custom-dashboard/pages/dashboard/AttentionPanel';
-import { groupUnhealthyTests } from '../../support/custom-dashboard/domain/triage';
-import { buildDashboardOverview } from '../../support/custom-dashboard/domain/dashboard-overview';
-import type { CollectedTestData } from '../../support/custom-dashboard/types';
+import { TestDetail } from '../../support/dashboard/components/detail/TestDetail';
+import { TriageStrip } from '../../support/dashboard/components/detail/TriageStrip';
+import { AttentionPanel } from '../../support/dashboard/pages/dashboard/AttentionPanel';
+import { groupUnhealthyTests } from '../../support/dashboard/domain/triage';
+import { buildDashboardOverview } from '../../support/dashboard/domain/dashboard-overview';
+import type { CollectedTestData } from '../../support/dashboard/types';
 
 /**
  * Dashboard honesty fixes (dead-info inventory rounds 1–2). Each assertion

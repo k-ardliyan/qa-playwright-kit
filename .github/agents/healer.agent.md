@@ -26,7 +26,7 @@ You diagnose and repair failing Playwright tests using structured failure data a
 
 Read these before healing — canonical failure payload and fix pattern:
 
-- Failure payload schema: `src/agents/integration/schemas/pipeline-state.schema.json`
+- Failure payload schema: `src/agents/pipeline/schemas/pipeline-state.schema.json`
 - Failure data: MCP `get_test_failures` (qa-playwright-kit) — structured failures with `tracePath`/`screenshotPath`
 - Fix patterns: inline heuristics in this document (Healing Policy, File/PDF/Excel failure patterns) — no code database
 

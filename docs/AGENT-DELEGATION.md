@@ -70,7 +70,7 @@
 | **Pemilik file**      | Reporter — hanya Reporter yang menulis `artifacts/reports/pipeline-report-*`                                                                                                                                             |
 | **MCP wajib**         | `trace_requirement`, `get_test_summary`, `get_test_failures`, `record_ai_note` (`source: "reporter"`, minimal satu `scope: "run"`), `archive_report`                                                                     |
 | **Gate APPROVE**      | `analysisVerdict: "complete"` + `analysisVerified: true` + ada run insight `source: "reporter"` + tanpa unresolved failure. Kalau tidak → `ANALYSIS_INCOMPLETE` / `ANALYSIS_UNVERIFIABLE` / `ANALYSIS_EVIDENCE_MISMATCH` |
-| **Instruksi lengkap** | [`.github/agents/reporter.agent.md`](../.github/agents/reporter.agent.md)                                                                                                                                                |
+| **Instruksi lengkap** | [`.github/agents/reporting.agent.md`](../.github/agents/reporting.agent.md)                                                                                                                                              |
 
 **Brief siap-pakai:**
 

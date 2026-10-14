@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
-import { streamTelemetryEvent, readTelemetryStream } from '../../support/streaming/live-telemetry';
+import { streamTelemetryEvent, readTelemetryStream } from '../../support/telemetry/live-stream';
 
 test.describe('Live Telemetry JSONL Stream', () => {
   const tempStreamPath = path.resolve(

@@ -15,7 +15,7 @@
 
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { classifyError } from '../../observability/error-classifier';
+import { classifyError } from '../../pipeline-telemetry/error-classifier';
 
 const VALID_CATEGORIES = new Set([
   'infrastructure',

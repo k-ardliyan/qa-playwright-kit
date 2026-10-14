@@ -21,7 +21,7 @@ import * as path from 'node:path';
 import * as url from 'node:url';
 import { randomUUID } from 'node:crypto';
 
-import { listReportHistory } from '../agents/reporter/report-history';
+import { listReportHistory } from '../agents/reporting/report-history';
 import {
   getLatestRunInfo,
   listArchivedRunIds,
@@ -31,25 +31,25 @@ import {
   generateRunId,
   isValidRunId,
   getArchiveDir,
-} from '../agents/reporter/report-archive';
-import { compareLatestVsPrevious, compareReports } from '../agents/reporter/report-compare';
-import type { ReportComparison } from '../agents/reporter/report-compare';
+} from '../agents/reporting/report-archive';
+import { compareLatestVsPrevious, compareReports } from '../agents/reporting/report-compare';
+import type { ReportComparison } from '../agents/reporting/report-compare';
 import {
   loadLatestTestNotes,
   loadArchivedTestNotes,
   mergeTestNotes,
-} from '../agents/reporter/test-notes';
-import type { CollectedTestCase } from '../support/custom-dashboard/types';
+} from '../agents/reporting/test-notes';
+import type { CollectedTestCase } from '../support/dashboard/types';
 import {
   buildComparePage,
   buildHistoryPage,
   buildDetailPage,
-} from '../support/custom-dashboard/build-fragments';
-import { escapeHtml } from '../support/custom-dashboard/shared';
+} from '../support/dashboard/build-fragments';
+import { escapeHtml } from '../support/dashboard/shared';
 import { resolveWorkspaceReportDir } from '../shared/workspace-paths';
-import { resolveCurrentRunIdentity } from '../agents/reporter/run-context';
-import { writePortableReport } from '../support/reporter/portable-html';
-import { writeMarkdownReport } from '../support/reporter/markdown-report';
+import { resolveCurrentRunIdentity } from '../agents/reporting/run-context';
+import { writePortableReport } from '../support/report-artifacts/portable-html';
+import { writeMarkdownReport } from '../support/report-artifacts/markdown-report';
 
 import {
   jsonResponse,
@@ -58,7 +58,7 @@ import {
   readBody,
   isRecord,
   hasOwn,
-} from './routes/helpers';
+} from './routes/http';
 import {
   getSummaryPath,
   normalizeTestCases,
@@ -70,7 +70,7 @@ import {
   renderLatestDetailPage,
   renderArchivedDetailPage,
   buildDashboardOverviewPayload,
-} from './routes/render';
+} from './routes/pages';
 import { handleNotesRoute } from './routes/notes';
 import { handleArchiveRoute } from './routes/archive';
 import { handleStudioRoute } from './routes/studio';
@@ -110,7 +110,7 @@ const REPORT_RELOAD_FILES = [
   'custom-dashboard.html',
   'test-notes.json',
 ] as const;
-const DASHBOARD_STYLES_DIR = path.resolve(__dirname, '../support/custom-dashboard/styles');
+const DASHBOARD_STYLES_DIR = path.resolve(__dirname, '../support/dashboard/styles');
 const DASHBOARD_STYLE_FILES = [
   'tokens.css',
   'base.css',
@@ -736,8 +736,7 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
               : []),
             ...(loadArchivedTestNotes(runId).runInsights ?? []),
           ],
-          scenarios:
-            scenarios as import('../support/custom-dashboard/build-fragments').DetailScenario[],
+          scenarios: scenarios as import('../support/dashboard/build-fragments').DetailScenario[],
         });
       } else {
         jsonResponse(res, 404, { error: `Unknown fragment: ${view}` });

@@ -88,7 +88,7 @@ test.describe('archived detail page — Analyze gate wiring', () => {
       analysisIssues: ['Reporter Analyze insight missing', 'Sidecar count mismatch'],
     });
 
-    const { renderArchivedDetailPage } = await import('../../cli/routes/render');
+    const { renderArchivedDetailPage } = await import('../../cli/routes/pages');
     const html = renderArchivedDetailPage('run-20260820-100000-001');
 
     expect(html).toBeTruthy();
@@ -105,7 +105,7 @@ test.describe('archived detail page — Analyze gate wiring', () => {
       analysisVerified: true,
     });
 
-    const { renderArchivedDetailPage } = await import('../../cli/routes/render');
+    const { renderArchivedDetailPage } = await import('../../cli/routes/pages');
     const html = renderArchivedDetailPage('run-20260820-110000-001');
 
     expect(html!).toContain('AI ANALYSIS: COMPLETE');
@@ -128,7 +128,7 @@ test.describe('archived detail page — Analyze gate wiring', () => {
       },
     );
 
-    const { renderArchivedDetailPage } = await import('../../cli/routes/render');
+    const { renderArchivedDetailPage } = await import('../../cli/routes/pages');
     const html = renderArchivedDetailPage('run-20260820-130000-001');
 
     expect(html!).not.toContain('Review gate evidence before APPROVE.');
@@ -141,7 +141,7 @@ test.describe('archived detail page — Analyze gate wiring', () => {
       runId: 'run-20260820-120000-001',
     });
 
-    const { renderArchivedDetailPage } = await import('../../cli/routes/render');
+    const { renderArchivedDetailPage } = await import('../../cli/routes/pages');
     const html = renderArchivedDetailPage('run-20260820-120000-001');
 
     expect(html!).not.toContain('AI ANALYSIS:');

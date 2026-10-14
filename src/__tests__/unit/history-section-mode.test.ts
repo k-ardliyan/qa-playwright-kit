@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { buildHistorySection } from '../../support/custom-dashboard/build-history-view';
-import type { ReportHistoryEntry } from '../../agents/reporter/report-history';
+import { buildHistorySection } from '../../support/dashboard/build-history-view';
+import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
 
 const sampleEntry: ReportHistoryEntry = {
   runId: 'run-20260730-140422-162',

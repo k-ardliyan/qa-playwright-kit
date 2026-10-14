@@ -18,7 +18,7 @@ import { test, expect } from '@playwright/test';
 import * as http from 'node:http';
 
 // ─── P1-1: wireCompareForm double-bind guard ───────────────────────────────
-import { buildHashRouterJs } from '../../support/custom-dashboard/build-hash-router';
+import { buildHashRouterJs } from '../../support/dashboard/build-hash-router';
 
 test.describe('hash-router wireCompareForm double-bind guard', () => {
   test('emitted JS removes old listener before adding new one', () => {
@@ -32,7 +32,7 @@ test.describe('hash-router wireCompareForm double-bind guard', () => {
 });
 
 // ─── P1-2: Compare page with < 2 runs ─────────────────────────────────────
-import { buildComparePage } from '../../support/custom-dashboard/build-fragments';
+import { buildComparePage } from '../../support/dashboard/build-fragments';
 
 test.describe('buildComparePage with fewer than 2 runs', () => {
   test('0 runs: no form rendered, info message shown', () => {
@@ -126,7 +126,7 @@ test.describe('buildComparePage defaultBaseline avoids collision with current', 
 });
 
 // ─── P2-2: buildDetailPage shows ranAt / savedAt ──────────────────────────
-import { buildDetailPage } from '../../support/custom-dashboard/build-fragments';
+import { buildDetailPage } from '../../support/dashboard/build-fragments';
 
 test.describe('buildDetailPage includes timestamps', () => {
   test('ranAt and savedAt appear in summary when metadata is provided', () => {
@@ -296,8 +296,8 @@ test.describe('listArchivedRunIds sort order', () => {
 });
 
 // ─── BUG-3: CSS class underscore-to-dash must be global ───────────────────
-import { buildHistorySection } from '../../support/custom-dashboard/build-history-view';
-import type { ReportHistoryEntry } from '../../agents/reporter/report-history';
+import { buildHistorySection } from '../../support/dashboard/build-history-view';
+import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
 
 function makeEntry(override: Partial<ReportHistoryEntry> = {}): ReportHistoryEntry {
   return {
@@ -373,8 +373,8 @@ test.describe('history row View button stopPropagation', () => {
 });
 
 // ─── F1: static mode showArchiveDetail shows alert, not silent no-op ──────
-import { buildHistoryJs } from '../../support/custom-dashboard/build-history-view';
-import { buildClientBootstrapJs } from '../../support/custom-dashboard/client/bootstrap';
+import { buildHistoryJs } from '../../support/dashboard/build-history-view';
+import { buildClientBootstrapJs } from '../../support/dashboard/client/bootstrap';
 
 test.describe('showArchiveDetail static mode', () => {
   test('static mode path does NOT look for #archive-detail (removed DOM element)', () => {
@@ -427,7 +427,7 @@ test.describe('dashboard client contracts', () => {
 });
 
 // ─── BUG-E: deriveStatus — passRate 100 with skipped tests = partial ──────
-import { listReportHistory } from '../../agents/reporter/report-history';
+import { listReportHistory } from '../../agents/reporting/report-history';
 
 test.describe('report-history deriveStatus', () => {
   test('passRate 100 with skipped>0 is partial, not success', () => {
@@ -442,7 +442,7 @@ test.describe('report-history deriveStatus', () => {
 });
 
 // ─── BUG-F: export-helpers reads dashboard-columns-v3 (current key) ───────
-import { buildExportScript } from '../../support/custom-dashboard/export-helpers';
+import { buildExportScript } from '../../support/dashboard/export-helpers';
 
 test.describe('export helper localStorage key version', () => {
   test('buildExportScript reads dashboard-columns-v3 before v1 fallback', () => {
@@ -453,7 +453,7 @@ test.describe('export helper localStorage key version', () => {
 });
 
 // ─── BUG-G: formatDuration guards non-finite input (server side) ─────────
-import { toCsv } from '../../support/custom-dashboard/export-helpers';
+import { toCsv } from '../../support/dashboard/export-helpers';
 
 test.describe('export formatDuration NaN guard', () => {
   test('toCsv with undefined duration produces 0ms not NaN', () => {
@@ -490,7 +490,7 @@ test.describe('export formatDuration NaN guard', () => {
 });
 
 // ─── BUG-C/D: .latest-run marker carries appEnv + totalDurationMs ─────────
-import { getLatestRunInfo } from '../../agents/reporter/report-archive';
+import { getLatestRunInfo } from '../../agents/reporting/report-archive';
 
 test.describe('latest-run marker fallback fields', () => {
   test('canonical latest-run marker is optional and parseable when present', () => {

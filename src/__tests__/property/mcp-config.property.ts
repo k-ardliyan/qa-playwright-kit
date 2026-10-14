@@ -16,8 +16,8 @@ import {
   computeSourceHash,
   transformCopilot,
   getOutputPath,
-} from '../../agents/integration/mcp-config-generator';
-import type { McpServerDefinition, Platform } from '../../agents/integration/mcp-config-generator';
+} from '../../agents/pipeline/mcp-config-generator';
+import type { McpServerDefinition, Platform } from '../../agents/pipeline/mcp-config-generator';
 
 // ─── Arbitraries ──────────────────────────────────────────────────────────────
 

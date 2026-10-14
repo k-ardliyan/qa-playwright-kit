@@ -12,8 +12,8 @@ import {
   buildReport,
   isAnalysisComplete,
   writeReportMarkdown,
-} from '../../agents/reporter/report-builder';
-import { evaluateAnalysisGate } from '../../agents/reporter/analysis-gate';
+} from '../../agents/reporting/report-builder';
+import { evaluateAnalysisGate } from '../../agents/reporting/analysis-gate';
 import { mcpEvaluateAnalysisGate } from '../../../tools/mcp/src/utils/analysis-gate';
 
 const BASE_INPUT = {

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { jsonForScript, escapeHtml } from '../../support/custom-dashboard/shared';
-import { isValidRunId, isQaDecision, QA_DECISIONS } from '../../agents/reporter/report-archive';
-import { renderFailureSourceCell } from '../../support/custom-dashboard/export-helpers';
+import { jsonForScript, escapeHtml } from '../../support/dashboard/shared';
+import { isValidRunId, isQaDecision, QA_DECISIONS } from '../../agents/reporting/report-archive';
+import { renderFailureSourceCell } from '../../support/dashboard/export-helpers';
 
 test.describe('dashboard security — inline script JSON embedding', () => {
   test('jsonForScript escapes < so </script> cannot break out of inline script block', () => {

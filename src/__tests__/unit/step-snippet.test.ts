@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { formatDuration } from '../../support/custom-dashboard/shared';
-import { tokenizeLine } from '../../support/custom-dashboard/code-highlight';
+import { formatDuration } from '../../support/dashboard/shared';
+import { tokenizeLine } from '../../support/dashboard/code-highlight';
 import {
   buildStepSnippet,
   toStepLocation,
   __resetSnippetCache,
-} from '../../support/reporter/snippet';
+} from '../../support/report-artifacts/snippet';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
