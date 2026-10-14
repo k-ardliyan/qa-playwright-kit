@@ -4,7 +4,7 @@
  * Core types used across all integration layer modules:
  * protocol, state, hooks, orchestrator, manifest, and config generation.
  *
- * @module agents/pipeline/types
+ * @module agents/pipeline/workflow-types
  */
 
 /**

@@ -15,6 +15,7 @@ Folder ini berisi implementasi inti (core engine) dari **QA Playwright Kit**:
 - `shared/`: Shared domain types, evidence models, workspace path resolver. `shared/mcp/` holds cores twin-synced to `tools/mcp`; `shared/utils/` holds the role-credential and env accessors.
 - `support/`: `dashboard/` (renderer + komponen report/dashboard), `report-artifacts/` (collector + artifact renderer seperti `portable-html`), `pw/` (Playwright power helpers), plus auth/session helpers.
 - `utils/`: `app-env`, `env-loader`, `logger`, dan helper env lain (`env-text`, `env-clean`, `env-secrets`, `dotenv-keys`).
+- `__tests__/`: Framework test suites — `unit/` (Playwright `test()` cases, run via `config/playwright/unit.ts`), `property/` (fast-check, via `tools/scripts/run-property-tests.ts`), `dashboard-browser/` (browser E2E, via `config/playwright/dashboard.ts`), and `helpers/`. Colocated `__tests__/` dirs also live beside the modules they cover.
 
 ## ⚠️ Important Boundary Rule
 

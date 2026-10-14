@@ -12,7 +12,7 @@
  * @module agents/pipeline/challenge-gate
  */
 
-import { ChallengeResult, ExploreDecision, ModelResult } from './types';
+import { ChallengeResult, ExploreDecision, ModelResult } from './workflow-types';
 
 /**
  * Inputs the gate needs to decide.

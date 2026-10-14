@@ -15,7 +15,10 @@ import { pipelineStatus, deriveWorkflowStage } from '../../../tools/mcp/src/tool
 import { computeSourceHash } from '../../../tools/mcp/src/contracts';
 import { traceRequirement } from '../../../tools/mcp/src/tools/trace-requirement';
 import { resolveFileInspectPath } from '../../../tools/mcp/src/tools/_internal/file-inspect-path';
-import { generateManifest, MANIFEST_OMITTED_ON_DEMAND_TOOLS } from '../../agents/pipeline/manifest';
+import {
+  generateManifest,
+  MANIFEST_OMITTED_ON_DEMAND_TOOLS,
+} from '../../agents/pipeline/agent-manifest';
 
 function withProcessEnv(values: Record<string, string | undefined>, run: () => void): void {
   const previous = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));

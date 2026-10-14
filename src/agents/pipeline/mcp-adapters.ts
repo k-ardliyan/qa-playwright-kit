@@ -22,7 +22,7 @@ import {
   writeValidateRunManifest,
   readValidateRunManifest,
   assertCurrentValidateManifest,
-} from './validate-manifest';
+} from './validate-run-manifest';
 import type {
   WorkflowAdapters,
   ExploreAdapterInput,

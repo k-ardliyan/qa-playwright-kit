@@ -27,7 +27,7 @@ const EXPECTED = ['execute', 'heal', 'needs-heal', 'qa-review', 'report-analyze'
 test.describe('Validate substage union parity', () => {
   test('src contracts declare the full substage union', () => {
     for (const file of [
-      'src/agents/pipeline/types.ts',
+      'src/agents/pipeline/workflow-types.ts',
       'src/agents/pipeline/workflow-controller-types.ts',
     ]) {
       expect(substageUnionFrom(file), file).toEqual(EXPECTED);

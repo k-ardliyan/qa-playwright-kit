@@ -12,7 +12,7 @@
  */
 
 import { routeFeedback, type FeedbackInput } from '../feedback-router';
-import type { FeedbackDecision, PipelinePhase } from '../types';
+import type { FeedbackDecision, PipelinePhase } from '../workflow-types';
 import type { WorkflowResponse } from '../workflow-controller';
 import { transitionWorkflow } from '../workflow-transitions';
 import { buildManualResumeInstruction } from './resume-instruction';

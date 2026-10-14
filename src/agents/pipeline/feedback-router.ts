@@ -8,7 +8,7 @@
  * @module agents/pipeline/feedback-router
  */
 
-import { FeedbackDecision, WorkflowLoopTarget } from './types';
+import { FeedbackDecision, WorkflowLoopTarget } from './workflow-types';
 
 /**
  * A Validate finding to route.

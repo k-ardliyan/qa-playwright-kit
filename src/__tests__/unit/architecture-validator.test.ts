@@ -110,4 +110,39 @@ test.describe('Architecture Validator (tools/validators/architecture.ts)', () =>
     expect(pkg.scripts['test:quality']).toContain('setup:check');
     expect(pkg.scripts['test:quality']).not.toContain('setup:wizard');
   });
+
+  test('ARCH-017: a doc naming a non-existent framework path fails the gate', () => {
+    // Regression guard for the class of bug where a rename updates the folder
+    // but misses one prose reference (e.g. `.github/agents/reporting.agent.md`
+    // shipped while the agent FILE stayed `reporter.agent.md`).
+    const probe = path.join(root, 'docs', '__arch017-probe.md');
+    fs.writeFileSync(
+      probe,
+      '# probe\n\nSee `.github/agents/reporting.agent.md` and `src/ghost/missing.ts`.\n',
+    );
+    try {
+      const result = spawnSync('npx', ['tsx', 'tools/validators/architecture.ts'], {
+        cwd: root,
+        encoding: 'utf-8',
+        shell: true,
+      });
+      expect(result.status).toBe(1);
+      expect(result.stdout + result.stderr).toContain('ARCH-017: DOC_PATH_DRIFT');
+      expect(result.stdout + result.stderr).toContain('reporting.agent.md');
+    } finally {
+      fs.rmSync(probe, { force: true });
+    }
+  });
+
+  test('ARCH-017: the canonical codebase has no doc-path drift', () => {
+    // The negative half: real docs must not trip the guard (guards that cry
+    // wolf on legitimate content get ignored).
+    const result = spawnSync('npx', ['tsx', 'tools/validators/architecture.ts'], {
+      cwd: root,
+      encoding: 'utf-8',
+      shell: true,
+    });
+    expect(result.stdout).not.toContain('ARCH-017');
+    expect(result.status).toBe(0);
+  });
 });

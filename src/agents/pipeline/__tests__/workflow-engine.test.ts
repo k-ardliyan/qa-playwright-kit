@@ -21,7 +21,7 @@ import { evaluateChallenge, canGenerate, type ChallengeGateInput } from '../chal
 import { routeFeedback } from '../feedback-router';
 import { WorkflowController } from '../workflow-controller';
 import { ModelHandoffError } from '../mcp-adapters';
-import type { ExploreDecision, ModelResult } from '../types';
+import type { ExploreDecision, ModelResult } from '../workflow-types';
 import type { WorkflowResponse } from '../workflow-controller-types';
 import {
   createMcpAdapters,

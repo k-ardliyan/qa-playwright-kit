@@ -27,7 +27,7 @@ import type {
   WorkflowLoopTarget,
   ProtocolError,
   WorkflowStatus,
-} from './types';
+} from './workflow-types';
 import type { PipelineState } from './state';
 import { saveState, loadState } from './state';
 import { createWorkflowEnvelope } from './workflow-transitions';
@@ -64,7 +64,7 @@ export type {
   WorkflowResponse,
   WorkflowControllerConfig,
 } from './workflow-controller-types';
-export type { FeedbackDecision } from './types';
+export type { FeedbackDecision } from './workflow-types';
 export { routeFeedback, type FeedbackInput } from './feedback-router';
 
 /**

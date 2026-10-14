@@ -10,7 +10,7 @@ Markdown requirement → test plan → Playwright test → triage dashboard
 
 Diorkestrasi [Hermes Agent](https://hermes-agent.nousresearch.com/docs) · 28 MCP tools · quality-gated CI
 
-[![Quality Gate](https://img.shields.io/badge/quality%20gate-3%20lane-2E86AB?style=flat-square&logo=githubactions&logoColor=white)](.github/workflows/quality.yml) [![Tests](https://img.shields.io/badge/tests-1039%20unit%20%C2%B7%2026%20property-45ba4b?style=flat-square&logo=playwright&logoColor=white)](#kualitas-bukan-janji) [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org) [![Playwright](https://img.shields.io/badge/playwright-1.64+-45ba4b?style=flat-square&logo=playwright&logoColor=white)](https://playwright.dev) [![TypeScript](https://img.shields.io/badge/typescript-5.9+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.32+-A23B72?style=flat-square&logo=protocol&logoColor=white)](https://modelcontextprotocol.io) [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases) [![License](https://img.shields.io/badge/license-MIT-2E86AB?style=flat-square)](LICENSE)
+[![Quality Gate](https://img.shields.io/badge/quality%20gate-3%20lane-2E86AB?style=flat-square&logo=githubactions&logoColor=white)](.github/workflows/quality.yml) [![Tests](https://img.shields.io/badge/tests-1049%20unit%20%C2%B7%2026%20property-45ba4b?style=flat-square&logo=playwright&logoColor=white)](#kualitas-bukan-janji) [![Node.js](https://img.shields.io/badge/node-%3E%3D20.19.0-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org) [![Playwright](https://img.shields.io/badge/playwright-1.64+-45ba4b?style=flat-square&logo=playwright&logoColor=white)](https://playwright.dev) [![TypeScript](https://img.shields.io/badge/typescript-5.9+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.32+-A23B72?style=flat-square&logo=protocol&logoColor=white)](https://modelcontextprotocol.io) [![Version](https://img.shields.io/badge/version-0.2.0--alpha.1-2E86AB?style=flat-square&logo=git&logoColor=white)](https://github.com/k-ardliyan/qa-playwright-kit/releases) [![License](https://img.shields.io/badge/license-MIT-2E86AB?style=flat-square)](LICENSE)
 
 </div>
 
@@ -183,7 +183,7 @@ Framework ini menegakkan klaimnya sendiri — dan menolak klaim yang tidak bisa 
 | **Re-entry cap**           | Maks 3 pass heal per target; pass ke-4 di-blok (`LOOP_LIMIT_REACHED`), butuh keputusan QA               |
 | **Doctrine stamp**         | Setiap spec di-stamp versi instruksi generator (`// doctrine: doctrine/v2`)                             |
 
-CI berjalan 3 lane (fast / Windows / full) — format, lint, typecheck, unit 1039, property 26, contract,
+CI berjalan 3 lane (fast / Windows / full) — format, lint, typecheck, unit 1049, property 26, contract,
 dashboard-browser, dan harness upgrade. Lihat [.github/workflows/quality.yml](.github/workflows/quality.yml).
 
 ---
@@ -252,7 +252,7 @@ Panduan lengkap: [docs/MANUAL-SCENARIOS.md](docs/MANUAL-SCENARIOS.md)
 | `npm run test:demo`     | Suite demo publik (tanpa kredensial) |
 | `npm run test:smoke`    | Smoke test saja                      |
 | `npm run test:quality`  | Gate lengkap sebelum push            |
-| `npm run test:unit`     | Unit tests (1039)                    |
+| `npm run test:unit`     | Unit tests (1049)                    |
 | `npm run test:property` | Property tests (26)                  |
 | `npm run test:contract` | Golden contract CI                   |
 | `npm run manual:check`  | List scenario `(@manual)`            |

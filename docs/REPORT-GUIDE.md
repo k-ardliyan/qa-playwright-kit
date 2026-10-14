@@ -68,7 +68,7 @@ Playwright Test Run
 
 ### 4. **Pipeline Report Markdown** (`artifacts/reports/pipeline-report-<runId>.md`)
 
-- **Sumber:** Reporter agent (`.github/agents/reporting.agent.md`), ditulis oleh `report-builder.ts` ke `artifacts/reports/` sesuai workspace manifest
+- **Sumber:** Reporter agent (`.github/agents/reporter.agent.md`), ditulis oleh `report-builder.ts` ke `artifacts/reports/` sesuai workspace manifest
 - **Isi:** Markdown narrative dari full pipeline run (Explore → Model → Challenge → Generate → Validate; mesin: Plan → Generate → Execute → Heal → Report(Analyze)); Report includes the mandatory Analyze sub-phase and `## AI Analysis` contract section
 - **Kapan digunakan:** Review end-to-end pipeline result, audit trail, QA decision tracking; APPROVE is valid only when `analysisVerdict=complete` and `analysisVerified=true`
 

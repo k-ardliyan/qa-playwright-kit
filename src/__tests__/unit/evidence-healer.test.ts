@@ -6,7 +6,7 @@ import {
   writeEvidenceManifest,
   readEvidenceManifest,
   sanitizePathSegment,
-} from '../../shared/evidence/manifest';
+} from '../../shared/evidence/evidence-manifest';
 import { normalizeConsoleMessages } from '../../shared/evidence/console-normalizer';
 import { classifyFailureFromEvidence } from '../../shared/evidence/failure-classifier';
 import { McpTraceWorkflow } from '../../shared/evidence/trace-workflow';

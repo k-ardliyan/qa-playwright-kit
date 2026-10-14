@@ -7,7 +7,7 @@ Folder ini berisi tool operasional, validator arsitektur, dan MCP server:
 
 ```text
 tools/
-├── mcp/                  # QA Playwright Kit MCP Server (@qa-playwright-kit-mcp-server)
+├── mcp/                  # QA Playwright Kit MCP Server (qa-playwright-kit-mcp-server)
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── src/              # Tool definitions & server logic

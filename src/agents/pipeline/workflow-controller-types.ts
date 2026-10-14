@@ -18,7 +18,7 @@ import type {
   WorkflowEnvelope,
   WorkflowStage,
   WorkflowStatus,
-} from './types';
+} from './workflow-types';
 
 /**
  * Adapter seam: each semantic stage maps to existing engine/agent work.

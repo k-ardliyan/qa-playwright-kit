@@ -18,7 +18,7 @@ import {
   WorkflowEnvelope,
   WorkflowStage,
   WorkflowStatus,
-} from './types';
+} from './workflow-types';
 import { computeSourceHash } from '@/contracts';
 import { resolveWorkspaceReportDir } from '../../shared/workspace-paths';
 

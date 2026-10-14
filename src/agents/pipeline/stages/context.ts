@@ -17,7 +17,7 @@ import type {
   WorkflowStatus,
   ProtocolError,
   WorkflowLoopTarget,
-} from '../types';
+} from '../workflow-types';
 import type {
   WorkflowAdapters,
   WorkflowStartInput,

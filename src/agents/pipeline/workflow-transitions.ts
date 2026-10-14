@@ -18,7 +18,7 @@ import {
   WorkflowEnvelope,
   WorkflowStatus,
   WORKFLOW_STAGES,
-} from './types';
+} from './workflow-types';
 
 /**
  * Event that drives a workflow transition.
@@ -40,7 +40,7 @@ export type WorkflowEvent =
         analysisVerdict: 'complete';
       };
     }
-  | { type: 'feedback'; decision: import('./types').FeedbackDecision };
+  | { type: 'feedback'; decision: import('./workflow-types').FeedbackDecision };
 
 /**
  * Result of a transition attempt.

@@ -6,8 +6,8 @@
 
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { generateManifest } from '../../agents/pipeline/manifest';
-import type { CapabilityManifest } from '../../agents/pipeline/manifest';
+import { generateManifest } from '../../agents/pipeline/agent-manifest';
+import type { CapabilityManifest } from '../../agents/pipeline/agent-manifest';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

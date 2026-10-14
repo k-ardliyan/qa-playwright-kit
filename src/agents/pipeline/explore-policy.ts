@@ -12,7 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { computeSourceHash } from '@/contracts';
-import { ExploreDecision } from './types';
+import { ExploreDecision } from './workflow-types';
 
 /**
  * Evidence outcome vocabulary used by the resolver.

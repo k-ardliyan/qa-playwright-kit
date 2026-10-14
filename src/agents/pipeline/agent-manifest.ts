@@ -10,13 +10,17 @@
  * snapshot against the canonical MCP registry and generation fails closed on
  * any internal phase/catalog drift.
  *
- * @module agents/pipeline/manifest
+ * @module agents/pipeline/agent-manifest
  */
 
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { PipelinePhase, OrchestrationModeDescriptor, WorkflowStage } from './types';
-import { WORKFLOW_STAGES, WORKFLOW_STAGE_DEFINITIONS, type WorkflowStageDescriptor } from './types';
+import type { PipelinePhase, OrchestrationModeDescriptor, WorkflowStage } from './workflow-types';
+import {
+  WORKFLOW_STAGES,
+  WORKFLOW_STAGE_DEFINITIONS,
+  type WorkflowStageDescriptor,
+} from './workflow-types';
 
 // ─── Type Definitions ────────────────────────────────────────────────────────
 
@@ -350,7 +354,7 @@ const PHASE_DEFINITIONS: Record<
   },
   report: {
     description: 'Aggregate test results into a structured pipeline report',
-    agentFile: '.github/agents/reporting.agent.md',
+    agentFile: '.github/agents/reporter.agent.md',
     mcpServers: ['qa-playwright-kit'],
     toolNames: [
       'trace_requirement',
