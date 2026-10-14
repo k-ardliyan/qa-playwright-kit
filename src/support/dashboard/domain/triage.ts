@@ -9,7 +9,7 @@
  */
 
 import type { QaDecision } from '../../../agents/reporting/report-archive';
-import type { FailureSource } from '../types';
+import type { FailureSource } from '../report-model';
 
 /** Test statuses that count as needing triage. */
 export const UNHEALTHY_STATUSES = new Set(['failed', 'timedOut', 'interrupted']);

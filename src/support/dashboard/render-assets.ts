@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const STYLES_DIR = path.resolve(__dirname, '../styles');
+const STYLES_DIR = path.resolve(__dirname, './styles');
 
 export const STYLE_FILES = [
   'tokens.css',

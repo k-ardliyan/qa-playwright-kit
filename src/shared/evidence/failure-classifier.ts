@@ -1,4 +1,4 @@
-import type { ExtendedFailureCategory, EvidenceManifest } from './types';
+import type { ExtendedFailureCategory, EvidenceManifest } from './evidence-types';
 
 export interface ClassifiedFailureResult {
   category: ExtendedFailureCategory;

@@ -2,7 +2,7 @@ import { buildHistorySection, buildComparisonSection } from './build-history-vie
 import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
 import type { ReportComparison } from '../../agents/reporting/report-compare';
 import { escapeHtml } from './shared';
-import type { FailureSource } from './types';
+import type { FailureSource } from './report-model';
 import {
   renderStatusBadge,
   renderPriorityBadge,

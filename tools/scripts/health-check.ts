@@ -1,5 +1,5 @@
 import { healthCheck } from '../mcp/src/tools/health-check';
-import { bootstrapMcpEnvironment } from './mcp-bootstrap';
+import { bootstrapMcpEnvironment } from '../mcp/src/utils/mcp-env-bootstrap';
 import { EXIT } from './exit-codes';
 import { printError, printOk, printWarn, withFriendlyErrors } from './format-error';
 

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { renderDocumentShell, jsonForScript } from '../../support/dashboard/shared';
-import type { TestSummary } from '../../support/dashboard/types';
+import type { TestSummary } from '../../support/dashboard/report-model';
 
 const emptySummary: TestSummary = {
   total: 0,

@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { TrendPoint } from '../../domain/dashboard';
+import type { TrendPoint } from '../../domain/overview-types';
 
 export interface QualityTrendProps {
   trendPoints: TrendPoint[];

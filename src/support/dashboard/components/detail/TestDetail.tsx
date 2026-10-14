@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { CollectedError, CollectedTestData } from '../../types';
+import type { CollectedError, CollectedTestData } from '../../report-model';
 import { decisionHintFor, decisionHintTooltipFor, explainFailure } from '../../failure-source';
 import { formatDuration } from '../../shared';
 import { generateErrorFingerprint } from '../../../error-fingerprint';

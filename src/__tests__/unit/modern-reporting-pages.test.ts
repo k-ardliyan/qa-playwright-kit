@@ -6,7 +6,7 @@ import { TrendChart } from '../../support/dashboard/pages/history/TrendChart';
 import { ComparePage } from '../../support/dashboard/pages/compare';
 import { ReportDetailPage } from '../../support/dashboard/pages/report-detail';
 import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
-import type { TestSummary } from '../../support/dashboard/types';
+import type { TestSummary } from '../../support/dashboard/report-model';
 import {
   allPassedSummary,
   notImplementedSummary,

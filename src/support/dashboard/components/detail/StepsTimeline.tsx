@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 /** @jsxImportSource @kitajs/html */
-import type { CollectedStep, StepSnippet } from '../../types';
+import type { CollectedStep, StepSnippet } from '../../report-model';
 import { formatDuration } from '../../shared';
 import { stripAnsi } from '../../../report-artifacts/collect';
 import { tokenizeLine } from '../../code-highlight';

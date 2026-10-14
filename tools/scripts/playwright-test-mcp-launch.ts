@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
 import { getPlaywrightConfigPath } from '../mcp/src/utils/playwright-paths';
-import { bootstrapMcpEnvironment } from './mcp-bootstrap';
+import { bootstrapMcpEnvironment } from '../mcp/src/utils/mcp-env-bootstrap';
 import { findRepoRoot } from '../../src/shared/workspace-paths';
 import {
   describeSpawn,

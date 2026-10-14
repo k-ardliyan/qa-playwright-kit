@@ -1,6 +1,6 @@
 import type { TestResult, TestStep } from '@playwright/test/reporter';
 import { FRAMEWORK_ROLE_HINTS } from '../../shared/utils/role-credentials';
-import type { CollectedError, CollectedStep } from '../dashboard/types';
+import type { CollectedError, CollectedStep } from '../dashboard/report-model';
 import { buildStepSnippet, toStepLocation } from './snippet';
 
 export function collectSteps(steps: TestStep[]): CollectedStep[] {

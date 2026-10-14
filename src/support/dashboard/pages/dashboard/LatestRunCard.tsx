@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { LatestRunSummary } from '../../domain/dashboard';
+import type { LatestRunSummary } from '../../domain/overview-types';
 import {
   IconCircleCheck,
   IconCircleX,

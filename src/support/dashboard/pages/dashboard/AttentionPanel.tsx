@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { RecurringFailure } from '../../domain/dashboard';
+import type { RecurringFailure } from '../../domain/overview-types';
 import { IconTriangleAlert, IconCircleX, IconCircleCheck } from '../../components/shared/icons';
 
 export interface AttentionPanelProps {

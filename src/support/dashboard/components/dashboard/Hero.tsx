@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { TestSummary } from '../../types';
+import type { TestSummary } from '../../report-model';
 import { formatDuration as formatDurationMs, getVerdict } from '../../shared';
 import {
   IconCopy,

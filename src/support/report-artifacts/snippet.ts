@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { StepLocation, StepSnippet } from '../dashboard/types';
+import type { StepLocation, StepSnippet } from '../dashboard/report-model';
 
 /**
  * Source peek for a step, mirroring the built-in Playwright HTML report.

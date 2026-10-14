@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { Children } from '@kitajs/html';
-import { getDashboardStyles } from '../renderer/render-assets';
+import { getDashboardStyles } from '../render-assets';
 import { renderChartScript, renderInteractiveScript, renderThemeScript } from '../shared';
 import { buildClientBootstrapJs } from '../client';
 import { MediaLightbox } from '../components/shared/MediaLightbox';
@@ -8,7 +8,7 @@ import { Toaster } from '../components/shared/Toast';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { QaNoteModal } from '../pages/history/QaNoteModal';
 import { RepoFooter } from './RepoFooter';
-import type { TestSummary } from '../types';
+import type { TestSummary } from '../report-model';
 
 export interface DashboardDocumentProps {
   pageTitle: string;

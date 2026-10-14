@@ -8,9 +8,9 @@ import { LatestRunCard } from '../../support/dashboard/pages/dashboard/LatestRun
 import { HistoryRunsTable } from '../../support/dashboard/pages/history/HistoryRunsTable';
 import { DashboardDocument } from '../../support/dashboard/layouts/DashboardDocument';
 import { ActualResultCell } from '../../support/dashboard/components/table/TableCells';
-import type { CollectedTestData } from '../../support/dashboard/types';
+import type { CollectedTestData } from '../../support/dashboard/report-model';
 import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
-import type { LatestRunSummary } from '../../support/dashboard/domain/dashboard';
+import type { LatestRunSummary } from '../../support/dashboard/domain/overview-types';
 
 /**
  * @kitajs/html@4.2.13 (runtime, not the README table):

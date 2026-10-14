@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { EvidenceManifest } from './types';
+import type { EvidenceManifest } from './evidence-types';
 import { redactSensitiveData } from '../utils/redaction';
 import { workspace } from '../workspace-paths';
 

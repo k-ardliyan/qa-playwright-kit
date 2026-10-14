@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { VideoChapter } from './types';
+import type { VideoChapter } from './evidence-types';
 import { workspace } from '../workspace-paths';
 
 export interface VideoSession {

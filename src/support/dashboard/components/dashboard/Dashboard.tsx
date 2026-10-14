@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { ReportHistoryEntry } from '../../../../agents/reporting/report-history';
-import type { CollectedTestData, TestSummary } from '../../types';
+import type { CollectedTestData, TestSummary } from '../../report-model';
 import { buildHistoryJs, buildHistorySection, buildSaveModal } from '../../build-history-view';
 import { buildHashRouterJs, renderHashNav } from '../../build-hash-router';
 import { DashboardDocument } from '../../layouts/DashboardDocument';

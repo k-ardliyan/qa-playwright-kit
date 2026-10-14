@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { CollectedAttachment } from '../../types';
+import type { CollectedAttachment } from '../../report-model';
 import { IconMaximize2 } from '../shared/icons';
 import { EmptyState } from '../shared/EmptyState';
 

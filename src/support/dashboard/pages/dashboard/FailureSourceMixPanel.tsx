@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { FailureSourceMixEntry } from '../../domain/dashboard';
+import type { FailureSourceMixEntry } from '../../domain/overview-types';
 import { IconChartPie, IconCircleCheck } from '../../components/shared/icons';
 
 /** Short display label per failure source. */

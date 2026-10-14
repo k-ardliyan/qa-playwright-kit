@@ -1,4 +1,4 @@
-import type { CollectedTestData, TestSummary } from '../../types';
+import type { CollectedTestData, TestSummary } from '../../report-model';
 import { skippedTest } from './mixed-results';
 
 export const skippedTests: CollectedTestData[] = [

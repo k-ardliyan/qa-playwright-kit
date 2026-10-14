@@ -4,7 +4,7 @@ import { TriageStrip } from '../../support/dashboard/components/detail/TriageStr
 import { AttentionPanel } from '../../support/dashboard/pages/dashboard/AttentionPanel';
 import { groupUnhealthyTests } from '../../support/dashboard/domain/triage';
 import { buildDashboardOverview } from '../../support/dashboard/domain/dashboard-overview';
-import type { CollectedTestData } from '../../support/dashboard/types';
+import type { CollectedTestData } from '../../support/dashboard/report-model';
 
 /**
  * Dashboard honesty fixes (dead-info inventory rounds 1–2). Each assertion

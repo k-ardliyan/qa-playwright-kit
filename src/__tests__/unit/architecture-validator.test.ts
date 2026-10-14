@@ -3,11 +3,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-test.describe('Architecture Validator (tools/validators/architecture.ts)', () => {
+test.describe('Architecture Validator (tools/validators/validate-architecture.ts)', () => {
   const root = process.cwd();
 
   test('validator script exits with 0 on canonical codebase', () => {
-    const result = spawnSync('npx', ['tsx', 'tools/validators/architecture.ts'], {
+    const result = spawnSync('npx', ['tsx', 'tools/validators/validate-architecture.ts'], {
       cwd: root,
       encoding: 'utf-8',
       shell: true,
@@ -121,7 +121,7 @@ test.describe('Architecture Validator (tools/validators/architecture.ts)', () =>
       '# probe\n\nSee `.github/agents/reporting.agent.md` and `src/ghost/missing.ts`.\n',
     );
     try {
-      const result = spawnSync('npx', ['tsx', 'tools/validators/architecture.ts'], {
+      const result = spawnSync('npx', ['tsx', 'tools/validators/validate-architecture.ts'], {
         cwd: root,
         encoding: 'utf-8',
         shell: true,
@@ -137,7 +137,7 @@ test.describe('Architecture Validator (tools/validators/architecture.ts)', () =>
   test('ARCH-017: the canonical codebase has no doc-path drift', () => {
     // The negative half: real docs must not trip the guard (guards that cry
     // wolf on legitimate content get ignored).
-    const result = spawnSync('npx', ['tsx', 'tools/validators/architecture.ts'], {
+    const result = spawnSync('npx', ['tsx', 'tools/validators/validate-architecture.ts'], {
       cwd: root,
       encoding: 'utf-8',
       shell: true,

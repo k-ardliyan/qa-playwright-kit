@@ -7,7 +7,11 @@ import {
   resolveWorkspaceReportDir,
   resolveWorkspaceTestResultsDir,
 } from '../../shared/workspace-paths';
-import type { AttachmentKind, CollectedAttachment, CollectedTestData } from '../dashboard/types';
+import type {
+  AttachmentKind,
+  CollectedAttachment,
+  CollectedTestData,
+} from '../dashboard/report-model';
 import { toReportRelativePath } from '../dashboard/shared';
 
 export function resolveReportDir(): string {

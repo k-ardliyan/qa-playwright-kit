@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { ModuleHealthEntry } from '../../domain/dashboard';
+import type { ModuleHealthEntry } from '../../domain/overview-types';
 import { IconBoxes, IconMinus } from '../../components/shared/icons';
 
 export interface ModuleHealthPanelProps {

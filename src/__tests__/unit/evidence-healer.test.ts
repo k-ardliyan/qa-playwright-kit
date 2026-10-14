@@ -13,7 +13,7 @@ import { McpTraceWorkflow } from '../../shared/evidence/trace-workflow';
 import { McpVideoWorkflow } from '../../shared/evidence/video-workflow';
 import { resolveMcpOutputDir } from '../../shared/mcp/output-resolver';
 import { WorkspacePathRegistry } from '../../shared/workspace-paths';
-import type { EvidenceManifest } from '../../shared/evidence/types';
+import type { EvidenceManifest } from '../../shared/evidence/evidence-types';
 
 test.describe('Evidence-Driven Healing & Observability (MCP-053 to MCP-065)', () => {
   test('writes and reads redacted EvidenceManifest', () => {

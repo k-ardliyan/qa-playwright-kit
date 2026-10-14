@@ -63,7 +63,7 @@ export function buildDashboardOverviewPayload(): Record<string, unknown> {
 export function normalizeTestCases(
   testCases: unknown[],
   archivedRunId?: string,
-): import('../../support/dashboard/types').CollectedTestData[] {
+): import('../../support/dashboard/report-model').CollectedTestData[] {
   // Per-test notes live in the sidecar — latest sidecar for the latest run,
   // archived sidecar for archived runs. Missing/corrupt file reads as empty.
   const notes = archivedRunId ? loadArchivedTestNotes(archivedRunId) : loadLatestTestNotes();
@@ -87,7 +87,7 @@ export function normalizeTestCases(
         relativePath: `/api/archive/${encodeURIComponent(archivedRunId)}/${encodedPath}`,
       };
     });
-    const base: import('../../support/dashboard/types').CollectedTestData = {
+    const base: import('../../support/dashboard/report-model').CollectedTestData = {
       // Fields present in CollectedTestCase
       testId: (t['testId'] as string) || '',
       scenarioId: (t['scenarioId'] as string) || '',
@@ -100,16 +100,18 @@ export function normalizeTestCases(
       // that reads as "not applicable", which is a claim we cannot make. The
       // badge layer renders 'unknown' toneless and labeled honestly.
       status: ((t['status'] as string) ||
-        'unknown') as import('../../support/dashboard/types').CollectedTestData['status'],
-      priority: (t['priority'] as import('../../support/dashboard/types').Priority) || 'medium',
+        'unknown') as import('../../support/dashboard/report-model').CollectedTestData['status'],
+      priority:
+        (t['priority'] as import('../../support/dashboard/report-model').Priority) || 'medium',
       duration: (t['duration'] as number) || 0,
       inputData: (t['inputData'] as Record<string, string>) || {},
       expectedResult: (t['expectedResult'] as string) || '',
       actualResult: (t['actualResult'] as string) || '',
       affectedLayer:
-        (t['affectedLayer'] as import('../../support/dashboard/types').AffectedLayer[]) || [],
+        (t['affectedLayer'] as import('../../support/dashboard/report-model').AffectedLayer[]) ||
+        [],
       failureSource: t['failureSource'] as
-        | import('../../support/dashboard/types').FailureSource
+        | import('../../support/dashboard/report-model').FailureSource
         | undefined,
       // Per-scenario "why" for skipped/not-implemented rows (fixme annotation).
       notImplementedReason:
@@ -122,10 +124,11 @@ export function normalizeTestCases(
       // Fields not in CollectedTestCase — safe defaults for serve mode
       fullTitle: (t['fullTitle'] as string) || (t['title'] as string) || '',
       errorMessage: (t['errorMessage'] as string) || '',
-      errors: (t['errors'] as import('../../support/dashboard/types').CollectedError[]) || [],
-      steps: (t['steps'] as import('../../support/dashboard/types').CollectedStep[]) || [],
+      errors:
+        (t['errors'] as import('../../support/dashboard/report-model').CollectedError[]) || [],
+      steps: (t['steps'] as import('../../support/dashboard/report-model').CollectedStep[]) || [],
       attachments:
-        attachments as unknown as import('../../support/dashboard/types').CollectedAttachment[],
+        attachments as unknown as import('../../support/dashboard/report-model').CollectedAttachment[],
       retry: (t['retry'] as number) ?? 0,
       workerIndex: typeof t['workerIndex'] === 'number' ? (t['workerIndex'] as number) : undefined,
       attachmentCount:
@@ -325,7 +328,7 @@ export function renderComparePage(baseline?: string, candidate?: string, series?
 
 export function renderLatestDetailPage(query?: DetailPageQuery): string {
   let summary: object | undefined;
-  let collectedTests: import('../../support/dashboard/types').CollectedTestData[] = [];
+  let collectedTests: import('../../support/dashboard/report-model').CollectedTestData[] = [];
   let latestRunId: string | undefined;
 
   try {

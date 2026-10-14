@@ -9,7 +9,7 @@ import {
   PLAYWRIGHT_MCP_CAPABILITY_MANIFEST,
   PLAYWRIGHT_MCP_CLI_ADDITIVE_CAPABILITIES,
 } from '../../src/shared/mcp/capability-manifest';
-import { bootstrapMcpEnvironment } from './mcp-bootstrap';
+import { bootstrapMcpEnvironment } from '../mcp/src/utils/mcp-env-bootstrap';
 import { EXIT } from './exit-codes';
 import { printOk, printWarn, printError, withFriendlyErrors } from './format-error';
 

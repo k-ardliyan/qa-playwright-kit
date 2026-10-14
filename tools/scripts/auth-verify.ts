@@ -17,7 +17,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { chromium } from 'playwright';
-import { bootstrapMcpEnvironment } from './mcp-bootstrap';
+import { bootstrapMcpEnvironment } from '../mcp/src/utils/mcp-env-bootstrap';
 import { probeAuthRoles } from '../mcp/src/utils/auth-probe';
 import { resolveAppUrl } from '../../src/support/app-url';
 import { isSessionValid, resolveRoleCredentials } from '../../src/support/auth-helpers';

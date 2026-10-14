@@ -492,7 +492,7 @@ function main(): void {
 
 const invokedAsCli =
   typeof process.argv[1] === 'string' &&
-  path.basename(process.argv[1]).replace(/\\/g, '/').startsWith('check-twin-parity');
+  path.basename(process.argv[1]).replace(/\\/g, '/').startsWith('twin-parity-check');
 
 if (invokedAsCli) {
   main();

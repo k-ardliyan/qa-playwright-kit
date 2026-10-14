@@ -1,4 +1,4 @@
-import type { CollectedTestData } from './types';
+import type { CollectedTestData } from './report-model';
 import { escapeHtml } from './shared';
 
 const UNHEALTHY = new Set(['failed', 'timedOut', 'interrupted']);

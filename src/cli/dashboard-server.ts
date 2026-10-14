@@ -39,7 +39,7 @@ import {
   loadArchivedTestNotes,
   mergeTestNotes,
 } from '../agents/reporting/test-notes';
-import type { CollectedTestCase } from '../support/dashboard/types';
+import type { CollectedTestCase } from '../support/dashboard/report-model';
 import {
   buildComparePage,
   buildHistoryPage,

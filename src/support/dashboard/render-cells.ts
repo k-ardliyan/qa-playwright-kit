@@ -1,4 +1,4 @@
-import type { FailureSource } from './types';
+import type { FailureSource } from './report-model';
 import { escapeHtml } from './shared';
 import { statusIcon } from './components/table/TableCells';
 import { decisionHintFor, decisionHintTooltipFor, decisionHintBlurbFor } from './failure-source';

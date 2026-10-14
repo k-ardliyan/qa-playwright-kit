@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { CollectedTestData, TestSummary } from '../../types';
+import type { CollectedTestData, TestSummary } from '../../report-model';
 
 export interface RoleHealthStripProps {
   summary: TestSummary;

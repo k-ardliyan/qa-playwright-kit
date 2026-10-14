@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { CollectedTestData } from '../../types';
+import type { CollectedTestData } from '../../report-model';
 import {
   ActualResultCell,
   AiNotesCell,

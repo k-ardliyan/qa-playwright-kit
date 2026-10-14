@@ -6,7 +6,7 @@ import {
   toConfluenceHtml,
   buildExportScript,
 } from '../../support/dashboard/export-helpers';
-import type { CollectedTestData } from '../../support/dashboard/types';
+import type { CollectedTestData } from '../../support/dashboard/report-model';
 
 function sample(partial: Partial<CollectedTestData> = {}): CollectedTestData {
   return {

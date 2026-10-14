@@ -13,7 +13,7 @@ import type {
   QualityMetrics,
   RecurringFailure,
   TrendPoint,
-} from './dashboard';
+} from './overview-types';
 import { deriveDisplayName, deriveTestSeriesId } from './run';
 import { computeNotImplementedByCategory } from './not-implemented-categories';
 

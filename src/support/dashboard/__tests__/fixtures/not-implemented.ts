@@ -1,4 +1,4 @@
-import type { CollectedTestData, TestSummary } from '../../types';
+import type { CollectedTestData, TestSummary } from '../../report-model';
 
 /**
  * `not-implemented` fixture — planned scenarios emitted as `test.fixme`.

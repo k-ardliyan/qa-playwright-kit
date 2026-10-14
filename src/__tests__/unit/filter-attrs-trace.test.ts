@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { buildFilterDataAttrs, toExportPayload } from '../../support/dashboard/filter-attrs';
-import type { CollectedTestData } from '../../support/dashboard/types';
+import type { CollectedTestData } from '../../support/dashboard/report-model';
 
 function serveModeCase(over: Partial<CollectedTestData> = {}): CollectedTestData {
   return {

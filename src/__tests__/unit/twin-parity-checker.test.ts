@@ -9,7 +9,7 @@ import {
   extractConstants,
   extractExports,
   normalizeMcpName,
-} from '../../../tools/scripts/check-twin-parity';
+} from '../../../tools/scripts/twin-parity-check';
 
 const SRC_TWIN = `export const QA_NOTES_LOCK_TIMEOUT_MS = 3000;
 export const TEST_NOTES_VERSION = 1;
@@ -51,7 +51,7 @@ const PAIR: Parameters<typeof compareTwinPair>[0] = {
   requiredStrings: ['.pending-run.json', 'complete'],
 };
 
-test.describe('check-twin-parity (manual twin drift gate)', () => {
+test.describe('twin-parity-check (manual twin drift gate)', () => {
   test('aligned pair passes with no issues', () => {
     const result = compareTwinPair(PAIR, SRC_TWIN, MCP_TWIN);
     expect(result.ok).toBe(true);
@@ -118,7 +118,7 @@ test.describe('check-twin-parity (manual twin drift gate)', () => {
 
   test('CLI exits 0 on the live tree (read-only)', () => {
     const root = process.cwd();
-    const script = path.join(root, 'tools', 'scripts', 'check-twin-parity.ts');
+    const script = path.join(root, 'tools', 'scripts', 'twin-parity-check.ts');
     const result = spawnSync('npx', ['tsx', script], {
       cwd: root,
       encoding: 'utf-8',
@@ -143,7 +143,7 @@ test.describe('check-twin-parity (manual twin drift gate)', () => {
         'utf-8',
       );
 
-      const script = path.join(process.cwd(), 'tools', 'scripts', 'check-twin-parity.ts');
+      const script = path.join(process.cwd(), 'tools', 'scripts', 'twin-parity-check.ts');
       const result = spawnSync('npx', ['tsx', script], {
         cwd: tmp,
         encoding: 'utf-8',

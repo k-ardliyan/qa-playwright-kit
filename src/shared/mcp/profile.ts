@@ -1,4 +1,4 @@
-import type { McpIntent, McpProfileDefinition } from './types';
+import type { McpIntent, McpProfileDefinition } from './mcp-runtime-config';
 import type { McpCapability } from './capability-manifest';
 
 export const MCP_PROFILES: Record<McpIntent, McpProfileDefinition> = {

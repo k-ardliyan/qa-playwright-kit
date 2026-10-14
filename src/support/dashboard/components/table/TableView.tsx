@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { CollectedTestData, ReportMode, RoleGroup, TestSummary } from '../../types';
+import type { CollectedTestData, ReportMode, RoleGroup, TestSummary } from '../../report-model';
 import {
   buildExportScript,
   toConfluenceHtml,

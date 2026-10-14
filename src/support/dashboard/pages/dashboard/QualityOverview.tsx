@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { QualityMetrics } from '../../domain/dashboard';
+import type { QualityMetrics } from '../../domain/overview-types';
 
 export interface QualityOverviewProps {
   metrics: QualityMetrics;

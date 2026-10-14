@@ -1,4 +1,4 @@
-import type { McpRuntimeConfig } from './types';
+import type { McpRuntimeConfig } from './mcp-runtime-config';
 
 /**
  * Build official @playwright/mcp CLI arguments from typed runtime configuration.

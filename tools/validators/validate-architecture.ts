@@ -225,7 +225,7 @@ function isAllowlistedFile(filePath: string): boolean {
     rel.includes('/__tests__/') ||
     rel.includes('/__test__/') ||
     // The validator itself references legacy dirs in its check definitions
-    rel.endsWith('tools/validators/architecture.ts')
+    rel.endsWith('tools/validators/validate-architecture.ts')
   );
 }
 
@@ -544,7 +544,7 @@ function isDevPathAllowlisted(filePath: string): boolean {
     rel.startsWith('docs/') ||
     rel.includes('/__tests__/') ||
     rel.includes('/__test__/') ||
-    rel.endsWith('tools/validators/architecture.ts')
+    rel.endsWith('tools/validators/validate-architecture.ts')
   );
 }
 

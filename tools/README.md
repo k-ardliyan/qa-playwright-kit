@@ -16,7 +16,7 @@ tools/
 │   ├── __tests__/        # Tool unit & integration tests
 │   ├── qa-run.ts
 │   ├── workflow-run.ts   # Semantic workflow CLI (Explore → Model → Challenge → Generate → Validate)
-│   ├── health-check-cli.ts
+│   ├── health-check.ts
 │   └── sync-mcp-generated.ts  # SoT → MCP copy (contracts + file-content-core)
 └── validators/           # Framework validation scripts
     ├── architecture.ts   # Boundary & directory layout validator

@@ -35,7 +35,7 @@ import {
   MAX_TEST_NOTE_LENGTH,
 } from '../../agents/reporting/test-notes';
 import { AiNotesCell, NotesCell } from '../../support/dashboard/components/table/TableCells';
-import type { CollectedTestData, CollectedStep } from '../../support/dashboard/types';
+import type { CollectedTestData, CollectedStep } from '../../support/dashboard/report-model';
 
 test.afterAll(() => {
   fs.rmSync(TMP_ROOT, { recursive: true, force: true });

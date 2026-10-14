@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { CollectedTestData, TestSummary } from '../../types';
+import type { CollectedTestData, TestSummary } from '../../report-model';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AccordionView } from '../../components/detail/AccordionView';
 import { TableToolbar } from '../../components/table/TableToolbar';

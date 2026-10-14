@@ -1,4 +1,4 @@
-import type { CollectedTestData, TestSummary } from '../../types';
+import type { CollectedTestData, TestSummary } from '../../report-model';
 
 export const multiRoleTests: CollectedTestData[] = [
   {

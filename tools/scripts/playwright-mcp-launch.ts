@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
-import { bootstrapMcpEnvironment } from './mcp-bootstrap';
+import { bootstrapMcpEnvironment } from '../mcp/src/utils/mcp-env-bootstrap';
 import { getMcpProfile } from '../../src/shared/mcp/profile';
 import { resolveAllowedOrigins } from '../../src/shared/mcp/origin-resolver';
 import { resolveMcpOutputDir } from '../../src/shared/mcp/output-resolver';
@@ -18,7 +18,7 @@ import {
   npmSpawn,
   type BinSpawn,
 } from '../../src/setup/spawn-bin';
-import type { McpIntent, McpRuntimeConfig } from '../../src/shared/mcp/types';
+import type { McpIntent, McpRuntimeConfig } from '../../src/shared/mcp/mcp-runtime-config';
 import type { McpCapability } from '../../src/shared/mcp/capability-manifest';
 
 export function parseLauncherArgs(argv: string[]): {

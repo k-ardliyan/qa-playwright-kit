@@ -1,6 +1,6 @@
 /** @jsxImportSource @kitajs/html */
 import type { Children } from '@kitajs/html';
-import type { CollectedTestData, FailureSource } from '../../types';
+import type { CollectedTestData, FailureSource } from '../../report-model';
 import { generateErrorFingerprint } from '../../../error-fingerprint';
 import { escapeHtml, formatDuration } from '../../shared';
 import {

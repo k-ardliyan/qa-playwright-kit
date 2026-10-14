@@ -1,6 +1,6 @@
 import type { ReportHistoryEntry } from '../../agents/reporting/report-history';
 import { Dashboard } from './components/dashboard/Dashboard';
-import type { CollectedTestData, TestSummary } from './types';
+import type { CollectedTestData, TestSummary } from './report-model';
 
 export interface DashboardOptions {
   /** Whether a latest test run exists (for Save to History banner). */

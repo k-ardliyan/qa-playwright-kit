@@ -18,7 +18,7 @@
 
 import { explainFailure } from '../../support/dashboard/failure-source';
 import { generateErrorFingerprint } from '../../support/error-fingerprint';
-import type { CollectedStep, CollectedTestData } from '../../support/dashboard/types';
+import type { CollectedStep, CollectedTestData } from '../../support/dashboard/report-model';
 
 /** Failure-source → suspected cause + next action, Indonesian. */
 const FAILURE_SOURCE_HINTS: Record<string, string> = {

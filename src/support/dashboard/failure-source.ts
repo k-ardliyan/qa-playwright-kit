@@ -1,4 +1,4 @@
-import type { FailureSource } from './types';
+import type { FailureSource } from './report-model';
 
 const VALID: ReadonlySet<string> = new Set([
   'app',

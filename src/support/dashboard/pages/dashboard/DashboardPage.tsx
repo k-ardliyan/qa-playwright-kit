@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { DashboardOverviewData } from '../../domain/dashboard';
+import type { DashboardOverviewData } from '../../domain/overview-types';
 import { DashboardDocument } from '../../layouts/DashboardDocument';
 import { AppNav } from '../../components/navigation/AppNav';
 import { LatestRunCard } from './LatestRunCard';

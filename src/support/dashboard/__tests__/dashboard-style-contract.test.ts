@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { buildDashboardHtml } from '../build-dashboard-html';
-import { getDashboardStyles, STYLE_FILES } from '../renderer/render-assets';
+import { getDashboardStyles, STYLE_FILES } from '../render-assets';
 import { DashboardPage } from '../pages/dashboard/DashboardPage';
 import { buildDashboardOverview } from '../domain/dashboard-overview';
 import {

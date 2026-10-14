@@ -1,4 +1,4 @@
-import type { NormalizedConsoleEntry } from './types';
+import type { NormalizedConsoleEntry } from './evidence-types';
 import { redactSensitiveData } from '../utils/redaction';
 
 export interface RawConsoleMessage {

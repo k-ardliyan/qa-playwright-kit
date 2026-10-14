@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { AiRunInsight } from '../../domain/dashboard';
+import type { AiRunInsight } from '../../domain/overview-types';
 
 const SOURCE_LABELS: Record<string, string> = {
   analyzer: 'auto',

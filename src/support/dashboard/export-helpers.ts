@@ -1,4 +1,4 @@
-import type { CollectedTestData, ReportMode } from './types';
+import type { CollectedTestData, ReportMode } from './report-model';
 import { escapeHtml, formatDuration } from './shared';
 
 // ---------------------------------------------------------------------------

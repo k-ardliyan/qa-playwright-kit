@@ -41,7 +41,7 @@ import type {
   ReportStatus,
   RunMeta,
   TestSummary,
-} from './dashboard/types';
+} from './dashboard/report-model';
 import { resolveFailureSource } from './dashboard/failure-source';
 import { streamTelemetryEvent } from './telemetry/live-stream';
 import { logger } from '../utils/logger';

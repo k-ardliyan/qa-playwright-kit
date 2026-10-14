@@ -1,4 +1,4 @@
-import type { ReportMode } from './types';
+import type { ReportMode } from './report-model';
 import { jsonForScript } from './shared';
 
 // ---------------------------------------------------------------------------

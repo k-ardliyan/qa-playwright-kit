@@ -1,5 +1,5 @@
 import type { BrowserIntent } from '../types/browser-intent.types';
-import type { McpIntent } from './types';
+import type { McpIntent } from './mcp-runtime-config';
 import type { McpCapability } from './capability-manifest';
 import { getMcpProfile } from './profile';
 

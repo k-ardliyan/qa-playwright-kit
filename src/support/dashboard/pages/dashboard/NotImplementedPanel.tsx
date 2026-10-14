@@ -1,5 +1,5 @@
 /** @jsxImportSource @kitajs/html */
-import type { NotImplementedCategoryEntry } from '../../domain/dashboard';
+import type { NotImplementedCategoryEntry } from '../../domain/overview-types';
 import { IconHammer } from '../../components/shared/icons';
 
 export interface NotImplementedPanelProps {

@@ -4,7 +4,7 @@ import { buildMediaLightboxJs } from '../../support/dashboard/client/media-light
 import { Attachments } from '../../support/dashboard/components/detail/Attachments';
 import { NotesCell } from '../../support/dashboard/components/table/TableCells';
 import { buildClientBootstrapJs } from '../../support/dashboard/client/bootstrap';
-import type { CollectedTestData } from '../../support/dashboard/types';
+import type { CollectedTestData } from '../../support/dashboard/report-model';
 
 /**
  * The evidence lightbox replaces "opens in a new tab" with an in-page dialog.
