@@ -27,6 +27,10 @@ export const MCP_GENERATED_PAIRS: SyncPair[] = [
     dest: 'tools/mcp/src/contracts/diagnostics.ts',
   },
   {
+    source: 'src/contracts/diagnostic-catalog.ts',
+    dest: 'tools/mcp/src/contracts/diagnostic-catalog.ts',
+  },
+  {
     source: 'src/contracts/hashing.ts',
     dest: 'tools/mcp/src/contracts/hashing.ts',
   },

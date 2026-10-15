@@ -123,7 +123,7 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'compile_requirement',
     description:
-      'Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix. Accepts both the legacy bullet form and the table form (| Label | value |).',
+      'PRIMARY way to read a requirement: compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix. Accepts both the legacy bullet form and the table form (| Label | value |). Prefer this over normalize_requirements / parse_requirement_scenarios (both compat aliases with narrower output).',
   },
   compile_test_plan: {
     server: 'qa-playwright-kit',
@@ -153,13 +153,13 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'normalize_requirements',
     description:
-      'Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios. Accepts both the legacy bullet form and the table form (| Label | value |).',
+      'COMPAT alias of compile_requirement (same parse, narrower output, no sourceHash). Use compile_requirement instead; kept only for older agent flows that expect its shape.',
   },
   parse_requirement_scenarios: {
     server: 'qa-playwright-kit',
     name: 'parse_requirement_scenarios',
     description:
-      'Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English). Accepts both the legacy bullet form and the table form (| Label | value |).',
+      'COMPAT helper: extract ONLY the ### scenarios (with Langkah/Hasil sections, Indonesian or English) from requirement markdown — a slice of compile_requirement. Use compile_requirement for the full contract; use this when a caller needs just the scenario list.',
   },
   discover_pages: {
     server: 'qa-playwright-kit',
@@ -189,12 +189,13 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'get_test_summary',
     description:
-      'Read machine-readable pass/fail summary from artifacts/reports/test-summary.json.',
+      'Read machine-readable pass/fail summary from artifacts/reports/test-summary.json. First stop before triage: if failed > 0 continue with get_test_failures for per-test root causes; notImplemented counts are pipeline debt (Belum dibangun), not skipped tests.',
   },
   list_artifacts: {
     server: 'qa-playwright-kit',
     name: 'list_artifacts',
-    description: 'List requirement, spec, and generated test files under allowed project paths.',
+    description:
+      'List requirement, spec, and generated test files under allowed project paths. Use it to verify the pipeline inputs/outputs exist before running a stage (specs/<feature>-test-plan.md, tests/<feature>.spec.ts) — the dashboard reads the same tree.',
   },
   list_requirement_status: {
     server: 'qa-playwright-kit',
@@ -212,7 +213,7 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'list_test_fixtures',
     description:
-      'List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker).',
+      'List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker). Generator picks from this list when a scenario has an (@upload)/(@file-content) tag — never invent fixture paths.',
   },
   list_seeds: {
     server: 'qa-playwright-kit',
@@ -236,13 +237,13 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     server: 'qa-playwright-kit',
     name: 'inspect_file',
     description:
-      'Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.',
+      'Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema. Useful before writing a (@file-content) assertion: confirm the fixture kind matches the FileKind you plan to assert (pdf/xlsx/zip/csv/…).',
   },
   extract_pdf_text: {
     server: 'qa-playwright-kit',
     name: 'extract_pdf_text',
     description:
-      'Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).',
+      'Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema). Companion to assertPdfContains in generated specs: use it to discover which tokens the fixture actually contains before hard-coding needles.',
   },
   synthesize_requirement: {
     server: 'qa-playwright-kit',
@@ -267,6 +268,12 @@ const TOOL_INFO: Record<string, ToolDescriptor> = {
     name: 'set_test_note',
     description:
       'Set or clear the QA free-text note for one test row in the report notes sidecar (NOTES column). Replaces the previous QA note for that row; targets the latest run unless an archived runId is given.',
+  },
+  explain_diagnostic: {
+    server: 'qa-playwright-kit',
+    name: 'explain_diagnostic',
+    description:
+      'Explain any DiagnosticCode in lay terms with a concrete next action: pass a code from validate_plan / compile_requirement / pipeline errors (e.g. PLAN_SEED_UNPROVISIONED) and get the Indonesian lay explanation plus the remediation command. Unknown codes return close matches instead of failing.',
   },
 };
 
@@ -316,6 +323,7 @@ const PHASE_DEFINITIONS: Record<
       'list_seeds',
       'get_seed_graph',
       'update_requirement',
+      'explain_diagnostic',
     ],
   },
   generate: {

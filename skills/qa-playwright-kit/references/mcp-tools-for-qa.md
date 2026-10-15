@@ -1,6 +1,6 @@
 # MCP Tools for QA — Which Tool, When
 
-The `qa-playwright-kit` MCP server exposes 28 tools. You do not need to remember
+The `qa-playwright-kit` MCP server exposes 29 tools. You do not need to remember
 them: this map answers "which one do I need?" for the tasks QA actually does.
 All tools are called as `qa-playwright-kit:<tool_name>`.
 

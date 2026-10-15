@@ -2,6 +2,8 @@
 
 Use these patterns for asynchronous UI instead of `page.waitForTimeout` (a hardcoded sleep makes tests flaky and slow — always replace it with auto-waiting, `expect.poll`, or web-first assertions). Async wait / concurrency is the #1 measured cause of flaky tests (FSE 2014, ICSME 2022) — this rule is the highest-value one in the pack.
 
+> **Repo enforcement:** generated specs violating these patterns get flagged by `qa-playwright-kit:validate_generated_tests`; verify any spec you touch with `npx playwright test <file> -c config/playwright/unit.ts`.
+
 ## 1. Polling Assertion State (`expect.poll`)
 
 Use `expect.poll` when waiting for a data/status/text change that needs a time interval:

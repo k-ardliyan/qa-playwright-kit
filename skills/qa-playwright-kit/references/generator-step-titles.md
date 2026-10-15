@@ -4,6 +4,8 @@ Load when generating or healing `tests/*.spec.ts`, or when Table View Test Step 
 
 Hard contract for Phase 2 (Generate) and Heal when rewriting specs. Implements the QA report language: Test Step = requirement step text, Input Data = metadata, Actual = Expected on pass.
 
+> **Repo enforcement:** these rules are checked by `qa-playwright-kit:validate_generated_tests` (missing `test.step` structure fails the gate) and rendered into the dashboard's Test Step column per `skills/qa-playwright-kit/references/report-column-contract.md`.
+
 Also required by `.github/agents/generator.agent.md` (wrap actions in `test.step()`, `setTestMetadata` first, `captureActualResult` after last assertion).
 
 Copy step titles from the requirement verbatim. If the requirement is in Indonesian, titles stay in Indonesian. Do not translate.

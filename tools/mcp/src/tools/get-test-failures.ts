@@ -73,6 +73,8 @@ export interface TestFailure {
   actualResult?: string;
   /** Root-cause class from custom reporter (annotation or heuristic) */
   failureSource?: 'app' | 'test' | 'requirement' | 'env' | 'ai_generation' | 'unknown';
+  /** Copy-paste command to open the trace viewer for this failure. */
+  showTraceCommand?: string;
 }
 
 export interface GetTestFailuresOutput {
@@ -471,9 +473,12 @@ export function getTestFailures(resultsDir: string = DEFAULT_RESULTS_DIR): GetTe
     });
 
     return {
-      failures,
+      failures: failures.map((f) => ({
+        ...f,
+        ...(f.tracePath ? { showTraceCommand: `npx playwright show-trace "${f.tracePath}"` } : {}),
+      })),
       status,
-      message: `Parsed ${failures.length} failure(s) from ${resultFile}`,
+      message: `Parsed ${failures.length} failure(s) from ${resultFile}${failures.length > 0 ? ' — triage by failureSource (app→FILE BUG, test/ai_generation→fix spec, env→npm run auth:setup, requirement→REVISE REQUIREMENT); interactive view: npm run dashboard' : ''}`,
       sourceFile: resultFile,
     };
   } catch (error) {

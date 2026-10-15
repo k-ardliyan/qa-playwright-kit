@@ -1,6 +1,6 @@
 # SSR Hydration & Modern Frontend Patterns
 
-Flakiness prevention for Single Page Apps (SPA) and Server-Side Rendering (Next.js, Remix, TanStack Start).
+Flakiness prevention for Single Page Apps (SPA) and Server-Side Rendering (Next.js, Remix, TanStack Start). In this repo these patterns protect the pipeline's Heal stage: a flaky selector routes failures back to Generate and burns one of the 3 re-entry passes per loop target.
 
 ## 1. Avoiding the Hydration Click Trap
 

@@ -112,6 +112,9 @@ export interface PipelineStatusOutput {
   /** Pending pipeline run id (run-YYYYMMDD-HHmmss-SSS) when a run is active —
    *  pass this as `runId` to note tools so pre-run notes bind to this run. */
   pipelineRunId?: string;
+  /** Copy-paste resume command for a paused/blocked semantic run (same string
+   *  the workflow handoff emits) — the agent resumes without parsing prose. */
+  resumeCommand?: string;
   /** Agent-doctrine version of THIS engine — lets the agent compare against a
    *  spec's `// doctrine:` header and tell QA "artefak lama, regenerate". */
   doctrine: { version: string };
@@ -472,6 +475,13 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
     ? `stage: ${workflow.currentStage} (${workflow.stageStatus[workflow.currentStage] ?? 'unknown'})`
     : `phase: ${state.currentPhase ?? '-'}`;
 
+  // Same resume command the workflow handoff emits — a paused/blocked run is
+  // resumable without the agent parsing prose or re-deriving the runId.
+  const resumeCommand =
+    (state.status === 'paused' || state.status === 'blocked') && state.requirementPath
+      ? `npx tsx tools/scripts/workflow-run.ts ${state.requirementPath} --resume --run-id ${state.runId}`
+      : undefined;
+
   return {
     status: 'success',
     message:
@@ -479,6 +489,7 @@ export function pipelineStatus(options: PipelineStatusOptions = {}): PipelineSta
         ? `Pipeline ${state.status} (${stageLabel}). ${nextSteps.join(' ')}`
         : `Pipeline ${state.status} (${stageLabel}).`,
     doctrine: { version: DOCTRINE_VERSION },
+    ...(resumeCommand ? { resumeCommand } : {}),
     state,
     lastRun,
     environment,

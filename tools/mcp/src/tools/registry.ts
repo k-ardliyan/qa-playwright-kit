@@ -24,6 +24,7 @@ import { inspectFile } from './inspect-file';
 import { extractPdfTextTool } from './extract-pdf-text';
 import { listTestFixtures } from './list-test-fixtures';
 import { listSeeds } from './list-seeds';
+import { explainDiagnostic } from './explain-diagnostic';
 import { getSeedGraph } from './get-seed-graph';
 import { updateRequirement } from './update-requirement';
 import { listRequirementStatus } from './list-requirement-status';
@@ -258,7 +259,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'get_test_summary',
     description:
-      'Read machine-readable pass/fail summary from artifacts/reports/test-summary.json.',
+      'Read machine-readable pass/fail summary from artifacts/reports/test-summary.json. First stop before triage: if failed > 0 continue with get_test_failures for per-test root causes; notImplemented counts are pipeline debt (Belum dibangun), not skipped tests.',
     inputSchema: { type: 'object', properties: {} },
     stability: 'stable',
     readOnly: true,
@@ -267,7 +268,8 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   },
   {
     name: 'list_artifacts',
-    description: 'List requirement, spec, and generated test files under allowed project paths.',
+    description:
+      'List requirement, spec, and generated test files under allowed project paths. Use it to verify the pipeline inputs/outputs exist before running a stage (specs/<feature>-test-plan.md, tests/<feature>.spec.ts) — the dashboard reads the same tree.',
     inputSchema: { type: 'object', properties: {} },
     stability: 'stable',
     readOnly: true,
@@ -287,7 +289,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'compile_requirement',
     description:
-      'Compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix. Accepts both the legacy bullet form and the table form (| Label | value |).',
+      'PRIMARY way to read a requirement: compile requirement markdown into canonical RequirementContractV1 (qa.requirement/v1) with typed diagnostics, deterministic sourceHash, acceptance criteria, scenarios, actor and access matrix. Accepts both the legacy bullet form and the table form (| Label | value |). Prefer this over normalize_requirements / parse_requirement_scenarios (both compat aliases with narrower output).',
     inputSchema: REQUIREMENTS_TEXT_OR_PATH,
     stability: 'stable',
     readOnly: true,
@@ -303,7 +305,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'normalize_requirements',
     description:
-      'Parse requirement markdown into structured contract with acceptance criteria and optional test scenarios. Accepts both the legacy bullet form and the table form (| Label | value |).',
+      'COMPAT alias of compile_requirement (same parse, narrower output, no sourceHash). Use compile_requirement instead; kept only for older agent flows that expect its shape.',
     inputSchema: REQUIREMENTS_TEXT_OR_PATH,
     stability: 'compat',
     replacement: 'compile_requirement',
@@ -320,7 +322,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'parse_requirement_scenarios',
     description:
-      'Extract ### scenarios with Langkah/Hasil sections from requirement markdown (Indonesian or English). Accepts both the legacy bullet form and the table form (| Label | value |).',
+      'COMPAT helper: extract ONLY the ### scenarios (with Langkah/Hasil sections, Indonesian or English) from requirement markdown — a slice of compile_requirement. Use compile_requirement for the full contract; use this when a caller needs just the scenario list.',
     inputSchema: REQUIREMENTS_TEXT_OR_PATH,
     stability: 'compat',
     replacement: 'compile_requirement',
@@ -933,7 +935,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'inspect_file',
     description:
-      'Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema.',
+      'Inspect a file under tests/data/ or artifacts/test-results/ (kind, size, magic bytes). Envelope only — no domain field schema. Useful before writing a (@file-content) assertion: confirm the fixture kind matches the FileKind you plan to assert (pdf/xlsx/zip/csv/…).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -952,7 +954,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'extract_pdf_text',
     description:
-      'Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema).',
+      'Extract plain text from a PDF under tests/data/ or artifacts/test-results/. Returns raw text only — match against scenario expected tokens from the requirement; does not define business fields (no title/code/name schema). Companion to assertPdfContains in generated specs: use it to discover which tokens the fixture actually contains before hard-coding needles.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -975,7 +977,7 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   {
     name: 'list_test_fixtures',
     description:
-      'List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker).',
+      'List files under tests/data/ for upload Input Data paths (fixture-first; no headed OS file picker). Generator picks from this list when a scenario has an (@upload)/(@file-content) tag — never invent fixture paths.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1047,6 +1049,26 @@ export const TOOL_REGISTRY: ToolEntry[] = [
     readOnly: false,
     profiles: ['planner', 'author', 'all'],
     handler: (args) => updateRequirement(args),
+  },
+  {
+    name: 'explain_diagnostic',
+    description:
+      'Explain any DiagnosticCode in lay terms with a concrete next action: pass a code from validate_plan / compile_requirement / pipeline errors (e.g. PLAN_SEED_UNPROVISIONED) and get the Indonesian lay explanation plus the remediation command. Unknown codes return close matches instead of failing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          description:
+            'The diagnostic code to explain, e.g. "PLAN_EVIDENCE_MISSING" or "LOOP_LIMIT_REACHED".',
+        },
+      },
+      required: ['code'],
+    },
+    stability: 'stable',
+    readOnly: true,
+    profiles: ['planner', 'generator', 'healer', 'author', 'all'],
+    handler: (args) => explainDiagnostic(args),
   },
 ];
 

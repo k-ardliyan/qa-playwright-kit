@@ -5,6 +5,8 @@
  * must remain stable.
  */
 
+import { lookupDiagnosticCatalog } from './diagnostic-catalog';
+
 export type DiagnosticSeverity = 'info' | 'warning' | 'error';
 
 export type DiagnosticCode =
@@ -102,10 +104,14 @@ export function createDiagnostic(
   message: string,
   extra?: Partial<Omit<Diagnostic, 'code' | 'severity' | 'message'>>,
 ): Diagnostic {
+  // Auto-attach the catalog's remediation when the emitter doesn't provide a
+  // more specific one — agents should never receive a bare code to guess at.
+  const suggestion = extra?.suggestion ?? lookupDiagnosticCatalog(code)?.suggestion;
   return {
     code,
     severity,
     message,
     ...extra,
+    ...(suggestion !== undefined ? { suggestion } : {}),
   };
 }

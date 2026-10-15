@@ -1,13 +1,13 @@
 ---
 name: qa-playwright-kit
-description: "QA pipeline only; escalate framework bugs to maintainer."
+description: "Run and maintain the QA Playwright Kit framework: turn a requirements/*.md file into a validated test plan and generated Playwright specs via the MCP pipeline (Explore → Model → Challenge → Generate → Validate), run quality gates, refresh role auth sessions, triage failures with failureSource and traces, read the custom dashboard, and archive runs with a gated QA decision. Use when working with requirements, test plans, generated specs, selector catalogs, pipeline runs or pauses (planner-required / awaiting-generator handoffs), MCP qa-playwright-kit tools, the dashboard, auth roles, or when running or interpreting quality:check-rules and other framework gates. For framework code changes under src/ or tools/, read references/maintainer-gates.md first."
 version: 0.4.0
 author: k.ardliyan (k-ardliyan), Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [qa, playwright, pipeline, requirements, report, auth, setup]
+    tags: [qa, playwright, pipeline, requirements, report, auth, setup, mcp, testing, dashboard]
     related_skills: []
 ---
 
@@ -105,6 +105,8 @@ When invoked to run a pipeline (e.g. prompt from `npm run setup` / `qa:run`):
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | "What still needs work?" — coverage map across requirements | `qa-playwright-kit:list_requirement_status`                                                                                                                                                                              |
 | Orient / resume after an interrupted run                    | `qa-playwright-kit:pipeline_status`                                                                                                                                                                                      |
+| Run or interpret framework quality gates (maintainer)       | [maintainer-gates.md](references/maintainer-gates.md) — termasuk jebakan exit-0 check-rules                                                                                                                              |
+| Edit src/tools files that mirror into tools/mcp (twins)     | [twin-sync.md](references/twin-sync.md) — edit sisi sumber, jangan sisi generated                                                                                                                                        |
 | Which MCP tool for which task (full map)                    | [mcp-tools-for-qa.md](references/mcp-tools-for-qa.md)                                                                                                                                                                    |
 | Generate requirement from live URL / UI snapshot            | [ui-discovery-requirement.md](references/ui-discovery-requirement.md)                                                                                                                                                    |
 | Derive many precise scenarios from a snapshot (anti-slop)   | [scenario-design.md](references/scenario-design.md)                                                                                                                                                                      |

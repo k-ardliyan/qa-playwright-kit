@@ -1,6 +1,6 @@
 # Media emulation, token-efficient search & flow recording (Playwright MCP 0.0.82+)
 
-`@playwright/mcp` tools used during **Explore** — not inside a spec.
+`@playwright/mcp` tools used during **Explore** — not inside a spec. The baseline version is pinned in `src/shared/mcp/version.ts`; the capability manifest (`src/shared/mcp/capability-manifest.ts`) lists the 72 tools this repo expects — a mismatch fails `npm run mcp:check`.
 
 ## 0. `browser_find` — find elements without a full snapshot (0.0.83+)
 

@@ -1,6 +1,6 @@
 # Complex UI Widgets & Browser Patterns
 
-Writing guide for browser interactions with complex web components.
+Writing guide for browser interactions with complex web components. The `@upload`/`@download` capability tags here map to this repo's validators — a spec mentioning the tag without the matching helper fails `qa-playwright-kit:validate_generated_tests`.
 
 ## 1. File Upload / Dropzone (@upload)
 

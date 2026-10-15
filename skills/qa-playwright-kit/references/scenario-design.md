@@ -4,6 +4,8 @@ Load before synthesizing or planning scenarios from a selector catalog — and w
 
 The snapshot is **evidence, not a scenario list**. Scenarios come from **evidence × technique**: every observable structure on the page (table, form, status, tab, role signal) is an input to a systematic technique (partition, boundary, decision rule, state transition). A real page yields many candidates — but only the ones with **captured evidence** become runnable tests; the rest are recorded as coverage gaps, never as silent skips.
 
+> **Repo enforcement:** the evidence gate lives in `qa-playwright-kit:validate_plan` — a scenario planned `automated` without a catalog-evidence entry fails with `PLAN_EVIDENCE_MISSING` (and majority gaps fail hard with `PLAN_EVIDENCE_MAJORITY_GAP`). Coverage gaps belong in the plan's `## Coverage Gaps` section, never as silent skips.
+
 ## Sources behind this checklist
 
 | Source                                                                           | What it contributes                                                                                                                                        |
