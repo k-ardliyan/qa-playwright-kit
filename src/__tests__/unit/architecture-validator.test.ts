@@ -145,4 +145,37 @@ test.describe('Architecture Validator (tools/validators/validate-architecture.ts
     expect(result.stdout).not.toContain('ARCH-017');
     expect(result.status).toBe(0);
   });
+
+  test('ARCH-017: a path:line citation of a real file passes, of a missing file fails', () => {
+    // `src/foo.ts:123` is the most common way agents cite code — the :line
+    // suffix must be validated away, not treated as part of the path.
+    const probe = path.join(root, 'docs', '__arch017-line-probe.md');
+    fs.writeFileSync(
+      probe,
+      [
+        '# probe',
+        '',
+        'Real: `src/contracts/diagnostics.ts:42` and `skills/qa-playwright-kit/SKILL.md:3`.',
+        'Ghost: `src/ghost/missing.ts:7` and `skills/ghost-pack/SKILL.md:1`.',
+        '',
+      ].join('\n'),
+    );
+    try {
+      const result = spawnSync('npx', ['tsx', 'tools/validators/validate-architecture.ts'], {
+        cwd: root,
+        encoding: 'utf-8',
+        shell: true,
+      });
+      const out = result.stdout + result.stderr;
+      expect(result.status).toBe(1);
+      expect(out).toContain('ARCH-017: DOC_PATH_DRIFT');
+      expect(out).toContain('src/ghost/missing.ts');
+      expect(out).toContain('skills/ghost-pack/SKILL.md');
+      // The real citations must NOT be flagged (no line mentioning them).
+      expect(out).not.toContain('diagnostics.ts:42');
+      expect(out).not.toContain('SKILL.md:3');
+    } finally {
+      fs.rmSync(probe, { force: true });
+    }
+  });
 });

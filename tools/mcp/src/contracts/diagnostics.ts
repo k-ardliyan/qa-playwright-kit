@@ -44,7 +44,6 @@ export type DiagnosticCode =
   | 'PLAN_STALE'
   | 'PLAN_EPHEMERAL_REF'
   | 'PLAN_EPHEMERAL_REF_DETECTED'
-  | 'PLAN_INVALID_EXECUTION_MODE'
   | 'PLAN_EVIDENCE_MISSING'
   | 'PLAN_EVIDENCE_EMPTY'
   | 'PLAN_EVIDENCE_UNVERIFIED'
@@ -54,6 +53,12 @@ export type DiagnosticCode =
   // disk. Both are "the plan asserts proof it does not have".
   | 'PLAN_EVIDENCE_MAJORITY_GAP'
   | 'PLAN_EVIDENCE_UNAVAILABLE'
+  // Emitted during plan compilation / validation (error blocks Challenge):
+  // EVIDENCE_MODE_INVALID = unsupported Evidence Mode value; the rest are
+  // drift warnings between plan and requirement.
+  | 'PLAN_EVIDENCE_MODE_INVALID'
+  | 'PLAN_REQUIREMENT_PATH_MISMATCH'
+  | 'PLAN_MANUAL_CONVERTED_WITHOUT_REASON'
   | 'PLAN_NOT_IMPLEMENTED_NO_GAP'
   | 'PLAN_LOCATOR_INTENT_MISSING'
   | 'PLAN_SEED_UNPROVISIONED'

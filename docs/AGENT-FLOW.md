@@ -106,32 +106,34 @@ interface WorkflowHandoff {
 
 Gate **fail-closed**: bila bukti tidak cukup, plan tidak pernah sampai ke Generate.
 
-| Kode                                                                           | Stage     | Blokir? | Arti                                                            |
-| ------------------------------------------------------------------------------ | --------- | ------- | --------------------------------------------------------------- |
-| `PLAN_EVIDENCE_MISSING`                                                        | Challenge | ya      | Skenario `automated` tanpa entri catalog evidence               |
-| `PLAN_EVIDENCE_MAJORITY_GAP`                                                   | Challenge | **ya**  | Mayoritas skenario automated tanpa bukti (menebak massal)       |
-| `PLAN_EVIDENCE_UNAVAILABLE`                                                    | Challenge | **ya**  | Plan mengklaim catalog evidence yang tidak ada di disk          |
-| `PLAN_EVIDENCE_EMPTY` / `PLAN_EVIDENCE_UNVERIFIED`                             | Challenge | ya      | Entri evidence kosong / belum diverifikasi                      |
-| `PLAN_LOCATOR_INTENT_MISSING`                                                  | Challenge | ya      | Skenario tanpa `Locator Intent`                                 |
-| `PLAN_SEED_UNPROVISIONED` / `PLAN_SEED_UNKNOWN` / `PLAN_SEED_NOT_EXECUTABLE`   | Challenge | ya      | Seed dipakai tapi tak terdaftar / tak punya producer            |
-| `PLAN_RELATION_UNCONFIRMED` / `PLAN_RELATION_SEED_UNPROVISIONED`               | Challenge | ya      | Relasi masih `assumption` tapi dipakai untuk assertion runnable |
-| `PLAN_DATA_OPERATION_UNCOVERED`                                                | Challenge | ya      | Data operation tanpa cakupan skenario                           |
-| `PLAN_DOCTRINE_STALE` / `PLAN_STALE_REQUIREMENT` / `PLAN_STALE`                | Challenge | ya      | Plan dibuat dari doctrine/requirement versi lama                |
-| `PLAN_EPHEMERAL_REF` / `PLAN_EPHEMERAL_REF_DETECTED`                           | Challenge | ya      | Locator ephemeral (`tw-XXXX`) bocor ke plan                     |
-| `PLAN_ROLE_DRIFT` / `PLAN_AUTH_DRIFT` / `PLAN_EXPECTATION_DRIFT`               | Challenge | ya      | Plan menyimpang dari requirement (role/auth/ekspektasi)         |
-| `PLAN_AC_UNCOVERED` / `PLAN_UNKNOWN_AC` / `PLAN_SCENARIO_MISSING`              | Challenge | ya      | AC tidak tercover / AC tak dikenal / skenario hilang            |
-| `PLAN_NOT_IMPLEMENTED_NO_GAP`                                                  | Challenge | ya      | `not-implemented` tanpa entri di `## Coverage Gaps`             |
-| `PLAN_UNREVIEWED_ASSUMPTION` / `PLAN_UNKNOWN_PROVENANCE`                       | Challenge | ya      | Asumsi belum direview / provenance assertion tak diketahui      |
-| `PLAN_HYBRID_*`                                                                | Challenge | ya      | Pelanggaran aturan hybrid-ui (seed/tag/cleanup)                 |
-| `EXPLORE_REQUIRED`                                                             | Explore   | ya      | Catalog evidence belum ada; jalankan `snapshot_page` dulu       |
-| `MODEL_FAILED`                                                                 | Model     | ya      | Adapter model gagal                                             |
-| `CHALLENGE_BLOCKED` / `CHALLENGE_FAILED`                                       | Challenge | ya      | Gate menolak / adapter challenge error                          |
-| `GENERATE_BLOCKED` / `GENERATE_FAILED`                                         | Generate  | ya      | Gate generate menolak / generator error                         |
-| `VALIDATE_BLOCKED` / `VALIDATE_FAILED`                                         | Validate  | ya      | Validate tak bisa jalan / error                                 |
-| `LOOP_LIMIT_REACHED`                                                           | Validate  | ya      | Batas 3 re-entry pass per `loopTarget` tercapai                 |
-| `ANALYSIS_INCOMPLETE` / `ANALYSIS_UNVERIFIABLE` / `ANALYSIS_EVIDENCE_MISMATCH` | Report    | ya      | `archive_report` menolak `APPROVE` tanpa bukti Analyze          |
-| `RESUME_NOT_SEMANTIC` / `RESUME_STALE_REQUIREMENT`                             | Resume    | ya      | Run lama bukan semantic-v1 / requirement berubah sejak pause    |
-| `WORKFLOW_PAUSED` / `WORKFLOW_BLOCKED`                                         | Semua     | —       | Info status pause/block (bukan error)                           |
+| Kode                                                                           | Stage     | Blokir?    | Arti                                                                               |
+| ------------------------------------------------------------------------------ | --------- | ---------- | ---------------------------------------------------------------------------------- |
+| `PLAN_EVIDENCE_MISSING`                                                        | Challenge | ya         | Skenario `automated` tanpa entri catalog evidence                                  |
+| `PLAN_EVIDENCE_MAJORITY_GAP`                                                   | Challenge | **ya**     | Mayoritas skenario automated tanpa bukti (menebak massal)                          |
+| `PLAN_EVIDENCE_UNAVAILABLE`                                                    | Challenge | **ya**     | Plan mengklaim catalog evidence yang tidak ada di disk                             |
+| `PLAN_EVIDENCE_EMPTY` / `PLAN_EVIDENCE_UNVERIFIED`                             | Challenge | ya         | Entri evidence kosong / belum diverifikasi                                         |
+| `PLAN_EVIDENCE_MODE_INVALID`                                                   | Challenge | **ya**     | Evidence Mode bukan `ui-e2e`/`hybrid-ui` (error saat kompilasi)                    |
+| `PLAN_LOCATOR_INTENT_MISSING`                                                  | Challenge | ya         | Skenario tanpa `Locator Intent`                                                    |
+| `PLAN_SEED_UNPROVISIONED` / `PLAN_SEED_UNKNOWN` / `PLAN_SEED_NOT_EXECUTABLE`   | Challenge | ya         | Seed dipakai tapi tak terdaftar / tak punya producer                               |
+| `PLAN_RELATION_UNCONFIRMED` / `PLAN_RELATION_SEED_UNPROVISIONED`               | Challenge | ya         | Relasi masih `assumption` tapi dipakai untuk assertion runnable                    |
+| `PLAN_DATA_OPERATION_UNCOVERED`                                                | Challenge | ya         | Data operation tanpa cakupan skenario                                              |
+| `PLAN_DOCTRINE_STALE` / `PLAN_STALE_REQUIREMENT` / `PLAN_STALE`                | Challenge | ya         | Plan dibuat dari doctrine/requirement versi lama                                   |
+| `PLAN_EPHEMERAL_REF` / `PLAN_EPHEMERAL_REF_DETECTED`                           | Challenge | ya         | Locator ephemeral (`tw-XXXX`) bocor ke plan                                        |
+| `PLAN_ROLE_DRIFT` / `PLAN_AUTH_DRIFT` / `PLAN_EXPECTATION_DRIFT`               | Challenge | ya         | Plan menyimpang dari requirement (role/auth/ekspektasi)                            |
+| `PLAN_AC_UNCOVERED` / `PLAN_UNKNOWN_AC` / `PLAN_SCENARIO_MISSING`              | Challenge | ya         | AC tidak tercover / AC tak dikenal / skenario hilang                               |
+| `PLAN_NOT_IMPLEMENTED_NO_GAP`                                                  | Challenge | ya         | `not-implemented` tanpa entri di `## Coverage Gaps`                                |
+| `PLAN_UNREVIEWED_ASSUMPTION` / `PLAN_UNKNOWN_PROVENANCE`                       | Challenge | ya         | Asumsi belum direview / provenance assertion tak diketahui                         |
+| `PLAN_REQUIREMENT_PATH_MISMATCH` / `PLAN_MANUAL_CONVERTED_WITHOUT_REASON`      | Challenge | peringatan | Path requirement beda dengan header plan / `@manual` jadi `automated` tanpa alasan |
+| `PLAN_HYBRID_*`                                                                | Challenge | ya         | Pelanggaran aturan hybrid-ui (seed/tag/cleanup)                                    |
+| `EXPLORE_REQUIRED`                                                             | Explore   | ya         | Catalog evidence belum ada; jalankan `snapshot_page` dulu                          |
+| `MODEL_FAILED`                                                                 | Model     | ya         | Adapter model gagal                                                                |
+| `CHALLENGE_BLOCKED` / `CHALLENGE_FAILED`                                       | Challenge | ya         | Gate menolak / adapter challenge error                                             |
+| `GENERATE_BLOCKED` / `GENERATE_FAILED`                                         | Generate  | ya         | Gate generate menolak / generator error                                            |
+| `VALIDATE_BLOCKED` / `VALIDATE_FAILED`                                         | Validate  | ya         | Validate tak bisa jalan / error                                                    |
+| `LOOP_LIMIT_REACHED`                                                           | Validate  | ya         | Batas 3 re-entry pass per `loopTarget` tercapai                                    |
+| `ANALYSIS_INCOMPLETE` / `ANALYSIS_UNVERIFIABLE` / `ANALYSIS_EVIDENCE_MISMATCH` | Report    | ya         | `archive_report` menolak `APPROVE` tanpa bukti Analyze                             |
+| `RESUME_NOT_SEMANTIC` / `RESUME_STALE_REQUIREMENT`                             | Resume    | ya         | Run lama bukan semantic-v1 / requirement berubah sejak pause                       |
+| `WORKFLOW_PAUSED` / `WORKFLOW_BLOCKED`                                         | Semua     | —          | Info status pause/block (bukan error)                                              |
 
 Sumber kode: `src/contracts/diagnostics.ts` (kode `PLAN_*`/`REQ_*`) dan `src/agents/pipeline/stages/*.ts` (kode `*_BLOCKED`/`*_FAILED`/`*_TRANSITION`).
 

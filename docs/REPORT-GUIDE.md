@@ -136,6 +136,23 @@ Kolom tetap tidak pernah di-hide via media query — layar sempit memakai **hori
 - Reporter menyalin screenshot/video/trace ke `artifacts/reports/attachments/{screenshots,videos,traces}/` bila file sumber ada, lalu rewrite path relatif ke dashboard.
 - `test-summary.json` + `custom-dashboard.html` ditulis oleh custom reporter saat test run. Serve tanpa run ulang: `npm run dashboard`.
 
+### Panel Dashboard (serve mode)
+
+Saat dashboard di-serve (`npm run dashboard` → `src/cli/dashboard-server.ts`), halaman overview merakit 10 panel dari `src/support/dashboard/pages/dashboard/` — mode statis (buka `custom-dashboard.html` langsung) hanya menampilkan sebagian:
+
+| Panel                   | Sumber data            | Isi                                                                  |
+| ----------------------- | ---------------------- | -------------------------------------------------------------------- |
+| `LatestRunCard`         | `latestRun`            | Ringkasan run terakhir: status, pass rate, durasi                    |
+| `QualityOverview`       | `metrics`              | Metrik kualitas agregat lintas run                                   |
+| `QualityTrend`          | `trendPoints`          | Grafik garis pass rate antar run (SVG, lebar default 680px)          |
+| `RecentRuns`            | `recentRuns`           | Daftar run terakhir dengan statusnya                                 |
+| `AttentionPanel`        | `recurringFailures`    | Skenario yang berulang kali gagal — antrean prioritas triage         |
+| `FailureSourceMixPanel` | `mix`, `totalFailures` | Komposisi `failureSource` (app/test/env/…) atas kegagalan            |
+| `FlakyTestsPanel`       | `flakyTests`           | Nama test yang hasilnya tidak stabil antar run                       |
+| `ModuleHealthPanel`     | `modules`              | Kesehatan per module/feature                                         |
+| `NotImplementedPanel`   | `entries`              | Skenario "Belum dibangun" — utang kerja pipeline, bukan bug aplikasi |
+| `AiInsightsPanel`       | `insights`             | AI Run Insights (`scope: "run"`) dari sidecar catatan                |
+
 ---
 
 ## Data Schema — `test-summary.json`
