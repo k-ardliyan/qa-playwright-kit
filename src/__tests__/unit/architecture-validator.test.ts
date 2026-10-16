@@ -178,4 +178,36 @@ test.describe('Architecture Validator (tools/validators/validate-architecture.ts
       fs.rmSync(probe, { force: true });
     }
   });
+
+  test('ARCH-017: citing gitignored build output (tools/mcp/dist) does not fail the gate', () => {
+    // Fresh-checkout simulation: `tools/mcp/dist/` is gitignored build output,
+    // so the file is absent on a clean clone. Docs legitimately cite it (the
+    // target of `npm run mcp:build`); the guard must not cry wolf.
+    const distFile = path.join(root, 'tools', 'mcp', 'dist', 'index-mcp.js');
+    const distExisted = fs.existsSync(distFile);
+    if (distExisted) fs.rmSync(distFile, { force: true });
+    const probe = path.join(root, 'docs', '__arch017-dist-probe.md');
+    fs.writeFileSync(
+      probe,
+      '# probe\n\nBuild target: `tools/mcp/dist/index-mcp.js`. Ghost: `src/ghost/missing.ts`.\n',
+    );
+    try {
+      const result = spawnSync('npx', ['tsx', 'tools/validators/validate-architecture.ts'], {
+        cwd: root,
+        encoding: 'utf-8',
+        shell: true,
+      });
+      const out = result.stdout + result.stderr;
+      expect(out).not.toContain('index-mcp.js');
+      // The guard must keep biting on real drift in the same run.
+      expect(out).toContain('ARCH-017: DOC_PATH_DRIFT');
+      expect(out).toContain('src/ghost/missing.ts');
+    } finally {
+      fs.rmSync(probe, { force: true });
+      if (distExisted) {
+        fs.mkdirSync(path.dirname(distFile), { recursive: true });
+        fs.writeFileSync(distFile, '');
+      }
+    }
+  });
 });
