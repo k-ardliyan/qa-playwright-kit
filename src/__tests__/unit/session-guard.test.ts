@@ -12,7 +12,7 @@ import {
   sessionTenantMismatch,
   runAuthProbeCheck,
 } from '../../support/session-guard';
-import type { AuthProbeCheck } from '../../support/auth.probe';
+import type { AuthProbeCheck } from '../../support/role-probe';
 import {
   decodeExpiryRecordMs,
   decodeJwtExpiryMs,

@@ -22,7 +22,6 @@ import {
 } from '@/setup/wizard-prompts';
 import { authSetupScript } from '@/setup/tasks/auth-session';
 import { browsersDir, hasChromiumInstalled, buildInstallCommand } from '@/setup/browser-check';
-import { buildTerminalCommand } from '@/setup/terminal';
 import { buildClipboardCommand, buildXclipCommand } from '@/setup/prompt-dialog';
 import {
   buildAgentPrompt,
@@ -279,22 +278,6 @@ test.describe('normalizeAppPath (pasted URL / path handling)', () => {
     expect(isValidAppPathInput('#/login/acme')).toBe(true);
     expect(isValidAppPathInput('/#/acme/login')).toBe(true);
     expect(isValidAppPathInput('/bad path')).toBe(false);
-  });
-});
-
-test.describe('buildTerminalCommand', () => {
-  test('builds OS-aware command for background auth:setup or browser install', () => {
-    const win = buildTerminalCommand('C:/repo', 'npm run auth:setup', 'win32');
-    expect(win.command).toBe('cmd.exe');
-    expect(win.args[1]).toContain('npm run auth:setup');
-
-    const mac = buildTerminalCommand('/Users/x/repo', 'npm run auth:setup', 'darwin');
-    expect(mac.command).toBe('osascript');
-    expect(mac.args.join(' ')).toContain('npm run auth:setup');
-
-    const lin = buildTerminalCommand('/home/x/repo', 'npm run auth:setup', 'linux');
-    expect(lin.command).toBe('gnome-terminal');
-    expect(lin.args.join(' ')).toContain('npm run auth:setup');
   });
 });
 

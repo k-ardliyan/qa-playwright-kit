@@ -1,20 +1,18 @@
 /**
  * Capability Manifest Generator — Agent AI Integration Layer
  *
- * Generates `agent-manifest.json` at repository root describing every
- * pipeline phase, its required MCP tools, input/output contracts, and
- * supported orchestration modes.
+ * Builds the capability manifest describing every pipeline phase, its required
+ * MCP tools, input/output contracts, and supported orchestration modes.
  *
  * The manifest keeps a package-boundary-safe metadata snapshot because the
  * nested MCP package cannot be imported by its own build. Tests validate that
  * snapshot against the canonical MCP registry and generation fails closed on
- * any internal phase/catalog drift.
+ * any internal phase/catalog drift. There is NO runtime writer: the manifest
+ * exists as an in-memory contract checked by tests, not a file on disk.
  *
  * @module agents/pipeline/agent-manifest
  */
 
-import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { PipelinePhase, OrchestrationModeDescriptor, WorkflowStage } from './workflow-types';
 import {
   WORKFLOW_STAGES,
@@ -678,16 +676,4 @@ export function generateManifest(): CapabilityManifest {
     orchestrationModes,
     prerequisites,
   };
-}
-
-/**
- * Writes the capability manifest to `agent-manifest.json` at the repository root.
- *
- * @param manifest - Optional pre-built manifest. If omitted, generates a fresh one.
- */
-export function writeManifest(manifest?: CapabilityManifest): void {
-  const data = manifest ?? generateManifest();
-  const repoRoot = resolve(__dirname, '..', '..', '..');
-  const outputPath = resolve(repoRoot, MANIFEST_FILENAME);
-  writeFileSync(outputPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }

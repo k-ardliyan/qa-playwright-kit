@@ -54,7 +54,7 @@ export {
 
 export { loadSeedGraph, toSeedGraph, SEED_REGISTRY_RELATIVE_PATH } from './seed-config';
 
-export { expectAllVisible, expectAllToContainText, expectSoftFieldErrors } from './soft-forms';
+export { expectAllVisible, expectAllToContainText, expectSoftFieldErrors } from './soft-asserts';
 
 export { expectVisual, expectPageVisual, type VisualOptions } from './visual';
 

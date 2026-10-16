@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { parseArgs } from '../../cli/archive-cli';
+import { parseArgs } from '../../cli/archive';
 
-test.describe('archive-cli parseArgs', () => {
+test.describe('archive parseArgs', () => {
   test('parses --key=value form', () => {
     expect(parseArgs(['node', 'cli', '--decision=APPROVE'])).toEqual({ decision: 'APPROVE' });
   });

@@ -12,7 +12,7 @@
  *   npm run note:list                                     # latest run
  *   npm run note:list -- --run=run-20260905-165649-530    # archived run
  *
- * @module src/cli/notes-cli
+ * @module src/cli/notes
  */
 
 import { getLatestRunInfo } from '../agents/reporting/report-archive';

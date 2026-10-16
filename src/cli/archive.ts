@@ -12,7 +12,7 @@
  *   npm run archive:compare                             # Latest vs previous
  *   npm run archive:compare -- --baseline=<id> --current=<id>  # Explicit runs
  *
- * @module src/cli/archive-cli
+ * @module src/cli/archive
  */
 
 import * as path from 'node:path';
@@ -471,7 +471,7 @@ if (isMain) {
       break;
     default:
       console.log(`
-archive-cli — Save, view, compare, clean, and delete archived test runs
+archive — Save, view, compare, clean, and delete archived test runs
 
 Usage:
   npm run archive:save                                # Interactive save

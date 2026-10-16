@@ -358,7 +358,7 @@ for (const testDir of testDirs) {
   scanDir(testDir, ['.ts', '.tsx'], (file) => {
     checkFileForForbiddenImports(
       file,
-      /from\s+['"](?:\.\.\/)+src\/(agents|cli|executor|pipeline-telemetry|setup|shared\/internal|support\/internal|utils\/internal)/,
+      /from\s+['"](?:\.\.\/)+src\/(agents|cli|executor|setup|shared\/internal|support\/internal|utils\/internal)/,
       'ARCH-011: Test-to-Protected Import',
       'Tests must not import protected internal framework areas (PATH015)',
     );

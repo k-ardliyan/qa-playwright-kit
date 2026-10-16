@@ -14,7 +14,7 @@ import {
   stampSessionCompany,
 } from '@/support/auth-helpers';
 import { runAuthProbeCheck } from '@/support/session-guard';
-import { authProbeChecks } from '@/support/auth.probe';
+import { authProbeChecks } from '@/support/role-probe';
 import { sessionTenantVerdict } from '@/shared/mcp/auth-probe';
 
 /**

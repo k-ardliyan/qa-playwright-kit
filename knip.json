@@ -1,0 +1,38 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "playwright.config.ts",
+    "config/playwright/*.ts",
+    "config/dashboard-seed.ts",
+    "tools/mcp/src/index-mcp.ts",
+    "tools/mcp/src/index.ts",
+    "tools/scripts/**/*.ts",
+    "tools/validators/*.ts",
+    "src/setup/index.ts",
+    "src/cli/*.ts",
+    "src/support/auth.setup.ts",
+    "src/support/custom-reporter.ts",
+    "src/__tests__/**/*.test.ts",
+    "src/__tests__/**/*.property.ts",
+    "src/__tests__/dashboard-browser/*.spec.ts",
+    "src/**/__tests__/**/*.test.ts",
+    "tools/validators/__tests__/*.test.ts",
+    "tests/**/*.ts"
+  ],
+  "project": ["src/**/*.ts", "tools/**/*.ts", "config/**/*.ts"],
+  "ignore": [
+    "tools/mcp/**",
+    "examples/**",
+    "src/utils/app-env.ts",
+    "src/utils/env-loader.ts",
+    "src/utils/logger.ts"
+  ],
+  "ignoreIssues": {
+    "src/support/pw/index.ts": ["exports", "types"],
+    "src/public/**": ["exports", "types"],
+    "src/agents/reporting/index.ts": ["exports", "types"],
+    "src/contracts/semantic-catalog.ts": ["files"],
+    "src/shared/types/network-evidence.types.ts": ["exports", "types"],
+    "src/utils/dotenv-keys.ts": ["files"]
+  }
+}

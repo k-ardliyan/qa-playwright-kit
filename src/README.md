@@ -9,7 +9,6 @@ Folder ini berisi implementasi inti (core engine) dari **QA Playwright Kit**:
 - `cli/`: Dashboard server + runner utilities. `routes/` memisahkan handler HTTP: `http.ts` (request/response + security header), `pages.ts` (perakitan halaman), `studio.ts` / `archive.ts` / `notes.ts` (route per fitur).
 - `contracts/`: Typed schema & diagnostics layer (`qa.requirement/v1`, `qa.test-plan/v1`, `qa.traceability/v1`, …).
 - `fixtures/`: Internal Playwright fixture chain (`base.fixture.ts` — logger/sessionGuard/testTrace + the test-scoped `seeded` fixture backed by `support/pw/seed-graph.ts`).
-- `pipeline-telemetry/`: Pipeline run metrics (`metrics-collector.ts`) dan taksonomi error pipeline (`error-classifier.ts`). Keduanya dipakai test; bukan collector bukti browser — bukti ada di `shared/evidence/`.
 - `public/`: Stable public API surface untuk dikonsumsi oleh `tests/` workspace.
 - `setup/`: Setup wizard engine, prompt layer, dan task-tasks (`tasks/`).
 - `shared/`: Shared domain types, evidence models, workspace path resolver. `shared/mcp/` holds cores twin-synced to `tools/mcp`; `shared/utils/` holds the role-credential and env accessors.

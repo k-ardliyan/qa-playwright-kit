@@ -1,6 +1,6 @@
 /**
  * Standalone Node assert harness (not a Playwright test).
- * Run: npx tsx tools/scripts/__tests__/pipeline-checkpoint.test.ts
+ * Run: npx tsx tools/scripts/__tests__/pipeline-autocommit.test.ts
  *
  * Pins the pipeline checkpoint contract (opt-in auto-commit per stage):
  *   - opt-in decision helper (default OFF; flag wins; env wins)
@@ -20,7 +20,7 @@ import {
   PIPELINE_AUTO_COMMIT_ENV,
   commitPipelineCheckpoint,
   shouldAutoCommit,
-} from '../pipeline-checkpoint';
+} from '../pipeline-autocommit';
 
 let passed = 0;
 

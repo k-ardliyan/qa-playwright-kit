@@ -20,7 +20,7 @@
  *     files stay staged and the caller reports honestly — same contract as
  *     the upgrade engine's `--commit`.
  *
- * @module scripts/pipeline-checkpoint
+ * @module scripts/pipeline-autocommit
  */
 
 import * as fs from 'node:fs';

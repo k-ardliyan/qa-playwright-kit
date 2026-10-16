@@ -121,13 +121,13 @@ flowchart LR
 | Hasil sync tidak menggantung staged           | `--commit` otomatis saat bersih (konflik tidak pernah)       | harness                             |
 | Tidak ada commit liar di tengah upgrade       | Lock + pre-commit guard (fail-open bila guard error)         | harness                             |
 | Marker konflik tidak lolos ke commit          | `check-conflict-markers --staged` di pre-commit + CI         | `npm run validate:conflict-markers` |
-| Kerjaan QA per fase tidak menggantung staged  | Pipeline checkpoint opt-in (`QA_PIPELINE_AUTO_COMMIT=1`)     | harness `pipeline-checkpoint`       |
+| Kerjaan QA per fase tidak menggantung staged  | Pipeline checkpoint opt-in (`QA_PIPELINE_AUTO_COMMIT=1`)     | harness `pipeline-autocommit`       |
 | Perilaku beda OS terdeteksi (bukan lolos)     | Job `windows-lane` di Quality Gate (harness upgrade penuh)   | CI                                  |
 | Base akurat di setiap clone/laptop            | `.upgrade-base.json` committed (pola Copier/cruft)           | harness                             |
 | Marker `// CUSTOM_AUTH_FLOW` selalu dihormati | `shouldPreserveGeneratedFile` — line-anchored                | harness                             |
 
 Semua jaminan di atas dipin dua harness standalone (`npm run test:upgrade`,
-`test:pipeline-checkpoint` — bagian dari `quality:check-rules`) — perubahan masa
+`test:pipeline-autocommit` — bagian dari `quality:check-rules`) — perubahan masa
 depan yang merusaknya membuat gate merah dulu, bukan QA yang kena.
 
 ### Catatan migrasi & batasan yang disengaja

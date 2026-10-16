@@ -83,7 +83,8 @@ claude_desktop_config.json
 .kiro/
 .codex/
 
-# Generated capability manifest (generated at build/runtime)
+# Legacy runtime manifest dump (writer removed; entry kept so a stale local
+# copy from an older checkout cannot be committed)
 agent-manifest.json
 
 # OS & Editor files

@@ -36,7 +36,7 @@ import {
 import { loadState, type PipelineState } from '../../src/agents/pipeline/state';
 import { resolveAllowedPath } from '../mcp/src/utils/safety';
 import type { WorkflowStage } from '../../src/agents/pipeline/workflow-types';
-import { commitPipelineCheckpoint, shouldAutoCommit } from './pipeline-checkpoint';
+import { commitPipelineCheckpoint, shouldAutoCommit } from './pipeline-autocommit';
 
 /* eslint-disable @typescript-eslint/require-await */
 

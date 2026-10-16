@@ -19,7 +19,7 @@ import * as path from 'node:path';
 import { test, type Page } from '@playwright/test';
 import { authStateFileExpiryVerdict, readSessionCompany } from '../shared/mcp/auth-probe';
 import { roleCredentialKeys } from '../shared/utils/role-credentials';
-import { authProbeChecks, type AuthProbeCheck } from './auth.probe';
+import { authProbeChecks, type AuthProbeCheck } from './role-probe';
 
 const GUARD_NAV_TIMEOUT_MS = 10_000;
 const SETTLE_WAIT_MS = 3_000;
@@ -62,7 +62,7 @@ export function sessionTenantMismatchMessage(role: string, expected: string): st
  * 1. Redirect to the login path (classic server-side/session-cookie apps).
  * 2. Any 401/403 API response during the check window (SPA that stays on the
  *    same URL but gets rejected on data fetches).
- * 3. Custom per-role probe hook (`src/support/auth.probe.ts`) — real Playwright
+ * 3. Custom per-role probe hook (`src/support/role-probe.ts`) — real Playwright
  *    assertions written by the workspace (DOM / API / storage) for apps that
  *    give no automatic signal at all.
  */
@@ -120,7 +120,7 @@ class ProbeTimeoutError extends Error {
 }
 
 /**
- * Run the workspace-defined probe check for `role` (src/support/auth.probe.ts).
+ * Run the workspace-defined probe check for `role` (src/support/role-probe.ts).
  * Any error thrown by the check marks the session expired; a hung check is
  * treated as INCONCLUSIVE (timeout) to keep the framework's no-false-positive
  * guarantee. No check for the role → skipped.

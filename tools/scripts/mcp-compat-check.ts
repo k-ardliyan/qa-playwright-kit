@@ -1,4 +1,12 @@
 /// <reference types="node" />
+/**
+ * mcp-compat-check — verify the installed @playwright/mcp CLI against this
+ * repo's baseline contract: version matches PLAYWRIGHT_MCP_BASELINE_VERSION
+ * (src/shared/mcp/version.ts) and the tool surface still matches the 72-tool
+ * capability manifest (src/shared/mcp/capability-manifest.ts). Gate for
+ * `npm run mcp:check` inside quality:check-rules; re-probe after any
+ * @playwright/mcp version bump (see references/mcp-cli-contract.md).
+ */
 
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
